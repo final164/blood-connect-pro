@@ -20,8 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setLoading(false);
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) {
+        // Auto guest sign-in so everyone can use the app
+        const { data: anon } = await supabase.auth.signInAnonymously();
+        setSession(anon.session);
+      } else {
+        setSession(data.session);
+      }
       setLoading(false);
     });
     return () => sub.subscription.unsubscribe();
