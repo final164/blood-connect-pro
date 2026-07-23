@@ -1,5 +1,4 @@
-import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Home, HeartPulse, Map, MessageCircle, User } from "lucide-react";
