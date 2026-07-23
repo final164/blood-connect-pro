@@ -114,6 +114,34 @@ function AuthPage() {
                 {mode === "login" ? t("login") : t("createAccount")}
               </button>
             </form>
+
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {lang === "bn" ? "অথবা" : "or"}
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const { error } = await supabase.auth.signInAnonymously();
+                  if (error) throw error;
+                  navigate({ to: "/" });
+                } catch (err) {
+                  toast.error((err as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy}
+              className="mt-3 w-full rounded-xl border border-border bg-background py-3 text-sm font-semibold disabled:opacity-60"
+            >
+              {lang === "bn" ? "অতিথি হিসেবে প্রবেশ করুন" : "Continue as guest"}
+            </button>
           </div>
 
           <div className="mt-5 text-center">
