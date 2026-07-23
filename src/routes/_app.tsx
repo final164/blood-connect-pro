@@ -9,16 +9,11 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
-  const { session, loading } = useAuth();
-  const navigate = useNavigate();
+  const { loading } = useAuth();
   const location = useLocation();
   const { t } = useI18n();
 
-  useEffect(() => {
-    if (!loading && !session) navigate({ to: "/auth" });
-  }, [loading, session, navigate]);
-
-  if (loading || !session) {
+  if (loading) {
     return (
       <div className="min-h-dvh grid place-items-center">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
