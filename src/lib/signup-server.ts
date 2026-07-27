@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
+import { PUBLIC_SUPABASE_URL } from "@/integrations/supabase/public-env";
 
 type SignupInput = {
   email: string;
@@ -27,10 +28,12 @@ export const signupWithoutEmail = createServerFn({ method: "POST" })
     return { email, password, fullName: fullName || email.split("@")[0]! };
   })
   .handler(async ({ data }) => {
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || PUBLIC_SUPABASE_URL;
     const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !secret) {
-      throw new Error("Server auth is not configured (missing service role key)");
+    if (!secret) {
+      throw new Error(
+        "Server auth is not configured — set SUPABASE_SERVICE_ROLE_KEY in .env / Lovable secrets",
+      );
     }
 
     const admin = createClient(url, secret, {

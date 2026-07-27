@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.request_comment_likes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (comment_id, user_id)
 );
+
 GRANT SELECT, INSERT, DELETE ON public.request_comment_likes TO authenticated;
 GRANT ALL ON public.request_comment_likes TO service_role;
 ALTER TABLE public.request_comment_likes ENABLE ROW LEVEL SECURITY;
