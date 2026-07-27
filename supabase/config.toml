@@ -1,1 +1,6 @@
-project_id = "ombafbsegozqhakblfrc"
+project_id = "aunxredquwbokhpluzgj"
+
+[auth.email]
+# No confirmation / signup emails (avoids rate limit during testing & signup)
+enable_confirmations = false
+enable_signup = true

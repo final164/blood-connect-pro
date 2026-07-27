@@ -1,27 +1,29 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fetchCmsStrings } from "@/lib/api";
 
 export type Lang = "bn" | "en";
 
-const dict = {
+/** Fallback only — live copy comes from cms_strings (Admin → CMS) */
+const fallback: Record<string, { bn: string; en: string }> = {
   appName: { bn: "BloodLink", en: "BloodLink" },
   tagline: { bn: "রক্তদানে জীবন বাঁচান", en: "Save lives by donating blood" },
-  // Auth
   login: { bn: "লগইন", en: "Log in" },
   signup: { bn: "সাইনআপ", en: "Sign up" },
   email: { bn: "ইমেইল", en: "Email" },
   password: { bn: "পাসওয়ার্ড", en: "Password" },
   fullName: { bn: "পুরো নাম", en: "Full name" },
-  havingAccount: { bn: "অ্যাকাউন্ট আছে?", en: "Have an account?" },
-  noAccount: { bn: "নতুন?", en: "New here?" },
   createAccount: { bn: "অ্যাকাউন্ট তৈরি", en: "Create account" },
-  // Nav
   feed: { bn: "ফিড", en: "Feed" },
   requests: { bn: "রিকোয়েস্ট", en: "Requests" },
-  map: { bn: "ম্যাপ", en: "Map" },
+  community: { bn: "কমিউনিটি", en: "Community" },
   chat: { bn: "চ্যাট", en: "Chat" },
   profile: { bn: "প্রোফাইল", en: "Profile" },
   settings: { bn: "সেটিংস", en: "Settings" },
-  // Actions
+  district: { bn: "জেলা", en: "District" },
+  searchDistrict: { bn: "জেলা খুঁজুন…", en: "Search district…" },
+  confirmPassword: { bn: "পাসওয়ার্ড নিশ্চিত করুন", en: "Confirm password" },
+  adminLogin: { bn: "অ্যাডমিন লগইন", en: "Admin login" },
+  adminPanel: { bn: "অ্যাডমিন প্যানেল", en: "Admin panel" },
   post: { bn: "পোস্ট", en: "Post" },
   send: { bn: "পাঠান", en: "Send" },
   cancel: { bn: "বাতিল", en: "Cancel" },
@@ -29,13 +31,10 @@ const dict = {
   logout: { bn: "লগআউট", en: "Log out" },
   createRequest: { bn: "নতুন রিকোয়েস্ট", en: "New request" },
   respond: { bn: "সাড়া দিন", en: "Respond" },
-  // Fields
   patientName: { bn: "রোগীর নাম", en: "Patient name" },
   bloodGroup: { bn: "রক্তের গ্রুপ", en: "Blood group" },
   bagsNeeded: { bn: "ব্যাগ প্রয়োজন", en: "Bags needed" },
   hospital: { bn: "হাসপাতাল", en: "Hospital" },
-  city: { bn: "শহর", en: "City" },
-  area: { bn: "এলাকা", en: "Area" },
   contact: { bn: "যোগাযোগ", en: "Contact" },
   neededBy: { bn: "কতক্ষণে দরকার", en: "Needed by" },
   urgency: { bn: "জরুরিতা", en: "Urgency" },
@@ -45,77 +44,92 @@ const dict = {
   critical: { bn: "সংকটাপন্ন", en: "Critical" },
   bio: { bn: "সংক্ষেপ পরিচয়", en: "Bio" },
   phone: { bn: "ফোন", en: "Phone" },
-  isDonor: { bn: "আমি ডোনার", en: "I'm a donor" },
-  isRecipient: { bn: "আমি রক্ত গ্রহীতা", en: "I'm a recipient" },
   available: { bn: "উপলব্ধ", en: "Available" },
   lastDonation: { bn: "সর্বশেষ দান", en: "Last donation" },
   totalDonations: { bn: "মোট দান", en: "Donations" },
   livesSaved: { bn: "বাঁচানো জীবন", en: "Lives saved" },
-  // Settings
   language: { bn: "ভাষা", en: "Language" },
   theme: { bn: "থিম", en: "Theme" },
-  notifications: { bn: "বিজ্ঞপ্তি", en: "Notifications" },
-  privacy: { bn: "প্রাইভেসি ও নিরাপত্তা", en: "Privacy & Security" },
-  e2ee: { bn: "এন্ড-টু-এন্ড এনক্রিপশন", en: "End-to-end encryption" },
-  e2eeOn: { bn: "চ্যাট, লোকেশন ও মেডিকেল তথ্য এনক্রিপ্টেড", en: "Chat, location & medical info encrypted" },
-  googleMapsApi: { bn: "Google Maps API কী", en: "Google Maps API key" },
-  googleMapsHint: { bn: "এই কী দিয়ে ম্যাপ কাজ করবে (ডিভাইসে সংরক্ষিত)", en: "Enables the map (stored per user)" },
-  shareLocation: { bn: "লোকেশন শেয়ার", en: "Share location" },
-  radius: { bn: "সার্চ রেডিয়াস (কিমি)", en: "Search radius (km)" },
-  backend: { bn: "ব্যাকএন্ড", en: "Backend" },
-  backendConnected: { bn: "সংযুক্ত", en: "Connected" },
-  // Feed
-  writeSomething: { bn: "কিছু লিখুন…", en: "Write something…" },
-  like: { bn: "লাইক", en: "Like" },
-  comment: { bn: "কমেন্ট", en: "Comment" },
   share: { bn: "শেয়ার", en: "Share" },
-  // Empty
-  emptyFeed: { bn: "এখনো কোনো পোস্ট নেই", en: "No posts yet" },
+  notifications: { bn: "নোটিফ", en: "Alerts" },
+  markAllRead: { bn: "সব পড়া", en: "Mark all read" },
+  emptyNotifications: { bn: "কোনো নোটিফিকেশন নেই", en: "No notifications yet" },
   emptyRequests: { bn: "সক্রিয় রিকোয়েস্ট নেই", en: "No active requests" },
   emptyChat: { bn: "কোনো কনভারসেশন নেই", en: "No conversations" },
   typeMessage: { bn: "একটি বার্তা লিখুন…", en: "Type a message…" },
-  // Misc
   loading: { bn: "লোড হচ্ছে…", en: "Loading…" },
   saving: { bn: "সেভ হচ্ছে…", en: "Saving…" },
   saved: { bn: "সেভ হয়েছে", en: "Saved" },
-  error: { bn: "ত্রুটি", en: "Error" },
-  chatWith: { bn: "চ্যাট করুন", en: "Message" },
   encrypted: { bn: "এনক্রিপ্টেড", en: "Encrypted" },
   realtime: { bn: "রিয়েলটাইম", en: "Realtime" },
-  km: { bn: "কিমি", en: "km" },
-  now: { bn: "এখন", en: "now" },
   postedBy: { bn: "পোস্টকারী", en: "Posted by" },
-  needed: { bn: "প্রয়োজন", en: "Needed" },
-  addMapKeyPrompt: { bn: "Google Maps কী সেটিংসে যোগ করুন", en: "Add a Google Maps key in Settings" },
-  editProfile: { bn: "প্রোফাইল এডিট", en: "Edit profile" },
   darkMode: { bn: "ডার্ক মোড", en: "Dark mode" },
-} as const;
-
-type Key = keyof typeof dict;
+  offlineMode: { bn: "অফলাইন — ক্যাশড ডেটা", en: "Offline — cached data" },
+  liveRequests: { bn: "লাইভ রিকোয়েস্ট", en: "Live requests" },
+  postToFeed: { bn: "ফিডে পোস্ট করুন", en: "Post to feed" },
+  users: { bn: "ইউজার", en: "Users" },
+  overview: { bn: "ওভারভিউ", en: "Overview" },
+  cms: { bn: "টেক্সট / CMS", en: "Text / CMS" },
+  architecture: { bn: "আর্কিটেকচার প্ল্যান", en: "Architecture plan" },
+  manageRequests: { bn: "রিকোয়েস্ট ম্যানেজ", en: "Manage requests" },
+  openApp: { bn: "অ্যাপে যান", en: "Open app" },
+  searchHospital: { bn: "হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক খুঁজুন…", en: "Search hospital / clinic / diagnostic…" },
+  hospital: { bn: "হাসপাতাল", en: "Hospital" },
+  hospitals: { bn: "হাসপাতালসমূহ", en: "Hospitals" },
+  government: { bn: "সরকারি", en: "Government" },
+  private: { bn: "বেসরকারি", en: "Private" },
+  clinic: { bn: "ক্লিনিক", en: "Clinic" },
+  diagnostic: { bn: "ডায়াগনস্টিক", en: "Diagnostic" },
+};
 
 type Ctx = {
   lang: Lang;
   setLang: (l: Lang) => void;
-  t: (k: Key) => string;
+  t: (k: string) => string;
+  reloadCms: () => Promise<void>;
 };
 
 const LangContext = createContext<Ctx | null>(null);
 
 export function LangProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("bn");
+  const [cms, setCms] = useState<Record<string, { bn: string; en: string }>>({});
+
+  const reloadCms = async () => {
+    try {
+      const map = await fetchCmsStrings();
+      setCms(map);
+    } catch {
+      /* keep fallback */
+    }
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("lang") as Lang | null;
     if (stored === "bn" || stored === "en") setLangState(stored);
+    void reloadCms();
   }, []);
+
   const setLang = (l: Lang) => {
     setLangState(l);
     if (typeof window !== "undefined") window.localStorage.setItem("lang", l);
   };
+
   const value = useMemo<Ctx>(
-    () => ({ lang, setLang, t: (k) => dict[k][lang] ?? dict[k].en }),
-    [lang],
+    () => ({
+      lang,
+      setLang,
+      reloadCms,
+      t: (k) => {
+        const row = cms[k] ?? fallback[k];
+        if (!row) return k;
+        return row[lang] || row.en || k;
+      },
+    }),
+    [lang, cms],
   );
+
   return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
 }
 
@@ -123,4 +137,15 @@ export function useI18n() {
   const c = useContext(LangContext);
   if (!c) throw new Error("useI18n must be used inside LangProvider");
   return c;
+}
+
+/** Seed missing CMS keys from fallback (admin can edit after) */
+export async function ensureCmsSeed(upsert: (rows: { key: string; value_bn: string; value_en: string; category: string }[]) => Promise<void>) {
+  const rows = Object.entries(fallback).map(([key, v]) => ({
+    key,
+    value_bn: v.bn,
+    value_en: v.en,
+    category: "ui",
+  }));
+  await upsert(rows);
 }

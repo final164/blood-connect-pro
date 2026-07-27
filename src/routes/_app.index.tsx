@@ -3,21 +3,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { timeAgo } from "@/lib/format";
-import { Heart, MessageCircle, Send, Image as ImageIcon, ShieldCheck, Droplet } from "lucide-react";
+import { BLOOD_GROUPS } from "@/lib/format";
+import { getProfile, type District } from "@/lib/api";
+import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { RequestComposer } from "@/components/request/RequestComposer";
+import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
+import { cacheGet, cacheSet } from "@/lib/offline";
+import { Droplet, Plus, ShieldCheck, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-
-type Post = {
-  id: string;
-  author_id: string;
-  content: string;
-  image_url: string | null;
-  created_at: string;
-  author?: { full_name: string | null; avatar_url: string | null; blood_group: string | null };
-  like_count?: number;
-  liked?: boolean;
-  comment_count?: number;
-};
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "Feed — BloodLink" }] }),
@@ -27,171 +20,206 @@ export const Route = createFileRoute("/_app/")({
 function FeedPage() {
   const { t, lang } = useI18n();
   const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [draft, setDraft] = useState("");
-  const [posting, setPosting] = useState(false);
+  const [items, setItems] = useState<FeedRequest[]>([]);
+  const [district, setDistrict] = useState<District | null>(null);
+  const [filter, setFilter] = useState<string>("ALL");
+  const [showComposer, setShowComposer] = useState(false);
 
   async function load() {
-    const { data: p } = await supabase
-      .from("posts")
-      .select("id, author_id, content, image_url, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    const list = (p ?? []) as Post[];
-    if (list.length === 0) {
-      setPosts([]);
-      return;
+    try {
+      let q = supabase
+        .from("blood_requests")
+        .select("*, districts(name_bn,name_en)")
+        .eq("status", "open")
+        .order("urgency", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (filter !== "ALL") q = q.eq("blood_group", filter as (typeof BLOOD_GROUPS)[number]);
+      if (district?.id) q = q.eq("district_id", district.id);
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const list = (data ?? []).map((row: any) => ({
+        ...row,
+        district: row.districts,
+      })) as FeedRequest[];
+
+      const requesterIds = [...new Set(list.map((r) => r.requester_id))];
+      const requestIds = list.map((r) => r.id);
+
+      if (requesterIds.length) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url")
+          .in("id", requesterIds);
+        const map = new Map((profiles ?? []).map((p) => [p.id, p]));
+        for (const r of list) r.requester = map.get(r.requester_id) ?? null;
+      }
+
+      if (requestIds.length) {
+        const [{ data: likes, error: likesErr }, myLikesRes, { data: comments, error: cmtErr }] =
+          await Promise.all([
+            supabase.from("request_likes").select("request_id").in("request_id", requestIds),
+            user
+              ? supabase
+                  .from("request_likes")
+                  .select("request_id")
+                  .eq("user_id", user.id)
+                  .in("request_id", requestIds)
+              : Promise.resolve({ data: [] as { request_id: string }[], error: null }),
+            supabase.from("request_comments").select("request_id").in("request_id", requestIds),
+          ]);
+        if (!likesErr && !cmtErr) {
+          const likeMap = new Map<string, number>();
+          (likes ?? []).forEach((l: { request_id: string }) =>
+            likeMap.set(l.request_id, (likeMap.get(l.request_id) ?? 0) + 1),
+          );
+          const cMap = new Map<string, number>();
+          (comments ?? []).forEach((c: { request_id: string }) =>
+            cMap.set(c.request_id, (cMap.get(c.request_id) ?? 0) + 1),
+          );
+          const mine = new Set(
+            (myLikesRes.data ?? []).map((l: { request_id: string }) => l.request_id),
+          );
+          for (const r of list) {
+            r.like_count = likeMap.get(r.id) ?? 0;
+            r.comment_count = cMap.get(r.id) ?? 0;
+            r.liked = mine.has(r.id);
+          }
+        }
+      }
+
+      setItems(list);
+      await cacheSet(`feed-req:${district?.id ?? "all"}:${filter}`, list);
+    } catch (e) {
+      const cached = await cacheGet<FeedRequest[]>(`feed-req:${district?.id ?? "all"}:${filter}`);
+      if (cached) setItems(cached);
+      else toast.error((e as Error).message);
     }
-    const authorIds = [...new Set(list.map((x) => x.author_id))];
-    const { data: authors } = await supabase
-      .from("profiles")
-      .select("id, full_name, avatar_url, blood_group")
-      .in("id", authorIds);
-    const postIds = list.map((x) => x.id);
-    const [{ data: likes }, { data: myLikes }] = await Promise.all([
-      supabase.from("post_likes").select("post_id").in("post_id", postIds),
-      user
-        ? supabase.from("post_likes").select("post_id").eq("user_id", user.id).in("post_id", postIds)
-        : Promise.resolve({ data: [] as { post_id: string }[] }),
-    ]);
-    const likeMap = new Map<string, number>();
-    (likes ?? []).forEach((l: { post_id: string }) => likeMap.set(l.post_id, (likeMap.get(l.post_id) ?? 0) + 1));
-    const mineSet = new Set((myLikes ?? []).map((l: { post_id: string }) => l.post_id));
-    const aMap = new Map((authors ?? []).map((a) => [a.id, a] as const));
-    setPosts(
-      list.map((x) => ({
-        ...x,
-        author: aMap.get(x.author_id) as Post["author"],
-        like_count: likeMap.get(x.id) ?? 0,
-        liked: mineSet.has(x.id),
-      })),
-    );
   }
+
+  useEffect(() => {
+    if (!user) return;
+    getProfile(user.id).then((p) => {
+      if (p?.district_id) {
+        supabase
+          .from("districts")
+          .select("id,name_bn,name_en,slug,is_active,sort_order")
+          .eq("id", p.district_id)
+          .maybeSingle()
+          .then(({ data }) => data && setDistrict(data as District));
+      }
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     load();
     const ch = supabase
-      .channel("feed-posts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "post_likes" }, () => load())
+      .channel("feed-requests")
+      .on("postgres_changes", { event: "*", schema: "public", table: "blood_requests" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "request_likes" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "request_comments" }, () => load())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  async function submit() {
-    if (!draft.trim() || !user) return;
-    setPosting(true);
-    const { error } = await supabase.from("posts").insert({ author_id: user.id, content: draft.trim() });
-    setPosting(false);
-    if (error) return toast.error(error.message);
-    setDraft("");
-  }
-
-  async function toggleLike(p: Post) {
-    if (!user) return;
-    if (p.liked) {
-      await supabase.from("post_likes").delete().eq("post_id", p.id).eq("user_id", user.id);
-    } else {
-      await supabase.from("post_likes").insert({ post_id: p.id, user_id: user.id });
-    }
-  }
+  }, [filter, district?.id]);
 
   return (
-    <div className="mx-auto max-w-md">
-      <header className="sticky top-0 z-30 glass border-b safe-top">
+    <div className="mx-auto max-w-lg">
+      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-primary text-primary-foreground grid place-items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
               <Droplet className="h-4 w-4" fill="currentColor" />
             </div>
             <div>
-              <h1 className="text-sm font-bold leading-tight">BloodLink</h1>
+              <h1 className="text-sm font-bold leading-tight tracking-tight">{t("appName")}</h1>
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
                 {t("realtime")} · <ShieldCheck className="h-2.5 w-2.5" /> {t("encrypted")}
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowComposer((v) => !v)}
+            className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-primary/25"
+          >
+            {showComposer ? <ChevronUp className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            {t("createRequest")}
+          </button>
+        </div>
+
+        <div className="px-4 pb-2">
+          <DistrictTypeahead
+            value={district}
+            onChange={setDistrict}
+            placeholder={lang === "bn" ? "জেলা ফিল্টার…" : "Filter by district…"}
+          />
+        </div>
+
+        <div className="px-3 pb-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
+          {["ALL", ...BLOOD_GROUPS].map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setFilter(g)}
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                filter === g
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              {g}
+            </button>
+          ))}
         </div>
       </header>
 
-      <div className="px-4 py-3 border-b">
-        <div className="rounded-2xl border bg-card p-3">
-          <textarea
-            className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            rows={2}
-            placeholder={t("writeSomething")}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+      {showComposer ? (
+        <div className="px-3 pt-3 pb-6">
+          <RequestComposer
+            defaultDistrict={district}
+            onCreated={() => {
+              setShowComposer(false);
+              load();
+            }}
+            onCancel={() => setShowComposer(false)}
           />
-          <div className="flex items-center justify-between pt-2">
-            <button className="text-muted-foreground p-1.5 rounded-lg hover:bg-muted">
-              <ImageIcon className="h-4 w-4" />
-            </button>
-            <button
-              onClick={submit}
-              disabled={posting || !draft.trim()}
-              className="rounded-full bg-primary text-primary-foreground text-xs font-semibold px-4 py-1.5 disabled:opacity-40 flex items-center gap-1"
-            >
-              <Send className="h-3 w-3" />
-              {t("post")}
-            </button>
-          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="px-3 pt-4 pb-2 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t("liveRequests")}
+            </h2>
+            <span className="text-[11px] text-muted-foreground">{items.length}</span>
+          </div>
 
-      <ul className="divide-y">
-        {posts.length === 0 && (
-          <li className="text-center text-sm text-muted-foreground py-16">{t("emptyFeed")}</li>
-        )}
-        {posts.map((p) => (
-          <li key={p.id} className="px-4 py-3">
-            <div className="flex items-start gap-2.5">
-              <Avatar name={p.author?.full_name} src={p.author?.avatar_url ?? undefined} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="font-semibold truncate">{p.author?.full_name ?? "User"}</span>
-                  {p.author?.blood_group && (
-                    <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                      {p.author.blood_group}
-                    </span>
-                  )}
-                  <span className="text-muted-foreground">· {timeAgo(p.created_at, lang)}</span>
-                </div>
-                <p className="mt-1 text-sm leading-snug whitespace-pre-wrap break-words">{p.content}</p>
-                <div className="mt-2 flex items-center gap-4 text-muted-foreground">
-                  <button
-                    onClick={() => toggleLike(p)}
-                    className={`flex items-center gap-1 text-xs ${p.liked ? "text-primary" : ""}`}
-                  >
-                    <Heart className="h-3.5 w-3.5" fill={p.liked ? "currentColor" : "none"} />
-                    {p.like_count ?? 0}
-                  </button>
-                  <button className="flex items-center gap-1 text-xs">
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    {p.comment_count ?? 0}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+          <ul className="px-3 pb-6 space-y-3">
+            {items.length === 0 && (
+              <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
+                <p className="text-sm text-muted-foreground">{t("emptyRequests")}</p>
+                <button
+                  type="button"
+                  onClick={() => setShowComposer(true)}
+                  className="mt-3 text-xs font-semibold text-primary"
+                >
+                  {lang === "bn" ? "প্রথম রিকোয়েস্ট পোস্ট করুন" : "Post the first request"}
+                </button>
+              </li>
+            )}
+            {items.map((r) => (
+              <li key={r.id}>
+                <RequestCard request={r} currentUserId={user?.id} onChanged={load} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
 
-export function Avatar({ name, src, size = 36 }: { name?: string | null; src?: string; size?: number }) {
-  const initial = (name ?? "?").trim().charAt(0).toUpperCase();
-  return (
-    <div
-      className="rounded-full bg-primary/10 text-primary grid place-items-center font-semibold shrink-0 overflow-hidden"
-      style={{ height: size, width: size, fontSize: size * 0.4 }}
-    >
-      {src ? <img src={src} alt="" className="h-full w-full object-cover" /> : initial}
-    </div>
-  );
-}
+export { Avatar } from "@/components/Avatar";

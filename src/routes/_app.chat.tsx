@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
-import { Avatar } from "@/routes/_app.index";
+import { Avatar } from "@/components/Avatar";
 import { ShieldCheck } from "lucide-react";
 
 type Convo = {

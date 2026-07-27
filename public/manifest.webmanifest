@@ -1,0 +1,17 @@
+{
+  "name": "BloodLink",
+  "short_name": "BloodLink",
+  "description": "Realtime blood donation network",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff8f7",
+  "theme_color": "#C62828",
+  "lang": "bn",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

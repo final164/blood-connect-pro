@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { Avatar } from "@/routes/_app.index";
+import { Avatar } from "@/components/Avatar";
 import { BLOOD_GROUPS } from "@/lib/format";
-import { Droplet, Settings as SettingsIcon, HeartHandshake, Award } from "lucide-react";
+import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import type { District } from "@/lib/api";
+import { Settings as SettingsIcon, HeartHandshake, Award, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -14,14 +16,25 @@ export const Route = createFileRoute("/_app/profile")({
 });
 
 function ProfilePage() {
-  const { user } = useAuth();
-  const { t } = useI18n();
+  const { user, isAdmin } = useAuth();
+  const { t, lang } = useI18n();
   const [profile, setProfile] = useState<any>(null);
+  const [district, setDistrict] = useState<District | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => setProfile(data ?? {}));
+    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(async ({ data }) => {
+      setProfile(data ?? {});
+      if (data?.district_id) {
+        const { data: d } = await supabase
+          .from("districts")
+          .select("id,name_bn,name_en,slug,is_active,sort_order")
+          .eq("id", data.district_id)
+          .maybeSingle();
+        if (d) setDistrict(d as District);
+      }
+    });
   }, [user]);
 
   async function save() {
@@ -33,11 +46,9 @@ function ProfilePage() {
         full_name: profile.full_name,
         bio: profile.bio,
         phone: profile.phone,
-        blood_group: profile.blood_group,
-        city: profile.city,
-        area: profile.area,
-        is_donor: !!profile.is_donor,
-        is_recipient: !!profile.is_recipient,
+        blood_group: profile.blood_group || null,
+        district_id: district?.id ?? null,
+        city: district ? (lang === "bn" ? district.name_bn : district.name_en) : profile.city,
         is_available: !!profile.is_available,
         last_donation_date: profile.last_donation_date || null,
       })
@@ -50,13 +61,20 @@ function ProfilePage() {
   if (!profile) return <div className="p-6 text-sm text-muted-foreground">{t("loading")}</div>;
 
   return (
-    <div className="mx-auto max-w-md">
-      <header className="sticky top-0 z-30 glass border-b safe-top">
+    <div className="mx-auto max-w-lg">
+      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between px-4 py-3">
           <h1 className="text-base font-bold">{t("profile")}</h1>
-          <Link to="/settings" className="p-1.5 rounded-lg hover:bg-muted">
-            <SettingsIcon className="h-4 w-4" />
-          </Link>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Link to="/admin" className="p-1.5 rounded-lg hover:bg-muted text-primary">
+                <Shield className="h-4 w-4" />
+              </Link>
+            )}
+            <Link to="/settings" className="p-1.5 rounded-lg hover:bg-muted">
+              <SettingsIcon className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -68,7 +86,7 @@ function ProfilePage() {
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
           {profile.blood_group && (
-            <div className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center font-bold text-lg">
+            <div className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center font-bold text-lg shadow-md shadow-primary/25">
               {profile.blood_group}
             </div>
           )}
@@ -108,28 +126,23 @@ function ProfilePage() {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label={t("city")}>
-              <input className={inp} value={profile.city ?? ""} onChange={(e) => setProfile({ ...profile, city: e.target.value })} />
-            </Field>
-            <Field label={t("area")}>
-              <input className={inp} value={profile.area ?? ""} onChange={(e) => setProfile({ ...profile, area: e.target.value })} />
-            </Field>
-          </div>
+          <Field label={lang === "bn" ? "জেলা" : "District"}>
+            <DistrictTypeahead value={district} onChange={setDistrict} />
+          </Field>
           <Field label={t("bio")}>
             <textarea className={inp} rows={2} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} />
           </Field>
 
-          <div className="space-y-1">
-            <Toggle label={t("isDonor")} checked={!!profile.is_donor} onChange={(v) => setProfile({ ...profile, is_donor: v })} />
-            <Toggle label={t("isRecipient")} checked={!!profile.is_recipient} onChange={(v) => setProfile({ ...profile, is_recipient: v })} />
-            <Toggle label={t("available")} checked={!!profile.is_available} onChange={(v) => setProfile({ ...profile, is_available: v })} />
-          </div>
+          <Toggle
+            label={lang === "bn" ? "দানের জন্য উপলব্ধ" : "Available to donate"}
+            checked={!!profile.is_available}
+            onChange={(v) => setProfile({ ...profile, is_available: v })}
+          />
 
           <button
             onClick={save}
             disabled={busy}
-            className="w-full mt-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            className="w-full mt-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 shadow-md shadow-primary/20"
           >
             {busy ? t("saving") : t("save")}
           </button>
@@ -150,33 +163,28 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number | string }) {
+function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <div className="rounded-2xl border bg-card p-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
-        {icon}
-        {label}
+    <div className="rounded-2xl border bg-card p-3 flex items-center gap-2.5">
+      <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center">{icon}</div>
+      <div>
+        <p className="text-lg font-bold leading-none">{value}</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
       </div>
-      <p className="text-lg font-bold mt-0.5">{value}</p>
     </div>
   );
 }
 
-export function Toggle({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }) {
+export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border bg-card"
+      className="w-full flex items-center justify-between rounded-xl border bg-card px-3 py-3"
     >
-      <div className="text-left">
-        <p className="text-sm font-medium">{label}</p>
-        {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-      </div>
-      <span className={`relative inline-block h-5 w-9 rounded-full transition ${checked ? "bg-primary" : "bg-muted"}`}>
-        <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${checked ? "left-4" : "left-0.5"}`}
-        />
+      <span className="text-sm">{label}</span>
+      <span className={`h-6 w-11 rounded-full p-0.5 transition ${checked ? "bg-primary" : "bg-muted"}`}>
+        <span className={`block h-5 w-5 rounded-full bg-white shadow transition ${checked ? "translate-x-5" : ""}`} />
       </span>
     </button>
   );

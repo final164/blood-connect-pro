@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { Avatar } from "@/routes/_app.index";
+import { Avatar } from "@/components/Avatar";
 import { conversationSecret, encryptMessage, decryptMessage } from "@/lib/e2ee";
 import { ArrowLeft, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ function Thread() {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     async function ensure() {
       const [a, b] = [user!.id, peerId].sort();
       const { data: existing } = await supabase
@@ -50,18 +51,40 @@ function Thread() {
         .eq("user_a", a)
         .eq("user_b", b)
         .maybeSingle();
-      let id = existing?.id;
-      if (!id) {
-        const { data, error } = await supabase.from("conversations").insert({ user_a: a, user_b: b }).select("id").single();
-        if (error) {
-          toast.error(error.message);
-          return;
-        }
-        id = data.id;
+      if (cancelled) return;
+      if (existing?.id) {
+        setConvId(existing.id);
+        return;
       }
-      setConvId(id);
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert({ user_a: a, user_b: b })
+        .select("id")
+        .single();
+      if (cancelled) return;
+      if (error) {
+        // Race / Strict Mode double-mount — pair already exists
+        if (error.code === "23505" || /duplicate key|unique constraint/i.test(error.message)) {
+          const { data: again } = await supabase
+            .from("conversations")
+            .select("id")
+            .eq("user_a", a)
+            .eq("user_b", b)
+            .maybeSingle();
+          if (again?.id) {
+            setConvId(again.id);
+            return;
+          }
+        }
+        toast.error(error.message);
+        return;
+      }
+      setConvId(data.id);
     }
     ensure();
+    return () => {
+      cancelled = true;
+    };
   }, [user, peerId]);
 
   useEffect(() => {

@@ -1,0 +1,282 @@
+/**
+ * Native-ready API layer — React Native / Flutter can mirror these calls
+ * against the same Supabase project. Keep UI-free business logic here.
+ */
+import { supabase } from "@/integrations/supabase/client";
+
+export type District = {
+  id: string;
+  name_bn: string;
+  name_en: string;
+  slug: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type Hospital = {
+  id: string;
+  name_bn: string;
+  name_en: string;
+  slug: string;
+  district_id: string | null;
+  district_slug?: string | null;
+  hospital_type: "government" | "private" | "ngo" | "clinic" | "diagnostic";
+  is_active: boolean;
+};
+
+export type CmsMap = Record<string, { bn: string; en: string }>;
+
+let hospitalsTableAvailable: boolean | null = null;
+
+async function hospitalsTableExists(): Promise<boolean> {
+  if (hospitalsTableAvailable != null) return hospitalsTableAvailable;
+  const { error } = await supabase.from("hospitals").select("id").limit(1);
+  hospitalsTableAvailable = !error;
+  return hospitalsTableAvailable;
+}
+
+export async function fetchHospitals(opts?: {
+  q?: string;
+  districtId?: string;
+  districtSlug?: string;
+  limit?: number;
+}): Promise<Hospital[]> {
+  const limit = opts?.limit ?? 40;
+  const q = opts?.q?.trim().toLowerCase() ?? "";
+
+  if (await hospitalsTableExists()) {
+    let query = supabase
+      .from("hospitals")
+      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,districts(slug)")
+      .eq("is_active", true)
+      .order("name_en", { ascending: true })
+      .limit(limit);
+    if (opts?.districtId) query = query.eq("district_id", opts.districtId);
+    if (q) {
+      // Escape %/_ for ilike; commas break PostgREST or()
+      const safe = q.replace(/[%_,]/g, " ").trim();
+      if (safe) query = query.or(`name_en.ilike.%${safe}%,name_bn.ilike.%${safe}%,slug.ilike.%${safe}%`);
+    }
+    const { data, error } = await query;
+    if (!error) {
+      const mapped = (data ?? []).map((row: any) => ({
+        id: row.id as string,
+        name_bn: row.name_bn as string,
+        name_en: row.name_en as string,
+        slug: row.slug as string,
+        district_id: row.district_id as string | null,
+        district_slug: (row.districts?.slug as string | undefined) ?? null,
+        hospital_type: row.hospital_type as Hospital["hospital_type"],
+        is_active: row.is_active as boolean,
+      }));
+      // Table exists but empty / no district rows → use bundled catalog
+      if (mapped.length > 0) return mapped;
+    } else {
+      hospitalsTableAvailable = false;
+    }
+  }
+
+  return searchBundledHospitals({ q, districtId: opts?.districtId, districtSlug: opts?.districtSlug, limit });
+}
+
+async function searchBundledHospitals(opts: {
+  q: string;
+  districtId?: string;
+  districtSlug?: string;
+  limit: number;
+}): Promise<Hospital[]> {
+  const { BANGLADESH_HOSPITALS } = await import("@/data/bangladesh-hospitals");
+  let list = BANGLADESH_HOSPITALS;
+  if (opts.districtSlug) {
+    const scoped = list.filter((h) => h.districtSlug === opts.districtSlug);
+    // If slug mismatch with seed data, still show national catalog matches
+    if (scoped.length > 0) list = scoped;
+  }
+  if (opts.q) {
+    const q = opts.q;
+    list = list.filter(
+      (h) =>
+        h.name_en.toLowerCase().includes(q) ||
+        h.name_bn.includes(q) ||
+        h.name_bn.toLowerCase().includes(q) ||
+        h.slug.includes(q),
+    );
+  }
+  return list.slice(0, opts.limit).map((h) => ({
+    id: `seed:${h.districtSlug}:${h.slug}`,
+    name_bn: h.name_bn,
+    name_en: h.name_en,
+    slug: h.slug,
+    district_id: opts.districtId ?? null,
+    district_slug: h.districtSlug,
+    hospital_type: h.type,
+    is_active: true,
+  }));
+}
+
+export async function fetchAllHospitalsAdmin(): Promise<Hospital[]> {
+  if (await hospitalsTableExists()) {
+    const { data, error } = await supabase
+      .from("hospitals")
+      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,districts(slug)")
+      .order("name_en", { ascending: true });
+    if (!error) {
+      return (data ?? []).map((row: any) => ({
+        id: row.id,
+        name_bn: row.name_bn,
+        name_en: row.name_en,
+        slug: row.slug,
+        district_id: row.district_id,
+        district_slug: row.districts?.slug ?? null,
+        hospital_type: row.hospital_type,
+        is_active: row.is_active,
+      }));
+    }
+  }
+  return fetchHospitals({ limit: 500 });
+}
+
+export async function fetchDistricts(q?: string): Promise<District[]> {
+  let query = supabase
+    .from("districts")
+    .select("id,name_bn,name_en,slug,is_active,sort_order")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (q?.trim()) {
+    const term = `%${q.trim()}%`;
+    query = query.or(`name_en.ilike.${term},name_bn.ilike.${term},slug.ilike.${term}`);
+  }
+  const { data, error } = await query.limit(20);
+  if (error) throw error;
+  return (data ?? []) as District[];
+}
+
+export async function fetchAllDistrictsAdmin(): Promise<District[]> {
+  const { data, error } = await supabase
+    .from("districts")
+    .select("id,name_bn,name_en,slug,is_active,sort_order")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as District[];
+}
+
+export async function fetchCmsStrings(): Promise<CmsMap> {
+  const { data, error } = await supabase.from("cms_strings").select("key,value_bn,value_en");
+  if (error) {
+    // Soft-fail before migration is applied
+    console.warn("[cms]", error.message);
+    return {};
+  }
+  const map: CmsMap = {};
+  for (const row of data ?? []) {
+    map[row.key] = { bn: row.value_bn, en: row.value_en };
+  }
+  return map;
+}
+
+export async function hasAdminRole(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !!data;
+}
+
+export async function getProfile(userId: string) {
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateProfileDistrict(userId: string, districtId: string | null) {
+  const { error } = await supabase.from("profiles").update({ district_id: districtId }).eq("id", userId);
+  if (error) throw error;
+}
+
+export async function fetchFeed(districtId?: string | null, limit = 50) {
+  let q = supabase
+    .from("posts")
+    .select("id, author_id, content, image_url, created_at, district_id")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (districtId) q = q.eq("district_id", districtId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchOpenRequests(opts: { districtId?: string | null; bloodGroup?: string | null }) {
+  let q = supabase
+    .from("blood_requests")
+    .select("*")
+    .eq("status", "open")
+    .order("urgency", { ascending: false })
+    .order("needed_by", { ascending: true });
+  if (opts.districtId) q = q.eq("district_id", prefsDistrict(opts.districtId));
+  if (opts.bloodGroup && opts.bloodGroup !== "ALL") q = q.eq("blood_group", opts.bloodGroup);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data ?? [];
+}
+
+function prefsDistrict(id: string) {
+  return id;
+}
+
+export async function createPost(input: {
+  author_id: string;
+  content: string;
+  district_id?: string | null;
+  image_url?: string | null;
+}) {
+  const { error } = await supabase.from("posts").insert(input);
+  if (error) throw error;
+}
+
+export async function toggleLike(postId: string, userId: string, liked: boolean) {
+  if (liked) {
+    const { error } = await supabase.from("post_likes").delete().eq("post_id", postId).eq("user_id", userId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("post_likes").insert({ post_id: postId, user_id: userId });
+    if (error) throw error;
+  }
+}
+
+export async function fetchComments(postId: string) {
+  const { data, error } = await supabase
+    .from("post_comments")
+    .select("id, post_id, user_id, content, created_at")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addComment(postId: string, userId: string, content: string) {
+  const { error } = await supabase.from("post_comments").insert({
+    post_id: postId,
+    user_id: userId,
+    content,
+  });
+  if (error) throw error;
+}
+
+export async function sharePost(postId: string, userId: string, channel = "app") {
+  const { error } = await supabase.from("post_shares").insert({ post_id: postId, user_id: userId, channel });
+  if (error) throw error;
+}
+
+export async function fetchCommunityOrgs(districtId?: string | null) {
+  let q = supabase
+    .from("community_orgs")
+    .select("*, districts(name_bn,name_en)")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (districtId) q = q.eq("district_id", districtId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data ?? [];
+}
