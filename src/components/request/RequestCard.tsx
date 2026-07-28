@@ -299,7 +299,7 @@ export function RequestCard({
               className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
               <MessageCircle className="h-4 w-4" />
-              {t("chat")}
+              <span className="hidden sm:inline">{t("chat")}</span>
             </Link>
           )}
           {!isOwner && phone && (
