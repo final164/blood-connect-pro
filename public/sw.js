@@ -1,6 +1,6 @@
 /* BloodLink offline shell + device notifications */
 const CACHE = "bloodlink-shell-v2";
-const ASSETS = ["/", "/manifest.webmanifest", "/favicon.ico"];
+const ASSETS = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -40,8 +40,8 @@ self.addEventListener("message", (event) => {
   event.waitUntil(
     self.registration.showNotification(title || "BloodLink", {
       body: body || "",
-      icon: "/favicon.ico",
-      badge: "/favicon.ico",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       tag: tag || "bloodlink",
       data: { url: url || "/" },
       renotify: true,
@@ -76,8 +76,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/favicon.ico",
-      badge: "/favicon.ico",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
       tag: payload.tag || "bloodlink",
       data: { url: payload.url || "/" },
       renotify: true,

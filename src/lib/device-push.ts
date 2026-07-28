@@ -103,7 +103,7 @@ export async function showDeviceNotification(payload: DeviceNotificationPayload)
 
   const n = new Notification(payload.title, {
     body: payload.body,
-    icon: "/favicon.ico",
+    icon: "/icon-192.png",
     tag: payload.tag,
     data: { url: payload.url },
   });
