@@ -302,6 +302,26 @@ export function RequestCard({
               {t("chat")}
             </Link>
           )}
+          {!isOwner && phone && (
+            <a
+              href={`tel:${phone.replace(/\s/g, "")}`}
+              title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
+              className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center hover:bg-primary/15 transition"
+            >
+              <Phone className="h-3.5 w-3.5" />
+            </a>
+          )}
+          {!isOwner && waLink && (
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noreferrer"
+              title="WhatsApp"
+              className="h-8 w-8 rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 grid place-items-center hover:bg-emerald-600/15 transition"
+            >
+              <WhatsAppIcon className="h-3.5 w-3.5" />
+            </a>
+          )}
           <button
             type="button"
             onClick={share}
@@ -311,31 +331,6 @@ export function RequestCard({
             {t("share")}
           </button>
         </div>
-
-        {!isOwner && (phone || waLink) && (
-          <div className="flex items-center justify-end gap-2 pt-0.5">
-            {phone && (
-              <a
-                href={`tel:${phone.replace(/\s/g, "")}`}
-                title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
-                className="h-11 w-11 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25 hover:opacity-90 transition"
-              >
-                <Phone className="h-5 w-5" />
-              </a>
-            )}
-            {waLink && (
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noreferrer"
-                title="WhatsApp"
-                className="h-11 w-11 rounded-2xl bg-emerald-600 text-white grid place-items-center shadow-md shadow-emerald-600/25 hover:opacity-90 transition"
-              >
-                <WhatsAppIcon className="h-5 w-5" />
-              </a>
-            )}
-          </div>
-        )}
 
         {showComments && (
           <CommentThread
