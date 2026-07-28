@@ -134,6 +134,145 @@
   .animate-blood-droplet {
     animation: blood-droplet-bounce 0.85s ease-in-out infinite;
   }
+
+  @keyframes ua-breathe {
+    0%, 100% {
+      opacity: var(--ua-opacity-min, 0.06);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-min, 0.85));
+    }
+    50% {
+      opacity: var(--ua-opacity-max, 0.2);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-max, 1.15));
+    }
+  }
+  @keyframes ua-heartbeat {
+    0%, 100% {
+      opacity: var(--ua-opacity-min, 0.06);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-min, 0.85));
+    }
+    14% {
+      opacity: var(--ua-opacity-max, 0.22);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-max, 1.2));
+    }
+    28% {
+      opacity: calc((var(--ua-opacity-min, 0.06) + var(--ua-opacity-max, 0.22)) * 0.5);
+      transform: translate3d(-50%, -50%, 0) scale(calc((var(--ua-scale-min, 0.85) + var(--ua-scale-max, 1.2)) * 0.5));
+    }
+    42% {
+      opacity: var(--ua-opacity-max, 0.22);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-max, 1.2));
+    }
+    70% {
+      opacity: var(--ua-opacity-min, 0.06);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-min, 0.85));
+    }
+  }
+  /* Glow via opacity+scale only — never filter:blur (causes scroll lag) */
+  @keyframes ua-pulse-glow {
+    0%, 100% {
+      opacity: var(--ua-opacity-min, 0.05);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-min, 0.9));
+    }
+    50% {
+      opacity: var(--ua-opacity-max, 0.18);
+      transform: translate3d(-50%, -50%, 0) scale(var(--ua-scale-max, 1.15));
+    }
+  }
+  @keyframes ua-bounce {
+    0%, 100% {
+      opacity: var(--ua-opacity-min, 0.06);
+      transform: translate3d(-50%, calc(-50% + 4px), 0) scale(var(--ua-scale-min, 0.88));
+    }
+    50% {
+      opacity: var(--ua-opacity-max, 0.18);
+      transform: translate3d(-50%, calc(-50% - 6px), 0) scale(var(--ua-scale-max, 1.12));
+    }
+  }
+
+  .ua-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout paint style;
+    content-visibility: auto;
+  }
+  .ua-layer.is-paused .ua-droplet,
+  .ua-anim-root.is-paused .ua-droplet,
+  .ua-anim-root.is-paused .ua-header-icon {
+    animation-play-state: paused !important;
+  }
+
+  .ua-droplet {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--ua-size, 70%);
+    max-width: 14rem;
+    height: auto;
+    color: var(--ua-color, #C62828);
+    pointer-events: none;
+    transform: translate3d(-50%, -50%, 0);
+    backface-visibility: hidden;
+    animation-duration: var(--ua-duration, 2.2s);
+    animation-timing-function: var(--ua-easing, ease-in-out);
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
+  }
+  .ua-droplet--breathe { animation-name: ua-breathe; }
+  .ua-droplet--heartbeat { animation-name: ua-heartbeat; }
+  .ua-droplet--pulse-glow { animation-name: ua-pulse-glow; }
+  .ua-droplet--bounce { animation-name: ua-bounce; }
+
+  /* Header icons: scale/opacity only (no -50% centering translate) */
+  @keyframes ua-hdr-breathe {
+    0%, 100% { opacity: var(--ua-opacity-min, 0.7); transform: scale(var(--ua-scale-min, 0.94)); }
+    50% { opacity: var(--ua-opacity-max, 1); transform: scale(var(--ua-scale-max, 1.1)); }
+  }
+  @keyframes ua-hdr-heartbeat {
+    0%, 100% { opacity: var(--ua-opacity-min, 0.7); transform: scale(var(--ua-scale-min, 0.94)); }
+    14% { opacity: var(--ua-opacity-max, 1); transform: scale(var(--ua-scale-max, 1.12)); }
+    28% { opacity: 0.85; transform: scale(1); }
+    42% { opacity: var(--ua-opacity-max, 1); transform: scale(var(--ua-scale-max, 1.12)); }
+    70% { opacity: var(--ua-opacity-min, 0.7); transform: scale(var(--ua-scale-min, 0.94)); }
+  }
+  @keyframes ua-hdr-bounce {
+    0%, 100% { opacity: var(--ua-opacity-min, 0.7); transform: translateY(1px) scale(var(--ua-scale-min, 0.94)); }
+    50% { opacity: var(--ua-opacity-max, 1); transform: translateY(-2px) scale(var(--ua-scale-max, 1.1)); }
+  }
+
+  .ua-header-icon {
+    display: inline-block;
+    color: var(--ua-color, currentColor);
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    transform-origin: center center;
+    animation: ua-hdr-breathe var(--ua-duration, 2.2s) var(--ua-easing, ease-in-out) infinite;
+  }
+  .ua-header-icon.ua-mode-heartbeat { animation-name: ua-hdr-heartbeat; }
+  .ua-header-icon.ua-mode-bounce { animation-name: ua-hdr-bounce; }
+  .ua-header-icon.ua-mode-pulse-glow { animation-name: ua-hdr-breathe; }
+
+  /* Mobile: never animate more than one backdrop droplet */
+  @media (max-width: 767px) {
+    .ua-droplet:nth-child(n + 2) {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ua-droplet,
+    .animate-blood-droplet {
+      animation: none !important;
+      opacity: var(--ua-opacity-max, 0.1) !important;
+      transform: translate3d(-50%, -50%, 0) scale(1) !important;
+    }
+    .ua-header-icon {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+  }
+
   .admin-table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;

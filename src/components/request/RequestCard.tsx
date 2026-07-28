@@ -6,6 +6,8 @@ import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { whatsappHref } from "@/lib/request-form-options";
 import { fetchNotificationSettings } from "@/lib/notification-settings";
+import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
+import { UrgencyDropletBackdrop, UrgencyHeaderIcon } from "@/components/request/UrgencyDropletBackdrop";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,12 +82,11 @@ export function RequestCard({
   const [managing, setManaging] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showManagedMenu, setShowManagedMenu] = useState(true);
-  const [criticalAnim, setCriticalAnim] = useState(true);
+  const urgencyAnim = useUrgencyAnimationSettings();
 
   useEffect(() => {
     fetchNotificationSettings().then((s) => {
       setShowManagedMenu(s.enable_managed_button);
-      setCriticalAnim(s.enable_critical_droplet_animation);
     });
   }, []);
 
@@ -100,7 +101,9 @@ export function RequestCard({
   const isOwner = !!currentUserId && r.requester_id === currentUserId;
   const phone = r.contact_phone?.trim() || null;
   const waLink = r.whatsapp_phone?.trim() ? whatsappHref(r.whatsapp_phone.trim()) : null;
-  const showCriticalDroplet = r.urgency === "critical" && criticalAnim;
+  const levelCfg =
+    r.urgency === "critical" ? urgencyAnim.critical : r.urgency === "urgent" ? urgencyAnim.urgent : null;
+  const showBackdrop = !!levelCfg?.enabled;
 
   async function toggleLike() {
     if (!user) return;
@@ -183,15 +186,15 @@ export function RequestCard({
 
   return (
     <article
-      className={`rounded-2xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow ${
+      className={`ua-anim-root relative rounded-2xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow ${
         highlighted ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse" : ""
       }`}
     >
-      <div className={`bg-gradient-to-r ${urgencyStyle} px-4 py-2.5 flex items-center justify-between gap-2`}>
+      {showBackdrop && levelCfg && <UrgencyDropletBackdrop config={levelCfg} className="z-0" />}
+
+      <div className={`relative z-[1] bg-gradient-to-r ${urgencyStyle} px-4 py-2.5 flex items-center justify-between gap-2`}>
         <div className="flex items-center gap-2 min-w-0">
-          {showCriticalDroplet && (
-            <Droplets className="h-5 w-5 shrink-0 animate-blood-droplet" fill="currentColor" aria-hidden />
-          )}
+          {levelCfg && <UrgencyHeaderIcon config={levelCfg} />}
           <span className="text-lg font-bold tracking-tight">{r.blood_group}</span>
           <span className="text-[10px] font-semibold uppercase tracking-wider opacity-90 px-2 py-0.5 rounded-md bg-black/15">
             {t(r.urgency)}
@@ -232,7 +235,7 @@ export function RequestCard({
         </div>
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="relative z-[1] p-4 space-y-3 bg-card/92">
         <div className="min-w-0">
           <h3 className="text-base font-semibold tracking-tight">{r.patient_name}</h3>
           <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1.5">
