@@ -20,15 +20,21 @@ type Msg = {
   plaintext?: string;
 };
 
+type ChatSearch = { fromRequestId?: string };
+
 const LONG_PRESS_MS = 480;
 
 export const Route = createFileRoute("/_app/chat/$peerId")({
   head: () => ({ meta: [{ title: "Conversation — BloodLink" }] }),
+  validateSearch: (search: Record<string, unknown>): ChatSearch => ({
+    fromRequestId: typeof search.fromRequestId === "string" ? search.fromRequestId : undefined,
+  }),
   component: Thread,
 });
 
 function Thread() {
   const { peerId } = Route.useParams();
+  const { fromRequestId } = Route.useSearch();
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const [peer, setPeer] = useState<any>(null);
@@ -269,9 +275,20 @@ function Thread() {
           </div>
         ) : (
           <div className="flex items-center gap-2 px-3 py-2.5">
-            <Link to="/chat" className="p-1.5 rounded-lg hover:bg-muted md:hidden">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
+            {fromRequestId ? (
+              <Link
+                to="/"
+                search={{ requestId: fromRequestId }}
+                className="p-1.5 rounded-lg hover:bg-muted"
+                aria-label={lang === "bn" ? "পোস্টে ফিরুন" : "Back to post"}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            ) : (
+              <Link to="/chat" className="p-1.5 rounded-lg hover:bg-muted md:hidden">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            )}
             <Avatar name={peer?.full_name} src={peer?.avatar_url ?? undefined} size={36} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate">{peer?.full_name ?? "User"}</p>

@@ -139,10 +139,20 @@ function FeedPage() {
   }, [filter, district?.id]);
 
   useEffect(() => {
-    if (!requestId) return;
-    setHighlightId(requestId);
+    let targetId = requestId;
+    if (!targetId) {
+      try {
+        targetId = sessionStorage.getItem("feedReturnRequestId") ?? undefined;
+        if (targetId) sessionStorage.removeItem("feedReturnRequestId");
+      } catch {
+        targetId = undefined;
+      }
+    }
+    if (!targetId) return;
+    setHighlightId(targetId);
+    const id = targetId;
     const scroll = () => {
-      const el = document.getElementById(`request-${requestId}`);
+      const el = document.getElementById(`request-${id}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }

@@ -288,6 +288,14 @@ export function RequestCard({
             <Link
               to="/chat/$peerId"
               params={{ peerId: r.requester_id }}
+              search={{ fromRequestId: r.id }}
+              onClick={() => {
+                try {
+                  sessionStorage.setItem("feedReturnRequestId", r.id);
+                } catch {
+                  /* ignore */
+                }
+              }}
               className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
               <MessageCircle className="h-4 w-4" />
@@ -483,6 +491,14 @@ function CommentThread({ requestId, onCount }: { requestId: string; onCount: (n:
   const roots = items.filter((c) => !c.parent_id);
   const repliesOf = (id: string) => items.filter((c) => c.parent_id === id);
 
+  function rememberFeedReturn() {
+    try {
+      sessionStorage.setItem("feedReturnRequestId", requestId);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function CommentRow({ c }: { c: Cmt }) {
     const replies = repliesOf(c.id);
     const open = !!expanded[c.id];
@@ -494,6 +510,8 @@ function CommentThread({ requestId, onCount }: { requestId: string; onCount: (n:
               <Link
                 to="/chat/$peerId"
                 params={{ peerId: c.user_id }}
+                search={{ fromRequestId: requestId }}
+                onClick={rememberFeedReturn}
                 className="font-semibold text-foreground hover:text-primary underline-offset-2 hover:underline"
               >
                 {c.name}
@@ -545,6 +563,8 @@ function CommentThread({ requestId, onCount }: { requestId: string; onCount: (n:
               <Link
                 to="/chat/$peerId"
                 params={{ peerId: c.user_id }}
+                search={{ fromRequestId: requestId }}
+                onClick={rememberFeedReturn}
                 className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
               >
                 <MessageCircle className="h-3 w-3" />
@@ -562,6 +582,8 @@ function CommentThread({ requestId, onCount }: { requestId: string; onCount: (n:
                     <Link
                       to="/chat/$peerId"
                       params={{ peerId: rep.user_id }}
+                      search={{ fromRequestId: requestId }}
+                      onClick={rememberFeedReturn}
                       className="font-semibold hover:text-primary underline-offset-2 hover:underline"
                     >
                       {rep.name}
