@@ -10,7 +10,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
-import { Droplet, Plus, ShieldCheck, ChevronUp } from "lucide-react";
+import { Droplet, Plus, ShieldCheck, ChevronUp, Search, X, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string };
@@ -24,15 +24,33 @@ export const Route = createFileRoute("/_app/")({
 });
 
 function FeedPage() {
-  const { t, lang } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const { user } = useAuth();
   const { requestId } = Route.useSearch();
   const [items, setItems] = useState<FeedRequest[]>([]);
   const [district, setDistrict] = useState<District | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
   const [showComposer, setShowComposer] = useState(false);
+  const [showDistrictSearch, setShowDistrictSearch] = useState(false);
+  const [dark, setDark] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const prefsLoaded = useRef(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  function toggleDark() {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    window.localStorage.setItem("theme", next ? "dark" : "light");
+  }
+
+  function toggleLang() {
+    setLang(lang === "bn" ? "en" : "bn");
+  }
 
   async function load() {
     try {
@@ -168,36 +186,121 @@ function FeedPage() {
   return (
     <div className="w-full">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
+        <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-9 w-9 shrink-0 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
               <Droplet className="h-4 w-4" fill="currentColor" />
             </div>
-            <div>
-              <h1 className="text-sm font-bold leading-tight tracking-tight">{t("appName")}</h1>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
-                {t("realtime")} · <ShieldCheck className="h-2.5 w-2.5" /> {t("encrypted")}
+            <div className="min-w-0">
+              <h1 className="text-sm font-bold leading-tight tracking-tight truncate">{t("appName")}</h1>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shrink-0" />
+                {t("realtime")} · <ShieldCheck className="h-2.5 w-2.5 shrink-0" /> {t("encrypted")}
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowComposer((v) => !v)}
-            className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-primary/25"
-          >
-            {showComposer ? <ChevronUp className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {t("createRequest")}
-          </button>
+
+          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowDistrictSearch((v) => !v)}
+              title={lang === "bn" ? "জেলা ফিল্টার" : "Filter by district"}
+              className={`relative h-8 w-8 rounded-xl grid place-items-center transition ${
+                showDistrictSearch || district
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <Search className="h-3.5 w-3.5" />
+              {district && (
+                <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={toggleLang}
+              title={lang === "bn" ? "English" : "বাংলা"}
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
+            >
+              <span className="text-[10px] font-bold leading-none tracking-tight">
+                {lang === "bn" ? "EN" : "বাং"}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleDark}
+              title={dark ? t("darkMode") : "Light"}
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
+            >
+              {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowComposer((v) => !v)}
+              className="ml-0.5 h-8 rounded-xl bg-primary text-primary-foreground px-2.5 text-xs font-semibold flex items-center gap-1 shadow-md shadow-primary/25"
+            >
+              {showComposer ? <ChevronUp className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{t("createRequest")}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="px-4 pb-2">
-          <DistrictTypeahead
-            value={district}
-            onChange={setDistrict}
-            placeholder={lang === "bn" ? "জেলা ফিল্টার…" : "Filter by district…"}
-          />
-        </div>
+        {showDistrictSearch && (
+          <div className="px-3 sm:px-4 pb-2.5 flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <DistrictTypeahead
+                value={district}
+                onChange={(d) => {
+                  setDistrict(d);
+                  if (d) setShowDistrictSearch(false);
+                }}
+                placeholder={lang === "bn" ? "জেলা ফিল্টার…" : "Filter by district…"}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDistrictSearch(false);
+              }}
+              className="h-10 w-10 shrink-0 rounded-xl border bg-card text-muted-foreground grid place-items-center hover:bg-muted"
+              title={t("cancel")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {district && !showDistrictSearch && (
+          <div className="px-3 sm:px-4 pb-2 flex">
+            <button
+              type="button"
+              onClick={() => setShowDistrictSearch(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border bg-primary/5 border-primary/20 text-primary px-2.5 py-1 text-[11px] font-medium"
+            >
+              <Search className="h-3 w-3" />
+              {lang === "bn" ? district.name_bn : district.name_en}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDistrict(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDistrict(null);
+                  }
+                }}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-primary/15"
+                aria-label={lang === "bn" ? "ফিল্টার সরান" : "Clear filter"}
+              >
+                <X className="h-3 w-3" />
+              </span>
+            </button>
+          </div>
+        )}
 
         <div className="px-3 pb-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
           {["ALL", ...BLOOD_GROUPS].map((g) => (
