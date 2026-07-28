@@ -29,6 +29,7 @@ import {
   MoreVertical,
   Trash2,
 } from "lucide-react";
+import { Avatar } from "@/components/Avatar";
 import { toast } from "sonner";
 
 export type FeedRequest = {
@@ -236,12 +237,28 @@ export function RequestCard({
       </div>
 
       <div className="relative z-[1] p-4 space-y-3 bg-card/92">
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold tracking-tight">{r.patient_name}</h3>
-          <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1.5">
-            <Droplets className="h-3.5 w-3.5 text-primary" />
-            {r.bags_needed} {lang === "bn" ? "ব্যাগ প্রয়োজন" : "bag(s) needed"}
-          </p>
+        <div className="flex items-start gap-3 min-w-0">
+          <Avatar
+            name={r.requester?.full_name}
+            src={r.requester?.avatar_url ?? undefined}
+            size={40}
+          />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base font-semibold tracking-tight truncate">
+              {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground truncate">
+              <span className="text-muted-foreground/80">
+                {lang === "bn" ? "রোগী" : "Patient"}
+              </span>
+              <span className="mx-1 text-muted-foreground/50">·</span>
+              <span className="font-medium text-foreground/85">{r.patient_name}</span>
+            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+              <Droplets className="h-3.5 w-3.5 text-primary shrink-0" />
+              {r.bags_needed} {lang === "bn" ? "ব্যাগ প্রয়োজন" : "bag(s) needed"}
+            </p>
+          </div>
         </div>
 
         <div className="space-y-1.5 text-xs text-muted-foreground">
@@ -260,12 +277,6 @@ export function RequestCard({
 
         {r.notes && (
           <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">{r.notes}</p>
-        )}
-
-        {r.requester?.full_name && (
-          <p className="text-[11px] text-muted-foreground">
-            {t("postedBy")} · <span className="font-medium text-foreground/80">{r.requester.full_name}</span>
-          </p>
         )}
 
         <div className="flex items-center gap-1 pt-1 border-t">
