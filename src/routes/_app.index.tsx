@@ -156,7 +156,7 @@ function FeedPage() {
   }, [requestId, items.length]);
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="w-full">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
@@ -227,7 +227,7 @@ function FeedPage() {
             <span className="text-[11px] text-muted-foreground">{items.length}</span>
           </div>
 
-          <ul className="px-3 pb-6 space-y-3">
+          <ul className="px-3 pb-6 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:gap-5">
             {items.length === 0 && (
               <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
                 <p className="text-sm text-muted-foreground">{t("emptyRequests")}</p>

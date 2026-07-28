@@ -61,7 +61,7 @@ function ProfilePage() {
   if (!profile) return <div className="p-6 text-sm text-muted-foreground">{t("loading")}</div>;
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="w-full">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between px-4 py-3">
           <h1 className="text-base font-bold">{t("profile")}</h1>
@@ -78,7 +78,7 @@ function ProfilePage() {
         </div>
       </header>
 
-      <div className="p-4">
+      <div className="p-4 md:p-6 md:max-w-3xl">
         <div className="flex items-center gap-3">
           <Avatar name={profile.full_name} src={profile.avatar_url ?? undefined} size={64} />
           <div className="flex-1 min-w-0">
@@ -92,19 +92,19 @@ function ProfilePage() {
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
           <Stat icon={<HeartHandshake className="h-4 w-4" />} label={t("totalDonations")} value={profile.total_donations ?? 0} />
           <Stat icon={<Award className="h-4 w-4" />} label={t("livesSaved")} value={profile.lives_saved ?? 0} />
         </div>
 
-        <div className="mt-5 space-y-2.5">
+        <div className="mt-5 space-y-2.5 md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-2.5 md:space-y-0">
           <Field label={t("fullName")}>
             <input className={inp} value={profile.full_name ?? ""} onChange={(e) => setProfile({ ...profile, full_name: e.target.value })} />
           </Field>
           <Field label={t("phone")}>
             <input className={inp} value={profile.phone ?? ""} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 md:col-span-2 md:grid-cols-2">
             <Field label={t("bloodGroup")}>
               <select
                 className={inp}
@@ -129,20 +129,23 @@ function ProfilePage() {
           <Field label={lang === "bn" ? "জেলা" : "District"}>
             <DistrictTypeahead value={district} onChange={setDistrict} />
           </Field>
-          <Field label={t("bio")}>
+          <Field label={t("bio")} className="md:col-span-2">
             <textarea className={inp} rows={2} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} />
           </Field>
 
+          <div className="md:col-span-2">
           <Toggle
             label={lang === "bn" ? "দানের জন্য উপলব্ধ" : "Available to donate"}
             checked={!!profile.is_available}
             onChange={(v) => setProfile({ ...profile, is_available: v })}
           />
 
+          </div>
+
           <button
             onClick={save}
             disabled={busy}
-            className="w-full mt-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 shadow-md shadow-primary/20"
+            className="w-full mt-2 md:col-span-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 shadow-md shadow-primary/20"
           >
             {busy ? t("saving") : t("save")}
           </button>
@@ -154,9 +157,9 @@ function ProfilePage() {
 
 const inp = "w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
       {children}
     </div>

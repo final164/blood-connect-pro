@@ -3,7 +3,16 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { signupWithoutEmail } from "@/lib/signup-server";
+import { ensureAdminAccount, signupWithPhone } from "@/lib/signup-server";
+import {
+  ADMIN_PHONE,
+  ADMIN_PIN,
+  isValidPhone,
+  isValidPin,
+  normalizePhone,
+  phoneToAuthEmail,
+  pinToPassword,
+} from "@/lib/phone-auth";
 import { toast } from "sonner";
 import { Droplet, Loader2, Shield } from "lucide-react";
 
@@ -19,9 +28,9 @@ function AuthPage() {
   const { session, loading, isAnonymous, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [phone, setPhone] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,49 +39,74 @@ function AuthPage() {
     navigate({ to: isAdmin || mode === "admin" ? "/admin" : "/" });
   }, [session, loading, isAnonymous, isAdmin, mode, navigate]);
 
+  async function signInWithPhonePin() {
+    const normalized = normalizePhone(phone);
+    if (!isValidPhone(normalized)) {
+      toast.error(
+        lang === "bn" ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)",
+      );
+      return false;
+    }
+    if (!isValidPin(pin)) {
+      toast.error(lang === "bn" ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
+      return false;
+    }
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: phoneToAuthEmail(normalized),
+      password: pinToPassword(pin),
+    });
+    if (error) {
+      toast.error(
+        lang === "bn"
+          ? "ফোন বা PIN ভুল — আবার চেষ্টা করুন"
+          : "Wrong phone or PIN — try again",
+      );
+      return false;
+    }
+    if (authData.user?.id) {
+      await supabase.from("profiles").update({ phone: normalized }).eq("id", authData.user.id);
+    }
+    return true;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       if (mode === "signup") {
-        const mail = email.trim().toLowerCase();
-        if (!mail.includes("@") || !mail.includes(".")) {
-          toast.error(lang === "bn" ? "সঠিক ইমেইল দিন" : "Enter a valid email");
-          return;
-        }
-        if (password !== confirm) {
-          toast.error(lang === "bn" ? "পাসওয়ার্ড মিলছে না" : "Passwords do not match");
-          return;
-        }
-        // Any letters/numbers/symbols — min 6 characters (Supabase default)
-        if (password.length < 6) {
+        if (!isValidPhone(normalizePhone(phone))) {
           toast.error(
-            lang === "bn"
-              ? "পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে (অক্ষর/সংখ্যা/সিম্বল)"
-              : "Password must be at least 6 characters (letters/numbers/symbols)",
+            lang === "bn" ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)",
           );
           return;
         }
-        // Admin createUser (email already confirmed) — no auth emails → no rate limit
-        const created = await signupWithoutEmail({
+        if (!isValidPin(pin)) {
+          toast.error(lang === "bn" ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
+          return;
+        }
+        if (pin !== confirmPin) {
+          toast.error(lang === "bn" ? "PIN মিলছে না" : "PINs do not match");
+          return;
+        }
+        const created = await signupWithPhone({
           data: {
-            email: mail,
-            password,
-            fullName: name.trim() || mail.split("@")[0]!,
+            phone: normalizePhone(phone),
+            pin,
+            confirmPin,
+            fullName: name.trim() || normalizePhone(phone),
           },
         });
-        const { error } = await supabase.auth.signInWithPassword({ email: mail, password });
-        if (error) {
+        const ok = await signInWithPhonePin();
+        if (!ok) {
           if (created.exists) {
             toast.error(
               lang === "bn"
-                ? "এই ইমেইলে অ্যাকাউন্ট আগেই আছে — পাসওয়ার্ড চেক করুন বা লগইন করুন"
-                : "Account already exists — check password or sign in",
+                ? "এই নম্বরে অ্যাকাউন্ট আছে — PIN চেক করুন বা লগইন করুন"
+                : "Account exists — check PIN or log in",
             );
             setMode("login");
-            return;
           }
-          throw error;
+          return;
         }
         toast.success(
           created.exists
@@ -85,27 +119,15 @@ function AuthPage() {
         );
         navigate({ to: "/" });
       } else {
-        const loginEmail = mode === "admin" ? "blood@gmail.com" : email.trim().toLowerCase();
-        const loginPass =
-          mode === "admin" && (password === "blood" || !password) ? "blood12" : password;
-        const { error } = await supabase.auth.signInWithPassword({
-          email: loginEmail,
-          password: loginPass,
-        });
-        if (error) throw error;
+        if (mode === "admin") {
+          await ensureAdminAccount();
+        }
+        const ok = await signInWithPhonePin();
+        if (!ok) return;
         navigate({ to: mode === "admin" ? "/admin" : "/" });
       }
     } catch (err) {
-      const msg = (err as Error).message || String(err);
-      if (/rate limit|email rate/i.test(msg)) {
-        toast.error(
-          lang === "bn"
-            ? "সাইনআপ ইমেইল বন্ধ আছে — একটু পর আবার চেষ্টা করুন"
-            : "Signup is busy — try again in a moment",
-        );
-      } else {
-        toast.error(msg);
-      }
+      toast.error((err as Error).message || String(err));
     } finally {
       setBusy(false);
     }
@@ -136,12 +158,14 @@ function AuthPage() {
                   onClick={() => {
                     setMode(m);
                     if (m === "admin") {
-                      setEmail("blood@gmail.com");
-                      setPassword("blood");
-                    } else if (email === "blood@gmail.com") {
-                      setEmail("");
-                      setPassword("");
-                      setConfirm("");
+                      setPhone(ADMIN_PHONE);
+                      setPin(ADMIN_PIN);
+                      setConfirmPin("");
+                      setName("");
+                    } else if (phone === ADMIN_PHONE) {
+                      setPhone("");
+                      setPin("");
+                      setConfirmPin("");
                     }
                   }}
                   className={`flex-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${
@@ -164,42 +188,42 @@ function AuthPage() {
               {mode === "signup" && (
                 <Field label={t("fullName")} value={name} onChange={setName} required />
               )}
-              {mode !== "admin" && (
-                <Field
-                  label={t("email")}
-                  type="email"
-                  value={email}
-                  onChange={setEmail}
-                  required
-                  placeholder="you@gmail.com"
-                  autoComplete="email"
+              <Field
+                label={t("phone")}
+                type="tel"
+                value={phone}
+                onChange={setPhone}
+                required
+                placeholder="01712345678"
+                autoComplete="tel"
+                inputMode="numeric"
+              />
+              <PinField
+                label={lang === "bn" ? "৪ সংখ্যার PIN" : "4-digit PIN"}
+                value={pin}
+                onChange={setPin}
+              />
+              {mode === "signup" && (
+                <PinField
+                  label={lang === "bn" ? "PIN নিশ্চিত করুন" : "Confirm PIN"}
+                  value={confirmPin}
+                  onChange={setConfirmPin}
                 />
               )}
               {mode === "admin" && (
-                <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 px-3 py-2">
-                  {lang === "bn" ? "অ্যাডমিন: blood@gmail.com" : "Admin: blood@gmail.com"}
+                <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 px-3 py-2 leading-relaxed">
+                  {lang === "bn" ? (
+                    <>
+                      অ্যাডমিন: <span className="font-mono text-foreground">{ADMIN_PHONE}</span>
+                      {" · "}PIN <span className="font-mono text-foreground">{ADMIN_PIN}</span>
+                    </>
+                  ) : (
+                    <>
+                      Admin: <span className="font-mono text-foreground">{ADMIN_PHONE}</span>
+                      {" · "}PIN <span className="font-mono text-foreground">{ADMIN_PIN}</span>
+                    </>
+                  )}
                 </p>
-              )}
-              <Field
-                label={t("password")}
-                type="password"
-                value={password}
-                onChange={setPassword}
-                required
-                minLength={mode === "admin" ? 4 : 6}
-                placeholder={mode === "signup" ? (lang === "bn" ? "কমপক্ষে ৬ অক্ষর" : "At least 6 characters") : undefined}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              />
-              {mode === "signup" && (
-                <Field
-                  label={t("confirmPassword")}
-                  type="password"
-                  value={confirm}
-                  onChange={setConfirm}
-                  required
-                  minLength={6}
-                  autoComplete="new-password"
-                />
               )}
               <button
                 type="submit"
@@ -240,8 +264,8 @@ function Field({
   type = "text",
   required,
   placeholder,
-  minLength,
   autoComplete,
+  inputMode,
 }: {
   label: string;
   value: string;
@@ -249,8 +273,8 @@ function Field({
   type?: string;
   required?: boolean;
   placeholder?: string;
-  minLength?: number;
   autoComplete?: string;
+  inputMode?: "numeric" | "tel" | "text";
 }) {
   return (
     <div>
@@ -262,8 +286,36 @@ function Field({
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        minLength={minLength}
         autoComplete={autoComplete}
+        inputMode={inputMode}
+      />
+    </div>
+  );
+}
+
+function PinField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">{label}</label>
+      <input
+        className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 tracking-[0.35em] font-mono text-center"
+        type="password"
+        inputMode="numeric"
+        pattern="\d{4}"
+        maxLength={4}
+        value={value}
+        placeholder="••••"
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+        required
+        autoComplete={label.includes("Confirm") ? "new-password" : "current-password"}
       />
     </div>
   );

@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
-import { ShieldCheck } from "lucide-react";
+import { MessageCircle, ShieldCheck } from "lucide-react";
 
 type Convo = {
   id: string;
@@ -22,13 +22,52 @@ export const Route = createFileRoute("/_app/chat")({
 
 function ChatLayout() {
   const location = useLocation();
-  // If nested route active (e.g. /chat/:peerId), show only the nested view
-  const isNested = /\/chat\/.+/.test(location.pathname);
-  if (isNested) return <Outlet />;
-  return <ChatList />;
+  const isThread = /\/chat\/[^/]+/.test(location.pathname);
+
+  return (
+    <div
+      className={`flex min-h-0 bg-background ${
+        isThread
+          ? "fixed inset-0 z-50 flex-col md:static md:z-auto md:flex md:flex-1 md:h-[calc(100dvh-2rem)]"
+          : "flex-1 flex-col md:flex md:h-[calc(100dvh-2rem)]"
+      }`}
+    >
+      <div className="flex flex-1 min-h-0 overflow-hidden md:rounded-2xl md:border md:shadow-sm">
+        <aside
+          className={`${
+            isThread ? "hidden md:flex md:flex-none" : "flex flex-1"
+          } w-full md:w-80 lg:w-96 shrink-0 flex-col border-r bg-card min-h-0`}
+        >
+          <ChatList activePeerId={isThread ? location.pathname.split("/").pop() : undefined} />
+        </aside>
+
+        <section
+          className={`${
+            isThread ? "flex flex-1 flex-col min-h-0 min-w-0" : "hidden md:flex md:flex-1 md:flex-col md:min-h-0 md:min-w-0"
+          } bg-background`}
+        >
+          {isThread ? (
+            <Outlet />
+          ) : (
+            <div className="flex-1 grid place-items-center p-8 text-center">
+              <div className="max-w-xs space-y-3">
+                <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 text-primary grid place-items-center">
+                  <MessageCircle className="h-7 w-7" />
+                </div>
+                <p className="text-sm font-medium">Select a conversation</p>
+                <p className="text-xs text-muted-foreground">
+                  Choose a chat from the list to start messaging. All messages are end-to-end encrypted.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }
 
-function ChatList() {
+function ChatList({ activePeerId }: { activePeerId?: string }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const [convos, setConvos] = useState<Convo[]>([]);
@@ -65,8 +104,8 @@ function ChatList() {
   }, [user]);
 
   return (
-    <div className="mx-auto max-w-md">
-      <header className="sticky top-0 z-30 glass border-b safe-top">
+    <>
+      <header className="shrink-0 glass border-b safe-top">
         <div className="px-4 py-3">
           <h1 className="text-base font-bold">{t("chat")}</h1>
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -74,36 +113,44 @@ function ChatList() {
           </p>
         </div>
       </header>
-      <ul className="divide-y">
+      <ul className="flex-1 overflow-y-auto divide-y min-h-0">
         {convos.length === 0 && (
-          <li className="text-center text-sm text-muted-foreground py-16">{t("emptyChat")}</li>
+          <li className="text-center text-sm text-muted-foreground py-16 px-4">{t("emptyChat")}</li>
         )}
-        {convos.map((c) => (
-          <li key={c.id}>
-            <Link
-              to="/chat/$peerId"
-              params={{ peerId: c.peer?.id ?? "" }}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-muted"
-            >
-              <Avatar name={c.peer?.full_name} src={c.peer?.avatar_url ?? undefined} size={44} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="font-semibold text-sm truncate">{c.peer?.full_name ?? "User"}</p>
-                  {c.peer?.blood_group && (
-                    <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 rounded">
-                      {c.peer.blood_group}
-                    </span>
-                  )}
+        {convos.map((c) => {
+          const peerId = c.peer?.id ?? "";
+          const active = activePeerId === peerId;
+          return (
+            <li key={c.id}>
+              <Link
+                to="/chat/$peerId"
+                params={{ peerId }}
+                className={`flex items-center gap-3 px-4 py-3 transition ${
+                  active ? "bg-primary/8 border-l-2 border-l-primary" : "hover:bg-muted"
+                }`}
+              >
+                <Avatar name={c.peer?.full_name} src={c.peer?.avatar_url ?? undefined} size={44} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-sm truncate">{c.peer?.full_name ?? "User"}</p>
+                    {c.peer?.blood_group && (
+                      <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 rounded">
+                        {c.peer.blood_group}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" /> {t("encrypted")}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3" /> {t("encrypted")}
-                </p>
-              </div>
-              <span className="text-[10px] text-muted-foreground">{timeAgo(c.last_message_at, lang)}</span>
-            </Link>
-          </li>
-        ))}
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {timeAgo(c.last_message_at, lang)}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
-    </div>
+    </>
   );
 }

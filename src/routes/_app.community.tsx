@@ -52,7 +52,7 @@ function CommunityPage() {
   }, [bloodGroup, district?.id, upazila]);
 
   return (
-    <div className="mx-auto max-w-lg">
+    <div className="w-full">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
         <div className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center">
@@ -97,7 +97,7 @@ function CommunityPage() {
         <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
       </header>
 
-      <ul className="p-3 space-y-2 pb-8">
+      <ul className="p-3 space-y-2 pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
         {loading && (
           <li className="text-center text-sm text-muted-foreground py-12">{lang === "bn" ? "খুঁজছি…" : "Searching…"}</li>
         )}

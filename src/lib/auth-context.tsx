@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminRole } from "@/lib/api";
+import { isAdminIdentity } from "@/lib/phone-auth";
 
 type Ctx = {
   session: Session | null;
@@ -15,8 +16,6 @@ type Ctx = {
 
 const AuthContext = createContext<Ctx | null>(null);
 
-const ADMIN_EMAIL = "blood@gmail.com";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,9 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const roleAdmin = await hasAdminRole(uid);
-      setIsAdmin(roleAdmin || email === ADMIN_EMAIL);
+      setIsAdmin(roleAdmin || isAdminIdentity(email));
     } catch {
-      setIsAdmin(email === ADMIN_EMAIL);
+      setIsAdmin(isAdminIdentity(email));
     }
   }, []);
 

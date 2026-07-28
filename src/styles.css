@@ -111,6 +111,15 @@
 @layer utilities {
   .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
   .safe-top { padding-top: max(env(safe-area-inset-top), 0.5rem); }
+  .pb-bottom-nav { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
+  .h-app { height: 100dvh; }
+  .min-h-app { min-height: 100dvh; }
+  .h-app-main {
+    height: calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 768px) {
+    .h-app-main { height: auto; min-height: 0; }
+  }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
   .glass {
@@ -124,5 +133,17 @@
   }
   .animate-blood-droplet {
     animation: blood-droplet-bounce 0.85s ease-in-out infinite;
+  }
+  .admin-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .admin-table-scroll > table {
+    min-width: 36rem;
+  }
+  @media (min-width: 640px) {
+    .admin-table-scroll > table {
+      min-width: 0;
+    }
   }
 }

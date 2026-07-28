@@ -8,10 +8,16 @@ BloodLink is a realtime blood-donation network: district-scoped social feed, blo
 **Typeahead Autocomplete** for district input, combined with **District-scoped feed filtering** (administrative region filtering — not map/GPS geofencing).
 
 ## 3. Auth
-- Sign up: email (Gmail), password, confirm password
-- Sign in: email + password
-- Admin login: blood@gmail.com (role \`admin\` in \`user_roles\`)
+- Sign up / sign in: Bangladesh mobile number + 4-digit PIN
+- Admin login: phone \`01700000000\` · PIN \`1212\` (role \`admin\` in \`user_roles\` + Super Admin staff role)
 - Guest/anonymous auto-login removed; app requires authenticated session
+
+## 3b. Admin Access Control (Hybrid RBAC)
+- Permission keys: \`module.action\` (e.g. \`community.import\`, \`access.manage\`)
+- Tables: \`admin_permissions\`, \`admin_roles\`, \`admin_role_permissions\`, \`admin_user_roles\`, \`admin_user_permission_overrides\`
+- Effective perms via \`get_my_admin_permissions()\`; Super Admin / legacy \`admin\` → \`*\`
+- UI gates with \`can()\`; Access tab for roles matrix, assignments, grant/deny overrides
+- Interim RLS: mutating staff also get \`moderator\` app_role; Phase 2 will map fine-grained keys in Postgres
 
 ## 4. Modules
 1. **Feed** — posts, likes, comments, shares; realtime; filtered by selected district
@@ -23,7 +29,7 @@ BloodLink is a realtime blood-donation network: district-scoped social feed, blo
 
 ## 5. Data (Supabase)
 - Core: profiles, posts, post_likes, post_comments, post_shares, blood_requests, conversations, messages
-- CMS: districts, cms_strings, app_settings, community_orgs, user_roles
+- CMS: districts, cms_strings, app_settings, community_orgs, user_roles, admin_* ACL tables
 - Realtime publication on posts, likes, comments, shares, requests, messages, orgs
 
 ## 6. Offline / Online
@@ -37,7 +43,7 @@ Keep business logic in \`src/lib/api/*\` and \`src/lib/offline.ts\`. A React Nat
 ## 8. Security notes
 - Never ship service/secret keys to the browser
 - Rotate keys if they were pasted in chat
-- Admin writes gated by \`has_role(..., 'admin')\` RLS
+- Admin UI gated by Hybrid RBAC; DB writes still use \`has_role(admin|moderator)\` until RLS Phase 2
 - Chat payloads stored encrypted (E2EE layer in \`src/lib/e2ee.ts\`)
 
 ## 9. Migrations

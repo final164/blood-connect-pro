@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n, ensureCmsSeed } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,9 @@ import {
   type CommunityDonorRow,
   type DonorImportInput,
 } from "@/lib/community-donor-import";
-import { getUpazilasForDistrictSlug, upazilaDisplayName } from "@/data/bangladesh-clinics";
+import { upazilaDisplayName } from "@/data/bangladesh-clinics";
+import { seedUpazilasFromCatalog, fetchUpazilaOptions } from "@/lib/upazilas";
+import { DistrictUpazilaPanel } from "@/components/admin/DistrictUpazilaPanel";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { BANGLADESH_HOSPITALS } from "@/data/bangladesh-hospitals";
 import { ARCHITECTURE_MARKDOWN } from "@/lib/architecture-doc";
@@ -53,6 +55,10 @@ import {
   Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
+import { isAdminIdentity } from "@/lib/phone-auth";
+import { AdminAccessProvider, useAdminAccess } from "@/lib/admin-access-context";
+import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
+import type { AdminModule } from "@/lib/admin-permissions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — BloodLink" }] }),
@@ -69,10 +75,20 @@ type Tab =
   | "community"
   | "notifications"
   | "settings"
-  | "architecture";
+  | "architecture"
+  | "access";
 
 function AdminPage() {
+  return (
+    <AdminAccessProvider>
+      <AdminPageInner />
+    </AdminAccessProvider>
+  );
+}
+
+function AdminPageInner() {
   const { user, loading, isAdmin, signOut, refreshAdmin } = useAuth();
+  const { loading: aclLoading, isStaff, isSuper, can, canModule } = useAdminAccess();
   const navigate = useNavigate();
   const { t, lang, reloadCms } = useI18n();
   const [tab, setTab] = useState<Tab>("overview");
@@ -83,22 +99,44 @@ function AdminPage() {
   }, [refreshAdmin]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || aclLoading) return;
     if (!user) {
       navigate({ to: "/auth" });
       return;
     }
     const timer = setTimeout(() => {
-      if (!isAdmin && user.email !== "blood@gmail.com") {
+      if (!isStaff && !isAdmin && !isAdminIdentity(user.email)) {
         navigate({ to: "/" });
       } else {
         setReady(true);
       }
-    }, 600);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [loading, user, isAdmin, navigate]);
+  }, [loading, aclLoading, user, isStaff, isAdmin, navigate]);
 
-  if (loading || !user || !ready) {
+  useEffect(() => {
+    if (!ready) return;
+    if (!canModule(tab as AdminModule) && tab !== "overview") {
+      const first = (
+        [
+          "overview",
+          "users",
+          "requests",
+          "districts",
+          "hospitals",
+          "cms",
+          "community",
+          "notifications",
+          "settings",
+          "architecture",
+          "access",
+        ] as Tab[]
+      ).find((id) => canModule(id as AdminModule));
+      if (first) setTab(first);
+    }
+  }, [ready, tab, canModule]);
+
+  if (loading || aclLoading || !user || !ready) {
     return (
       <div className="min-h-dvh grid place-items-center bg-slate-950 text-slate-200">
         <div className="text-center space-y-3">
@@ -109,33 +147,53 @@ function AdminPage() {
     );
   }
 
-  const tabs: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
-    { id: "overview", label: t("overview"), icon: LayoutDashboard },
-    { id: "users", label: t("users"), icon: Users },
-    { id: "requests", label: t("manageRequests"), icon: HeartPulse },
-    { id: "districts", label: t("district"), icon: MapPinned },
-    { id: "hospitals", label: t("hospitals"), icon: HospitalIcon },
-    { id: "cms", label: t("cms"), icon: Type },
-    { id: "community", label: t("community"), icon: Building2 },
-    { id: "notifications", label: t("notifications"), icon: Bell },
-    { id: "settings", label: t("settings"), icon: Settings2 },
-    { id: "architecture", label: t("architecture"), icon: FileText },
+  const allTabs: { id: Tab; label: string; icon: typeof LayoutDashboard; module: AdminModule }[] = [
+    { id: "overview", label: t("overview"), icon: LayoutDashboard, module: "overview" },
+    { id: "users", label: t("users"), icon: Users, module: "users" },
+    { id: "requests", label: t("manageRequests"), icon: HeartPulse, module: "requests" },
+    { id: "districts", label: t("district"), icon: MapPinned, module: "districts" },
+    { id: "hospitals", label: t("hospitals"), icon: HospitalIcon, module: "hospitals" },
+    { id: "cms", label: t("cms"), icon: Type, module: "cms" },
+    { id: "community", label: t("community"), icon: Building2, module: "community" },
+    { id: "notifications", label: t("notifications"), icon: Bell, module: "notifications" },
+    { id: "settings", label: t("settings"), icon: Settings2, module: "settings" },
+    { id: "architecture", label: t("architecture"), icon: FileText, module: "architecture" },
+    {
+      id: "access",
+      label: lang === "bn" ? "অ্যাক্সেস" : "Access",
+      icon: Shield,
+      module: "access",
+    },
   ];
+  const tabs = allTabs.filter((item) => canModule(item.module) || (item.id === "access" && can("access.view")));
 
   return (
-    <div className="min-h-dvh flex bg-slate-950 text-slate-100">
-      {/* Admin sidebar — always desktop-style; stacks on small screens */}
-      <aside className="w-full sm:w-64 shrink-0 border-b sm:border-b-0 sm:border-r border-slate-800 bg-slate-900 flex sm:flex-col sm:h-dvh sm:sticky sm:top-0">
-        <div className="px-4 py-4 border-b border-slate-800 flex items-center gap-2.5 shrink-0">
-          <div className="h-9 w-9 rounded-lg bg-rose-600 grid place-items-center">
+    <div className="min-h-dvh flex flex-col sm:flex-row bg-slate-950 text-slate-100 overflow-x-hidden">
+      <aside className="shrink-0 w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-800 bg-slate-900 flex flex-col sm:sticky sm:top-0 sm:h-dvh z-30">
+        <div className="px-3 sm:px-4 py-3 border-b border-slate-800 flex items-center gap-2.5 shrink-0 safe-top">
+          <div className="h-9 w-9 rounded-lg bg-rose-600 grid place-items-center shrink-0">
             <Shield className="h-4 w-4 text-white" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-bold truncate">{t("adminPanel")}</p>
-            <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+            <p className="text-[10px] text-slate-400 truncate">
+              {isSuper ? "Super Admin" : user.email}
+            </p>
+          </div>
+          <div className="flex sm:hidden items-center gap-1 shrink-0">
+            <Link to="/" className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-slate-800">
+              {t("openApp")}
+            </Link>
+            <button
+              type="button"
+              onClick={() => signOut()}
+              className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-slate-800"
+            >
+              {t("logout")}
+            </button>
           </div>
         </div>
-        <nav className="flex-1 overflow-x-auto sm:overflow-y-auto p-2 flex sm:flex-col gap-1">
+        <nav className="flex sm:flex-col gap-1 p-2 overflow-x-auto no-scrollbar sm:overflow-y-auto sm:flex-1 shrink-0">
           {tabs.map((item) => {
             const Icon = item.icon;
             const active = tab === item.id;
@@ -144,7 +202,7 @@ function AdminPage() {
                 key={item.id}
                 type="button"
                 onClick={() => setTab(item.id)}
-                className={`shrink-0 sm:w-full flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-xs sm:text-sm font-medium transition ${
+                className={`shrink-0 sm:w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[11px] sm:text-sm font-medium transition ${
                   active ? "bg-rose-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
                 }`}
               >
@@ -154,7 +212,7 @@ function AdminPage() {
             );
           })}
         </nav>
-        <div className="hidden sm:block p-3 border-t border-slate-800 space-y-1">
+        <div className="hidden sm:block p-3 border-t border-slate-800 space-y-1 shrink-0">
           <Link
             to="/"
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800"
@@ -173,31 +231,31 @@ function AdminPage() {
         </div>
       </aside>
 
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <h1 className="text-sm sm:text-base font-semibold">{tabs.find((x) => x.id === tab)?.label}</h1>
-          <div className="flex items-center gap-2 sm:hidden">
-            <Link to="/" className="text-xs text-slate-400">{t("openApp")}</Link>
-          </div>
+      <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur px-3 sm:px-6 py-2.5 sm:py-3 shrink-0">
+          <h1 className="text-sm sm:text-base font-semibold truncate">
+            {tabs.find((x) => x.id === tab)?.label}
+          </h1>
         </header>
-        <main className="flex-1 p-4 sm:p-6 overflow-auto">
-          <div className="max-w-6xl mx-auto">
-            {!isAdmin && user.email === "blood@gmail.com" && (
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto overflow-x-hidden min-h-0 safe-bottom">
+          <div className="max-w-6xl mx-auto w-full min-w-0">
+            {!isAdmin && isAdminIdentity(user.email) && (
               <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                Admin email detected — granting role…
+                Admin account detected — granting role…
                 <GrantSelfAdmin onDone={refreshAdmin} />
               </div>
             )}
-            {tab === "overview" && <Overview />}
-            {tab === "users" && <UsersAdmin />}
-            {tab === "requests" && <RequestsAdmin />}
-            {tab === "districts" && <DistrictsAdmin />}
-            {tab === "hospitals" && <HospitalsAdmin />}
-            {tab === "cms" && <CmsAdmin onSaved={reloadCms} />}
-            {tab === "community" && <CommunityAdmin />}
-            {tab === "notifications" && <NotificationsAdmin />}
-            {tab === "settings" && <SettingsAdmin />}
-            {tab === "architecture" && <ArchitectureAdmin />}
+            {tab === "overview" && can("overview.view") && <Overview />}
+            {tab === "users" && can("users.view") && <UsersAdmin />}
+            {tab === "requests" && can("requests.view") && <RequestsAdmin />}
+            {tab === "districts" && can("districts.view") && <DistrictsAdmin />}
+            {tab === "hospitals" && can("hospitals.view") && <HospitalsAdmin />}
+            {tab === "cms" && can("cms.view") && <CmsAdmin onSaved={reloadCms} />}
+            {tab === "community" && can("community.view") && <CommunityAdmin />}
+            {tab === "notifications" && can("notifications.view") && <NotificationsAdmin />}
+            {tab === "settings" && can("settings.view") && <SettingsAdmin />}
+            {tab === "architecture" && can("architecture.view") && <ArchitectureAdmin />}
+            {tab === "access" && can("access.view") && <AccessControlAdmin />}
           </div>
         </main>
       </div>
@@ -209,10 +267,14 @@ function GrantSelfAdmin({ onDone }: { onDone: () => Promise<void> }) {
   const { user } = useAuth();
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("user_roles")
-      .upsert({ user_id: user.id, role: "admin" })
-      .then(() => onDone());
+    void (async () => {
+      await supabase.from("user_roles").upsert({ user_id: user.id, role: "admin" });
+      const { data: sa } = await supabase.from("admin_roles").select("id").eq("slug", "super-admin").maybeSingle();
+      if (sa?.id) {
+        await supabase.from("admin_user_roles").upsert({ user_id: user.id, role_id: sa.id });
+      }
+      await onDone();
+    })();
   }, [user, onDone]);
   return null;
 }
@@ -259,14 +321,19 @@ function Overview() {
 }
 
 function UsersAdmin() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { can, isSuper } = useAdminAccess();
   const [rows, setRows] = useState<any[]>([]);
   const [roles, setRoles] = useState<Record<string, string[]>>({});
+  const [staffRoles, setStaffRoles] = useState<{ id: string; name: string; name_bn: string | null }[]>([]);
+  const [userStaff, setUserStaff] = useState<{ user_id: string; role_id: string }[]>([]);
 
   async function load() {
-    const [{ data: profiles }, { data: roleRows }] = await Promise.all([
+    const [{ data: profiles }, { data: roleRows }, { data: ar }, { data: aur }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, phone, blood_group, city, is_available, created_at").order("created_at", { ascending: false }).limit(200),
       supabase.from("user_roles").select("user_id, role"),
+      supabase.from("admin_roles").select("id, name, name_bn").eq("is_active", true),
+      supabase.from("admin_user_roles").select("user_id, role_id"),
     ]);
     setRows(profiles ?? []);
     const map: Record<string, string[]> = {};
@@ -274,18 +341,33 @@ function UsersAdmin() {
       map[r.user_id] = [...(map[r.user_id] ?? []), r.role];
     }
     setRoles(map);
+    setStaffRoles(ar ?? []);
+    setUserStaff(aur ?? []);
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  async function setRole(userId: string, role: "admin" | "moderator" | "user") {
-    if (role === "user") {
-      await supabase.from("user_roles").delete().eq("user_id", userId).in("role", ["admin", "moderator"]);
-      await supabase.from("user_roles").upsert({ user_id: userId, role: "user" });
+  async function setLegacyAdmin(userId: string, makeAdmin: boolean) {
+    if (!isSuper) return toast.error("Super Admin only");
+    if (makeAdmin) {
+      const { error } = await supabase.from("user_roles").upsert({ user_id: userId, role: "admin" });
+      if (error) return toast.error(error.message);
     } else {
-      const { error } = await supabase.from("user_roles").upsert({ user_id: userId, role });
+      await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
+    }
+    toast.success(t("saved"));
+    load();
+  }
+
+  async function toggleStaffRole(userId: string, roleId: string, on: boolean) {
+    if (!can("users.set_role") && !can("access.manage")) return;
+    if (on) {
+      const { error } = await supabase.from("admin_user_roles").upsert({ user_id: userId, role_id: roleId });
+      if (error) return toast.error(error.message);
+    } else {
+      const { error } = await supabase.from("admin_user_roles").delete().eq("user_id", userId).eq("role_id", roleId);
       if (error) return toast.error(error.message);
     }
     toast.success(t("saved"));
@@ -293,18 +375,20 @@ function UsersAdmin() {
   }
 
   async function toggleAvailable(id: string, value: boolean) {
+    if (!can("users.toggle_available")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("profiles").update({ is_available: value }).eq("id", id);
     load();
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-x-auto">
+    <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll">
       <table className="w-full text-sm">
         <thead className="bg-slate-800/60 text-xs text-slate-400">
           <tr>
             <th className="text-left p-3">Name</th>
             <th className="text-left p-3">Blood</th>
-            <th className="text-left p-3">Role</th>
+            <th className="text-left p-3">App role</th>
+            <th className="text-left p-3">Staff roles</th>
             <th className="text-left p-3">Available</th>
             <th className="p-3" />
           </tr>
@@ -314,26 +398,57 @@ function UsersAdmin() {
             <tr key={u.id} className="border-t border-slate-800">
               <td className="p-3">
                 <p className="font-medium">{u.full_name ?? "—"}</p>
-                <p className="text-[10px] text-slate-500 font-mono">{u.id.slice(0, 8)}</p>
+                <p className="text-[10px] text-slate-500">{u.phone}</p>
               </td>
               <td className="p-3">{u.blood_group ?? "—"}</td>
               <td className="p-3 text-xs">{(roles[u.id] ?? ["user"]).join(", ")}</td>
               <td className="p-3">
+                {(can("users.set_role") || can("access.manage")) ? (
+                  <div className="flex flex-wrap gap-1 max-w-xs">
+                    {staffRoles.map((r) => {
+                      const on = userStaff.some((x) => x.user_id === u.id && x.role_id === r.id);
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => void toggleStaffRole(u.id, r.id, !on)}
+                          className={`text-[10px] px-1.5 py-0.5 rounded ${on ? "bg-rose-600/30 text-rose-200" : "bg-slate-800 text-slate-500"}`}
+                        >
+                          {lang === "bn" ? r.name_bn || r.name : r.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-slate-500">
+                    {staffRoles
+                      .filter((r) => userStaff.some((x) => x.user_id === u.id && x.role_id === r.id))
+                      .map((r) => (lang === "bn" ? r.name_bn || r.name : r.name))
+                      .join(", ") || "—"}
+                  </span>
+                )}
+              </td>
+              <td className="p-3">
                 <button
                   type="button"
+                  disabled={!can("users.toggle_available")}
                   onClick={() => toggleAvailable(u.id, !u.is_available)}
-                  className={`text-xs px-2 py-1 rounded-md ${u.is_available ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}
+                  className={`text-xs px-2 py-1 rounded-md disabled:opacity-40 ${u.is_available ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}
                 >
                   {u.is_available ? "ON" : "OFF"}
                 </button>
               </td>
               <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                <button type="button" onClick={() => setRole(u.id, "admin")} className="text-xs text-rose-400 hover:underline">
-                  Admin
-                </button>
-                <button type="button" onClick={() => setRole(u.id, "user")} className="text-xs text-slate-400 hover:underline">
-                  User
-                </button>
+                {isSuper && (
+                  <>
+                    <button type="button" onClick={() => setLegacyAdmin(u.id, true)} className="text-xs text-rose-400 hover:underline">
+                      Legacy admin
+                    </button>
+                    <button type="button" onClick={() => setLegacyAdmin(u.id, false)} className="text-xs text-slate-400 hover:underline">
+                      Revoke
+                    </button>
+                  </>
+                )}
               </td>
             </tr>
           ))}
@@ -345,6 +460,7 @@ function UsersAdmin() {
 
 function RequestsAdmin() {
   const { t, lang } = useI18n();
+  const { can } = useAdminAccess();
   const [rows, setRows] = useState<any[]>([]);
 
   async function load() {
@@ -368,12 +484,14 @@ function RequestsAdmin() {
   }, []);
 
   async function setStatus(id: string, status: string) {
+    if (!can("requests.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("blood_requests").update({ status }).eq("id", id);
     if (error) toast.error(error.message);
     else load();
   }
 
   async function remove(id: string) {
+    if (!can("requests.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm("Delete request?")) return;
     await supabase.from("blood_requests").delete().eq("id", id);
     load();
@@ -393,15 +511,21 @@ function RequestsAdmin() {
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => setStatus(r.id, "fulfilled")} className="p-2 rounded-lg bg-emerald-500/15 text-emerald-300" title="Fulfilled">
-              <CheckCircle2 className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => setStatus(r.id, "cancelled")} className="p-2 rounded-lg bg-amber-500/15 text-amber-300" title="Cancel">
-              <Ban className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => remove(r.id)} className="p-2 rounded-lg bg-rose-500/15 text-rose-300" title="Delete">
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {can("requests.edit") && (
+              <>
+                <button type="button" onClick={() => setStatus(r.id, "fulfilled")} className="p-2 rounded-lg bg-emerald-500/15 text-emerald-300" title="Fulfilled">
+                  <CheckCircle2 className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => setStatus(r.id, "cancelled")} className="p-2 rounded-lg bg-amber-500/15 text-amber-300" title="Cancel">
+                  <Ban className="h-4 w-4" />
+                </button>
+              </>
+            )}
+            {can("requests.delete") && (
+              <button type="button" onClick={() => remove(r.id)} className="p-2 rounded-lg bg-rose-500/15 text-rose-300" title="Delete">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       ))}
@@ -411,18 +535,38 @@ function RequestsAdmin() {
 }
 
 function DistrictsAdmin() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { can } = useAdminAccess();
   const [rows, setRows] = useState<District[]>([]);
   const [form, setForm] = useState({ name_bn: "", name_en: "", slug: "" });
+  const [expandedDistrictId, setExpandedDistrictId] = useState<string | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [upazilaSeedVersion, setUpazilaSeedVersion] = useState(0);
 
   async function load() {
-    setRows(await fetchAllDistrictsAdmin());
+    const list = await fetchAllDistrictsAdmin();
+    setRows(list);
+    return list;
   }
   useEffect(() => {
-    load().catch((e) => toast.error(e.message));
+    load()
+      .then(async (list) => {
+        if (!can("districts.add") || !list.length) return;
+        try {
+          const { count } = await supabase.from("upazilas").select("id", { count: "exact", head: true });
+          if ((count ?? 0) === 0) {
+            await seedUpazilasFromCatalog(list);
+            setUpazilaSeedVersion((v) => v + 1);
+          }
+        } catch {
+          /* table may not exist yet */
+        }
+      })
+      .catch((e) => toast.error(e.message));
   }, []);
 
   async function add() {
+    if (!can("districts.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const slug = form.slug || form.name_en.toLowerCase().replace(/\s+/g, "-");
     const { error } = await supabase.from("districts").insert({
       name_bn: form.name_bn,
@@ -436,30 +580,78 @@ function DistrictsAdmin() {
   }
 
   async function toggle(d: District) {
+    if (!can("districts.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("districts").update({ is_active: !d.is_active }).eq("id", d.id);
     load();
   }
 
   async function remove(id: string) {
+    if (!can("districts.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm("Delete?")) return;
     await supabase.from("districts").delete().eq("id", id);
+    if (expandedDistrictId === id) setExpandedDistrictId(null);
     load();
+  }
+
+  async function seedCatalog() {
+    if (!can("districts.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    setSeeding(true);
+    try {
+      const result = await seedUpazilasFromCatalog(rows);
+      toast.success(
+        lang === "bn"
+          ? `${result.total}টি উপজেলা — ${result.inserted}টি যোগ/আপডেট`
+          : `${result.total} catalog upazilas — ${result.inserted} synced`,
+      );
+      setUpazilaSeedVersion((v) => v + 1);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSeeding(false);
+    }
   }
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid md:grid-cols-4 gap-2">
-        <input className={ainp} placeholder="Name (BN)" value={form.name_bn} onChange={(e) => setForm({ ...form, name_bn: e.target.value })} />
-        <input className={ainp} placeholder="Name (EN)" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
-        <input className={ainp} placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-        <button type="button" onClick={add} className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1">
-          <Plus className="h-4 w-4" /> {t("save")}
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
+        {can("districts.add") && (
+          <button
+            type="button"
+            disabled={seeding || rows.length === 0}
+            onClick={seedCatalog}
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+          >
+            {seeding
+              ? lang === "bn"
+                ? "সিড হচ্ছে…"
+                : "Seeding…"
+              : lang === "bn"
+                ? "ক্যাটালগ থেকে উপজেলা সিড"
+                : "Seed upazilas from catalog"}
+          </button>
+        )}
+        <p className="text-[11px] text-slate-500">
+          {lang === "bn"
+            ? "জেলার ▼ ক্লিক করলে আগের ক্যাটালগ উপজেলা + নতুন যোগ করা উপজেলা দেখা যাবে"
+            : "Click ▼ on a district — bundled catalog upazilas plus any you add are all kept"}
+        </p>
       </div>
-      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+
+      {can("districts.add") && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+          <input className={ainp} placeholder="Name (BN)" value={form.name_bn} onChange={(e) => setForm({ ...form, name_bn: e.target.value })} />
+          <input className={ainp} placeholder="Name (EN)" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
+          <input className={ainp} placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+          <button type="button" onClick={add} className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1">
+            <Plus className="h-4 w-4" /> {t("save")}
+          </button>
+        </div>
+      )}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/60 text-xs text-slate-400">
             <tr>
+              <th className="text-left p-3 w-8" />
               <th className="text-left p-3">BN</th>
               <th className="text-left p-3">EN</th>
               <th className="text-left p-3">Active</th>
@@ -468,20 +660,47 @@ function DistrictsAdmin() {
           </thead>
           <tbody>
             {rows.map((d) => (
-              <tr key={d.id} className="border-t border-slate-800">
-                <td className="p-3">{d.name_bn}</td>
-                <td className="p-3">{d.name_en}</td>
-                <td className="p-3">
-                  <button type="button" onClick={() => toggle(d)} className={`text-xs font-semibold px-2 py-1 rounded-md ${d.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}>
-                    {d.is_active ? "ON" : "OFF"}
-                  </button>
-                </td>
-                <td className="p-3 text-right">
-                  <button type="button" onClick={() => remove(d.id)} className="text-rose-400 p-1">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+              <Fragment key={d.id}>
+                <tr className="border-t border-slate-800">
+                  <td className="p-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedDistrictId(expandedDistrictId === d.id ? null : d.id)}
+                      className="p-1 rounded-md hover:bg-slate-800 text-slate-400"
+                      title={lang === "bn" ? "উপজেলা দেখুন" : "Show upazilas"}
+                    >
+                      <ChevronDown
+                        className={`h-4 w-4 transition ${expandedDistrictId === d.id ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                  </td>
+                  <td className="p-3">{d.name_bn}</td>
+                  <td className="p-3">{d.name_en}</td>
+                  <td className="p-3">
+                    {can("districts.toggle") ? (
+                      <button type="button" onClick={() => toggle(d)} className={`text-xs font-semibold px-2 py-1 rounded-md ${d.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}>
+                        {d.is_active ? "ON" : "OFF"}
+                      </button>
+                    ) : (
+                      <span className="text-xs">{d.is_active ? "ON" : "OFF"}</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-right">
+                    {can("districts.delete") && (
+                      <button type="button" onClick={() => remove(d.id)} className="text-rose-400 p-1">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+                {expandedDistrictId === d.id && (
+                  <tr className="border-t border-slate-800">
+                    <td colSpan={5} className="p-0">
+                      <DistrictUpazilaPanel key={`${d.id}-${upazilaSeedVersion}`} district={d} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -492,6 +711,7 @@ function DistrictsAdmin() {
 
 function HospitalsAdmin() {
   const { t, lang } = useI18n();
+  const { can } = useAdminAccess();
   const [rows, setRows] = useState<Hospital[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [q, setQ] = useState("");
@@ -523,6 +743,7 @@ function HospitalsAdmin() {
   }, []);
 
   async function seedAll() {
+    if (!can("hospitals.seed")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     setSeeding(true);
     try {
       const { error: probe } = await supabase.from("hospitals").select("id").limit(1);
@@ -566,6 +787,7 @@ function HospitalsAdmin() {
   }
 
   async function add() {
+    if (!can("hospitals.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!form.district_id || !form.name_en) return toast.error("District + EN name required");
     const slug = form.slug || form.name_en.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const { error } = await supabase.from("hospitals").insert({
@@ -581,12 +803,14 @@ function HospitalsAdmin() {
   }
 
   async function toggle(h: Hospital) {
+    if (!can("hospitals.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (h.id.startsWith("seed:")) return;
     await supabase.from("hospitals").update({ is_active: !h.is_active }).eq("id", h.id);
     load();
   }
 
   async function remove(id: string) {
+    if (!can("hospitals.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (id.startsWith("seed:")) return;
     if (!confirm("Delete hospital?")) return;
     await supabase.from("hospitals").delete().eq("id", id);
@@ -615,8 +839,8 @@ function HospitalsAdmin() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 items-center justify-between">
-        <input className={`${ainp} max-w-xs`} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center sm:justify-between">
+        <input className={`${ainp} w-full sm:max-w-xs`} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button
           type="button"
           disabled={seeding}
@@ -627,7 +851,7 @@ function HospitalsAdmin() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid md:grid-cols-3 gap-2">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
         <select className={ainp} value={form.district_id} onChange={(e) => setForm({ ...form, district_id: e.target.value })}>
           <option value="">District…</option>
           {districts.map((d) => (
@@ -658,7 +882,7 @@ function HospitalsAdmin() {
         Showing {filtered.length} / {rows.length || BANGLADESH_HOSPITALS.length}
       </p>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-x-auto max-h-[60vh]">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll max-h-[60vh]">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/60 text-xs text-slate-400 sticky top-0">
             <tr>
@@ -704,7 +928,8 @@ function HospitalsAdmin() {
 }
 
 function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { can } = useAdminAccess();
   const [rows, setRows] = useState<{ key: string; value_bn: string; value_en: string; category: string }[]>([]);
   const [q, setQ] = useState("");
 
@@ -719,6 +944,7 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
   }, []);
 
   async function seed() {
+    if (!can("cms.seed")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await ensureCmsSeed(async (seedRows) => {
       const { error } = await supabase.from("cms_strings").upsert(seedRows);
       if (error) throw error;
@@ -729,6 +955,7 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
   }
 
   async function save(row: (typeof rows)[0]) {
+    if (!can("cms.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("cms_strings").upsert(row);
     if (error) toast.error(error.message);
     else {
@@ -743,9 +970,9 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2 items-center justify-between">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center sm:justify-between">
         <input
-          className={`${ainp} max-w-xs`}
+          className={`${ainp} w-full sm:max-w-xs`}
           placeholder="Search keys…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -758,7 +985,7 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
         App copy is loaded from this table. Edit BN/EN — no hardcoded product text in the UI.
       </p>
       {filtered.map((r, i) => (
-        <div key={r.key} className="rounded-xl border border-slate-800 bg-slate-900 p-3 grid lg:grid-cols-[180px_1fr_1fr_auto] gap-2 items-start">
+        <div key={r.key} className="rounded-xl border border-slate-800 bg-slate-900 p-3 grid grid-cols-1 lg:grid-cols-[180px_1fr_1fr_auto] gap-2 items-start">
           <code className="text-xs font-mono text-rose-300/90 pt-2 break-all">{r.key}</code>
           <textarea
             className={ainp}
@@ -886,6 +1113,7 @@ function OrgDonorsPanel({
   lang: "bn" | "en";
   refreshKey: number;
 }) {
+  const { can } = useAdminAccess();
   const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -931,6 +1159,7 @@ function OrgDonorsPanel({
   }
 
   async function saveEdit() {
+    if (!can("community.donors_edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!editingId || !editForm.full_name.trim() || !editForm.phone.trim()) {
       return toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone required");
     }
@@ -960,6 +1189,7 @@ function OrgDonorsPanel({
   }
 
   async function removeDonor(id: string) {
+    if (!can("community.donors_delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm(lang === "bn" ? "এই রক্তদাতা ডিলিট করবেন?" : "Delete this donor?")) return;
     const { error } = await supabase.from("community_donors").delete().eq("id", id);
     if (error) toast.error(error.message);
@@ -970,7 +1200,25 @@ function OrgDonorsPanel({
   }
 
   const editDistrict = districts.find((d) => d.id === editForm.district_id);
-  const upazilaOptions = editDistrict ? getUpazilasForDistrictSlug(editDistrict.slug) : [];
+  const [upazilaOptions, setUpazilaOptions] = useState<{ en: string; bn: string }[]>([]);
+
+  useEffect(() => {
+    if (!editDistrict) {
+      setUpazilaOptions([]);
+      return;
+    }
+    let cancelled = false;
+    fetchUpazilaOptions(editDistrict)
+      .then((list) => {
+        if (!cancelled) setUpazilaOptions(list);
+      })
+      .catch(() => {
+        if (!cancelled) setUpazilaOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editDistrict?.id, editDistrict?.slug]);
 
   return (
     <div className="border-t border-slate-800 mt-3 pt-3 space-y-2">
@@ -983,8 +1231,7 @@ function OrgDonorsPanel({
         <p className="text-xs text-slate-500 py-4 text-center">{lang === "bn" ? "কোনো রক্তদাতা নেই" : "No donors yet"}</p>
       )}
       {!loading && donors.length > 0 && (
-        <div className="rounded-lg border border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="rounded-lg border border-slate-800 admin-table-scroll">
             <table className="w-full text-[11px]">
               <thead className="bg-slate-950 text-slate-400">
                 <tr>
@@ -1064,12 +1311,16 @@ function OrgDonorsPanel({
                       <td className="px-2 py-1.5 max-w-[8rem] truncate" title={d.address ?? ""}>{d.address || "—"}</td>
                       <td className="px-2 py-1.5">
                         <div className="flex gap-1 justify-end">
-                          <button type="button" onClick={() => startEdit(d)} className="text-slate-400 hover:text-white p-1">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button type="button" onClick={() => void removeDonor(d.id)} className="text-rose-400 p-1">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          {can("community.donors_edit") && (
+                            <button type="button" onClick={() => startEdit(d)} className="text-slate-400 hover:text-white p-1">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {can("community.donors_delete") && (
+                            <button type="button" onClick={() => void removeDonor(d.id)} className="text-rose-400 p-1">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1077,7 +1328,6 @@ function OrgDonorsPanel({
                 )}
               </tbody>
             </table>
-          </div>
         </div>
       )}
     </div>
@@ -1086,6 +1336,7 @@ function OrgDonorsPanel({
 
 function CommunityAdmin() {
   const { t, lang } = useI18n();
+  const { can } = useAdminAccess();
   const [rows, setRows] = useState<any[]>([]);
   const [form, setForm] = useState({
     name: "",
@@ -1116,6 +1367,7 @@ function CommunityAdmin() {
   }, []);
 
   async function add() {
+    if (!can("community.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!form.name.trim() || !form.phone.trim()) {
       return toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone are required");
     }
@@ -1135,6 +1387,10 @@ function CommunityAdmin() {
   }
 
   async function saveOrg(orgId: string, draft: ReturnType<typeof emptyOrgForm>): Promise<void> {
+    if (!can("community.edit")) {
+      toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+      return;
+    }
     if (!draft.name.trim() || !draft.phone.trim()) {
       toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone are required");
       return;
@@ -1161,11 +1417,13 @@ function CommunityAdmin() {
   }
 
   async function toggle(id: string, is_active: boolean) {
+    if (!can("community.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("community_orgs").update({ is_active: !is_active }).eq("id", id);
     load();
   }
 
   async function remove(id: string) {
+    if (!can("community.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("community_orgs").delete().eq("id", id);
     if (error) toast.error(error.message);
     else {
@@ -1190,6 +1448,7 @@ function CommunityAdmin() {
   }
 
   async function runImport() {
+    if (!can("community.import")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!importOrgId) {
       return toast.error(lang === "bn" ? "সংস্থা সিলেক্ট করুন" : "Select an organization");
     }
@@ -1402,6 +1661,7 @@ function CommunityAdmin() {
 function NotificationsAdmin() {
   const { user } = useAuth();
   const { lang } = useI18n();
+  const { can } = useAdminAccess();
   const [rows, setRows] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -1432,6 +1692,7 @@ function NotificationsAdmin() {
   }, []);
 
   async function saveSettings() {
+    if (!can("notifications.settings")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     setNsBusy(true);
     const { error } = await supabase
       .from("app_settings")
@@ -1449,6 +1710,7 @@ function NotificationsAdmin() {
   }
 
   async function purgeNow() {
+    if (!can("notifications.purge")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.rpc("purge_expired_notifications");
     if (error) toast.error(error.message);
     else {
@@ -1458,6 +1720,7 @@ function NotificationsAdmin() {
   }
 
   async function broadcast() {
+    if (!can("notifications.broadcast")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!title.trim() || !user) return;
     setBusy(true);
     const { data: profiles, error: pErr } = await supabase.from("profiles").select("id");
@@ -1488,12 +1751,14 @@ function NotificationsAdmin() {
   }
 
   async function remove(id: string) {
+    if (!can("notifications.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("notifications").delete().eq("id", id);
     if (error) toast.error(error.message);
     else setRows((r) => r.filter((x) => x.id !== id));
   }
 
   async function clearAll() {
+    if (!can("notifications.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm(lang === "bn" ? "সব নোটিফিকেশন ডিলিট?" : "Delete all notifications?")) return;
     const { error } = await supabase.from("notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     if (error) toast.error(error.message);
@@ -1685,6 +1950,7 @@ function NotificationsAdmin() {
 
 function SettingsAdmin() {
   const { t, lang } = useI18n();
+  const { can } = useAdminAccess();
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
     emergency_hotline: "",
@@ -1714,6 +1980,7 @@ function SettingsAdmin() {
   }, []);
 
   async function save() {
+    if (!can("settings.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("app_settings").upsert({ ...s, id: 1 });
     if (error) toast.error(error.message);
     else toast.success(t("saved"));

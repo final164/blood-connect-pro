@@ -16,6 +16,11 @@ export function getUpazilasForDistrictSlug(slug: string): UpazilaOption[] {
   return D.find((d) => d.slug === slug)?.upazilas ?? [];
 }
 
+/** All bundled upazila seeds keyed by district slug (for DB seeding). */
+export function getAllDistrictUpazilaSeeds(): { districtSlug: string; upazilas: UpazilaOption[] }[] {
+  return D.map((d) => ({ districtSlug: d.slug, upazilas: d.upazilas }));
+}
+
 export function resolveUpazilaLabel(
   label: string | null | undefined,
   districtSlug: string | null | undefined,
