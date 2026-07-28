@@ -9,7 +9,43 @@ export type FacilitySeed = {
   districtSlug: string;
 };
 
-type Dist = { slug: string; en: string; bn: string; upazilas: { en: string; bn: string }[] };
+export type UpazilaOption = { en: string; bn: string };
+type Dist = { slug: string; en: string; bn: string; upazilas: UpazilaOption[] };
+
+export function getUpazilasForDistrictSlug(slug: string): UpazilaOption[] {
+  return D.find((d) => d.slug === slug)?.upazilas ?? [];
+}
+
+export function resolveUpazilaLabel(
+  label: string | null | undefined,
+  districtSlug: string | null | undefined,
+): string | null {
+  if (!label?.trim()) return null;
+  const trimmed = label.trim();
+  if (!districtSlug) return trimmed;
+  const q = trimmed.toLowerCase();
+  const hit = getUpazilasForDistrictSlug(districtSlug).find(
+    (u) =>
+      u.en.toLowerCase() === q ||
+      u.bn.toLowerCase() === q ||
+      u.en.toLowerCase().includes(q) ||
+      u.bn.includes(trimmed),
+  );
+  return hit?.en ?? trimmed;
+}
+
+export function upazilaDisplayName(
+  stored: string | null | undefined,
+  districtSlug: string | null | undefined,
+  lang: "bn" | "en",
+): string | null {
+  if (!stored) return null;
+  if (!districtSlug) return stored;
+  const hit = getUpazilasForDistrictSlug(districtSlug).find(
+    (u) => u.en.toLowerCase() === stored.toLowerCase(),
+  );
+  return hit ? (lang === "bn" ? hit.bn : hit.en) : stored;
+}
 
 const D: Dist[] = [
   { slug: "dhaka", en: "Dhaka", bn: "ঢাকা", upazilas: [

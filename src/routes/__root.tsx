@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { setupNotificationClickHandler } from "@/lib/device-push";
 import { LangProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "sonner";
@@ -105,6 +106,7 @@ function RootComponent() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     navigator.serviceWorker.register("/sw.js").catch(() => {});
+    setupNotificationClickHandler();
   }, []);
   return (
     <QueryClientProvider client={queryClient}>

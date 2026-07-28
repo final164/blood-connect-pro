@@ -4,8 +4,29 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n, ensureCmsSeed } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllDistrictsAdmin, fetchAllHospitalsAdmin, type District, type Hospital } from "@/lib/api";
+import {
+  bulkImportCommunityDonors,
+  fetchCommunityDonorsByOrg,
+  parseDonorImportFile,
+  updateCommunityDonor,
+  type CommunityDonorRow,
+  type DonorImportInput,
+} from "@/lib/community-donor-import";
+import { getUpazilasForDistrictSlug, upazilaDisplayName } from "@/data/bangladesh-clinics";
+import { BLOOD_GROUPS } from "@/lib/format";
 import { BANGLADESH_HOSPITALS } from "@/data/bangladesh-hospitals";
 import { ARCHITECTURE_MARKDOWN } from "@/lib/architecture-doc";
+import {
+  DEFAULT_REQUEST_FORM_OPTIONS,
+  REQUEST_FORM_OPTION_KEYS,
+  type RequestFormOptions,
+} from "@/lib/request-form-options";
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NOTIFICATION_SETTING_KEYS,
+  invalidateNotificationSettingsCache,
+  type NotificationSettings,
+} from "@/lib/notification-settings";
 import {
   LayoutDashboard,
   MapPinned,
@@ -26,6 +47,10 @@ import {
   CheckCircle2,
   Hospital as HospitalIcon,
   Bell,
+  Upload,
+  FileSpreadsheet,
+  ChevronDown,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -766,23 +791,372 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
   );
 }
 
+type CommunityOrg = {
+  id: string;
+  name: string;
+  name_bn: string | null;
+  phone: string;
+  email: string | null;
+  website: string | null;
+  description: string | null;
+  description_bn: string | null;
+  is_active: boolean;
+};
+
+const emptyOrgForm = () => ({
+  name: "",
+  name_bn: "",
+  phone: "",
+  email: "",
+  website: "",
+  description: "",
+  description_bn: "",
+});
+
+function OrgEditForm({
+  org,
+  lang,
+  t,
+  onSave,
+  onCancel,
+}: {
+  org: CommunityOrg;
+  lang: "bn" | "en";
+  t: (k: string) => string;
+  onSave: (patch: ReturnType<typeof emptyOrgForm>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState({
+    name: org.name,
+    name_bn: org.name_bn ?? "",
+    phone: org.phone,
+    email: org.email ?? "",
+    website: org.website ?? "",
+    description: org.description ?? "",
+    description_bn: org.description_bn ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  const optionalFields = [
+    { key: "name_bn" as const, label: lang === "bn" ? "নাম (বাংলা)" : "Name (BN)" },
+    { key: "email" as const, label: "Email" },
+    { key: "website" as const, label: "Website" },
+    { key: "description" as const, label: lang === "bn" ? "বিবরণ" : "Description" },
+    { key: "description_bn" as const, label: lang === "bn" ? "বিবরণ (বাংলা)" : "Description (BN)" },
+  ];
+
+  return (
+    <div className="space-y-2 border-t border-slate-800 pt-3 mt-1">
+      <p className="text-xs font-semibold text-rose-400">{lang === "bn" ? "সংস্থা সম্পাদনা" : "Edit organization"}</p>
+      <div className="grid md:grid-cols-2 gap-2">
+        <input className={ainp} placeholder={lang === "bn" ? "নাম *" : "Name *"} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+        <input className={ainp} placeholder={lang === "bn" ? "ফোন *" : "Phone *"} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+        {optionalFields.map((f) => (
+          <input key={f.key} className={ainp} placeholder={f.label} value={draft[f.key]} onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })} />
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            void onSave(draft).finally(() => setBusy(false));
+          }}
+          className="rounded-lg bg-rose-600 text-white text-xs font-semibold px-3 py-2 disabled:opacity-50"
+        >
+          {busy ? "…" : t("save")}
+        </button>
+        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-700 text-xs px-3 py-2 text-slate-400">
+          {lang === "bn" ? "বাতিল" : "Cancel"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OrgDonorsPanel({
+  orgId,
+  districts,
+  lang,
+  refreshKey,
+}: {
+  orgId: string;
+  districts: District[];
+  lang: "bn" | "en";
+  refreshKey: number;
+}) {
+  const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    phone: "",
+    blood_group: "",
+    district_id: "",
+    upazila: "",
+    address: "",
+    is_active: true,
+  });
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try {
+      setDonors(await fetchCommunityDonorsByOrg(orgId));
+    } catch (e) {
+      toast.error((e as Error).message);
+      setDonors([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, refreshKey]);
+
+  function startEdit(d: CommunityDonorRow) {
+    setEditingId(d.id);
+    setEditForm({
+      full_name: d.full_name,
+      phone: d.phone,
+      blood_group: d.blood_group ?? "",
+      district_id: d.district_id ?? "",
+      upazila: d.upazila ?? "",
+      address: d.address ?? "",
+      is_active: d.is_active,
+    });
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editForm.full_name.trim() || !editForm.phone.trim()) {
+      return toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone required");
+    }
+    setBusy(true);
+    try {
+      await updateCommunityDonor(
+        editingId,
+        {
+          full_name: editForm.full_name,
+          phone: editForm.phone,
+          blood_group: editForm.blood_group || null,
+          district_id: editForm.district_id || null,
+          upazila: editForm.upazila || null,
+          address: editForm.address || null,
+          is_active: editForm.is_active,
+        },
+        districts,
+      );
+      toast.success(lang === "bn" ? "সেভ হয়েছে" : "Saved");
+      setEditingId(null);
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeDonor(id: string) {
+    if (!confirm(lang === "bn" ? "এই রক্তদাতা ডিলিট করবেন?" : "Delete this donor?")) return;
+    const { error } = await supabase.from("community_donors").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(lang === "bn" ? "ডিলিট হয়েছে" : "Deleted");
+      await load();
+    }
+  }
+
+  const editDistrict = districts.find((d) => d.id === editForm.district_id);
+  const upazilaOptions = editDistrict ? getUpazilasForDistrictSlug(editDistrict.slug) : [];
+
+  return (
+    <div className="border-t border-slate-800 mt-3 pt-3 space-y-2">
+      <p className="text-xs font-semibold text-slate-400 flex items-center justify-between">
+        <span>{lang === "bn" ? "রক্তদাতা তালিকা" : "Blood donors"}</span>
+        <span className="text-[10px]">{donors.length}</span>
+      </p>
+      {loading && <p className="text-xs text-slate-500 py-4 text-center">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>}
+      {!loading && donors.length === 0 && (
+        <p className="text-xs text-slate-500 py-4 text-center">{lang === "bn" ? "কোনো রক্তদাতা নেই" : "No donors yet"}</p>
+      )}
+      {!loading && donors.length > 0 && (
+        <div className="rounded-lg border border-slate-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px]">
+              <thead className="bg-slate-950 text-slate-400">
+                <tr>
+                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "নাম" : "Name"}</th>
+                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ফোন" : "Phone"}</th>
+                  <th className="px-2 py-1.5">BG</th>
+                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "জেলা" : "District"}</th>
+                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "উপজেলা" : "Upazila"}</th>
+                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ঠিকানা" : "Address"}</th>
+                  <th className="px-2 py-1.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {donors.map((d) =>
+                  editingId === d.id ? (
+                    <tr key={d.id} className="border-t border-slate-800 bg-slate-950/80">
+                      <td colSpan={7} className="p-2">
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          <input className={ainp} placeholder={lang === "bn" ? "নাম *" : "Name *"} value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
+                          <input className={ainp} placeholder={lang === "bn" ? "ফোন *" : "Phone *"} value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                          <select className={ainp} value={editForm.blood_group} onChange={(e) => setEditForm({ ...editForm, blood_group: e.target.value })}>
+                            <option value="">{lang === "bn" ? "রক্তের গ্রুপ" : "Blood group"}</option>
+                            {BLOOD_GROUPS.map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                          <select
+                            className={ainp}
+                            value={editForm.district_id}
+                            onChange={(e) => setEditForm({ ...editForm, district_id: e.target.value, upazila: "" })}
+                          >
+                            <option value="">{lang === "bn" ? "জেলা" : "District"}</option>
+                            {districts.map((dist) => (
+                              <option key={dist.id} value={dist.id}>
+                                {lang === "bn" ? dist.name_bn : dist.name_en}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className={ainp}
+                            value={editForm.upazila}
+                            disabled={!editForm.district_id}
+                            onChange={(e) => setEditForm({ ...editForm, upazila: e.target.value })}
+                          >
+                            <option value="">{lang === "bn" ? "উপজেলা" : "Upazila"}</option>
+                            {upazilaOptions.map((u) => (
+                              <option key={u.en} value={u.en}>
+                                {lang === "bn" ? u.bn : u.en}
+                              </option>
+                            ))}
+                          </select>
+                          <input className={ainp} placeholder={lang === "bn" ? "ঠিকানা" : "Address"} value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+                          <label className="flex items-center gap-2 text-xs text-slate-400 px-1">
+                            <input type="checkbox" checked={editForm.is_active} onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })} />
+                            {lang === "bn" ? "সক্রিয়" : "Active"}
+                          </label>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <button type="button" disabled={busy} onClick={() => void saveEdit()} className="rounded-lg bg-emerald-600 text-white text-xs px-3 py-1.5 disabled:opacity-50">
+                            {busy ? "…" : lang === "bn" ? "সেভ" : "Save"}
+                          </button>
+                          <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-slate-700 text-xs px-3 py-1.5 text-slate-400">
+                            {lang === "bn" ? "বাতিল" : "Cancel"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={d.id} className="border-t border-slate-800 hover:bg-slate-950/40">
+                      <td className="px-2 py-1.5 font-medium">{d.full_name}</td>
+                      <td className="px-2 py-1.5">{d.phone}</td>
+                      <td className="px-2 py-1.5 text-center">{d.blood_group || "—"}</td>
+                      <td className="px-2 py-1.5">{lang === "bn" ? d.districts?.name_bn : d.districts?.name_en || "—"}</td>
+                      <td className="px-2 py-1.5">
+                        {upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang) || "—"}
+                      </td>
+                      <td className="px-2 py-1.5 max-w-[8rem] truncate" title={d.address ?? ""}>{d.address || "—"}</td>
+                      <td className="px-2 py-1.5">
+                        <div className="flex gap-1 justify-end">
+                          <button type="button" onClick={() => startEdit(d)} className="text-slate-400 hover:text-white p-1">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => void removeDonor(d.id)} className="text-rose-400 p-1">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CommunityAdmin() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [rows, setRows] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: "", name_bn: "", phone: "", email: "", website: "", description: "", description_bn: "" });
+  const [form, setForm] = useState({
+    name: "",
+    name_bn: "",
+    phone: "",
+    email: "",
+    website: "",
+    description: "",
+    description_bn: "",
+  });
+  const [importOrgId, setImportOrgId] = useState("");
+  const [importPreview, setImportPreview] = useState<DonorImportInput[]>([]);
+  const [importBusy, setImportBusy] = useState(false);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [expandedOrgId, setExpandedOrgId] = useState<string | null>(null);
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
+  const [donorRefreshKey, setDonorRefreshKey] = useState(0);
 
   async function load() {
     const { data } = await supabase.from("community_orgs").select("*").order("sort_order");
     setRows(data ?? []);
+    if (!importOrgId && data?.[0]?.id) setImportOrgId(data[0].id);
   }
+
   useEffect(() => {
     load();
+    fetchAllDistrictsAdmin().then(setDistricts);
   }, []);
 
   async function add() {
-    const { error } = await supabase.from("community_orgs").insert(form);
+    if (!form.name.trim() || !form.phone.trim()) {
+      return toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone are required");
+    }
+    const { error } = await supabase.from("community_orgs").insert({
+      name: form.name.trim(),
+      name_bn: form.name_bn.trim() || null,
+      phone: form.phone.trim(),
+      email: form.email.trim() || null,
+      website: form.website.trim() || null,
+      description: form.description.trim() || null,
+      description_bn: form.description_bn.trim() || null,
+    });
     if (error) return toast.error(error.message);
     setForm({ name: "", name_bn: "", phone: "", email: "", website: "", description: "", description_bn: "" });
+    toast.success(t("saved"));
+    load();
+  }
+
+  async function saveOrg(orgId: string, draft: ReturnType<typeof emptyOrgForm>): Promise<void> {
+    if (!draft.name.trim() || !draft.phone.trim()) {
+      toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone are required");
+      return;
+    }
+    const { error } = await supabase
+      .from("community_orgs")
+      .update({
+        name: draft.name.trim(),
+        name_bn: draft.name_bn.trim() || null,
+        phone: draft.phone.trim(),
+        email: draft.email.trim() || null,
+        website: draft.website.trim() || null,
+        description: draft.description.trim() || null,
+        description_bn: draft.description_bn.trim() || null,
+      })
+      .eq("id", orgId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(t("saved"));
+    setEditingOrgId(null);
     load();
   }
 
@@ -792,38 +1166,234 @@ function CommunityAdmin() {
   }
 
   async function remove(id: string) {
-    await supabase.from("community_orgs").delete().eq("id", id);
-    load();
+    const { error } = await supabase.from("community_orgs").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      if (expandedOrgId === id) setExpandedOrgId(null);
+      if (editingOrgId === id) setEditingOrgId(null);
+      load();
+    }
   }
 
+  async function onFilePick(file: File | null) {
+    if (!file) return;
+    try {
+      const parsed = await parseDonorImportFile(file);
+      setImportPreview(parsed);
+      toast.success(
+        lang === "bn" ? `${parsed.length}টি রো পড়া হয়েছে` : `${parsed.length} row(s) parsed`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+      setImportPreview([]);
+    }
+  }
+
+  async function runImport() {
+    if (!importOrgId) {
+      return toast.error(lang === "bn" ? "সংস্থা সিলেক্ট করুন" : "Select an organization");
+    }
+    if (!importPreview.length) {
+      return toast.error(lang === "bn" ? "ফাইল আপলোড করুন" : "Upload a file first");
+    }
+    setImportBusy(true);
+    const result = await bulkImportCommunityDonors(importOrgId, importPreview, districts);
+    setImportBusy(false);
+    if (result.errors.length) toast.error(result.errors[0]!);
+    toast.success(
+      lang === "bn"
+        ? `${result.inserted} জন রক্তদাতা যোগ হয়েছে`
+        : `${result.inserted} donor(s) imported`,
+    );
+    setImportPreview([]);
+    setDonorRefreshKey((k) => k + 1);
+  }
+
+  const optionalFields = [
+    { key: "name_bn" as const, label: lang === "bn" ? "নাম (বাংলা)" : "Name (BN)" },
+    { key: "email" as const, label: "Email" },
+    { key: "website" as const, label: "Website" },
+    { key: "description" as const, label: lang === "bn" ? "বিবরণ" : "Description" },
+    { key: "description_bn" as const, label: lang === "bn" ? "বিবরণ (বাংলা)" : "Description (BN)" },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid md:grid-cols-3 gap-2">
-        {(["name", "name_bn", "phone", "email", "website", "description", "description_bn"] as const).map((k) => (
-          <input key={k} className={ainp} placeholder={k} value={(form as any)[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-        ))}
-        <button type="button" onClick={add} className="rounded-lg bg-rose-600 text-white text-sm font-semibold md:col-span-3 py-2.5">
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">{lang === "bn" ? "নতুন সংস্থা" : "Add organization"}</h3>
+        <p className="text-[10px] text-slate-500">
+          {lang === "bn" ? "শুধু নাম ও ফোন বাধ্যতামূলক — বাকি সব ঐচ্ছিক" : "Only name & phone required — rest optional"}
+        </p>
+        <div className="grid md:grid-cols-2 gap-2">
+          <input
+            className={ainp}
+            placeholder={lang === "bn" ? "নাম *" : "Name *"}
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <input
+            className={ainp}
+            placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
+          {optionalFields.map((f) => (
+            <input
+              key={f.key}
+              className={ainp}
+              placeholder={`${f.label} (${lang === "bn" ? "ঐচ্ছিক" : "optional"})`}
+              value={form[f.key]}
+              onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+            />
+          ))}
+        </div>
+        <button type="button" onClick={() => void add()} className="rounded-lg bg-rose-600 text-white text-sm font-semibold px-4 py-2.5">
           <Plus className="h-4 w-4 inline mr-1" />
           {t("save")}
         </button>
       </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Upload className="h-4 w-4 text-rose-400" />
+          {lang === "bn" ? "বাল্ক রক্তদাতা ইমপোর্ট" : "Bulk donor import"}
+        </h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          {lang === "bn"
+            ? "CSV, Excel (.xlsx) বা JSON — কলাম: name, phone, blood_group, district, upazila (ঐচ্ছিক, জেলার অধীনে), address (ঐচ্ছিক)"
+            : "CSV, Excel (.xlsx), or JSON — columns: name, phone, blood_group, district, upazila (opt, under district), address (opt)"}
+        </p>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <a href="/samples/community-donors-sample.csv" download className="text-rose-400 hover:underline flex items-center gap-1">
+            <Download className="h-3 w-3" /> Sample CSV (5)
+          </a>
+          <a href="/samples/community-donors-sample.json" download className="text-rose-400 hover:underline flex items-center gap-1">
+            <FileSpreadsheet className="h-3 w-3" /> Sample JSON (5)
+          </a>
+        </div>
+        <select
+          className={ainp}
+          value={importOrgId}
+          onChange={(e) => setImportOrgId(e.target.value)}
+        >
+          <option value="">{lang === "bn" ? "সংস্থা সিলেক্ট…" : "Select organization…"}</option>
+          {rows.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="file"
+          accept=".csv,.json,.xlsx,.xls"
+          className="block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-rose-600 file:px-3 file:py-2 file:text-white"
+          onChange={(e) => void onFilePick(e.target.files?.[0] ?? null)}
+        />
+        {importPreview.length > 0 && (
+          <div className="rounded-lg border border-slate-800 overflow-hidden max-h-40 overflow-auto">
+            <table className="w-full text-[10px]">
+              <thead className="bg-slate-950 text-slate-400">
+                <tr>
+                  <th className="px-2 py-1 text-left">Name</th>
+                  <th className="px-2 py-1">BG</th>
+                  <th className="px-2 py-1">District</th>
+                </tr>
+              </thead>
+              <tbody>
+                {importPreview.slice(0, 8).map((r, i) => (
+                  <tr key={i} className="border-t border-slate-800">
+                    <td className="px-2 py-1">{r.name}</td>
+                    <td className="px-2 py-1 text-center">{r.blood_group || "—"}</td>
+                    <td className="px-2 py-1">{r.district || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {importPreview.length > 8 && (
+              <p className="text-[10px] text-slate-500 px-2 py-1">+{importPreview.length - 8} more…</p>
+            )}
+          </div>
+        )}
+        <button
+          type="button"
+          disabled={importBusy || !importPreview.length || !importOrgId}
+          onClick={() => void runImport()}
+          className="rounded-lg bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50"
+        >
+          {importBusy ? "…" : lang === "bn" ? "ইমপোর্ট করুন" : "Import donors"}
+        </button>
+      </div>
+
       <ul className="space-y-2">
-        {rows.map((o) => (
-          <li key={o.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 flex justify-between gap-3">
-            <div>
-              <p className="font-semibold text-sm">{o.name}</p>
-              <p className="text-xs text-slate-400">{o.phone} {o.email}</p>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => toggle(o.id, o.is_active)} className="text-xs text-slate-300">
-                {o.is_active ? "ON" : "OFF"}
+        {rows.map((o: CommunityOrg) => (
+          <li key={o.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3">
+            <div className="flex items-start gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setExpandedOrgId((cur) => (cur === o.id ? null : o.id));
+                  setEditingOrgId(null);
+                }}
+                className="flex min-w-0 flex-1 items-start gap-2 text-left"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 mt-0.5 text-slate-400 transition ${expandedOrgId === o.id ? "rotate-180" : ""}`}
+                />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm">{o.name}</p>
+                  {o.name_bn && <p className="text-xs text-slate-500">{o.name_bn}</p>}
+                  <p className="text-xs text-slate-400 mt-0.5">{o.phone}</p>
+                  {o.email && <p className="text-[10px] text-slate-500">{o.email}</p>}
+                </div>
               </button>
-              <button type="button" onClick={() => remove(o.id)} className="text-rose-400">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingOrgId((cur) => (cur === o.id ? null : o.id));
+                    setExpandedOrgId(o.id);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-white"
+                  title={lang === "bn" ? "সম্পাদনা" : "Edit"}
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button type="button" onClick={() => void toggle(o.id, o.is_active)} className="text-xs text-slate-300 px-2 py-1">
+                  {o.is_active ? "ON" : "OFF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm(lang === "bn" ? "সংস্থা ও এর সব রক্তদাতা ডিলিট হবে। চালিয়ে যাবেন?" : "Delete org and all its donors?")) return;
+                    void remove(o.id);
+                  }}
+                  className="text-rose-400 p-1.5"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+
+            {editingOrgId === o.id && (
+              <OrgEditForm
+                org={o}
+                lang={lang}
+                t={t}
+                onSave={(draft) => saveOrg(o.id, draft)}
+                onCancel={() => setEditingOrgId(null)}
+              />
+            )}
+
+            {expandedOrgId === o.id && editingOrgId !== o.id && (
+              <OrgDonorsPanel orgId={o.id} districts={districts} lang={lang} refreshKey={donorRefreshKey} />
+            )}
           </li>
         ))}
+        {rows.length === 0 && (
+          <li className="rounded-xl border border-dashed border-slate-800 py-10 text-center text-sm text-slate-500">
+            {lang === "bn" ? "কোনো সংস্থা নেই" : "No organizations yet"}
+          </li>
+        )}
       </ul>
     </div>
   );
@@ -836,6 +1406,8 @@ function NotificationsAdmin() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ns, setNs] = useState<NotificationSettings>({ ...DEFAULT_NOTIFICATION_SETTINGS });
+  const [nsBusy, setNsBusy] = useState(false);
 
   async function load() {
     const { data, error } = await supabase
@@ -847,9 +1419,43 @@ function NotificationsAdmin() {
     else setRows(data ?? []);
   }
 
+  async function loadSettings() {
+    const { data } = await supabase.from("app_settings").select("notification_settings").eq("id", 1).maybeSingle();
+    if (data?.notification_settings) {
+      setNs({ ...DEFAULT_NOTIFICATION_SETTINGS, ...(data.notification_settings as NotificationSettings) });
+    }
+  }
+
   useEffect(() => {
     load();
+    loadSettings();
   }, []);
+
+  async function saveSettings() {
+    setNsBusy(true);
+    const { error } = await supabase
+      .from("app_settings")
+      .upsert({ id: 1, notification_settings: ns });
+    setNsBusy(false);
+    if (error) toast.error(error.message);
+    else {
+      invalidateNotificationSettingsCache();
+      toast.success(lang === "bn" ? "নোটিফিকেশন সেটিংস সেভ হয়েছে" : "Notification settings saved");
+    }
+  }
+
+  function setNsKey<K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) {
+    setNs((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function purgeNow() {
+    const { error } = await supabase.rpc("purge_expired_notifications");
+    if (error) toast.error(error.message);
+    else {
+      toast.success(lang === "bn" ? "পুরানো নোটিফিকেশন মুছে ফেলা হয়েছে" : "Expired notifications purged");
+      load();
+    }
+  }
 
   async function broadcast() {
     if (!title.trim() || !user) return;
@@ -867,7 +1473,6 @@ function NotificationsAdmin() {
       body: body.trim() || null,
       is_read: false,
     }));
-    // Insert in batches of 100
     for (let i = 0; i < chunk.length; i += 100) {
       const { error } = await supabase.from("notifications").insert(chunk.slice(i, i + 100));
       if (error) {
@@ -898,8 +1503,117 @@ function NotificationsAdmin() {
     }
   }
 
+  const settingLabels: Record<Exclude<keyof NotificationSettings, "web_push_hook_secret">, { bn: string; en: string }> = {
+    retention_days: { bn: "নোটিফিকেশন রাখার দিন", en: "Notification retention (days)" },
+    enable_managed_button: { bn: "৩-ডট মেনু: ম্যানেজড/সম্পন্ন", en: "3-dot menu: mark managed" },
+    enable_critical_droplet_animation: {
+      bn: "Critical পোস্টে লাফানো রক্তের ফোঁটা",
+      en: "Bouncing droplet on critical posts",
+    },
+    enable_push: { bn: "ডিভাইস পুশ সক্রিয়", en: "Enable device push" },
+    push_new_request: { bn: "নতুন রিকোয়েস্টে পুশ", en: "Push for new requests" },
+    push_interactions: { bn: "লাইক/কমেন্ট/শেয়ারে পুশ", en: "Push for likes/comments/shares" },
+    match_district_for_alerts: { bn: "জেলা মিলে অ্যালার্ট", en: "Alert by matching district" },
+    match_blood_group_for_alerts: { bn: "রক্তের গ্রুপ মিলে অ্যালার্ট", en: "Alert by matching blood group" },
+    auto_feed_district: { bn: "ফিডে অটো জেলা ফিল্টার", en: "Auto district filter in feed" },
+    auto_feed_blood_group: { bn: "ফিডে অটো ব্লাড গ্রুপ ফিল্টার", en: "Auto blood group filter in feed" },
+  };
+
+  function generateWebhookSecret() {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const secret = btoa(String.fromCharCode(...bytes))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    setNsKey("web_push_hook_secret", secret);
+  }
+
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-4">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Settings2 className="h-4 w-4 text-rose-400" />
+          {lang === "bn" ? "নোটিফিকেশন কন্ট্রোল" : "Notification controls"}
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {NOTIFICATION_SETTING_KEYS.filter(
+            (k) => k !== "retention_days" && k !== "web_push_hook_secret",
+          ).map((key) => (
+            <label key={key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+              <span className="text-slate-300">{lang === "bn" ? settingLabels[key].bn : settingLabels[key].en}</span>
+              <input
+                type="checkbox"
+                checked={!!ns[key]}
+                onChange={(e) => setNsKey(key, e.target.checked as NotificationSettings[typeof key])}
+                className="h-4 w-4 accent-rose-500"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-2">
+          <p className="text-xs font-medium text-slate-300">
+            {lang === "bn" ? "অ্যাপ বন্ধ থাকলে Web Push" : "Web Push (app fully closed)"}
+          </p>
+          <p className="text-[10px] text-slate-500 leading-relaxed">
+            {lang === "bn"
+              ? "VAPID keys + send-push edge function deploy করুন। WEBHOOK_SECRET এখানে ও Supabase secrets-এ একই রাখুন।"
+              : "Deploy send-push edge function with VAPID keys. Use the same WEBHOOK_SECRET here and in Supabase secrets."}
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-mono"
+              placeholder={lang === "bn" ? "Web Push webhook secret" : "Web Push webhook secret"}
+              value={ns.web_push_hook_secret ?? ""}
+              onChange={(e) => setNsKey("web_push_hook_secret", e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={generateWebhookSecret}
+              className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-[10px] text-slate-300"
+            >
+              {lang === "bn" ? "জেনারেট" : "Generate"}
+            </button>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            {lang === "bn" ? settingLabels.retention_days.bn : settingLabels.retention_days.en}
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={365}
+            className="w-full max-w-[8rem] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+            value={ns.retention_days}
+            onChange={(e) => setNsKey("retention_days", Math.max(1, Number(e.target.value) || 1))}
+          />
+          <p className="text-[10px] text-slate-500 mt-1">
+            {lang === "bn"
+              ? "এত দিন পর নোটিফিকেশন অটো ডিলিট হবে"
+              : "Notifications auto-delete after this many days"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={nsBusy}
+            onClick={() => void saveSettings()}
+            className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold disabled:opacity-50"
+          >
+            {nsBusy ? "…" : lang === "bn" ? "সেটিংস সেভ" : "Save settings"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void purgeNow()}
+            className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-400"
+          >
+            {lang === "bn" ? "এখনই পুরানো মুছুন" : "Purge expired now"}
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Bell className="h-4 w-4 text-rose-400" />
@@ -970,7 +1684,7 @@ function NotificationsAdmin() {
 }
 
 function SettingsAdmin() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
     emergency_hotline: "",
@@ -978,10 +1692,25 @@ function SettingsAdmin() {
     about_en: "",
     brand_primary: "#C62828",
     maintenance_mode: false,
+    request_form_options: { ...DEFAULT_REQUEST_FORM_OPTIONS },
   });
 
   useEffect(() => {
-    supabase.from("app_settings").select("*").eq("id", 1).maybeSingle().then(({ data }) => data && setS(data));
+    supabase
+      .from("app_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setS({
+          ...data,
+          request_form_options: {
+            ...DEFAULT_REQUEST_FORM_OPTIONS,
+            ...(data.request_form_options ?? {}),
+          },
+        });
+      });
   }, []);
 
   async function save() {
@@ -990,29 +1719,77 @@ function SettingsAdmin() {
     else toast.success(t("saved"));
   }
 
+  function setOpt(key: keyof RequestFormOptions, optional: boolean) {
+    setS((prev: any) => ({
+      ...prev,
+      request_form_options: { ...prev.request_form_options, [key]: optional },
+    }));
+  }
+
+  const labels: Record<keyof RequestFormOptions, { bn: string; en: string }> = {
+    patient_name: { bn: "রোগীর নাম", en: "Patient name" },
+    blood_group: { bn: "রক্তের গ্রুপ", en: "Blood group" },
+    bags_needed: { bn: "ব্যাগ সংখ্যা", en: "Bags needed" },
+    district: { bn: "জেলা", en: "District" },
+    hospital: { bn: "হাসপাতাল", en: "Hospital" },
+    contact_phone: { bn: "যোগাযোগ নম্বর", en: "Contact phone" },
+    whatsapp: { bn: "WhatsApp নম্বর", en: "WhatsApp number" },
+    needed_by: { bn: "দরকারের সময়", en: "Needed by" },
+    urgency: { bn: "জরুরিতা", en: "Urgency" },
+    notes: { bn: "নোট", en: "Notes" },
+  };
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-xl">
-      {(["app_name", "emergency_hotline", "brand_primary"] as const).map((k) => (
-        <div key={k}>
-          <label className="text-xs text-slate-400">{k}</label>
-          <input className={ainp} value={s[k] ?? ""} onChange={(e) => setS({ ...s, [k]: e.target.value })} />
+    <div className="space-y-6 max-w-2xl">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "নতুন রিকোয়েস্ট — অপশনাল ফিল্ড" : "New request — optional fields"}
+        </h3>
+        <p className="text-xs text-slate-400">
+          {lang === "bn"
+            ? "চেক থাকলে ফিল্ডটি ঐচ্ছিক। আনচেক = বাধ্যতামূলক।"
+            : "Checked = optional. Unchecked = required."}
+        </p>
+        <ul className="space-y-2">
+          {REQUEST_FORM_OPTION_KEYS.map((key) => (
+            <li key={key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2">
+              <span className="text-sm">{lang === "bn" ? labels[key].bn : labels[key].en}</span>
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={!!s.request_form_options?.[key]}
+                  onChange={(e) => setOpt(key, e.target.checked)}
+                />
+                {lang === "bn" ? "ঐচ্ছিক" : "Optional"}
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        {(["app_name", "emergency_hotline", "brand_primary"] as const).map((k) => (
+          <div key={k}>
+            <label className="text-xs text-slate-400">{k}</label>
+            <input className={ainp} value={s[k] ?? ""} onChange={(e) => setS({ ...s, [k]: e.target.value })} />
+          </div>
+        ))}
+        <div>
+          <label className="text-xs text-slate-400">about_bn</label>
+          <textarea className={ainp} rows={3} value={s.about_bn ?? ""} onChange={(e) => setS({ ...s, about_bn: e.target.value })} />
         </div>
-      ))}
-      <div>
-        <label className="text-xs text-slate-400">about_bn</label>
-        <textarea className={ainp} rows={3} value={s.about_bn ?? ""} onChange={(e) => setS({ ...s, about_bn: e.target.value })} />
+        <div>
+          <label className="text-xs text-slate-400">about_en</label>
+          <textarea className={ainp} rows={3} value={s.about_en ?? ""} onChange={(e) => setS({ ...s, about_en: e.target.value })} />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={!!s.maintenance_mode} onChange={(e) => setS({ ...s, maintenance_mode: e.target.checked })} />
+          Maintenance mode
+        </label>
+        <button type="button" onClick={save} className="rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold">
+          {t("save")}
+        </button>
       </div>
-      <div>
-        <label className="text-xs text-slate-400">about_en</label>
-        <textarea className={ainp} rows={3} value={s.about_en ?? ""} onChange={(e) => setS({ ...s, about_en: e.target.value })} />
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={!!s.maintenance_mode} onChange={(e) => setS({ ...s, maintenance_mode: e.target.checked })} />
-        Maintenance mode
-      </label>
-      <button type="button" onClick={save} className="rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold">
-        {t("save")}
-      </button>
     </div>
   );
 }

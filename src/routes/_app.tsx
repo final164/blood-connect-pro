@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
+import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
+import { supabase } from "@/integrations/supabase/client";
 import { Home, Users, MessageCircle, User, WifiOff, Droplet, Shield, LogOut, Bell } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
@@ -32,6 +34,18 @@ function AppLayout() {
       navigate({ to: "/auth" });
     }
   }, [loading, session, isAnonymous, navigate]);
+
+  useEffect(() => {
+    if (!user || !canUseDeviceNotifications()) return;
+    supabase
+      .from("user_settings")
+      .select("notif_push")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.notif_push) void enableDeviceNotifications(user.id);
+      });
+  }, [user?.id]);
 
   if (loading || !session || isAnonymous) {
     return (

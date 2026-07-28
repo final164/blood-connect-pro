@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { fetchCommunityOrgs, type District } from "@/lib/api";
+import { type District } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { useI18n } from "@/lib/i18n";
-import { Building2, Globe, Phone, Mail, BadgeCheck } from "lucide-react";
+import { BLOOD_GROUPS } from "@/lib/format";
+import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
+import { upazilaDisplayName } from "@/data/bangladesh-clinics";
+import { Droplet, Phone, Users, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app/community")({
@@ -14,87 +18,140 @@ export const Route = createFileRoute("/_app/community")({
 function CommunityPage() {
   const { lang } = useI18n();
   const [district, setDistrict] = useState<District | null>(null);
-  const [orgs, setOrgs] = useState<any[]>([]);
+  const [upazila, setUpazila] = useState("");
+  const [bloodGroup, setBloodGroup] = useState("ALL");
+  const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
+  const [loading, setLoading] = useState(false);
 
   async function load() {
+    setLoading(true);
     try {
-      const data = await fetchCommunityOrgs(district?.id ?? null);
-      setOrgs(data);
+      const data = await fetchCommunityDonors({
+        bloodGroup,
+        districtId: district?.id ?? null,
+        upazila: upazila.trim() || undefined,
+      });
+      setDonors(data);
     } catch {
-      setOrgs([]);
+      setDonors([]);
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    load();
+    void load();
     const ch = supabase
-      .channel("orgs-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "community_orgs" }, () => load())
+      .channel("community-donors-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_donors" }, () => load())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [district?.id]);
+  }, [bloodGroup, district?.id, upazila]);
 
   return (
     <div className="mx-auto max-w-lg">
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-2">
-        <h1 className="text-base font-bold tracking-tight">
-          {lang === "bn" ? "কমিউনিটি সংস্থা" : "Community organizations"}
-        </h1>
-        <p className="text-xs text-muted-foreground">
-          {lang === "bn"
-            ? "রক্তদান সংস্থাগুলোর সাথে যুক্ত থাকুন — অ্যাডমিন প্যানেল থেকে ম্যানেজ হয়"
-            : "Connect with blood donation organizations — managed from admin panel"}
-        </p>
-        <DistrictTypeahead value={district} onChange={setDistrict} />
+      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center">
+            <Users className="h-4 w-4" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold tracking-tight">
+              {lang === "bn" ? "রক্তদাতা খুঁজুন" : "Find blood donors"}
+            </h1>
+            <p className="text-[10px] text-muted-foreground">
+              {lang === "bn" ? "কমিউনিটি সংস্থার রক্তদাতা তালিকা" : "Community organization donor directory"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          {["ALL", ...BLOOD_GROUPS].map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setBloodGroup(g)}
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                bloodGroup === g
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border bg-card text-muted-foreground"
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+
+        <DistrictTypeahead
+          value={district}
+          onChange={(d) => {
+            setDistrict(d);
+            setUpazila("");
+          }}
+          placeholder={lang === "bn" ? "জেলা খুঁজুন…" : "Search district…"}
+        />
+
+        <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
       </header>
 
-      <ul className="p-3 space-y-3">
-        {orgs.length === 0 && (
-          <li className="text-center text-sm text-muted-foreground py-16">
-            {lang === "bn" ? "এখনো কোনো সংস্থা নেই" : "No organizations yet"}
+      <ul className="p-3 space-y-2 pb-8">
+        {loading && (
+          <li className="text-center text-sm text-muted-foreground py-12">{lang === "bn" ? "খুঁজছি…" : "Searching…"}</li>
+        )}
+        {!loading && donors.length === 0 && (
+          <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
+            <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              {lang === "bn" ? "কোনো রক্তদাতা পাওয়া যায়নি" : "No donors found"}
+            </p>
           </li>
         )}
-        {orgs.map((o) => (
-          <li key={o.id} className="rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="flex gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary grid place-items-center shrink-0 overflow-hidden">
-                {o.logo_url ? <img src={o.logo_url} alt="" className="h-full w-full object-cover" /> : <Building2 className="h-5 w-5" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <h2 className="font-semibold text-sm truncate">
-                    {lang === "bn" ? o.name_bn || o.name : o.name}
-                  </h2>
-                  {o.is_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                  {lang === "bn" ? o.description_bn || o.description : o.description}
-                </p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {o.phone && (
-                    <a href={`tel:${o.phone}`} className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] font-medium">
-                      <Phone className="h-3 w-3" /> {o.phone}
-                    </a>
-                  )}
-                  {o.email && (
-                    <a href={`mailto:${o.email}`} className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] font-medium">
-                      <Mail className="h-3 w-3" /> Email
-                    </a>
-                  )}
-                  {o.website && (
-                    <a href={o.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-primary/10 text-primary px-2 py-1 text-[11px] font-medium">
-                      <Globe className="h-3 w-3" /> Web
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          </li>
+        {donors.map((d) => (
+          <DonorCard key={d.id} donor={d} lang={lang} />
         ))}
       </ul>
     </div>
+  );
+}
+
+function DonorCard({ donor: d, lang }: { donor: CommunityDonorRow; lang: "bn" | "en" }) {
+  const orgName = lang === "bn" ? d.community_orgs?.name_bn || d.community_orgs?.name : d.community_orgs?.name;
+  const distName = lang === "bn" ? d.districts?.name_bn : d.districts?.name_en;
+  const upazilaName = upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang);
+  const location = [upazilaName, distName].filter(Boolean).join(" · ");
+
+  return (
+    <li className="rounded-2xl border bg-card px-3 py-3 flex items-center gap-3 shadow-sm">
+      <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+        <Droplet className="h-5 w-5" fill="currentColor" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-sm truncate">{d.full_name}</p>
+          {d.blood_group && (
+            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+              {d.blood_group}
+            </span>
+          )}
+        </div>
+        {orgName && (
+          <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1 truncate">
+            <Building2 className="h-3 w-3 shrink-0" />
+            {orgName}
+          </p>
+        )}
+        {location && <p className="mt-0.5 text-[10px] text-muted-foreground truncate">{location}</p>}
+      </div>
+      <a
+        href={`tel:${d.phone.replace(/\s/g, "")}`}
+        title={lang === "bn" ? "কল করুন" : "Call"}
+        className="h-11 w-11 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25 shrink-0 hover:opacity-90 transition"
+      >
+        <Phone className="h-5 w-5" />
+      </a>
+    </li>
   );
 }

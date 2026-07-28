@@ -6,6 +6,8 @@ import { useI18n, type Lang } from "@/lib/i18n";
 import { Toggle } from "@/routes/_app.profile";
 import { ShieldCheck, Globe, MapPin, Bell, Database, LogOut, Moon } from "lucide-react";
 import { toast } from "sonner";
+import { enableDeviceNotifications, disableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
+import { hasWebPushConfigured } from "@/lib/push-config";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — BloodLink" }] }),
@@ -48,7 +50,29 @@ function SettingsPage() {
     });
     setBusy(false);
     if (error) toast.error(error.message);
-    else toast.success(t("saved"));
+    else {
+      if (s.notif_push && canUseDeviceNotifications()) {
+        const ok = await enableDeviceNotifications(user.id);
+        if (!ok) toast.message(lang === "bn" ? "ডিভাইস নোটিফিকেশন অনুমতি দিন" : "Allow device notification permission");
+      } else if (!s.notif_push) {
+        await disableDeviceNotifications(user.id);
+      }
+      toast.success(t("saved"));
+    }
+  }
+
+  async function togglePush(v: boolean) {
+    setS({ ...s, notif_push: v });
+    if (!user) return;
+    if (v && canUseDeviceNotifications()) {
+      const ok = await enableDeviceNotifications(user.id);
+      if (!ok) {
+        setS({ ...s, notif_push: false });
+        toast.message(lang === "bn" ? "ডিভাইস নোটিফিকেশন অনুমতি দিন" : "Allow device notification permission");
+      }
+    } else if (!v) {
+      await disableDeviceNotifications(user.id);
+    }
   }
 
   if (!s) return <div className="p-6 text-sm text-muted-foreground">{t("loading")}</div>;
@@ -81,7 +105,18 @@ function SettingsPage() {
         </Section>
 
         <Section title={t("notifications")} icon={<Bell className="h-4 w-4" />}>
-          <Toggle label="Push" checked={!!s.notif_push} onChange={(v) => setS({ ...s, notif_push: v })} />
+          {!hasWebPushConfigured() && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 px-1">
+              {lang === "bn"
+                ? "VITE_VAPID_PUBLIC_KEY সেট না থাকলে শুধু অ্যাপ খোলা থাকলে নোটিফিকেশন কাজ করবে।"
+                : "Without VITE_VAPID_PUBLIC_KEY, notifications only work while the app is open."}
+            </p>
+          )}
+          <Toggle
+            label={lang === "bn" ? "ডিভাইস নোটিফিকেশন" : "Device push"}
+            checked={!!s.notif_push}
+            onChange={(v) => void togglePush(v)}
+          />
           <Toggle label="Email" checked={!!s.notif_email} onChange={(v) => setS({ ...s, notif_email: v })} />
           <Toggle label={lang === "bn" ? "নতুন রিকোয়েস্ট" : "New requests"} checked={!!s.notif_new_request} onChange={(v) => setS({ ...s, notif_new_request: v })} />
         </Section>

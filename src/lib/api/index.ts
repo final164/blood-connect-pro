@@ -280,3 +280,13 @@ export async function fetchCommunityOrgs(districtId?: string | null) {
   if (error) throw error;
   return data ?? [];
 }
+
+export async function fetchAllDistricts(): Promise<District[]> {
+  const { data, error } = await supabase
+    .from("districts")
+    .select("id,name_bn,name_en,slug,is_active,sort_order")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as District[];
+}

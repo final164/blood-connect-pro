@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { getProfile, type District } from "@/lib/api";
+import { fetchNotificationSettings } from "@/lib/notification-settings";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
@@ -12,18 +13,26 @@ import { cacheGet, cacheSet } from "@/lib/offline";
 import { Droplet, Plus, ShieldCheck, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
+type FeedSearch = { requestId?: string };
+
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "Feed — BloodLink" }] }),
+  validateSearch: (search: Record<string, unknown>): FeedSearch => ({
+    requestId: typeof search.requestId === "string" ? search.requestId : undefined,
+  }),
   component: FeedPage,
 });
 
 function FeedPage() {
   const { t, lang } = useI18n();
   const { user } = useAuth();
+  const { requestId } = Route.useSearch();
   const [items, setItems] = useState<FeedRequest[]>([]);
   const [district, setDistrict] = useState<District | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
   const [showComposer, setShowComposer] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const prefsLoaded = useRef(false);
 
   async function load() {
     try {
@@ -98,15 +107,19 @@ function FeedPage() {
   }
 
   useEffect(() => {
-    if (!user) return;
-    getProfile(user.id).then((p) => {
-      if (p?.district_id) {
-        supabase
+    if (!user || prefsLoaded.current) return;
+    prefsLoaded.current = true;
+    Promise.all([getProfile(user.id), fetchNotificationSettings()]).then(async ([p, settings]) => {
+      if (settings.auto_feed_blood_group && p?.blood_group) {
+        setFilter(String(p.blood_group));
+      }
+      if (settings.auto_feed_district && p?.district_id) {
+        const { data } = await supabase
           .from("districts")
           .select("id,name_bn,name_en,slug,is_active,sort_order")
           .eq("id", p.district_id)
-          .maybeSingle()
-          .then(({ data }) => data && setDistrict(data as District));
+          .maybeSingle();
+        if (data) setDistrict(data as District);
       }
     });
   }, [user?.id]);
@@ -124,6 +137,23 @@ function FeedPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, district?.id]);
+
+  useEffect(() => {
+    if (!requestId) return;
+    setHighlightId(requestId);
+    const scroll = () => {
+      const el = document.getElementById(`request-${requestId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    };
+    const t1 = window.setTimeout(scroll, 300);
+    const t2 = window.setTimeout(() => setHighlightId(null), 4000);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [requestId, items.length]);
 
   return (
     <div className="mx-auto max-w-lg">
@@ -211,8 +241,13 @@ function FeedPage() {
               </li>
             )}
             {items.map((r) => (
-              <li key={r.id}>
-                <RequestCard request={r} currentUserId={user?.id} onChanged={load} />
+              <li key={r.id} id={`request-${r.id}`}>
+                <RequestCard
+                  request={r}
+                  currentUserId={user?.id}
+                  onChanged={load}
+                  highlighted={highlightId === r.id}
+                />
               </li>
             ))}
           </ul>

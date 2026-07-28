@@ -3,7 +3,38 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { fetchHospitals, type Hospital } from "@/lib/api";
 
-/** Typeahead autocomplete for admin-managed hospitals */
+function slugify(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\u0980-\u09FF]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
+export function customHospital(
+  name: string,
+  districtId?: string | null,
+  districtSlug?: string | null,
+): Hospital {
+  const trimmed = name.trim();
+  return {
+    id: `custom:${slugify(trimmed) || "entry"}`,
+    name_bn: trimmed,
+    name_en: trimmed,
+    slug: slugify(trimmed) || "custom",
+    district_id: districtId ?? null,
+    district_slug: districtSlug ?? null,
+    hospital_type: "private",
+    is_active: true,
+  };
+}
+
+function displayName(h: Hospital, lang: "bn" | "en") {
+  return lang === "bn" ? h.name_bn : h.name_en;
+}
+
+/** Typeahead — catalog match or free-text custom hospital name */
 export function HospitalTypeahead({
   value,
   onChange,
@@ -27,7 +58,7 @@ export function HospitalTypeahead({
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (value) setQ(lang === "bn" ? value.name_bn : value.name_en);
+    if (value) setQ(displayName(value, lang));
   }, [value, lang]);
 
   useEffect(() => {
@@ -63,6 +94,36 @@ export function HospitalTypeahead({
   }, []);
 
   const label = useMemo(() => placeholder ?? t("searchHospital"), [placeholder, t]);
+  const trimmed = q.trim();
+  const exactInList = items.some((h) => displayName(h, lang).toLowerCase() === trimmed.toLowerCase());
+  const showCustomOption = !!trimmed && !exactInList;
+
+  function pick(h: Hospital) {
+    onChange(h);
+    setQ(displayName(h, lang));
+    setOpen(false);
+  }
+
+  function pickCustom() {
+    if (!trimmed) return;
+    pick(customHospital(trimmed, districtId, districtSlug));
+  }
+
+  function onBlurInput() {
+    window.setTimeout(() => {
+      if (!trimmed) return;
+      if (value && displayName(value, lang).toLowerCase() === trimmed.toLowerCase()) return;
+      if (exactInList) {
+        const hit = items.find((h) => displayName(h, lang).toLowerCase() === trimmed.toLowerCase());
+        if (hit) pick(hit);
+        return;
+      }
+      pickCustom();
+    }, 150);
+  }
+
+  const selectedLabel = value ? displayName(value, lang) : null;
+  const isCustom = value?.id.startsWith("custom:");
 
   return (
     <div ref={boxRef} className="relative">
@@ -74,10 +135,17 @@ export function HospitalTypeahead({
           placeholder={label}
           required={required && !value}
           onFocus={() => setOpen(true)}
+          onBlur={onBlurInput}
           onChange={(e) => {
             setQ(e.target.value);
             setOpen(true);
             if (value) onChange(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && showCustomOption) {
+              e.preventDefault();
+              pickCustom();
+            }
           }}
           autoComplete="off"
         />
@@ -94,6 +162,22 @@ export function HospitalTypeahead({
           </button>
         )}
       </div>
+
+      {selectedLabel && (
+        <p className="mt-1.5 px-1 text-xs text-muted-foreground flex items-center gap-1.5">
+          <Building2 className="h-3 w-3 shrink-0 text-primary/70" />
+          <span>
+            {lang === "bn" ? "নির্বাচিত" : "Selected"}:{" "}
+            <span className="font-medium text-foreground">{selectedLabel}</span>
+            {isCustom && (
+              <span className="ml-1.5 text-[10px] uppercase tracking-wide text-primary/80">
+                {lang === "bn" ? "কাস্টম" : "custom"}
+              </span>
+            )}
+          </span>
+        </p>
+      )}
+
       {open && (
         <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border bg-card shadow-lg">
           {loading && (
@@ -101,24 +185,33 @@ export function HospitalTypeahead({
               {lang === "bn" ? "খুঁজছি…" : "Searching…"}
             </li>
           )}
-          {!loading && items.length === 0 && (
-            <li className="px-3 py-2.5 text-xs text-muted-foreground">
-              {lang === "bn" ? "কোনো হাসপাতাল পাওয়া যায়নি — জেলা সিলেক্ট করে আবার লিখুন" : "No hospitals found — select a district and try again"}
+
+          {!loading && showCustomOption && (
+            <li>
+              <button
+                type="button"
+                className="w-full px-3 py-2.5 text-left text-sm hover:bg-primary/5 border-b border-border/60"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={pickCustom}
+              >
+                <span className="text-muted-foreground text-xs">
+                  {lang === "bn" ? "এই নাম ব্যবহার করুন" : "Use this name"}
+                </span>
+                <p className="font-medium text-foreground mt-0.5">{trimmed}</p>
+              </button>
             </li>
           )}
+
           {!loading &&
             items.map((h) => (
               <li key={h.id}>
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left text-sm hover:bg-primary/5"
-                  onClick={() => {
-                    onChange(h);
-                    setQ(lang === "bn" ? h.name_bn : h.name_en);
-                    setOpen(false);
-                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(h)}
                 >
-                  <span className="font-medium">{lang === "bn" ? h.name_bn : h.name_en}</span>
+                  <span className="font-medium">{displayName(h, lang)}</span>
                   <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
                     {h.hospital_type === "government"
                       ? t("government")
@@ -131,6 +224,12 @@ export function HospitalTypeahead({
                 </button>
               </li>
             ))}
+
+          {!loading && !showCustomOption && items.length === 0 && !trimmed && (
+            <li className="px-3 py-2.5 text-xs text-muted-foreground">
+              {lang === "bn" ? "হাসপাতালের নাম লিখুন…" : "Type a hospital name…"}
+            </li>
+          )}
         </ul>
       )}
     </div>

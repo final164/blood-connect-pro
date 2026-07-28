@@ -3,7 +3,7 @@ import { useI18n } from "@/lib/i18n";
 import { useNotifications, type AppNotification } from "@/lib/notifications-context";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
-import { Bell, Heart, MessageSquare, Share2, Megaphone, CheckCheck } from "lucide-react";
+import { Bell, ThumbsUp, MessageSquare, Share2, Megaphone, CheckCheck, Droplets } from "lucide-react";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — BloodLink" }] }),
@@ -70,7 +70,7 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
   const { lang } = useI18n();
   const name = n.actor?.full_name || (lang === "bn" ? "কেউ" : "Someone");
   const copy = labelFor(n, name, lang);
-  const Icon = iconFor(n.type);
+  const Icon = iconFor(n);
 
   const inner = (
     <div
@@ -101,9 +101,10 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
     </div>
   );
 
-  if (n.actor_id && n.type !== "system") {
+  const requestId = n.request_id ?? (n.data?.request_id as string | undefined);
+  if (requestId) {
     return (
-      <Link to="/chat/$peerId" params={{ peerId: n.actor_id }} onClick={onOpen} className="block">
+      <Link to="/" search={{ requestId }} onClick={onOpen} className="block">
         {inner}
       </Link>
     );
@@ -116,34 +117,30 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
   );
 }
 
-function iconFor(type: string) {
-  switch (type) {
-    case "like":
-    case "request_like":
-    case "post_like":
-      return Heart;
-    case "comment":
-    case "request_comment":
-    case "post_comment":
-      return MessageSquare;
-    case "share":
-    case "request_share":
-      return Share2;
-    default:
-      return Megaphone;
-  }
+function iconFor(n: AppNotification) {
+  const kind = n.data?.kind || n.title || n.type;
+  if (kind === "new_request" || n.type === "request_match") return Droplets;
+  if (["like", "request_like", "post_like"].includes(kind) || n.type === "post_like") return ThumbsUp;
+  if (["comment", "request_comment", "post_comment"].includes(kind) || n.type === "post_comment") return MessageSquare;
+  if (["share", "request_share"].includes(kind)) return Share2;
+  return Megaphone;
 }
 
 function labelFor(n: AppNotification, name: string, lang: "bn" | "en") {
-  const kind = n.data?.kind || n.type;
+  const kind = n.data?.kind || n.title || n.type;
+  if (kind === "new_request" || n.type === "request_match") {
+    return {
+      title: lang === "bn" ? "নতুন রক্তের রিকোয়েস্ট" : "New blood request",
+      sub: n.body || n.title,
+    };
+  }
   if (n.type === "system" && !kind?.includes("request") && !kind?.includes("like") && !kind?.includes("comment") && !kind?.includes("share")) {
     return { title: n.title || (lang === "bn" ? "সিস্টেম" : "System"), sub: n.body };
   }
-  const isLike = ["like", "request_like", "post_like"].includes(kind) || ["like", "request_like", "post_like"].includes(n.type);
+  const isLike = ["like", "request_like", "post_like"].includes(kind) || n.type === "post_like";
   const isComment =
-    ["comment", "request_comment", "post_comment"].includes(kind) ||
-    ["comment", "request_comment", "post_comment"].includes(n.type);
-  const isShare = ["share", "request_share"].includes(kind) || ["share", "request_share"].includes(n.type);
+    ["comment", "request_comment", "post_comment"].includes(kind) || n.type === "post_comment";
+  const isShare = ["share", "request_share"].includes(kind);
 
   if (lang === "bn") {
     if (isLike) return { title: `${name} আপনার রিকোয়েস্টে লাইক দিয়েছে`, sub: null as string | null };
@@ -155,3 +152,6 @@ function labelFor(n: AppNotification, name: string, lang: "bn" | "en") {
   if (isShare) return { title: `${name} shared your request`, sub: null };
   return { title: n.title, sub: n.body };
 }
+
+
+export { Avatar } from "@/components/Avatar";

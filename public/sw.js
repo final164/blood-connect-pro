@@ -1,5 +1,5 @@
-/* BloodLink offline shell */
-const CACHE = "bloodlink-shell-v1";
+/* BloodLink offline shell + device notifications */
+const CACHE = "bloodlink-shell-v2";
 const ASSETS = ["/", "/manifest.webmanifest", "/favicon.ico"];
 
 self.addEventListener("install", (event) => {
@@ -8,7 +8,10 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -27,5 +30,57 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(() => cached || caches.match("/")),
     ),
+  );
+});
+
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data || data.type !== "SHOW_NOTIFICATION") return;
+  const { title, body, url, tag } = data;
+  event.waitUntil(
+    self.registration.showNotification(title || "BloodLink", {
+      body: body || "",
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      tag: tag || "bloodlink",
+      data: { url: url || "/" },
+      renotify: true,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ("focus" in client) {
+          client.focus();
+          client.postMessage({ type: "NOTIFICATION_CLICK", url });
+          return;
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    }),
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = { title: "BloodLink", body: "", url: "/", tag: "bloodlink" };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    payload.body = event.data?.text() || "";
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      tag: payload.tag || "bloodlink",
+      data: { url: payload.url || "/" },
+      renotify: true,
+    }),
   );
 });

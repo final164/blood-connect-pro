@@ -4,3 +4,6 @@ project_id = "aunxredquwbokhpluzgj"
 # No confirmation / signup emails (avoids rate limit during testing & signup)
 enable_confirmations = false
 enable_signup = true
+
+[functions.send-push]
+verify_jwt = false

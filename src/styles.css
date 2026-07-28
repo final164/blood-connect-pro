@@ -118,4 +118,11 @@
     -webkit-backdrop-filter: saturate(160%) blur(14px);
     background-color: color-mix(in oklch, var(--color-background) 78%, transparent);
   }
+  @keyframes blood-droplet-bounce {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
+    50% { transform: translateY(-7px) scale(1.08); opacity: 0.92; }
+  }
+  .animate-blood-droplet {
+    animation: blood-droplet-bounce 0.85s ease-in-out infinite;
+  }
 }
