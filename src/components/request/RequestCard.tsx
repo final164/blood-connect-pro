@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+﻿import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -13,7 +13,10 @@ import {
   type DonationFlowSettings,
 } from "@/lib/donation-flow-settings";
 import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
-import { UrgencyDropletBackdrop, UrgencyHeaderIcon } from "@/components/request/UrgencyDropletBackdrop";
+import {
+  UrgencyDropletBackdrop,
+  UrgencyHeaderIcon,
+} from "@/components/request/UrgencyDropletBackdrop";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,12 +122,16 @@ export function RequestCard({
   }, [r.liked, r.saved, r.like_count, r.comment_count, r.id]);
 
   const distName = lang === "bn" ? r.district?.name_bn : r.district?.name_en;
-  const locationLabel = [r.hospital_name, distName || r.city].filter(Boolean).join(" Â· ");
+  const locationLabel = [r.hospital_name, distName || r.city].filter(Boolean).join(" · ");
   const isOwner = !!currentUserId && r.requester_id === currentUserId;
   const phone = r.contact_phone?.trim() || null;
   const waLink = r.whatsapp_phone?.trim() ? whatsappHref(r.whatsapp_phone.trim()) : null;
   const levelCfg =
-    r.urgency === "critical" ? urgencyAnim.critical : r.urgency === "urgent" ? urgencyAnim.urgent : null;
+    r.urgency === "critical"
+      ? urgencyAnim.critical
+      : r.urgency === "urgent"
+        ? urgencyAnim.urgent
+        : null;
   const showBackdrop = !!levelCfg?.enabled;
 
   async function toggleLike() {
@@ -134,10 +141,16 @@ export function RequestCard({
     setLikeCount((c) => Math.max(0, c + (next ? 1 : -1)));
     try {
       if (next) {
-        const { error } = await supabase.from("request_likes").insert({ request_id: r.id, user_id: user.id });
+        const { error } = await supabase
+          .from("request_likes")
+          .insert({ request_id: r.id, user_id: user.id });
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("request_likes").delete().eq("request_id", r.id).eq("user_id", user.id);
+        const { error } = await supabase
+          .from("request_likes")
+          .delete()
+          .eq("request_id", r.id)
+          .eq("user_id", user.id);
         if (error) throw error;
       }
       onChanged?.();
@@ -158,7 +171,7 @@ export function RequestCard({
       if (/request_saves|relation|column/i.test(error.message)) {
         return toast.error(
           lang === "bn"
-            ? "à¦†à¦—à§‡ scripts/request-saves.sql à¦šà¦¾à¦²à¦¾à¦¨"
+            ? "আগে scripts/request-saves.sql চালান"
             : "Run scripts/request-saves.sql first",
         );
       }
@@ -167,10 +180,10 @@ export function RequestCard({
     toast.success(
       next
         ? lang === "bn"
-          ? "à¦ªà§‹à¦¸à§à¦Ÿ à¦¸à§‡à¦­ à¦¹à¦¯à¦¼à§‡à¦›à§‡"
+          ? "পোস্ট সেভ হয়েছে"
           : "Post saved"
         : lang === "bn"
-          ? "à¦¸à§‡à¦­ à¦¸à¦°à¦¾à¦¨à§‹ à¦¹à¦¯à¦¼à§‡à¦›à§‡"
+          ? "সেভ সরানো হয়েছে"
           : "Removed from saved",
     );
     onChanged?.();
@@ -179,20 +192,24 @@ export function RequestCard({
   async function share() {
     const text =
       lang === "bn"
-        ? `${r.blood_group} à¦°à¦•à§à¦¤ à¦¦à¦°à¦•à¦¾à¦° â€” ${r.patient_name}, ${locationLabel}`
-        : `${r.blood_group} blood needed â€” ${r.patient_name}, ${locationLabel}`;
+        ? `${r.blood_group} রক্ত দরকার — ${r.patient_name}, ${locationLabel}`
+        : `${r.blood_group} blood needed — ${r.patient_name}, ${locationLabel}`;
     const url = typeof window !== "undefined" ? window.location.origin : "";
     if (user && r.requester_id !== user.id) {
-      await supabase.from("request_shares").upsert(
-        { request_id: r.id, user_id: user.id },
-        { onConflict: "request_id,user_id", ignoreDuplicates: true },
-      );
+      await supabase
+        .from("request_shares")
+        .upsert(
+          { request_id: r.id, user_id: user.id },
+          { onConflict: "request_id,user_id", ignoreDuplicates: true },
+        );
     }
     try {
       if (navigator.share) await navigator.share({ title: "BloodLink", text, url });
       else {
         await navigator.clipboard.writeText(`${text}\n${url}`);
-        toast.success(lang === "bn" ? "à¦¶à§‡à¦¯à¦¼à¦¾à¦° à¦Ÿà§‡à¦•à§à¦¸à¦Ÿ à¦•à¦ªà¦¿ à¦¹à¦¯à¦¼à§‡à¦›à§‡" : "Share text copied");
+        toast.success(
+          lang === "bn" ? "শেয়ার টেক্সট কপি হয়েছে" : "Share text copied",
+        );
       }
     } catch {
       /* cancelled */
@@ -208,7 +225,7 @@ export function RequestCard({
       if (/donation_completion_open|column/i.test(error.message)) {
         return toast.error(
           lang === "bn"
-            ? "à¦†à¦—à§‡ scripts/donation-completion-open.sql à¦šà¦¾à¦²à¦¾à¦¨"
+            ? "আগে scripts/donation-completion-open.sql চালান"
             : "Run scripts/donation-completion-open.sql first",
         );
       }
@@ -220,14 +237,16 @@ export function RequestCard({
 
   async function deletePost() {
     const ok = confirm(
-      lang === "bn" ? "à¦à¦‡ à¦ªà§‹à¦¸à§à¦Ÿ à¦¸à§à¦¥à¦¾à¦¯à¦¼à§€à¦­à¦¾à¦¬à§‡ à¦®à§à¦›à¦¬à§‡à¦¨?" : "Permanently delete this post?",
+      lang === "bn"
+        ? "এই পোস্ট স্থায়ীভাবে মুছবেন?"
+        : "Permanently delete this post?",
     );
     if (!ok) return;
     setDeleting(true);
     const { error } = await supabase.from("blood_requests").delete().eq("id", r.id);
     setDeleting(false);
     if (error) return toast.error(error.message);
-    toast.success(lang === "bn" ? "à¦ªà§‹à¦¸à§à¦Ÿ à¦®à§à¦›à§‡ à¦«à§‡à¦²à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡" : "Post deleted");
+    toast.success(lang === "bn" ? "পোস্ট মুছে ফেলা হয়েছে" : "Post deleted");
     onChanged?.();
   }
 
@@ -241,12 +260,16 @@ export function RequestCard({
   return (
     <article
       className={`ua-anim-root relative rounded-2xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow ${
-        highlighted ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse" : ""
+        highlighted
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
+          : ""
       }`}
     >
       {showBackdrop && levelCfg && <UrgencyDropletBackdrop config={levelCfg} className="z-0" />}
 
-      <div className={`relative z-[1] bg-gradient-to-r ${urgencyStyle} px-4 py-2.5 flex items-center justify-between gap-2`}>
+      <div
+        className={`relative z-[1] bg-gradient-to-r ${urgencyStyle} px-4 py-2.5 flex items-center justify-between gap-2`}
+      >
         <div className="flex items-center gap-2 min-w-0">
           {levelCfg && <UrgencyHeaderIcon config={levelCfg} />}
           <span className="text-lg font-bold tracking-tight">{r.blood_group}</span>
@@ -263,7 +286,7 @@ export function RequestCard({
                   type="button"
                   disabled={managing || deleting}
                   className="h-8 w-8 rounded-lg grid place-items-center hover:bg-black/15 transition"
-                  aria-label={lang === "bn" ? "à¦†à¦°à¦“ à¦…à¦ªà¦¶à¦¨" : "More options"}
+                  aria-label={lang === "bn" ? "আরও অপশন" : "More options"}
                 >
                   <MoreVertical className="h-4 w-4" />
                 </button>
@@ -281,7 +304,7 @@ export function RequestCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
-                  {lang === "bn" ? "à¦ªà§‹à¦¸à§à¦Ÿ à¦¡à¦¿à¦²à¦¿à¦Ÿ" : "Delete post"}
+                  {lang === "bn" ? "পোস্ট ডিলিট" : "Delete post"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -298,22 +321,22 @@ export function RequestCard({
           />
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold tracking-tight truncate">
-              {r.requester?.full_name?.trim() || (lang === "bn" ? "à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦°à¦•à¦¾à¦°à§€" : "User")}
+              {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground truncate">
               <span className="text-muted-foreground/80">
-                {lang === "bn" ? "à¦°à§‹à¦—à§€" : "Patient"}
+                {lang === "bn" ? "রোগী" : "Patient"}
               </span>
-              <span className="mx-1 text-muted-foreground/50">Â·</span>
+              <span className="mx-1 text-muted-foreground/50">·</span>
               <span className="font-medium text-foreground/85">{r.patient_name}</span>
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
               <Droplets className="h-3.5 w-3.5 text-primary shrink-0" />
-              {r.bags_needed} {lang === "bn" ? "à¦¬à§à¦¯à¦¾à¦— à¦ªà§à¦°à¦¯à¦¼à§‹à¦œà¦¨" : "bag(s) needed"}
+              {r.bags_needed} {lang === "bn" ? "ব্যাগ প্রয়োজন" : "bag(s) needed"}
             </p>
             {r.need_reason_label && (
               <p className="mt-1 text-[11px] text-primary/90 font-medium truncate">
-                {lang === "bn" ? "à¦•à¦¾à¦°à¦£" : "Reason"} Â· {r.need_reason_label}
+                {lang === "bn" ? "কারণ" : "Reason"} · {r.need_reason_label}
               </p>
             )}
           </div>
@@ -334,7 +357,9 @@ export function RequestCard({
         </div>
 
         {r.notes && (
-          <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">{r.notes}</p>
+          <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">
+            {r.notes}
+          </p>
         )}
 
         <DonationPanel
@@ -390,7 +415,7 @@ export function RequestCard({
           {!isOwner && phone && (
             <a
               href={`tel:${phone.replace(/\s/g, "")}`}
-              title={lang === "bn" ? "à¦à¦–à¦¨à¦‡ à¦•à¦² à¦•à¦°à§à¦¨" : "Call now"}
+              title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
               className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center hover:bg-primary/15 transition"
             >
               <Phone className="h-3.5 w-3.5" />
@@ -413,10 +438,10 @@ export function RequestCard({
             className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition hover:bg-muted ${
               saved ? "text-primary" : "text-muted-foreground"
             }`}
-            title={lang === "bn" ? "à¦¸à§‡à¦­" : "Save"}
+            title={lang === "bn" ? "সেভ" : "Save"}
           >
             <Bookmark className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
-            <span className="hidden sm:inline">{lang === "bn" ? "à¦¸à§‡à¦­" : "Save"}</span>
+            <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
           </button>
           <button
             type="button"
