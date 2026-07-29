@@ -27,9 +27,7 @@ import {
   Share2,
   Droplets,
   ThumbsUp,
-  Send,
   MessagesSquare,
-  CornerDownRight,
   CheckCircle2,
   MoreVertical,
   Trash2,
@@ -38,6 +36,7 @@ import {
 import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { DonationPanel } from "@/components/request/DonationPanel";
+import { CommentsSheet } from "@/components/request/CommentsSheet";
 import { toggleSave } from "@/lib/request-saves";
 import { toast } from "sonner";
 
@@ -120,7 +119,7 @@ export function RequestCard({
   }, [r.liked, r.saved, r.like_count, r.comment_count, r.id]);
 
   const distName = lang === "bn" ? r.district?.name_bn : r.district?.name_en;
-  const locationLabel = [r.hospital_name, distName || r.city].filter(Boolean).join(" · ");
+  const locationLabel = [r.hospital_name, distName || r.city].filter(Boolean).join(" Â· ");
   const isOwner = !!currentUserId && r.requester_id === currentUserId;
   const phone = r.contact_phone?.trim() || null;
   const waLink = r.whatsapp_phone?.trim() ? whatsappHref(r.whatsapp_phone.trim()) : null;
@@ -159,7 +158,7 @@ export function RequestCard({
       if (/request_saves|relation|column/i.test(error.message)) {
         return toast.error(
           lang === "bn"
-            ? "আগে scripts/request-saves.sql চালান"
+            ? "à¦†à¦—à§‡ scripts/request-saves.sql à¦šà¦¾à¦²à¦¾à¦¨"
             : "Run scripts/request-saves.sql first",
         );
       }
@@ -168,10 +167,10 @@ export function RequestCard({
     toast.success(
       next
         ? lang === "bn"
-          ? "পোস্ট সেভ হয়েছে"
+          ? "à¦ªà§‹à¦¸à§à¦Ÿ à¦¸à§‡à¦­ à¦¹à¦¯à¦¼à§‡à¦›à§‡"
           : "Post saved"
         : lang === "bn"
-          ? "সেভ সরানো হয়েছে"
+          ? "à¦¸à§‡à¦­ à¦¸à¦°à¦¾à¦¨à§‹ à¦¹à¦¯à¦¼à§‡à¦›à§‡"
           : "Removed from saved",
     );
     onChanged?.();
@@ -180,8 +179,8 @@ export function RequestCard({
   async function share() {
     const text =
       lang === "bn"
-        ? `${r.blood_group} রক্ত দরকার — ${r.patient_name}, ${locationLabel}`
-        : `${r.blood_group} blood needed — ${r.patient_name}, ${locationLabel}`;
+        ? `${r.blood_group} à¦°à¦•à§à¦¤ à¦¦à¦°à¦•à¦¾à¦° â€” ${r.patient_name}, ${locationLabel}`
+        : `${r.blood_group} blood needed â€” ${r.patient_name}, ${locationLabel}`;
     const url = typeof window !== "undefined" ? window.location.origin : "";
     if (user && r.requester_id !== user.id) {
       await supabase.from("request_shares").upsert(
@@ -193,7 +192,7 @@ export function RequestCard({
       if (navigator.share) await navigator.share({ title: "BloodLink", text, url });
       else {
         await navigator.clipboard.writeText(`${text}\n${url}`);
-        toast.success(lang === "bn" ? "শেয়ার টেক্সট কপি হয়েছে" : "Share text copied");
+        toast.success(lang === "bn" ? "à¦¶à§‡à¦¯à¦¼à¦¾à¦° à¦Ÿà§‡à¦•à§à¦¸à¦Ÿ à¦•à¦ªà¦¿ à¦¹à¦¯à¦¼à§‡à¦›à§‡" : "Share text copied");
       }
     } catch {
       /* cancelled */
@@ -209,7 +208,7 @@ export function RequestCard({
       if (/donation_completion_open|column/i.test(error.message)) {
         return toast.error(
           lang === "bn"
-            ? "আগে scripts/donation-completion-open.sql চালান"
+            ? "à¦†à¦—à§‡ scripts/donation-completion-open.sql à¦šà¦¾à¦²à¦¾à¦¨"
             : "Run scripts/donation-completion-open.sql first",
         );
       }
@@ -221,14 +220,14 @@ export function RequestCard({
 
   async function deletePost() {
     const ok = confirm(
-      lang === "bn" ? "এই পোস্ট স্থায়ীভাবে মুছবেন?" : "Permanently delete this post?",
+      lang === "bn" ? "à¦à¦‡ à¦ªà§‹à¦¸à§à¦Ÿ à¦¸à§à¦¥à¦¾à¦¯à¦¼à§€à¦­à¦¾à¦¬à§‡ à¦®à§à¦›à¦¬à§‡à¦¨?" : "Permanently delete this post?",
     );
     if (!ok) return;
     setDeleting(true);
     const { error } = await supabase.from("blood_requests").delete().eq("id", r.id);
     setDeleting(false);
     if (error) return toast.error(error.message);
-    toast.success(lang === "bn" ? "পোস্ট মুছে ফেলা হয়েছে" : "Post deleted");
+    toast.success(lang === "bn" ? "à¦ªà§‹à¦¸à§à¦Ÿ à¦®à§à¦›à§‡ à¦«à§‡à¦²à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡" : "Post deleted");
     onChanged?.();
   }
 
@@ -264,7 +263,7 @@ export function RequestCard({
                   type="button"
                   disabled={managing || deleting}
                   className="h-8 w-8 rounded-lg grid place-items-center hover:bg-black/15 transition"
-                  aria-label={lang === "bn" ? "আরও অপশন" : "More options"}
+                  aria-label={lang === "bn" ? "à¦†à¦°à¦“ à¦…à¦ªà¦¶à¦¨" : "More options"}
                 >
                   <MoreVertical className="h-4 w-4" />
                 </button>
@@ -282,7 +281,7 @@ export function RequestCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
-                  {lang === "bn" ? "পোস্ট ডিলিট" : "Delete post"}
+                  {lang === "bn" ? "à¦ªà§‹à¦¸à§à¦Ÿ à¦¡à¦¿à¦²à¦¿à¦Ÿ" : "Delete post"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -299,22 +298,22 @@ export function RequestCard({
           />
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold tracking-tight truncate">
-              {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
+              {r.requester?.full_name?.trim() || (lang === "bn" ? "à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦°à¦•à¦¾à¦°à§€" : "User")}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground truncate">
               <span className="text-muted-foreground/80">
-                {lang === "bn" ? "রোগী" : "Patient"}
+                {lang === "bn" ? "à¦°à§‹à¦—à§€" : "Patient"}
               </span>
-              <span className="mx-1 text-muted-foreground/50">·</span>
+              <span className="mx-1 text-muted-foreground/50">Â·</span>
               <span className="font-medium text-foreground/85">{r.patient_name}</span>
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
               <Droplets className="h-3.5 w-3.5 text-primary shrink-0" />
-              {r.bags_needed} {lang === "bn" ? "ব্যাগ প্রয়োজন" : "bag(s) needed"}
+              {r.bags_needed} {lang === "bn" ? "à¦¬à§à¦¯à¦¾à¦— à¦ªà§à¦°à¦¯à¦¼à§‹à¦œà¦¨" : "bag(s) needed"}
             </p>
             {r.need_reason_label && (
               <p className="mt-1 text-[11px] text-primary/90 font-medium truncate">
-                {lang === "bn" ? "কারণ" : "Reason"} · {r.need_reason_label}
+                {lang === "bn" ? "à¦•à¦¾à¦°à¦£" : "Reason"} Â· {r.need_reason_label}
               </p>
             )}
           </div>
@@ -364,7 +363,7 @@ export function RequestCard({
           </button>
           <button
             type="button"
-            onClick={() => setShowComments((v) => !v)}
+            onClick={() => setShowComments(true)}
             className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
             <MessagesSquare className="h-4 w-4" />
@@ -391,7 +390,7 @@ export function RequestCard({
           {!isOwner && phone && (
             <a
               href={`tel:${phone.replace(/\s/g, "")}`}
-              title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
+              title={lang === "bn" ? "à¦à¦–à¦¨à¦‡ à¦•à¦² à¦•à¦°à§à¦¨" : "Call now"}
               className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center hover:bg-primary/15 transition"
             >
               <Phone className="h-3.5 w-3.5" />
@@ -414,10 +413,10 @@ export function RequestCard({
             className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition hover:bg-muted ${
               saved ? "text-primary" : "text-muted-foreground"
             }`}
-            title={lang === "bn" ? "সেভ" : "Save"}
+            title={lang === "bn" ? "à¦¸à§‡à¦­" : "Save"}
           >
             <Bookmark className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
-            <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
+            <span className="hidden sm:inline">{lang === "bn" ? "à¦¸à§‡à¦­" : "Save"}</span>
           </button>
           <button
             type="button"
@@ -429,338 +428,18 @@ export function RequestCard({
           </button>
         </div>
 
-        {showComments && (
-          <CommentThread
-            requestId={r.id}
-            onCount={(n) => {
-              setCommentCount(n);
-              onChanged?.();
-            }}
-          />
-        )}
+        <CommentsSheet
+          requestId={r.id}
+          open={showComments}
+          onOpenChange={setShowComments}
+          likeCount={likeCount}
+          liked={liked}
+          onCount={(n) => {
+            setCommentCount(n);
+            onChanged?.();
+          }}
+        />
       </div>
     </article>
-  );
-}
-
-function CommentThread({ requestId, onCount }: { requestId: string; onCount: (n: number) => void }) {
-  const { user } = useAuth();
-  const { lang, t } = useI18n();
-  type Cmt = {
-    id: string;
-    content: string;
-    user_id: string;
-    created_at: string;
-    parent_id?: string | null;
-    name?: string;
-    like_count: number;
-    liked: boolean;
-  };
-  const [items, setItems] = useState<Cmt[]>([]);
-  const [text, setText] = useState("");
-  const [replyTo, setReplyTo] = useState<Cmt | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-  async function load() {
-    const { data: rows, error } = await supabase
-      .from("request_comments")
-      .select("id, content, user_id, created_at, parent_id")
-      .eq("request_id", requestId)
-      .order("created_at", { ascending: true });
-    if (error) {
-      const { data: rows2, error: err2 } = await supabase
-        .from("request_comments")
-        .select("id, content, user_id, created_at")
-        .eq("request_id", requestId)
-        .order("created_at", { ascending: true });
-      if (err2) return;
-      await enrichAndSet((rows2 ?? []).map((row) => ({ ...row, parent_id: null })));
-      return;
-    }
-    await enrichAndSet(rows ?? []);
-  }
-
-  async function enrichAndSet(
-    rows: { id: string; content: string; user_id: string; created_at: string; parent_id?: string | null }[],
-  ) {
-    onCount(rows.length);
-    const ids = [...new Set(rows.map((row) => row.user_id))];
-    const commentIds = rows.map((row) => row.id);
-    let nameMap = new Map<string, string | null>();
-    if (ids.length) {
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", ids);
-      nameMap = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
-    }
-    const likeCount = new Map<string, number>();
-    const likedMine = new Set<string>();
-    if (commentIds.length) {
-      const { data: likes } = await supabase
-        .from("request_comment_likes")
-        .select("comment_id, user_id")
-        .in("comment_id", commentIds);
-      (likes ?? []).forEach((l: { comment_id: string; user_id: string }) => {
-        likeCount.set(l.comment_id, (likeCount.get(l.comment_id) ?? 0) + 1);
-        if (user && l.user_id === user.id) likedMine.add(l.comment_id);
-      });
-    }
-    setItems(
-      rows.map((row) => ({
-        ...row,
-        parent_id: row.parent_id ?? null,
-        name: nameMap.get(row.user_id) ?? "User",
-        like_count: likeCount.get(row.id) ?? 0,
-        liked: likedMine.has(row.id),
-      })),
-    );
-  }
-
-  useEffect(() => {
-    load();
-    const ch = supabase
-      .channel(`req-cmt-${requestId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "request_comments", filter: `request_id=eq.${requestId}` },
-        () => load(),
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "request_comment_likes" }, () => load())
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestId, user?.id]);
-
-  async function send() {
-    if (!user || !text.trim()) return;
-    setBusy(true);
-    const payload: Record<string, unknown> = {
-      request_id: requestId,
-      user_id: user.id,
-      content: text.trim(),
-    };
-    if (replyTo) payload.parent_id = replyTo.id;
-    const { error } = await supabase.from("request_comments").insert(payload);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    if (replyTo) setExpanded((e) => ({ ...e, [replyTo.id]: true }));
-    setText("");
-    setReplyTo(null);
-    load();
-  }
-
-  async function toggleCommentLike(c: Cmt) {
-    if (!user) return;
-    const next = !c.liked;
-    setItems((prev) =>
-      prev.map((x) =>
-        x.id === c.id ? { ...x, liked: next, like_count: Math.max(0, x.like_count + (next ? 1 : -1)) } : x,
-      ),
-    );
-    try {
-      if (next) {
-        const { error } = await supabase.from("request_comment_likes").insert({ comment_id: c.id, user_id: user.id });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("request_comment_likes")
-          .delete()
-          .eq("comment_id", c.id)
-          .eq("user_id", user.id);
-        if (error) throw error;
-      }
-    } catch (e) {
-      setItems((prev) =>
-        prev.map((x) =>
-          x.id === c.id ? { ...x, liked: !next, like_count: Math.max(0, x.like_count + (next ? -1 : 1)) } : x,
-        ),
-      );
-      toast.error((e as Error).message);
-    }
-  }
-
-  const roots = items.filter((c) => !c.parent_id);
-  const repliesOf = (id: string) => items.filter((c) => c.parent_id === id);
-
-  function rememberFeedReturn() {
-    try {
-      sessionStorage.setItem("feedReturnRequestId", requestId);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function CommentRow({ c }: { c: Cmt }) {
-    const replies = repliesOf(c.id);
-    const open = !!expanded[c.id];
-    return (
-      <div>
-        <div className="text-xs py-1.5">
-          <div className="flex items-baseline gap-1 flex-wrap">
-            {c.user_id !== user?.id ? (
-              <Link
-                to="/chat/$peerId"
-                params={{ peerId: c.user_id }}
-                search={{ fromRequestId: requestId }}
-                onClick={rememberFeedReturn}
-                className="font-semibold text-foreground hover:text-primary underline-offset-2 hover:underline"
-              >
-                {c.name}
-              </Link>
-            ) : (
-              <span className="font-semibold">{c.name}</span>
-            )}
-            <span className="text-muted-foreground"> · {timeAgo(c.created_at, lang)}</span>
-          </div>
-          <p className="mt-0.5 text-foreground/90 leading-relaxed">{c.content}</p>
-          <div className="mt-1 flex items-center gap-1 flex-wrap">
-            <button
-              type="button"
-              onClick={() => void toggleCommentLike(c)}
-              className={`inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium transition hover:bg-muted ${
-                c.liked ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              <ThumbsUp className="h-3 w-3" fill={c.liked ? "currentColor" : "none"} />
-              {c.like_count > 0 ? c.like_count : lang === "bn" ? "লাইক" : "Like"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setReplyTo(c);
-                setText("");
-              }}
-              className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
-            >
-              <CornerDownRight className="h-3 w-3" />
-              {lang === "bn" ? "রিপ্লাই" : "Reply"}
-            </button>
-            {replies.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setExpanded((e) => ({ ...e, [c.id]: !open }))}
-                className="text-[11px] font-medium text-primary underline-offset-2 hover:underline px-1"
-              >
-                {open
-                  ? lang === "bn"
-                    ? "লুকান"
-                    : "Hide"
-                  : lang === "bn"
-                    ? `${replies.length}টি রিপ্লাই`
-                    : `${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}
-              </button>
-            )}
-            {c.user_id !== user?.id && (
-              <Link
-                to="/chat/$peerId"
-                params={{ peerId: c.user_id }}
-                search={{ fromRequestId: requestId }}
-                onClick={rememberFeedReturn}
-                className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
-              >
-                <MessengerIcon className="h-3.5 w-3.5" />
-                {t("chat")}
-              </Link>
-            )}
-          </div>
-        </div>
-        {open && replies.length > 0 && (
-          <div className="ml-3 pl-2.5 border-l border-border/70 space-y-0.5">
-            {replies.map((rep) => (
-              <div key={rep.id} className="text-xs py-1.5">
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  {rep.user_id !== user?.id ? (
-                    <Link
-                      to="/chat/$peerId"
-                      params={{ peerId: rep.user_id }}
-                      search={{ fromRequestId: requestId }}
-                      onClick={rememberFeedReturn}
-                      className="font-semibold hover:text-primary underline-offset-2 hover:underline"
-                    >
-                      {rep.name}
-                    </Link>
-                  ) : (
-                    <span className="font-semibold">{rep.name}</span>
-                  )}
-                  <span className="text-muted-foreground"> · {timeAgo(rep.created_at, lang)}</span>
-                </div>
-                <p className="mt-0.5 text-foreground/90">{rep.content}</p>
-                <div className="mt-1 flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => void toggleCommentLike(rep)}
-                    className={`inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium hover:bg-muted ${
-                      rep.liked ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    <ThumbsUp className="h-3 w-3" fill={rep.liked ? "currentColor" : "none"} />
-                    {rep.like_count > 0 ? rep.like_count : lang === "bn" ? "লাইক" : "Like"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReplyTo(c);
-                      setText("");
-                    }}
-                    className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
-                  >
-                    <CornerDownRight className="h-3 w-3" />
-                    {lang === "bn" ? "রিপ্লাই" : "Reply"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl border bg-muted/30 p-2.5 space-y-1">
-      {roots.map((c) => (
-        <CommentRow key={c.id} c={c} />
-      ))}
-      {items.length === 0 && (
-        <p className="text-[11px] text-muted-foreground py-1">
-          {lang === "bn" ? "এখনো কমেন্ট নেই" : "No comments yet"}
-        </p>
-      )}
-      {replyTo && (
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-background/80 border px-2.5 py-1.5 text-[11px]">
-          <span className="text-muted-foreground truncate">
-            {lang === "bn" ? "রিপ্লাই" : "Replying"} ·{" "}
-            <span className="font-medium text-foreground">{replyTo.name}</span>
-          </span>
-          <button type="button" className="text-primary font-medium shrink-0" onClick={() => setReplyTo(null)}>
-            {t("cancel")}
-          </button>
-        </div>
-      )}
-      <div className="flex gap-2 pt-1">
-        <input
-          className="flex-1 rounded-xl border bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-          placeholder={
-            replyTo
-              ? lang === "bn"
-                ? `${replyTo.name}-কে রিপ্লাই…`
-                : `Reply to ${replyTo.name}…`
-              : t("typeMessage")
-          }
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-        />
-        <button
-          type="button"
-          disabled={busy || !text.trim()}
-          onClick={send}
-          className="rounded-xl bg-primary text-primary-foreground px-3 py-2 disabled:opacity-40"
-        >
-          <Send className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </div>
   );
 }
