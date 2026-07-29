@@ -92,13 +92,13 @@ function AppShell({
     if (composeOpen) {
       void navigate({
         to: "/",
-        search: (prev) => ({ ...prev, compose: undefined }),
+        search: (prev: Record<string, unknown>) => ({ ...prev, compose: undefined }),
       });
       return;
     }
     void navigate({
       to: "/",
-      search: (prev) => ({ ...prev, compose: true }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, compose: true }),
     });
   }
 
