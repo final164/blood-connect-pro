@@ -104,7 +104,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       const actorIds = [...new Set(list.map((n) => n.actor_id).filter(Boolean))] as string[];
       if (actorIds.length) {
         const { data: profiles } = await supabase
-          .from("profiles")
+          .from("profiles_public")
           .select("id, full_name, avatar_url")
           .in("id", actorIds);
         const map = new Map((profiles ?? []).map((p) => [p.id, p]));

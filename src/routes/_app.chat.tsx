@@ -94,7 +94,7 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
       const peerIds = list.map((c) => (c.user_a === user!.id ? c.user_b : c.user_a));
       if (peerIds.length) {
         const { data: profiles } = await supabase
-          .from("profiles")
+          .from("profiles_public")
           .select("id, full_name, avatar_url, blood_group")
           .in("id", peerIds);
         const map = new Map((profiles ?? []).map((p) => [p.id, p] as const));

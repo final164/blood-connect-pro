@@ -101,7 +101,7 @@ function FeedPage() {
 
       if (requesterIds.length) {
         const { data: profiles } = await supabase
-          .from("profiles")
+          .from("profiles_public")
           .select("id, full_name, avatar_url")
           .in("id", requesterIds);
         const map = new Map((profiles ?? []).map((p) => [p.id, p]));

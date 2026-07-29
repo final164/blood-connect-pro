@@ -44,7 +44,7 @@ function SettingsPage() {
       notif_email: !!s.notif_email,
       notif_new_request: !!s.notif_new_request,
       share_location: !!s.share_location,
-      google_maps_api_key: s.google_maps_api_key ?? null,
+      
       e2ee_enabled: !!s.e2ee_enabled,
       radius_km: Number(s.radius_km) || 25,
     });
