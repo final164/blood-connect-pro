@@ -5,14 +5,15 @@ import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Users, User, WifiOff, Droplet, Shield, LogOut, Bell, Plus } from "lucide-react";
+import { UserMenuSidebar } from "@/components/menu/UserMenuNav";
+import { Home, Users, User, WifiOff, Droplet, Shield, Bell, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
 function AppLayout() {
-  const { loading, session, isAnonymous, isAdmin, user, signOut } = useAuth();
+  const { loading, session, isAnonymous, isAdmin, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -61,9 +62,7 @@ function AppLayout() {
         t={t}
         locationPath={location.pathname}
         isAdmin={isAdmin}
-        userEmail={user?.email}
         online={online}
-        onSignOut={() => signOut()}
       />
     </NotificationsProvider>
   );
@@ -73,16 +72,12 @@ function AppShell({
   t,
   locationPath,
   isAdmin,
-  userEmail,
   online,
-  onSignOut,
 }: {
   t: (k: string) => string;
   locationPath: string;
   isAdmin: boolean;
-  userEmail?: string | null;
   online: boolean;
-  onSignOut: () => void;
 }) {
   const { unread } = useNotifications();
   const navigate = useNavigate();
@@ -118,108 +113,159 @@ function AppShell({
     { id: "feed", kind: "link", to: "/", label: t("feed"), icon: Home },
     { id: "community", kind: "link", to: "/community", label: t("community"), icon: Users },
     { id: "compose", kind: "compose", label: t("createRequest"), icon: Plus },
-    { id: "notifications", kind: "link", to: "/notifications", label: t("notifications"), icon: Bell, badge: unread },
+    {
+      id: "notifications",
+      kind: "link",
+      to: "/notifications",
+      label: t("notifications"),
+      icon: Bell,
+      badge: unread,
+    },
     { id: "profile", kind: "link", to: "/profile", label: t("profile"), icon: User },
   ];
 
-  return (
-    <div className="min-h-dvh flex bg-background">
-      <aside className="hidden md:flex md:w-60 lg:w-64 shrink-0 flex-col border-r bg-card sticky top-0 h-dvh">
-        <div className="px-5 py-5 border-b flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
-            <Droplet className="h-4 w-4" fill="currentColor" />
+  function renderTab(tab: NavTab, layout: "top" | "bottom") {
+    const Icon = tab.icon;
+    if (tab.kind === "compose") {
+      if (layout === "top") {
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={openComposer}
+            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
+              composeOpen
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-4 w-4" strokeWidth={composeOpen ? 2.4 : 1.9} />
+            <span className="hidden lg:inline">{tab.label}</span>
+          </button>
+        );
+      }
+      return (
+        <button key={tab.id} type="button" onClick={openComposer} className="flex flex-col items-center gap-0.5 py-1.5">
+          <div
+            className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
+              composeOpen
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                : "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+            }`}
+          >
+            <Icon className="h-[17px] w-[17px]" strokeWidth={2.4} />
           </div>
-          <div className="min-w-0">
-            <p className="font-bold text-sm truncate">{t("appName")}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{t("tagline")}</p>
-          </div>
-        </div>
-        <nav className="flex-1 p-3 space-y-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            if (tab.kind === "compose") {
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={openComposer}
-                  className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                    composeOpen
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" strokeWidth={composeOpen ? 2.4 : 1.9} />
-                  <span className="flex-1 truncate text-left">{tab.label}</span>
-                </button>
-              );
-            }
-            const active =
-              tab.to === "/"
-                ? locationPath === "/" && !composeOpen
-                : locationPath.startsWith(tab.to);
-            const badge = tab.badge ?? 0;
-            return (
-              <Link
-                key={tab.id}
-                to={tab.to}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+          <span className="text-[9px] font-medium leading-none truncate max-w-[4.2rem] text-primary">
+            {tab.label}
+          </span>
+        </button>
+      );
+    }
+
+    const active =
+      tab.to === "/"
+        ? locationPath === "/" && !composeOpen
+        : locationPath.startsWith(tab.to);
+    const badge = tab.badge ?? 0;
+
+    if (layout === "top") {
+      return (
+        <Link
+          key={tab.id}
+          to={tab.to}
+          className={`relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
+            active
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <span className="relative">
+            <Icon className="h-4 w-4" strokeWidth={active ? 2.4 : 1.9} />
+            {badge > 0 && (
+              <span
+                className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold grid place-items-center ring-2 ${
                   active
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-primary-foreground text-primary ring-primary"
+                    : "bg-primary text-primary-foreground ring-card"
                 }`}
               >
-                <span className="relative">
-                  <Icon className="h-4 w-4" strokeWidth={active ? 2.4 : 1.9} />
-                  {badge > 0 && (
-                    <span
-                      className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold grid place-items-center ring-2 ${
-                        active
-                          ? "bg-primary-foreground text-primary ring-primary"
-                          : "bg-primary text-primary-foreground ring-card"
-                      }`}
-                    >
-                      {badge > 9 ? "9+" : badge}
-                    </span>
-                  )}
-                </span>
-                <span className="flex-1 truncate">{tab.label}</span>
-                {badge > 0 && !active && (
-                  <span className="text-[10px] font-semibold text-primary">{badge}</span>
-                )}
-              </Link>
-            );
-          })}
+                {badge > 9 ? "9+" : badge}
+              </span>
+            )}
+          </span>
+          <span className="hidden lg:inline">{tab.label}</span>
+        </Link>
+      );
+    }
+
+    return (
+      <Link key={tab.id} to={tab.to} className="flex flex-col items-center gap-0.5 py-1.5">
+        <div
+          className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
+            active ? "bg-primary text-primary-foreground shadow-md shadow-primary/30" : "text-muted-foreground"
+          }`}
+        >
+          <Icon className="h-[17px] w-[17px]" strokeWidth={active ? 2.4 : 1.9} />
+          {badge > 0 && (
+            <span
+              className={`absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold grid place-items-center ${
+                active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground"
+              }`}
+            >
+              {badge > 9 ? "9+" : badge}
+            </span>
+          )}
+        </div>
+        <span
+          className={`text-[9px] font-medium leading-none truncate max-w-[4.2rem] ${
+            active ? "text-primary" : "text-muted-foreground"
+          }`}
+        >
+          {tab.label}
+        </span>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="min-h-dvh flex bg-background">
+      <UserMenuSidebar />
+
+      <div className="flex-1 flex flex-col min-w-0 min-h-dvh">
+        {/* Desktop / large screen: top app nav (was bottom on mobile) */}
+        <header className="hidden md:sticky md:top-0 md:z-40 md:flex items-center gap-3 border-b bg-card/95 backdrop-blur-xl px-4 lg:px-6 py-2.5">
+          <div className="flex items-center gap-2.5 shrink-0 mr-1">
+            <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
+              <Droplet className="h-4 w-4" fill="currentColor" />
+            </div>
+            <div className="min-w-0 hidden xl:block">
+              <p className="font-bold text-sm leading-tight truncate">{t("appName")}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{t("tagline")}</p>
+            </div>
+          </div>
+
+          <nav className="flex-1 flex items-center justify-center gap-1 min-w-0">
+            {tabs.map((tab) => renderTab(tab, "top"))}
+          </nav>
+
           {isAdmin && (
             <Link
               to="/admin"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground mt-2 border-t pt-3"
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
             >
               <Shield className="h-4 w-4" />
-              {t("adminPanel")}
+              <span className="hidden lg:inline">{t("adminPanel")}</span>
             </Link>
           )}
-        </nav>
-        <div className="p-3 border-t space-y-2">
-          <p className="text-[11px] text-muted-foreground truncate px-2">{userEmail}</p>
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
-          >
-            <LogOut className="h-4 w-4" />
-            {t("logout")}
-          </button>
-        </div>
-      </aside>
+        </header>
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-dvh">
         {!online && (
           <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-3 py-1.5 flex items-center justify-center gap-1.5 safe-top">
             <WifiOff className="h-3.5 w-3.5" />
             {t("offlineMode")}
           </div>
         )}
+
         <main
           className={`flex-1 flex flex-col min-h-0 min-w-0 ${
             isChatThread ? "pb-0" : "pb-bottom-nav md:pb-0"
@@ -236,71 +282,13 @@ function AppShell({
           )}
         </main>
 
+        {/* Mobile: bottom nav */}
         {!isChatThread && (
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-xl safe-bottom">
-          <div className="mx-auto max-w-lg grid grid-cols-5 px-0.5 pt-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              if (tab.kind === "compose") {
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={openComposer}
-                    className="flex flex-col items-center gap-0.5 py-1.5"
-                  >
-                    <div
-                      className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
-                        composeOpen
-                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
-                          : "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                      }`}
-                    >
-                      <Icon className="h-[17px] w-[17px]" strokeWidth={2.4} />
-                    </div>
-                    <span className="text-[9px] font-medium leading-none truncate max-w-[4.2rem] text-primary">
-                      {tab.label}
-                    </span>
-                  </button>
-                );
-              }
-              const active =
-                tab.to === "/"
-                  ? locationPath === "/" && !composeOpen
-                  : locationPath.startsWith(tab.to);
-              const badge = tab.badge ?? 0;
-              return (
-                <Link key={tab.id} to={tab.to} className="flex flex-col items-center gap-0.5 py-1.5">
-                  <div
-                    className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
-                      active ? "bg-primary text-primary-foreground shadow-md shadow-primary/30" : "text-muted-foreground"
-                    }`}
-                  >
-                    <Icon className="h-[17px] w-[17px]" strokeWidth={active ? 2.4 : 1.9} />
-                    {badge > 0 && (
-                      <span
-                        className={`absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold grid place-items-center ${
-                          active
-                            ? "bg-primary-foreground text-primary"
-                            : "bg-primary text-primary-foreground"
-                        }`}
-                      >
-                        {badge > 9 ? "9+" : badge}
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    className={`text-[9px] font-medium leading-none truncate max-w-[4.2rem] ${
-                      active ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
+          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-xl safe-bottom">
+            <div className="mx-auto max-w-lg grid grid-cols-5 px-0.5 pt-1">
+              {tabs.map((tab) => renderTab(tab, "bottom"))}
+            </div>
+          </nav>
         )}
       </div>
     </div>
