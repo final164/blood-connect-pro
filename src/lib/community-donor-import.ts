@@ -192,6 +192,7 @@ export async function fetchCommunityDonors(opts: {
   bloodGroup?: string;
   districtId?: string | null;
   upazila?: string;
+  orgId?: string | null;
 }) {
   let q = supabase
     .from("community_donors")
@@ -209,6 +210,7 @@ export async function fetchCommunityDonors(opts: {
   if (opts.upazila?.trim()) {
     q = q.eq("upazila", opts.upazila.trim());
   }
+  if (opts.orgId) q = q.eq("org_id", opts.orgId);
 
   const { data, error } = await q;
   if (error) throw error;

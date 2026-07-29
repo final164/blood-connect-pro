@@ -1,30 +1,49 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { type District } from "@/lib/api";
+import { fetchCommunityOrgs, type CommunityOrg, type District } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
-import { Droplet, Phone, Users, Building2 } from "lucide-react";
+import { Droplet, Phone, Users, Building2, X } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { supabase } from "@/integrations/supabase/client";
 
+type CommunitySearch = {
+  orgId?: string;
+};
+
 export const Route = createFileRoute("/_app/community")({
   head: () => ({ meta: [{ title: "Community — BloodLink" }] }),
+  validateSearch: (search: Record<string, unknown>): CommunitySearch => ({
+    orgId: typeof search.orgId === "string" && search.orgId ? search.orgId : undefined,
+  }),
   component: CommunityPage,
 });
 
 function CommunityPage() {
   const { lang } = useI18n();
+  const { orgId } = Route.useSearch();
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
   const [bloodGroup, setBloodGroup] = useState("ALL");
   const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
+  const [filterOrg, setFilterOrg] = useState<CommunityOrg | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!orgId) {
+      setFilterOrg(null);
+      return;
+    }
+    void fetchCommunityOrgs()
+      .then((orgs) => setFilterOrg(orgs.find((o) => o.id === orgId) ?? null))
+      .catch(() => setFilterOrg(null));
+  }, [orgId]);
 
   async function load() {
     setLoading(true);
@@ -33,6 +52,7 @@ function CommunityPage() {
         bloodGroup,
         districtId: district?.id ?? null,
         upazila: upazila.trim() || undefined,
+        orgId: orgId ?? null,
       });
       setDonors(data);
     } catch {
@@ -52,7 +72,11 @@ function CommunityPage() {
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bloodGroup, district?.id, upazila]);
+  }, [bloodGroup, district?.id, upazila, orgId]);
+
+  const orgLabel =
+    filterOrg &&
+    (lang === "bn" ? filterOrg.name_bn || filterOrg.name : filterOrg.name);
 
   return (
     <div className="w-full">
@@ -74,6 +98,21 @@ function CommunityPage() {
           </div>
           <ChatHeaderButton />
         </div>
+
+        {orgLabel && (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+            <Building2 className="h-4 w-4 text-primary shrink-0" />
+            <p className="min-w-0 flex-1 text-xs font-semibold truncate">{orgLabel}</p>
+            <Link
+              to="/community"
+              search={{}}
+              className="h-7 w-7 rounded-lg hover:bg-muted grid place-items-center text-muted-foreground"
+              aria-label={lang === "bn" ? "ফিল্টার সরান" : "Clear filter"}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        )}
 
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
           {["ALL", ...BLOOD_GROUPS].map((g) => (
@@ -109,7 +148,7 @@ function CommunityPage() {
           <li className="text-center text-sm text-muted-foreground py-12">{lang === "bn" ? "খুঁজছি…" : "Searching…"}</li>
         )}
         {!loading && donors.length === 0 && (
-          <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
+          <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center md:col-span-full">
             <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">
               {lang === "bn" ? "কোনো রক্তদাতা পাওয়া যায়নি" : "No donors found"}
