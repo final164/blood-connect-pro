@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Building2 } from "lucide-react";
+import { ArrowLeft, Building2, Phone, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
@@ -11,7 +11,7 @@ import {
   loadActivityRequests,
   type ActivityView,
 } from "@/lib/user-activity";
-import { fetchCommunityOrgs } from "@/lib/api";
+import { fetchCommunityOrgs, type CommunityOrg } from "@/lib/api";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 
 const TITLES: Record<ActivityView, { bn: string; en: string }> = {
@@ -42,17 +42,21 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
   const { user } = useAuth();
   const { lang, t } = useI18n();
   const [items, setItems] = useState<FeedRequest[]>([]);
-  const [orgs, setOrgs] = useState<any[]>([]);
+  const [orgs, setOrgs] = useState<CommunityOrg[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    if (!user) return;
     setLoading(true);
     try {
       if (view === "organizations") {
         setOrgs(await fetchCommunityOrgs());
         setItems([]);
       } else {
+        if (!user) {
+          setItems([]);
+          setOrgs([]);
+          return;
+        }
         setItems(await loadActivityRequests(view, user.id));
         setOrgs([]);
       }
@@ -98,34 +102,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
           ) : (
             <ul className="space-y-2">
               {orgs.map((o) => (
-                <li
-                  key={o.id}
-                  className="rounded-xl border bg-card px-3 py-3 flex items-start gap-3"
-                >
-                  <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                    <Building2 className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{o.name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {[
-                        o.districts
-                          ? lang === "bn"
-                            ? o.districts.name_bn
-                            : o.districts.name_en
-                          : null,
-                        o.phone,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                    {o.description && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {o.description}
-                      </p>
-                    )}
-                  </div>
-                </li>
+                <OrgCard key={o.id} org={o} lang={lang} />
               ))}
             </ul>
           )
@@ -143,5 +120,59 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
         )}
       </div>
     </div>
+  );
+}
+
+function OrgCard({ org: o, lang }: { org: CommunityOrg; lang: "bn" | "en" }) {
+  const name = lang === "bn" ? o.name_bn || o.name : o.name;
+  const description = lang === "bn" ? o.description_bn || o.description : o.description;
+  const distName = o.districts
+    ? lang === "bn"
+      ? o.districts.name_bn
+      : o.districts.name_en
+    : null;
+  const meta = [distName, o.phone].filter(Boolean).join(" · ");
+
+  return (
+    <li className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+      <Link
+        to="/community"
+        search={{ orgId: o.id }}
+        className="flex items-start gap-3 px-3 py-3 hover:bg-muted/40 transition"
+      >
+        <span className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+          {o.logo_url ? (
+            <img src={o.logo_url} alt="" className="h-11 w-11 rounded-xl object-cover" />
+          ) : (
+            <Building2 className="h-5 w-5" />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-semibold truncate">{name}</p>
+            {o.is_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
+          </div>
+          {meta && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{meta}</p>}
+          {description && (
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
+          )}
+          <p className="mt-1.5 text-[11px] font-medium text-primary">
+            {lang === "bn" ? "রক্তদাতা দেখুন →" : "View donors →"}
+          </p>
+        </div>
+      </Link>
+      {o.phone && (
+        <div className="border-t px-3 py-2 flex justify-end">
+          <a
+            href={`tel:${o.phone.replace(/\s/g, "")}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold hover:bg-primary/15"
+          >
+            <Phone className="h-3.5 w-3.5" />
+            {lang === "bn" ? "কল" : "Call"}
+          </a>
+        </div>
+      )}
+    </li>
   );
 }

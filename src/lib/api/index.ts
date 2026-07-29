@@ -269,16 +269,47 @@ export async function sharePost(postId: string, userId: string, channel = "app")
   if (error) throw error;
 }
 
-export async function fetchCommunityOrgs(districtId?: string | null) {
+export type CommunityOrg = {
+  id: string;
+  name: string;
+  name_bn: string | null;
+  description: string | null;
+  description_bn: string | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  district_id: string | null;
+  logo_url: string | null;
+  is_verified: boolean;
+  is_active: boolean;
+  sort_order: number;
+  districts?: { name_bn: string; name_en: string } | null;
+};
+
+export async function fetchCommunityOrgs(districtId?: string | null): Promise<CommunityOrg[]> {
+  // Avoid nested `districts(...)` join — Lovable DBs may lack the FK in PostgREST cache.
   let q = supabase
     .from("community_orgs")
-    .select("*, districts(name_bn,name_en)")
+    .select(
+      "id,name,name_bn,description,description_bn,website,phone,email,district_id,logo_url,is_verified,is_active,sort_order",
+    )
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
   if (districtId) q = q.eq("district_id", districtId);
   const { data, error } = await q;
   if (error) throw error;
-  return data ?? [];
+  const rows = (data ?? []) as CommunityOrg[];
+  const districtIds = [...new Set(rows.map((r) => r.district_id).filter(Boolean))] as string[];
+  if (!districtIds.length) return rows;
+  const { data: dists } = await supabase
+    .from("districts")
+    .select("id,name_bn,name_en")
+    .in("id", districtIds);
+  const byId = new Map((dists ?? []).map((d) => [d.id, { name_bn: d.name_bn, name_en: d.name_en }]));
+  return rows.map((r) => ({
+    ...r,
+    districts: r.district_id ? byId.get(r.district_id) ?? null : null,
+  }));
 }
 
 export async function fetchAllDistricts(): Promise<District[]> {
