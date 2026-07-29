@@ -212,7 +212,7 @@ export async function fetchCommunityDonors(opts: {
 
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as CommunityDonorRow[];
+  return (data ?? []) as unknown as CommunityDonorRow[];
 }
 
 export async function fetchCommunityDonorsByOrg(orgId: string) {
