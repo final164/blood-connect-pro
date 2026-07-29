@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { Avatar } from "@/components/Avatar";
 import {
   DEFAULT_DONATION_FLOW_SETTINGS,
+  donationLabel,
   fetchDonationFlowSettings,
   type DonationFlowSettings,
 } from "@/lib/donation-flow-settings";
@@ -106,7 +107,12 @@ export function DonationPanel({
   const doneBags = bagsConfirmed(offers);
   const open = status === "open";
   const enableInterest = flow.enable_i_can_donate;
-  const claimsUnlocked = completionOpen;
+  const enableIDonated = flow.enable_i_donated;
+  const enableConfirm = flow.enable_confirm;
+  const enableAssign = flow.enable_assign;
+  const showProgress = flow.show_progress;
+  const claimsUnlocked = flow.require_complete_first ? completionOpen : true;
+  const L = (key: Parameters<typeof donationLabel>[1]) => donationLabel(flow, key, lang);
 
   function atConfirmCap() {
     if (canAddConfirmed) return false;
@@ -153,6 +159,7 @@ export function DonationPanel({
   }
 
   async function onClaimFromInterest() {
+    if (!enableIDonated) return;
     if (!claimsUnlocked) {
       return toast.error(
         lang === "bn"
@@ -176,7 +183,7 @@ export function DonationPanel({
   }
 
   async function onClaimDirect() {
-    if (!user) return;
+    if (!user || !enableIDonated) return;
     if (!claimsUnlocked) {
       return toast.error(
         lang === "bn"
@@ -204,17 +211,19 @@ export function DonationPanel({
   }
 
   async function onConfirm(offer: DonationOffer) {
+    if (!enableConfirm) return;
     if (atConfirmCap()) return;
     await run(async () => confirmOffer({ offer, recipientId: requesterId, bags: offer.bags }));
     toast.success(lang === "bn" ? "ডোনেশন নিশ্চিত" : "Donation confirmed");
   }
 
   async function onReject(offerId: string) {
+    if (!enableConfirm) return;
     await run(async () => rejectOffer(offerId));
   }
 
   async function onAssign(donorId: string) {
-    if (!user) return;
+    if (!user || !enableAssign) return;
     if (atConfirmCap()) return;
     if (donorId === requesterId) {
       return toast.error(lang === "bn" ? "নিজেকে assign করা যাবে না" : "Cannot assign yourself");
@@ -242,28 +251,30 @@ export function DonationPanel({
         completingMode ? "border-primary/40 bg-primary/5" : "bg-muted/20"
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold flex items-center gap-1.5">
-          <HeartHandshake className="h-3.5 w-3.5 text-primary" />
-          {completingMode
-            ? lang === "bn"
-              ? "সম্পন্ন — ডোনার assign করুন"
-              : "Complete — assign donors"
-            : lang === "bn"
-              ? "রক্তদান অগ্রগতি"
-              : "Donation progress"}
-        </p>
-        <span className="text-[11px] font-medium text-muted-foreground">
-          {doneBags}/{bagsNeeded} {lang === "bn" ? "ব্যাগ" : "bags"}
-        </span>
-      </div>
+      {showProgress && (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold flex items-center gap-1.5">
+              <HeartHandshake className="h-3.5 w-3.5 text-primary" />
+              {completingMode
+                ? lang === "bn"
+                  ? "সম্পন্ন — ডোনার assign করুন"
+                  : "Complete — assign donors"
+                : L("progress_title")}
+            </p>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {doneBags}/{bagsNeeded} {lang === "bn" ? "ব্যাগ" : "bags"}
+            </span>
+          </div>
 
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: `${Math.min(100, (doneBags / Math.max(1, bagsNeeded)) * 100)}%` }}
-        />
-      </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${Math.min(100, (doneBags / Math.max(1, bagsNeeded)) * 100)}%` }}
+            />
+          </div>
+        </>
+      )}
 
       {confirmed.length > 0 && (
         <div className="space-y-1.5">
@@ -292,7 +303,7 @@ export function DonationPanel({
         </div>
       )}
 
-      {/* Donor actions: interest anytime; "I donated" only after owner Complete */}
+      {/* Donor actions */}
       {open && user && !isOwner && (
         <div className="space-y-2 pt-1">
           {(!myOffer || myOffer.status === "cancelled" || myOffer.status === "rejected") &&
@@ -303,12 +314,13 @@ export function DonationPanel({
                 onClick={() => void onInterest()}
                 className="w-full rounded-xl bg-primary/10 text-primary text-xs font-semibold py-2.5 hover:bg-primary/15 disabled:opacity-50"
               >
-                {lang === "bn" ? "রক্ত দিতে পারি" : "I can donate"}
+                {L("i_can_donate")}
               </button>
             )}
 
           {(!myOffer || myOffer.status === "cancelled" || myOffer.status === "rejected") &&
             !enableInterest &&
+            enableIDonated &&
             claimsUnlocked && (
               <div className="flex items-center gap-2">
                 <label className="text-[11px] text-muted-foreground shrink-0">
@@ -328,14 +340,14 @@ export function DonationPanel({
                   onClick={() => void onClaimDirect()}
                   className="flex-1 rounded-xl bg-primary text-primary-foreground text-xs font-semibold py-2 disabled:opacity-50"
                 >
-                  {lang === "bn" ? "আমি দিয়েছি" : "I donated"}
+                  {L("i_donated")}
                 </button>
               </div>
             )}
 
           {myOffer?.status === "interested" && (
             <div className="space-y-2">
-              {claimsUnlocked ? (
+              {enableIDonated && claimsUnlocked ? (
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] text-muted-foreground shrink-0">
                     {lang === "bn" ? "ব্যাগ" : "Bags"}
@@ -354,7 +366,7 @@ export function DonationPanel({
                     onClick={() => void onClaimFromInterest()}
                     className="flex-1 rounded-xl bg-primary text-primary-foreground text-xs font-semibold py-2 disabled:opacity-50"
                   >
-                    {lang === "bn" ? "আমি দিয়েছি" : "I donated"}
+                    {L("i_donated")}
                   </button>
                   <button
                     type="button"
@@ -369,9 +381,13 @@ export function DonationPanel({
               ) : (
                 <div className="flex items-center gap-2">
                   <p className="flex-1 text-[11px] text-muted-foreground text-center py-1">
-                    {lang === "bn"
-                      ? "আগ্রহী — পোস্টকারী Complete করলে দাবি করা যাবে"
-                      : "Interested — claim after owner starts Complete"}
+                    {!enableIDonated
+                      ? lang === "bn"
+                        ? "আগ্রহী হিসেবে চিহ্নিত"
+                        : "Marked as interested"
+                      : lang === "bn"
+                        ? "আগ্রহী — পোস্টকারী Complete করলে দাবি করা যাবে"
+                        : "Interested — claim after owner starts Complete"}
                   </p>
                   <button
                     type="button"
@@ -389,9 +405,7 @@ export function DonationPanel({
 
           {myOffer?.status === "donated_claimed" && (
             <p className="text-[11px] text-amber-700 dark:text-amber-400 text-center py-1">
-              {lang === "bn"
-                ? "পোস্টকারীর নিশ্চিতকরণের অপেক্ষা…"
-                : "Waiting for owner confirmation…"}
+              {L("waiting_confirm")}
             </p>
           )}
 
@@ -410,8 +424,8 @@ export function DonationPanel({
         </div>
       )}
 
-      {/* Owner: pending claims — only after completion opened */}
-      {open && isOwner && claimsUnlocked && pending.length > 0 && (
+      {/* Owner: pending claims */}
+      {open && isOwner && enableConfirm && claimsUnlocked && pending.length > 0 && (
         <ul className="space-y-1.5 pt-1 border-t">
           {pending.map((o) => (
             <li key={o.id} className="flex items-center gap-2 rounded-lg border bg-card px-2 py-1.5">
@@ -428,7 +442,7 @@ export function DonationPanel({
                 onClick={() => void onConfirm(o)}
                 className="rounded-lg bg-primary text-primary-foreground px-2 py-1 text-[10px] font-semibold disabled:opacity-50"
               >
-                {lang === "bn" ? "কনফার্ম" : "Confirm"}
+                {L("confirm")}
               </button>
               <button
                 type="button"
@@ -436,15 +450,15 @@ export function DonationPanel({
                 onClick={() => void onReject(o.id)}
                 className="rounded-lg border px-2 py-1 text-[10px] disabled:opacity-50"
               >
-                {lang === "bn" ? "বাতিল" : "Reject"}
+                {L("reject")}
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Owner: interested list (assign shortcut only in completing mode) */}
-      {open && isOwner && completingMode && interested.length > 0 && (
+      {/* Owner: interested → assign shortcut */}
+      {open && isOwner && completingMode && enableAssign && interested.length > 0 && (
         <ul className="space-y-1.5">
           {interested.map((o) => (
             <li key={o.id} className="flex items-center gap-2 rounded-lg border bg-card px-2 py-1.5">
@@ -461,34 +475,34 @@ export function DonationPanel({
                 onClick={() => void onAssign(o.donor_id)}
                 className="rounded-lg bg-primary/10 text-primary px-2 py-1 text-[10px] font-semibold disabled:opacity-50"
               >
-                Assign
+                {L("assign")}
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Owner: reopen assign after Back while completion stays open */}
-      {open && isOwner && claimsUnlocked && !completingMode && (
+      {/* Owner: reopen */}
+      {open && isOwner && completionOpen && !completingMode && (
         <button
           type="button"
           onClick={() => onReopenCompleting?.()}
           className="w-full rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-semibold py-2.5"
         >
-          {lang === "bn" ? "ডোনার assign / সম্পন্ন করুন" : "Assign donors / finish"}
+          {L("reopen_assign")}
         </button>
       )}
 
-      {/* Owner completing: assign UI then finish */}
+      {/* Owner completing */}
       {open && isOwner && completingMode && (
         <div className="space-y-2 pt-1 border-t">
           <p className="text-[11px] text-muted-foreground">
             {lang === "bn"
-              ? `নিশ্চিত ${confirmedCount}/${maxAssign} জন (assign ${assignedCount})। চাইলে আরও যোগ করুন, তারপর সম্পন্ন করুন।`
-              : `Confirmed ${confirmedCount}/${maxAssign} (assigned ${assignedCount}). Add more if needed, then finish.`}
+              ? `নিশ্চিত ${confirmedCount}/${maxAssign} জন${enableAssign ? ` (assign ${assignedCount})` : ""}।`
+              : `Confirmed ${confirmedCount}/${maxAssign}${enableAssign ? ` (assigned ${assignedCount})` : ""}.`}
           </p>
 
-          {canAssignMore && (
+          {enableAssign && canAssignMore && (
             <div className="space-y-2 rounded-lg border bg-card p-2">
               <div className="flex items-center gap-2 text-xs font-medium">
                 <UserPlus className="h-3.5 w-3.5 text-primary" />
@@ -557,7 +571,7 @@ export function DonationPanel({
               onClick={() => void finishComplete()}
               className="flex-[1.4] rounded-xl bg-primary text-primary-foreground text-xs font-semibold py-2.5 disabled:opacity-50"
             >
-              {lang === "bn" ? "সম্পন্ন করুন" : "Finish & fulfill"}
+              {L("finish")}
             </button>
           </div>
         </div>

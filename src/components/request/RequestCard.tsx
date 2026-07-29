@@ -6,6 +6,12 @@ import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { whatsappHref } from "@/lib/request-form-options";
 import { fetchNotificationSettings } from "@/lib/notification-settings";
+import {
+  DEFAULT_DONATION_FLOW_SETTINGS,
+  donationLabel,
+  fetchDonationFlowSettings,
+  type DonationFlowSettings,
+} from "@/lib/donation-flow-settings";
 import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
 import { UrgencyDropletBackdrop, UrgencyHeaderIcon } from "@/components/request/UrgencyDropletBackdrop";
 import {
@@ -92,6 +98,7 @@ export function RequestCard({
   const [deleting, setDeleting] = useState(false);
   const [completingMode, setCompletingMode] = useState(false);
   const [showManagedMenu, setShowManagedMenu] = useState(true);
+  const [donationFlow, setDonationFlow] = useState<DonationFlowSettings>(DEFAULT_DONATION_FLOW_SETTINGS);
   const urgencyAnim = useUrgencyAnimationSettings();
 
   useEffect(() => {
@@ -102,6 +109,7 @@ export function RequestCard({
     fetchNotificationSettings().then((s) => {
       setShowManagedMenu(s.enable_managed_button);
     });
+    fetchDonationFlowSettings().then(setDonationFlow);
   }, []);
 
   useEffect(() => {
@@ -265,7 +273,7 @@ export function RequestCard({
                 {showManagedMenu && (
                   <DropdownMenuItem disabled={managing} onClick={() => void markManaged()}>
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    {lang === "bn" ? "রক্ত দান সম্পন্ন" : "Blood donation complete"}
+                    {donationLabel(donationFlow, "complete_menu", lang)}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
