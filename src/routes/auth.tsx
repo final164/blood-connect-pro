@@ -1,18 +1,20 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { ensureAdminAccount, signupWithPhone } from "@/lib/signup-server";
 import {
   ADMIN_PHONE,
   ADMIN_PIN,
   isValidPhone,
   isValidPin,
   normalizePhone,
-  phoneToAuthEmail,
-  pinToPassword,
 } from "@/lib/phone-auth";
+import {
+  authErrorMessage,
+  loginAsDefaultAdmin,
+  loginWithPhonePin,
+  registerWithPhonePin,
+} from "@/lib/phone-session";
 import { toast } from "sonner";
 import { Droplet, Loader2, Shield } from "lucide-react";
 
@@ -39,77 +41,35 @@ function AuthPage() {
     navigate({ to: isAdmin || mode === "admin" ? "/admin" : "/" });
   }, [session, loading, isAnonymous, isAdmin, mode, navigate]);
 
-  async function signInWithPhonePin() {
-    const normalized = normalizePhone(phone);
-    if (!isValidPhone(normalized)) {
-      toast.error(
-        lang === "bn" ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)",
-      );
-      return false;
-    }
-    if (!isValidPin(pin)) {
-      toast.error(lang === "bn" ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
-      return false;
-    }
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: phoneToAuthEmail(normalized),
-      password: pinToPassword(pin),
-    });
-    if (error) {
-      toast.error(
-        lang === "bn"
-          ? "ফোন বা PIN ভুল — আবার চেষ্টা করুন"
-          : "Wrong phone or PIN — try again",
-      );
-      return false;
-    }
-    if (authData.user?.id) {
-      await supabase.from("profiles").update({ phone: normalized }).eq("id", authData.user.id);
-    }
-    return true;
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
+      const normalized = normalizePhone(phone);
+      if (!isValidPhone(normalized)) {
+        toast.error(
+          lang === "bn" ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)",
+        );
+        return;
+      }
+      if (!isValidPin(pin)) {
+        toast.error(lang === "bn" ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
+        return;
+      }
+
       if (mode === "signup") {
-        if (!isValidPhone(normalizePhone(phone))) {
-          toast.error(
-            lang === "bn" ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)",
-          );
-          return;
-        }
-        if (!isValidPin(pin)) {
-          toast.error(lang === "bn" ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
-          return;
-        }
         if (pin !== confirmPin) {
           toast.error(lang === "bn" ? "PIN মিলছে না" : "PINs do not match");
           return;
         }
-        const created = await signupWithPhone({
-          data: {
-            phone: normalizePhone(phone),
-            pin,
-            confirmPin,
-            fullName: name.trim() || normalizePhone(phone),
-          },
+        const result = await registerWithPhonePin({
+          phone: normalized,
+          pin,
+          confirmPin,
+          fullName: name.trim() || normalized,
         });
-        const ok = await signInWithPhonePin();
-        if (!ok) {
-          if (created.exists) {
-            toast.error(
-              lang === "bn"
-                ? "এই নম্বরে অ্যাকাউন্ট আছে — PIN চেক করুন বা লগইন করুন"
-                : "Account exists — check PIN or log in",
-            );
-            setMode("login");
-          }
-          return;
-        }
         toast.success(
-          created.exists
+          result.exists
             ? lang === "bn"
               ? "লগইন হয়েছে"
               : "Signed in"
@@ -118,16 +78,21 @@ function AuthPage() {
               : "Account created",
         );
         navigate({ to: "/" });
-      } else {
-        if (mode === "admin") {
-          await ensureAdminAccount();
-        }
-        const ok = await signInWithPhonePin();
-        if (!ok) return;
-        navigate({ to: mode === "admin" ? "/admin" : "/" });
+        return;
       }
+
+      if (mode === "admin") {
+        await loginAsDefaultAdmin({ phone: normalized, pin });
+        navigate({ to: "/admin" });
+        return;
+      }
+
+      await loginWithPhonePin({ phone: normalized, pin });
+      navigate({ to: "/" });
     } catch (err) {
-      toast.error((err as Error).message || String(err));
+      const raw = (err as Error)?.message || String(err);
+      toast.error(authErrorMessage(raw, lang) || raw);
+      if (raw === "ACCOUNT_EXISTS_WRONG_PIN") setMode("login");
     } finally {
       setBusy(false);
     }
@@ -147,11 +112,13 @@ function AuthPage() {
 
           <div className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur p-5 shadow-xl shadow-primary/5">
             <div className="flex gap-1 rounded-2xl bg-muted/80 p-1 mb-5">
-              {([
-                ["login", t("login")],
-                ["signup", t("signup")],
-                ["admin", lang === "bn" ? "অ্যাডমিন" : "Admin"],
-              ] as const).map(([m, label]) => (
+              {(
+                [
+                  ["login", t("login")],
+                  ["signup", t("signup")],
+                  ["admin", lang === "bn" ? "অ্যাডমিন" : "Admin"],
+                ] as const
+              ).map(([m, label]) => (
                 <button
                   key={m}
                   type="button"
@@ -184,7 +151,7 @@ function AuthPage() {
               ))}
             </div>
 
-            <form onSubmit={submit} className="space-y-3">
+            <form onSubmit={(e) => void submit(e)} className="space-y-3">
               {mode === "signup" && (
                 <Field label={t("fullName")} value={name} onChange={setName} required />
               )}
@@ -315,7 +282,7 @@ function PinField({
         placeholder="••••"
         onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
         required
-        autoComplete={label.includes("Confirm") ? "new-password" : "current-password"}
+        autoComplete={label.includes("Confirm") || label.includes("নিশ্চিত") ? "new-password" : "current-password"}
       />
     </div>
   );
