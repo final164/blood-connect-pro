@@ -9,6 +9,7 @@ import {
 } from "@/lib/notification-settings";
 import { showDeviceNotification } from "@/lib/device-push";
 import { hasWebPushConfigured } from "@/lib/push-config";
+import { notificationCopy } from "@/lib/notification-copy";
 
 export type AppNotification = {
   id: string;
@@ -20,7 +21,14 @@ export type AppNotification = {
   body: string | null;
   is_read: boolean;
   read_at?: string | null;
-  data?: { actor_id?: string; request_id?: string; kind?: string; blood_group?: string } | null;
+  data?: {
+    actor_id?: string;
+    actor_name?: string;
+    request_id?: string;
+    comment_id?: string;
+    kind?: string;
+    blood_group?: string;
+  } | null;
   created_at: string;
   actor?: { full_name: string | null; avatar_url: string | null } | null;
 };
@@ -35,36 +43,6 @@ type Ctx = {
 };
 
 const NotifContext = createContext<Ctx | null>(null);
-
-function notifDisplay(n: AppNotification, lang: "bn" | "en") {
-  const kind = n.data?.kind || n.title || n.type;
-  const name = n.actor?.full_name || (lang === "bn" ? "কেউ" : "Someone");
-  if (kind === "new_request" || n.type === "request_match") {
-    return {
-      title: lang === "bn" ? "নতুন রক্তের রিকোয়েস্ট" : "New blood request",
-      body: n.body || n.title,
-    };
-  }
-  if (["like", "request_like", "post_like"].includes(kind) || n.title === "request_like") {
-    return {
-      title: lang === "bn" ? "নতুন লাইক" : "New like",
-      body: lang === "bn" ? `${name} আপনার পোস্টে লাইক দিয়েছে` : `${name} liked your post`,
-    };
-  }
-  if (["comment", "request_comment", "post_comment"].includes(kind) || n.title === "request_comment") {
-    return {
-      title: lang === "bn" ? "নতুন কমেন্ট" : "New comment",
-      body: n.body || (lang === "bn" ? `${name} কমেন্ট করেছে` : `${name} commented`),
-    };
-  }
-  if (["share", "request_share"].includes(kind) || n.title === "request_share") {
-    return {
-      title: lang === "bn" ? "শেয়ার" : "Shared",
-      body: lang === "bn" ? `${name} আপনার পোস্ট শেয়ার করেছে` : `${name} shared your post`,
-    };
-  }
-  return { title: n.title || "BloodLink", body: n.body || "" };
-}
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -137,10 +115,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     if (us && us.notif_push === false) return;
 
-    const copy = notifDisplay(n, lang);
+    const copy = notificationCopy(n, lang);
     await showDeviceNotification({
       title: copy.title,
-      body: copy.body,
+      body: copy.body || copy.title,
       url: notificationPostUrl(n.request_id),
       tag: n.id,
     });
@@ -157,6 +135,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
         async (payload) => {
           const n = payload.new as AppNotification;
+          const fromData = (n.data?.actor_id as string | undefined) ?? null;
+          n.actor_id = n.actor_id ?? fromData;
+          if (n.actor_id && !n.actor) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id, full_name, avatar_url")
+              .eq("id", n.actor_id)
+              .maybeSingle();
+            if (profile) n.actor = profile;
+          }
           if (!seenIds.current.has(n.id)) {
             seenIds.current.add(n.id);
             await pushForNotification(n);
