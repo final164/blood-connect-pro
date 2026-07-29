@@ -44,7 +44,7 @@ function SettingsPage() {
       notif_email: !!s.notif_email,
       notif_new_request: !!s.notif_new_request,
       share_location: !!s.share_location,
-      
+      google_maps_api_key: s.google_maps_api_key ?? null,
       e2ee_enabled: !!s.e2ee_enabled,
       radius_km: Number(s.radius_km) || 25,
     });
@@ -143,13 +143,14 @@ function SettingsPage() {
         </Section>
 
         <Section title={t("googleMapsApi")} icon={<MapPin className="h-4 w-4" />}>
-          <p className="text-[11px] text-muted-foreground -mt-1">
-            {lang === "bn"
-              ? "নিরাপত্তার জন্য Google Maps API key এখন শুধু অ্যাডমিন প্যানেল থেকে কনফিগার করা যায়।"
-              : "For security, the Google Maps API key is now configured by admins only."}
-          </p>
+          <p className="text-[11px] text-muted-foreground -mt-1">{t("googleMapsHint")}</p>
+          <input
+            className="w-full rounded-xl border bg-background px-3 py-2.5 text-sm font-mono"
+            placeholder="AIza…"
+            value={s.google_maps_api_key ?? ""}
+            onChange={(e) => setS({ ...s, google_maps_api_key: e.target.value })}
+          />
         </Section>
-
 
         <Section title={t("backend")} icon={<Database className="h-4 w-4" />}>
           <div className="rounded-xl border bg-card p-3 text-xs space-y-1.5">

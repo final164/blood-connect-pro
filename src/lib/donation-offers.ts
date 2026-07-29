@@ -46,7 +46,7 @@ export async function fetchOffersForRequests(requestIds: string[]): Promise<Dona
   const donorIds = [...new Set(list.map((o) => o.donor_id))];
   if (!donorIds.length) return list;
   const { data: profiles } = await supabase
-    .from("profiles_public")
+    .from("profiles")
     .select("id, full_name, avatar_url, blood_group")
     .in("id", donorIds);
   const map = new Map((profiles ?? []).map((p) => [p.id, p]));

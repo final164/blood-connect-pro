@@ -289,8 +289,8 @@ function Overview() {
   useEffect(() => {
     Promise.all([
       supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("blood_requests_public").select("id", { count: "exact", head: true }),
-      supabase.from("blood_requests_public").select("id", { count: "exact", head: true }).eq("status", "open"),
+      supabase.from("blood_requests").select("id", { count: "exact", head: true }),
+      supabase.from("blood_requests").select("id", { count: "exact", head: true }).eq("status", "open"),
       supabase.from("community_orgs").select("id", { count: "exact", head: true }),
       supabase.from("districts").select("id", { count: "exact", head: true }),
     ]).then(([u, r, o, org, d]) => {
@@ -469,7 +469,7 @@ function RequestsAdmin() {
 
   async function load() {
     const { data } = await supabase
-      .from("blood_requests_public")
+      .from("blood_requests")
       .select("id, patient_name, blood_group, hospital_name, status, urgency, created_at, city")
       .order("created_at", { ascending: false })
       .limit(150);

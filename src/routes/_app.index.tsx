@@ -49,7 +49,7 @@ function FeedPage() {
     setShowComposer(false);
     void navigate({
       to: "/",
-      search: (prev: Record<string, unknown>) => ({ ...prev, compose: undefined }),
+      search: (prev) => ({ ...prev, compose: undefined }),
       replace: true,
     });
   }
@@ -57,7 +57,7 @@ function FeedPage() {
   function openComposerLocal() {
     void navigate({
       to: "/",
-      search: (prev: Record<string, unknown>) => ({ ...prev, compose: true }),
+      search: (prev) => ({ ...prev, compose: true }),
       replace: true,
     });
   }
@@ -81,7 +81,7 @@ function FeedPage() {
   async function load() {
     try {
       let q = supabase
-        .from("blood_requests_public")
+        .from("blood_requests")
         .select("*, districts(name_bn,name_en)")
         .eq("status", "open")
         .order("urgency", { ascending: false })
@@ -101,7 +101,7 @@ function FeedPage() {
 
       if (requesterIds.length) {
         const { data: profiles } = await supabase
-          .from("profiles_public")
+          .from("profiles")
           .select("id, full_name, avatar_url")
           .in("id", requesterIds);
         const map = new Map((profiles ?? []).map((p) => [p.id, p]));

@@ -24,7 +24,7 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
 async function hydrateRequests(ids: string[], userId?: string): Promise<FeedRequest[]> {
   if (!ids.length) return [];
   const { data, error } = await supabase
-    .from("blood_requests_public")
+    .from("blood_requests")
     .select("*, districts(name_bn,name_en)")
     .in("id", ids);
   if (error) throw error;
@@ -41,7 +41,7 @@ async function hydrateRequests(ids: string[], userId?: string): Promise<FeedRequ
   const requesterIds = [...new Set(list.map((r) => r.requester_id))];
   if (requesterIds.length) {
     const { data: profiles } = await supabase
-      .from("profiles_public")
+      .from("profiles")
       .select("id, full_name, avatar_url")
       .in("id", requesterIds);
     const map = new Map((profiles ?? []).map((p) => [p.id, p]));
@@ -115,7 +115,7 @@ export async function loadActivityRequests(
 
   if (view === "posts") {
     const { data, error } = await supabase
-      .from("blood_requests_public")
+      .from("blood_requests")
       .select("id")
       .eq("requester_id", userId)
       .order("created_at", { ascending: false });

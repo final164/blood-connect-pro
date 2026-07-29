@@ -170,13 +170,6 @@ export type Database = {
             referencedRelation: "blood_requests"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "donations_request_id_fkey"
-            columns: ["request_id"]
-            isOneToOne: false
-            referencedRelation: "blood_requests_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       follows: {
@@ -471,6 +464,7 @@ export type Database = {
         Row: {
           e2ee_enabled: boolean
           e2ee_private_key_encrypted: string | null
+          google_maps_api_key: string | null
           language: string
           notif_email: boolean
           notif_new_request: boolean
@@ -484,6 +478,7 @@ export type Database = {
         Insert: {
           e2ee_enabled?: boolean
           e2ee_private_key_encrypted?: string | null
+          google_maps_api_key?: string | null
           language?: string
           notif_email?: boolean
           notif_new_request?: boolean
@@ -497,6 +492,7 @@ export type Database = {
         Update: {
           e2ee_enabled?: boolean
           e2ee_private_key_encrypted?: string | null
+          google_maps_api_key?: string | null
           language?: string
           notif_email?: boolean
           notif_new_request?: boolean
@@ -511,123 +507,7 @@ export type Database = {
       }
     }
     Views: {
-      blood_requests_public: {
-        Row: {
-          area: string | null
-          bags_needed: number | null
-          blood_group: Database["public"]["Enums"]["blood_group"] | null
-          city: string | null
-          contact_phone: string | null
-          created_at: string | null
-          hospital_name: string | null
-          id: string | null
-          latitude: number | null
-          longitude: number | null
-          needed_by: string | null
-          notes: string | null
-          patient_name: string | null
-          requester_id: string | null
-          status: Database["public"]["Enums"]["request_status"] | null
-          updated_at: string | null
-          urgency: Database["public"]["Enums"]["urgency"] | null
-        }
-        Insert: {
-          area?: string | null
-          bags_needed?: number | null
-          blood_group?: Database["public"]["Enums"]["blood_group"] | null
-          city?: string | null
-          contact_phone?: never
-          created_at?: string | null
-          hospital_name?: string | null
-          id?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          needed_by?: string | null
-          notes?: string | null
-          patient_name?: string | null
-          requester_id?: string | null
-          status?: Database["public"]["Enums"]["request_status"] | null
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["urgency"] | null
-        }
-        Update: {
-          area?: string | null
-          bags_needed?: number | null
-          blood_group?: Database["public"]["Enums"]["blood_group"] | null
-          city?: string | null
-          contact_phone?: never
-          created_at?: string | null
-          hospital_name?: string | null
-          id?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          needed_by?: string | null
-          notes?: string | null
-          patient_name?: string | null
-          requester_id?: string | null
-          status?: Database["public"]["Enums"]["request_status"] | null
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["urgency"] | null
-        }
-        Relationships: []
-      }
-      profiles_public: {
-        Row: {
-          area: string | null
-          avatar_url: string | null
-          bio: string | null
-          blood_group: Database["public"]["Enums"]["blood_group"] | null
-          city: string | null
-          created_at: string | null
-          e2ee_public_key: string | null
-          full_name: string | null
-          id: string | null
-          is_available: boolean | null
-          is_donor: boolean | null
-          is_recipient: boolean | null
-          is_verified: boolean | null
-          lives_saved: number | null
-          total_donations: number | null
-          username: string | null
-        }
-        Insert: {
-          area?: string | null
-          avatar_url?: string | null
-          bio?: string | null
-          blood_group?: Database["public"]["Enums"]["blood_group"] | null
-          city?: string | null
-          created_at?: string | null
-          e2ee_public_key?: string | null
-          full_name?: string | null
-          id?: string | null
-          is_available?: boolean | null
-          is_donor?: boolean | null
-          is_recipient?: boolean | null
-          is_verified?: boolean | null
-          lives_saved?: number | null
-          total_donations?: number | null
-          username?: string | null
-        }
-        Update: {
-          area?: string | null
-          avatar_url?: string | null
-          bio?: string | null
-          blood_group?: Database["public"]["Enums"]["blood_group"] | null
-          city?: string | null
-          created_at?: string | null
-          e2ee_public_key?: string | null
-          full_name?: string | null
-          id?: string | null
-          is_available?: boolean | null
-          is_donor?: boolean | null
-          is_recipient?: boolean | null
-          is_verified?: boolean | null
-          lives_saved?: number | null
-          total_donations?: number | null
-          username?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       has_role: {

@@ -184,27 +184,14 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
   );
 }
 
-export function Toggle({
-  label,
-  checked,
-  onChange,
-  hint,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  hint?: string;
-}) {
+export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
       className="w-full flex items-center justify-between rounded-xl border bg-card px-3 py-3"
     >
-      <span className="text-left">
-        <span className="block text-sm">{label}</span>
-        {hint ? <span className="block text-[11px] text-muted-foreground">{hint}</span> : null}
-      </span>
+      <span className="text-sm">{label}</span>
       <span className={`h-6 w-11 rounded-full p-0.5 transition ${checked ? "bg-primary" : "bg-muted"}`}>
         <span className={`block h-5 w-5 rounded-full bg-white shadow transition ${checked ? "translate-x-5" : ""}`} />
       </span>

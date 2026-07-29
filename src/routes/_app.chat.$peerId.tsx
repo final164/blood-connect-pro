@@ -51,7 +51,7 @@ function Thread() {
   const longPressTriggeredRef = useRef(false);
 
   useEffect(() => {
-    supabase.from("profiles_public").select("*").eq("id", peerId).maybeSingle().then(({ data }) => setPeer(data));
+    supabase.from("profiles").select("*").eq("id", peerId).maybeSingle().then(({ data }) => setPeer(data));
   }, [peerId]);
 
   useEffect(() => {

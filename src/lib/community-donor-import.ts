@@ -212,7 +212,7 @@ export async function fetchCommunityDonors(opts: {
 
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as unknown as CommunityDonorRow[];
+  return (data ?? []) as CommunityDonorRow[];
 }
 
 export async function fetchCommunityDonorsByOrg(orgId: string) {
@@ -224,7 +224,7 @@ export async function fetchCommunityDonorsByOrg(orgId: string) {
     .eq("org_id", orgId)
     .order("full_name", { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as CommunityDonorRow[];
+  return (data ?? []) as CommunityDonorRow[];
 }
 
 export async function updateCommunityDonor(

@@ -209,7 +209,7 @@ export async function fetchFeed(districtId?: string | null, limit = 50) {
 
 export async function fetchOpenRequests(opts: { districtId?: string | null; bloodGroup?: string | null }) {
   let q = supabase
-    .from("blood_requests_public")
+    .from("blood_requests")
     .select("*")
     .eq("status", "open")
     .order("urgency", { ascending: false })
