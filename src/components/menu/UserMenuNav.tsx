@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import * as Icons from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -12,6 +13,52 @@ import {
   type UserMenuItem,
   type UserMenuSettings,
 } from "@/lib/user-menu-settings";
+
+function ThemeLangControls() {
+  const { lang, setLang, t } = useI18n();
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    setDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  function toggleDark() {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.classList.toggle("dark", next);
+    window.localStorage.setItem("theme", next ? "dark" : "light");
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={() => setLang(lang === "bn" ? "en" : "bn")}
+        className="flex items-center justify-center gap-2 rounded-xl border bg-card px-2 py-2.5 text-xs font-semibold hover:bg-muted/60 transition"
+        title={lang === "bn" ? "English" : "বাংলা"}
+      >
+        <span className="text-[11px] font-bold tracking-tight text-primary">
+          {lang === "bn" ? "EN" : "বাং"}
+        </span>
+        <span className="truncate text-muted-foreground">
+          {lang === "bn" ? "English" : "বাংলা"}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={toggleDark}
+        className="flex items-center justify-center gap-2 rounded-xl border bg-card px-2 py-2.5 text-xs font-semibold hover:bg-muted/60 transition"
+        title={dark ? t("darkMode") : "Light"}
+      >
+        {dark ? <Sun className="h-4 w-4 text-primary shrink-0" /> : <Moon className="h-4 w-4 text-primary shrink-0" />}
+        <span className="truncate text-muted-foreground">
+          {dark ? (lang === "bn" ? "লাইট" : "Light") : t("darkMode")}
+        </span>
+      </button>
+    </div>
+  );
+}
 
 function MenuIcon({ name, className }: { name: string; className?: string }) {
   const Comp = (Icons as Record<string, unknown>)[name] as
@@ -107,6 +154,8 @@ export function UserMenuNav({
           </div>
         </button>
       )}
+
+      <ThemeLangControls />
 
       <nav className="space-y-0.5">
         {primary.map((item) => {
