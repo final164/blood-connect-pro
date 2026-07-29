@@ -81,7 +81,7 @@ function FeedPage() {
   async function load() {
     try {
       let q = supabase
-        .from("blood_requests")
+        .from("blood_requests_public")
         .select("*, districts(name_bn,name_en)")
         .eq("status", "open")
         .order("urgency", { ascending: false })

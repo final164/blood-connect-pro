@@ -24,7 +24,7 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
 async function hydrateRequests(ids: string[], userId?: string): Promise<FeedRequest[]> {
   if (!ids.length) return [];
   const { data, error } = await supabase
-    .from("blood_requests")
+    .from("blood_requests_public")
     .select("*, districts(name_bn,name_en)")
     .in("id", ids);
   if (error) throw error;
@@ -115,7 +115,7 @@ export async function loadActivityRequests(
 
   if (view === "posts") {
     const { data, error } = await supabase
-      .from("blood_requests")
+      .from("blood_requests_public")
       .select("id")
       .eq("requester_id", userId)
       .order("created_at", { ascending: false });
