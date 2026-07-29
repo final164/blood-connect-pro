@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
+import { DonationPanel } from "@/components/request/DonationPanel";
 import { toast } from "sonner";
 
 export type FeedRequest = {
@@ -48,6 +49,7 @@ export type FeedRequest = {
   notes: string | null;
   need_reason_key?: string | null;
   need_reason_label?: string | null;
+  donation_completion_open?: boolean | null;
   status: string;
   created_at: string;
   district?: { name_bn: string; name_en: string } | null;
@@ -84,8 +86,13 @@ export function RequestCard({
   const [showComments, setShowComments] = useState(false);
   const [managing, setManaging] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [completingMode, setCompletingMode] = useState(false);
   const [showManagedMenu, setShowManagedMenu] = useState(true);
   const urgencyAnim = useUrgencyAnimationSettings();
+
+  useEffect(() => {
+    if (r.donation_completion_open) setCompletingMode(true);
+  }, [r.donation_completion_open, r.id]);
 
   useEffect(() => {
     fetchNotificationSettings().then((s) => {
@@ -153,17 +160,21 @@ export function RequestCard({
   }
 
   async function markManaged() {
-    const ok = confirm(
-      lang === "bn"
-        ? "রক্ত দান সম্পন্ন — পোস্ট ম্যানেজড হিসেবে চিহ্নিত করবেন?"
-        : "Mark this request as complete (blood arranged)?",
-    );
-    if (!ok) return;
     setManaging(true);
-    const { error } = await supabase.from("blood_requests").update({ status: "fulfilled" }).eq("id", r.id);
+    const { openDonationCompletion } = await import("@/lib/donation-offers");
+    const { error } = await openDonationCompletion(r.id);
     setManaging(false);
-    if (error) return toast.error(error.message);
-    toast.success(lang === "bn" ? "রক্ত দান সম্পন্ন — ম্যানেজড" : "Marked as managed");
+    if (error) {
+      if (/donation_completion_open|column/i.test(error.message)) {
+        return toast.error(
+          lang === "bn"
+            ? "আগে scripts/donation-completion-open.sql চালান"
+            : "Run scripts/donation-completion-open.sql first",
+        );
+      }
+      return toast.error(error.message);
+    }
+    setCompletingMode(true);
     onChanged?.();
   }
 
@@ -285,6 +296,19 @@ export function RequestCard({
         {r.notes && (
           <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">{r.notes}</p>
         )}
+
+        <DonationPanel
+          requestId={r.id}
+          requesterId={r.requester_id}
+          bagsNeeded={r.bags_needed}
+          status={r.status}
+          isOwner={isOwner}
+          onChanged={onChanged}
+          completionOpen={!!r.donation_completion_open}
+          completingMode={completingMode}
+          onExitCompleting={() => setCompletingMode(false)}
+          onReopenCompleting={() => setCompletingMode(true)}
+        />
 
         <div className="flex items-center gap-1 pt-1 border-t">
           <button
