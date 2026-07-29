@@ -8,6 +8,7 @@ import { BLOOD_GROUPS } from "@/lib/format";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import type { District } from "@/lib/api";
 import { Settings as SettingsIcon, HeartHandshake, Award, Shield } from "lucide-react";
+import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -66,6 +67,7 @@ function ProfilePage() {
         <div className="flex items-center justify-between px-4 py-3">
           <h1 className="text-base font-bold">{t("profile")}</h1>
           <div className="flex items-center gap-1">
+            <ChatHeaderButton />
             {isAdmin && (
               <Link to="/admin" className="p-1.5 rounded-lg hover:bg-muted text-primary">
                 <Shield className="h-4 w-4" />

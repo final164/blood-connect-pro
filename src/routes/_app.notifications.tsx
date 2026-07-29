@@ -4,6 +4,7 @@ import { useNotifications, type AppNotification } from "@/lib/notifications-cont
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { Bell, ThumbsUp, MessageSquare, Share2, Megaphone, CheckCheck, Droplets } from "lucide-react";
+import { ChatHeaderButton } from "@/components/MessengerIcon";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — BloodLink" }] }),
@@ -34,16 +35,19 @@ function NotificationsPage() {
             </p>
           </div>
         </div>
-        {unread > 0 && (
-          <button
-            type="button"
-            onClick={() => void markAllRead()}
-            className="inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted"
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            {t("markAllRead")}
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {unread > 0 && (
+            <button
+              type="button"
+              onClick={() => void markAllRead()}
+              className="inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              {t("markAllRead")}
+            </button>
+          )}
+          <ChatHeaderButton />
+        </div>
       </header>
 
       <ul className="px-3 py-4 space-y-2 pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">

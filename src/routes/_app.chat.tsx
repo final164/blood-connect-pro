@@ -1,11 +1,12 @@
-import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
-import { MessageCircle, ShieldCheck } from "lucide-react";
+import { MessengerIcon } from "@/components/MessengerIcon";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 
 type Convo = {
   id: string;
@@ -52,7 +53,7 @@ function ChatLayout() {
             <div className="flex-1 grid place-items-center p-8 text-center">
               <div className="max-w-xs space-y-3">
                 <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 text-primary grid place-items-center">
-                  <MessageCircle className="h-7 w-7" />
+                  <MessengerIcon className="h-7 w-7" />
                 </div>
                 <p className="text-sm font-medium">Select a conversation</p>
                 <p className="text-xs text-muted-foreground">
@@ -70,7 +71,16 @@ function ChatLayout() {
 function ChatList({ activePeerId }: { activePeerId?: string }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [convos, setConvos] = useState<Convo[]>([]);
+
+  function goBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    void navigate({ to: "/" });
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -106,11 +116,21 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
   return (
     <>
       <header className="shrink-0 glass border-b safe-top">
-        <div className="px-4 py-3">
-          <h1 className="text-base font-bold">{t("chat")}</h1>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <ShieldCheck className="h-2.5 w-2.5" /> {t("e2eeOn")}
-          </p>
+        <div className="px-3 py-2.5 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goBack}
+            className="h-10 w-10 rounded-xl grid place-items-center text-foreground hover:bg-muted transition shrink-0"
+            aria-label={lang === "bn" ? "ফিরে যান" : "Go back"}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-tight">{t("chat")}</h1>
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <ShieldCheck className="h-2.5 w-2.5" /> {t("e2eeOn")}
+            </p>
+          </div>
         </div>
       </header>
       <ul className="flex-1 overflow-y-auto divide-y min-h-0">

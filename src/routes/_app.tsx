@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Users, MessageCircle, User, WifiOff, Droplet, Shield, LogOut, Bell } from "lucide-react";
+import { Home, Users, User, WifiOff, Droplet, Shield, LogOut, Bell, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -85,16 +85,42 @@ function AppShell({
   onSignOut: () => void;
 }) {
   const { unread } = useNotifications();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isChatThread = /^\/chat\/[^/]+$/.test(locationPath);
   const isChatSection = locationPath.startsWith("/chat");
+  const composeOpen =
+    locationPath === "/" &&
+    !!(location.search as { compose?: boolean | string }).compose;
 
-  const tabs = [
-    { to: "/", label: t("feed"), icon: Home },
-    { to: "/community", label: t("community"), icon: Users },
-    { to: "/chat", label: t("chat"), icon: MessageCircle },
-    { to: "/notifications", label: t("notifications"), icon: Bell, badge: unread },
-    { to: "/profile", label: t("profile"), icon: User },
-  ] as const;
+  function openComposer() {
+    if (composeOpen) {
+      void navigate({
+        to: "/",
+        search: (prev) => ({ ...prev, compose: undefined }),
+      });
+      return;
+    }
+    void navigate({
+      to: "/",
+      search: (prev) => ({ ...prev, compose: true }),
+    });
+  }
+
+  type NavTab =
+    | { id: string; kind: "link"; to: "/"; label: string; icon: typeof Home; badge?: number }
+    | { id: string; kind: "link"; to: "/community"; label: string; icon: typeof Users; badge?: number }
+    | { id: string; kind: "link"; to: "/notifications"; label: string; icon: typeof Bell; badge?: number }
+    | { id: string; kind: "link"; to: "/profile"; label: string; icon: typeof User; badge?: number }
+    | { id: string; kind: "compose"; label: string; icon: typeof Plus };
+
+  const tabs: NavTab[] = [
+    { id: "feed", kind: "link", to: "/", label: t("feed"), icon: Home },
+    { id: "community", kind: "link", to: "/community", label: t("community"), icon: Users },
+    { id: "compose", kind: "compose", label: t("createRequest"), icon: Plus },
+    { id: "notifications", kind: "link", to: "/notifications", label: t("notifications"), icon: Bell, badge: unread },
+    { id: "profile", kind: "link", to: "/profile", label: t("profile"), icon: User },
+  ];
 
   return (
     <div className="min-h-dvh flex bg-background">
@@ -110,13 +136,32 @@ function AppShell({
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {tabs.map((tab) => {
-            const active =
-              tab.to === "/" ? locationPath === "/" : locationPath.startsWith(tab.to);
             const Icon = tab.icon;
-            const badge = "badge" in tab ? tab.badge : 0;
+            if (tab.kind === "compose") {
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={openComposer}
+                  className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    composeOpen
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={composeOpen ? 2.4 : 1.9} />
+                  <span className="flex-1 truncate text-left">{tab.label}</span>
+                </button>
+              );
+            }
+            const active =
+              tab.to === "/"
+                ? locationPath === "/" && !composeOpen
+                : locationPath.startsWith(tab.to);
+            const badge = tab.badge ?? 0;
             return (
               <Link
-                key={tab.to}
+                key={tab.id}
                 to={tab.to}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                   active
@@ -126,7 +171,7 @@ function AppShell({
               >
                 <span className="relative">
                   <Icon className="h-4 w-4" strokeWidth={active ? 2.4 : 1.9} />
-                  {!!badge && badge > 0 && (
+                  {badge > 0 && (
                     <span
                       className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold grid place-items-center ring-2 ${
                         active
@@ -139,7 +184,7 @@ function AppShell({
                   )}
                 </span>
                 <span className="flex-1 truncate">{tab.label}</span>
-                {!!badge && badge > 0 && !active && (
+                {badge > 0 && !active && (
                   <span className="text-[10px] font-semibold text-primary">{badge}</span>
                 )}
               </Link>
@@ -195,19 +240,44 @@ function AppShell({
         <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-xl safe-bottom">
           <div className="mx-auto max-w-lg grid grid-cols-5 px-0.5 pt-1">
             {tabs.map((tab) => {
-              const active =
-                tab.to === "/" ? locationPath === "/" : locationPath.startsWith(tab.to);
               const Icon = tab.icon;
-              const badge = "badge" in tab ? tab.badge : 0;
+              if (tab.kind === "compose") {
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={openComposer}
+                    className="flex flex-col items-center gap-0.5 py-1.5"
+                  >
+                    <div
+                      className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
+                        composeOpen
+                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                          : "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                      }`}
+                    >
+                      <Icon className="h-[17px] w-[17px]" strokeWidth={2.4} />
+                    </div>
+                    <span className="text-[9px] font-medium leading-none truncate max-w-[4.2rem] text-primary">
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              }
+              const active =
+                tab.to === "/"
+                  ? locationPath === "/" && !composeOpen
+                  : locationPath.startsWith(tab.to);
+              const badge = tab.badge ?? 0;
               return (
-                <Link key={tab.to} to={tab.to} className="flex flex-col items-center gap-0.5 py-1.5">
+                <Link key={tab.id} to={tab.to} className="flex flex-col items-center gap-0.5 py-1.5">
                   <div
                     className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
                       active ? "bg-primary text-primary-foreground shadow-md shadow-primary/30" : "text-muted-foreground"
                     }`}
                   >
                     <Icon className="h-[17px] w-[17px]" strokeWidth={active ? 2.4 : 1.9} />
-                    {!!badge && badge > 0 && (
+                    {badge > 0 && (
                       <span
                         className={`absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold grid place-items-center ${
                           active

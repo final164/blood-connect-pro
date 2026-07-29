@@ -8,6 +8,7 @@ import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import { Droplet, Phone, Users, Building2 } from "lucide-react";
+import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app/community")({
@@ -54,18 +55,21 @@ function CommunityPage() {
   return (
     <div className="w-full">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
-        <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center">
-            <Users className="h-4 w-4" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+              <Users className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold tracking-tight truncate">
+                {lang === "bn" ? "রক্তদাতা খুঁজুন" : "Find blood donors"}
+              </h1>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {lang === "bn" ? "কমিউনিটি সংস্থার রক্তদাতা তালিকা" : "Community organization donor directory"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-bold tracking-tight">
-              {lang === "bn" ? "রক্তদাতা খুঁজুন" : "Find blood donors"}
-            </h1>
-            <p className="text-[10px] text-muted-foreground">
-              {lang === "bn" ? "কমিউনিটি সংস্থার রক্তদাতা তালিকা" : "Community organization donor directory"}
-            </p>
-          </div>
+          <ChatHeaderButton />
         </div>
 
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">

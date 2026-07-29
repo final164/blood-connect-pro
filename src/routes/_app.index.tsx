@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -10,15 +10,17 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
-import { Droplet, Plus, ShieldCheck, ChevronUp, Search, X, Moon, Sun } from "lucide-react";
+import { Droplet, ShieldCheck, Search, X, Moon, Sun } from "lucide-react";
+import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { toast } from "sonner";
 
-type FeedSearch = { requestId?: string };
+type FeedSearch = { requestId?: string; compose?: boolean };
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "Feed — BloodLink" }] }),
   validateSearch: (search: Record<string, unknown>): FeedSearch => ({
     requestId: typeof search.requestId === "string" ? search.requestId : undefined,
+    compose: search.compose === true || search.compose === "true" || search.compose === "1",
   }),
   component: FeedPage,
 });
@@ -26,7 +28,8 @@ export const Route = createFileRoute("/_app/")({
 function FeedPage() {
   const { t, lang, setLang } = useI18n();
   const { user } = useAuth();
-  const { requestId } = Route.useSearch();
+  const navigate = useNavigate();
+  const { requestId, compose } = Route.useSearch();
   const [items, setItems] = useState<FeedRequest[]>([]);
   const [district, setDistrict] = useState<District | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
@@ -35,6 +38,27 @@ function FeedPage() {
   const [dark, setDark] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const prefsLoaded = useRef(false);
+
+  useEffect(() => {
+    setShowComposer(!!compose);
+  }, [compose]);
+
+  function closeComposer() {
+    setShowComposer(false);
+    void navigate({
+      to: "/",
+      search: (prev) => ({ ...prev, compose: undefined }),
+      replace: true,
+    });
+  }
+
+  function openComposerLocal() {
+    void navigate({
+      to: "/",
+      search: (prev) => ({ ...prev, compose: true }),
+      replace: true,
+    });
+  }
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -205,24 +229,24 @@ function FeedPage() {
               type="button"
               onClick={() => setShowDistrictSearch((v) => !v)}
               title={lang === "bn" ? "জেলা ফিল্টার" : "Filter by district"}
-              className={`relative h-8 w-8 rounded-xl grid place-items-center transition ${
+              className={`relative h-10 w-10 rounded-xl grid place-items-center transition ${
                 showDistrictSearch || district
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              <Search className="h-3.5 w-3.5" />
+              <Search className="h-5 w-5" />
               {district && (
-                <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
               )}
             </button>
             <button
               type="button"
               onClick={toggleLang}
               title={lang === "bn" ? "English" : "বাংলা"}
-              className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
+              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
             >
-              <span className="text-[10px] font-bold leading-none tracking-tight">
+              <span className="text-[11px] font-bold leading-none tracking-tight">
                 {lang === "bn" ? "EN" : "বাং"}
               </span>
             </button>
@@ -230,18 +254,11 @@ function FeedPage() {
               type="button"
               onClick={toggleDark}
               title={dark ? t("darkMode") : "Light"}
-              className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
+              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
             >
-              {dark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
-            <button
-              type="button"
-              onClick={() => setShowComposer((v) => !v)}
-              className="ml-0.5 h-8 rounded-xl bg-primary text-primary-foreground px-2.5 text-xs font-semibold flex items-center gap-1 shadow-md shadow-primary/25"
-            >
-              {showComposer ? <ChevronUp className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{t("createRequest")}</span>
-            </button>
+            <ChatHeaderButton size="lg" className="ml-0.5" />
           </div>
         </div>
 
@@ -325,10 +342,10 @@ function FeedPage() {
           <RequestComposer
             defaultDistrict={district}
             onCreated={() => {
-              setShowComposer(false);
+              closeComposer();
               load();
             }}
-            onCancel={() => setShowComposer(false)}
+            onCancel={closeComposer}
           />
         </div>
       ) : (
@@ -346,7 +363,7 @@ function FeedPage() {
                 <p className="text-sm text-muted-foreground">{t("emptyRequests")}</p>
                 <button
                   type="button"
-                  onClick={() => setShowComposer(true)}
+                  onClick={openComposerLocal}
                   className="mt-3 text-xs font-semibold text-primary"
                 >
                   {lang === "bn" ? "প্রথম রিকোয়েস্ট পোস্ট করুন" : "Post the first request"}

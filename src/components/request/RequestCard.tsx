@@ -18,7 +18,6 @@ import {
   MapPin,
   Phone,
   Clock,
-  MessageCircle,
   Share2,
   Droplets,
   ThumbsUp,
@@ -30,6 +29,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { MessengerIcon } from "@/components/MessengerIcon";
 import { toast } from "sonner";
 
 export type FeedRequest = {
@@ -312,7 +312,7 @@ export function RequestCard({
               }}
               className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
-              <MessageCircle className="h-4 w-4" />
+              <MessengerIcon className="h-4 w-4" />
               <span className="hidden sm:inline">{t("chat")}</span>
             </Link>
           )}
@@ -576,7 +576,7 @@ function CommentThread({ requestId, onCount }: { requestId: string; onCount: (n:
                 onClick={rememberFeedReturn}
                 className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted"
               >
-                <MessageCircle className="h-3 w-3" />
+                <MessengerIcon className="h-3.5 w-3.5" />
                 {t("chat")}
               </Link>
             )}
