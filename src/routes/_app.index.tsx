@@ -10,7 +10,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
-import { Droplet, ShieldCheck, Search, X, Moon, Sun } from "lucide-react";
+import { Droplet, ShieldCheck, Search, X } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { fetchSavedIdsForRequests } from "@/lib/request-saves";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_app/")({
 });
 
 function FeedPage() {
-  const { t, lang, setLang } = useI18n();
+  const { t, lang } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { requestId, compose } = Route.useSearch();
@@ -38,7 +38,6 @@ function FeedPage() {
   const [filter, setFilter] = useState<string>("ALL");
   const [showComposer, setShowComposer] = useState(false);
   const [showDistrictSearch, setShowDistrictSearch] = useState(false);
-  const [dark, setDark] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const prefsLoaded = useRef(false);
 
@@ -61,22 +60,6 @@ function FeedPage() {
       search: (prev) => ({ ...prev, compose: true }),
       replace: true,
     });
-  }
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    setDark(document.documentElement.classList.contains("dark"));
-  }, []);
-
-  function toggleDark() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    window.localStorage.setItem("theme", next ? "dark" : "light");
-  }
-
-  function toggleLang() {
-    setLang(lang === "bn" ? "en" : "bn");
   }
 
   async function load() {
@@ -268,24 +251,6 @@ function FeedPage() {
               {district && (
                 <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
               )}
-            </button>
-            <button
-              type="button"
-              onClick={toggleLang}
-              title={lang === "bn" ? "English" : "বাংলা"}
-              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
-            >
-              <span className="text-[11px] font-bold leading-none tracking-tight">
-                {lang === "bn" ? "EN" : "বাং"}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={toggleDark}
-              title={dark ? t("darkMode") : "Light"}
-              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center transition"
-            >
-              {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
             <ChatHeaderButton size="lg" className="ml-0.5" />
           </div>
