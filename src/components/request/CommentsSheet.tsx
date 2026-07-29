@@ -114,7 +114,7 @@ export function CommentsSheet({
     let profileMap = new Map<string, { full_name: string | null; avatar_url: string | null }>();
     if (ids.length) {
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("profiles_public")
         .select("id, full_name, avatar_url")
         .in("id", ids);
       profileMap = new Map(
