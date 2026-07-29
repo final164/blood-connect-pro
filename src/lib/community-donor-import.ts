@@ -224,7 +224,7 @@ export async function fetchCommunityDonorsByOrg(orgId: string) {
     .eq("org_id", orgId)
     .order("full_name", { ascending: true });
   if (error) throw error;
-  return (data ?? []) as CommunityDonorRow[];
+  return (data ?? []) as unknown as CommunityDonorRow[];
 }
 
 export async function updateCommunityDonor(
