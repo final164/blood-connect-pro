@@ -46,6 +46,8 @@ export type FeedRequest = {
   needed_by: string;
   urgency: "normal" | "urgent" | "critical";
   notes: string | null;
+  need_reason_key?: string | null;
+  need_reason_label?: string | null;
   status: string;
   created_at: string;
   district?: { name_bn: string; name_en: string } | null;
@@ -258,6 +260,11 @@ export function RequestCard({
               <Droplets className="h-3.5 w-3.5 text-primary shrink-0" />
               {r.bags_needed} {lang === "bn" ? "ব্যাগ প্রয়োজন" : "bag(s) needed"}
             </p>
+            {r.need_reason_label && (
+              <p className="mt-1 text-[11px] text-primary/90 font-medium truncate">
+                {lang === "bn" ? "কারণ" : "Reason"} · {r.need_reason_label}
+              </p>
+            )}
           </div>
         </div>
 

@@ -209,6 +209,22 @@ function FeedPage() {
 
   return (
     <div className="w-full">
+      {showComposer ? (
+        <div className="animate-composer-from-top border-b bg-background shadow-md safe-top">
+          <div className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto pb-6 md:max-h-none">
+            <RequestComposer
+              variant="panel"
+              defaultDistrict={district}
+              onCreated={() => {
+                closeComposer();
+                load();
+              }}
+              onCancel={closeComposer}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
@@ -337,19 +353,6 @@ function FeedPage() {
         </div>
       </header>
 
-      {showComposer ? (
-        <div className="px-3 pt-3 pb-6">
-          <RequestComposer
-            defaultDistrict={district}
-            onCreated={() => {
-              closeComposer();
-              load();
-            }}
-            onCancel={closeComposer}
-          />
-        </div>
-      ) : (
-        <>
           <div className="px-3 pt-4 pb-2 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t("liveRequests")}

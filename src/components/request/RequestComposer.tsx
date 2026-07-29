@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Minus, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -12,16 +12,28 @@ import {
   fetchRequestFormOptions,
   type RequestFormOptions,
 } from "@/lib/request-form-options";
+import {
+  NEED_REASON_CUSTOM_ID,
+  activeNeedReasons,
+  fetchNeedReasonCatalog,
+  isCustomNeedReason,
+  pickLocalized,
+  resolveNeedReasonLang,
+  type NeedReasonCatalog,
+  type NeedReasonCategory,
+} from "@/lib/need-reason-catalog";
 import { toast } from "sonner";
 
 export function RequestComposer({
   defaultDistrict,
   onCreated,
   onCancel,
+  variant = "card",
 }: {
   defaultDistrict: District | null;
   onCreated: () => void;
   onCancel?: () => void;
+  variant?: "card" | "panel";
 }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
@@ -29,6 +41,11 @@ export function RequestComposer({
   const [opts, setOpts] = useState<RequestFormOptions>(DEFAULT_REQUEST_FORM_OPTIONS);
   const [district, setDistrict] = useState<District | null>(defaultDistrict);
   const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [categories, setCategories] = useState<NeedReasonCategory[]>([]);
+  const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
+  const [reasonKey, setReasonKey] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [setDateTime, setSetDateTime] = useState(true);
   const [form, setForm] = useState({
     patient_name: "",
     blood_group: "O+" as (typeof BLOOD_GROUPS)[number],
@@ -43,15 +60,54 @@ export function RequestComposer({
   useEffect(() => setDistrict(defaultDistrict), [defaultDistrict]);
   useEffect(() => {
     fetchRequestFormOptions().then(setOpts);
-  }, []);
+    fetchNeedReasonCatalog().then((c: NeedReasonCatalog) => {
+      setCategories(activeNeedReasons(c));
+      setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
+    });
+  }, [lang]);
+
+  const selectedCategory = useMemo(
+    () => categories.find((c) => c.id === reasonKey) ?? null,
+    [categories, reasonKey],
+  );
+  const suggestionChips = selectedCategory?.suggestions ?? [];
+
+  function setUrgency(u: "normal" | "urgent" | "critical") {
+    setForm((prev) => ({ ...prev, urgency: u }));
+    // Normal: date/time on by default. Urgent/Critical: hidden unless toggled.
+    setSetDateTime(u === "normal");
+  }
 
   function req(key: keyof RequestFormOptions) {
     return !opts[key];
   }
 
+  function applySuggestion(text: string) {
+    setForm((prev) => ({ ...prev, notes: text }));
+  }
+
+  function resolveNeededByIso() {
+    if (setDateTime && form.needed_by) {
+      return new Date(form.needed_by).toISOString();
+    }
+    // No scheduled time → ASAP for urgent/critical; soft +24h for normal
+    if (form.urgency === "normal") {
+      return new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    }
+    return new Date().toISOString();
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    if (!reasonKey) {
+      toast.error(lang === "bn" ? "রক্তের প্রয়োজনের কারণ নির্বাচন করুন" : "Select why blood is needed");
+      return;
+    }
+    if (isCustomNeedReason(reasonKey) && !customReason.trim()) {
+      toast.error(lang === "bn" ? "কাস্টম কারণ লিখুন" : "Enter a custom reason");
+      return;
+    }
     if (req("district") && !district) {
       toast.error(lang === "bn" ? "জেলা নির্বাচন করুন" : "Select a district");
       return;
@@ -82,6 +138,12 @@ export function RequestComposer({
         ? "উল্লেখ নেই"
         : "Not specified";
 
+    const reasonLabel = isCustomNeedReason(reasonKey)
+      ? customReason.trim()
+      : selectedCategory
+        ? pickLocalized(selectedCategory.label, reasonDisplayLang)
+        : customReason.trim();
+
     const payload: Record<string, unknown> = {
       patient_name: form.patient_name.trim() || (lang === "bn" ? "রোগী" : "Patient"),
       blood_group: form.blood_group,
@@ -92,15 +154,22 @@ export function RequestComposer({
       requester_id: user.id,
       district_id: district?.id ?? null,
       city: district ? (lang === "bn" ? district.name_bn : district.name_en) : "",
-      needed_by: new Date(form.needed_by || Date.now() + 86400000).toISOString(),
+      needed_by: resolveNeededByIso(),
       urgency: form.urgency,
       notes: form.notes.trim() || null,
+      need_reason_key: reasonKey,
+      need_reason_label: reasonLabel,
     };
     if (hospital?.id && !hospital.id.startsWith("custom:") && !hospital.id.startsWith("seed:")) {
       payload.hospital_id = hospital.id;
     }
 
     let { error } = await supabase.from("blood_requests").insert(payload);
+    if (error && /need_reason_/i.test(error.message)) {
+      delete payload.need_reason_key;
+      delete payload.need_reason_label;
+      ({ error } = await supabase.from("blood_requests").insert(payload));
+    }
     if (error && /whatsapp_phone/i.test(error.message)) {
       delete payload.whatsapp_phone;
       ({ error } = await supabase.from("blood_requests").insert(payload));
@@ -109,6 +178,9 @@ export function RequestComposer({
     if (error) return toast.error(error.message);
     toast.success(lang === "bn" ? "রিকোয়েস্ট ফিডে পোস্ট হয়েছে" : "Request posted to feed");
     setHospital(null);
+    setReasonKey("");
+    setCustomReason("");
+    setSetDateTime(true);
     setForm({
       patient_name: "",
       blood_group: "O+",
@@ -123,17 +195,31 @@ export function RequestComposer({
   }
 
   const ph = (bn: string, en: string) => (lang === "bn" ? bn : en);
+  const isPanel = variant === "panel";
 
   return (
     <form
       onSubmit={submit}
-      className="rounded-2xl border border-primary/15 bg-card p-4 space-y-3 shadow-[0_8px_30px_-12px_rgba(198,40,40,0.25)]"
+      className={
+        isPanel
+          ? "bg-background p-4 space-y-3"
+          : "rounded-2xl border border-primary/15 bg-card p-4 space-y-3 shadow-[0_8px_30px_-12px_rgba(198,40,40,0.25)]"
+      }
     >
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold tracking-tight">{t("createRequest")}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base font-bold tracking-tight">{t("createRequest")}</h2>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="text-xs font-medium text-muted-foreground hover:text-foreground">
-            {t("cancel")}
+          <button
+            type="button"
+            onClick={onCancel}
+            className={
+              isPanel
+                ? "h-9 w-9 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground grid place-items-center transition"
+                : "text-xs font-medium text-muted-foreground hover:text-foreground"
+            }
+            aria-label={t("cancel")}
+          >
+            {isPanel ? <X className="h-5 w-5" /> : t("cancel")}
           </button>
         )}
       </div>
@@ -234,21 +320,12 @@ export function RequestComposer({
         inputMode="tel"
       />
 
-      <input
-        className={field}
-        type="datetime-local"
-        value={form.needed_by}
-        onChange={(e) => setForm({ ...form, needed_by: e.target.value })}
-        required={req("needed_by")}
-        title={ph("কতক্ষণে দরকার", "Needed by")}
-      />
-
       <div className="grid grid-cols-3 gap-1.5">
         {(["normal", "urgent", "critical"] as const).map((u) => (
           <button
             key={u}
             type="button"
-            onClick={() => setForm({ ...form, urgency: u })}
+            onClick={() => setUrgency(u)}
             className={`rounded-xl py-2.5 text-xs font-semibold border transition ${
               form.urgency === u
                 ? u === "critical"
@@ -264,11 +341,117 @@ export function RequestComposer({
         ))}
       </div>
 
+      <label className="flex items-center justify-between gap-3 rounded-xl border bg-background px-3 py-2.5">
+        <span className="text-xs font-medium text-foreground">
+          {lang === "bn" ? "তারিখ ও সময় সেট করুন" : "Set date and time"}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={setDateTime}
+          onClick={() => setSetDateTime((v) => !v)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+            setDateTime ? "bg-primary" : "bg-muted"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+              setDateTime ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </label>
+
+      {setDateTime && (
+        <input
+          className={field}
+          type="datetime-local"
+          value={form.needed_by}
+          onChange={(e) => setForm({ ...form, needed_by: e.target.value })}
+          required={req("needed_by")}
+          title={ph("কতক্ষণে দরকার", "Needed by")}
+        />
+      )}
+
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-muted-foreground">
+          {reasonDisplayLang === "bn" ? "সমস্যার কারণ / রোগের ধরন" : "Reason / disease type"}
+        </label>
+        <select
+          className={field}
+          value={reasonKey}
+          onChange={(e) => {
+            setReasonKey(e.target.value);
+            if (!isCustomNeedReason(e.target.value)) setCustomReason("");
+          }}
+          required
+        >
+          <option value="">
+            {reasonDisplayLang === "bn" ? "কারণ নির্বাচন করুন…" : "Select a reason…"}
+          </option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {pickLocalized(c.label, reasonDisplayLang)}
+            </option>
+          ))}
+          <option value={NEED_REASON_CUSTOM_ID}>
+            {reasonDisplayLang === "bn" ? "কাস্টম (নিজে লিখুন)" : "Custom (write your own)"}
+          </option>
+        </select>
+
+        {isCustomNeedReason(reasonKey) && (
+          <input
+            className={field}
+            placeholder={
+              reasonDisplayLang === "bn" ? "কাস্টম কারণ লিখুন…" : "Write custom reason…"
+            }
+            value={customReason}
+            onChange={(e) => setCustomReason(e.target.value)}
+            required
+          />
+        )}
+      </div>
+
+      {suggestionChips.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-muted-foreground">
+            {reasonDisplayLang === "bn"
+              ? "নোট সাজেশন — ট্যাপ করে নিন (চাইলে এডিট করুন)"
+              : "Note suggestions — tap to use (edit anytime)"}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {suggestionChips.map((s, i) => {
+              const text = pickLocalized(s, reasonDisplayLang);
+              const active = form.notes.trim() === text.trim();
+              return (
+                <button
+                  key={`${reasonKey}-chip-${i}`}
+                  type="button"
+                  onClick={() => applySuggestion(text)}
+                  className={`text-left rounded-xl border px-3 py-2 text-xs leading-relaxed transition ${
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  }`}
+                >
+                  {text}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <textarea
         className={field}
-        rows={2}
+        rows={3}
         placeholder={
-          opts.notes ? ph("নোট (ঐচ্ছিক)", "Notes (optional)") : ph("নোট", "Notes")
+          opts.notes
+            ? ph(
+                "নোট (ঐচ্ছিক) — সাজেশন থেকে নিন বা নিজে লিখুন",
+                "Notes (optional) — pick a suggestion or write your own",
+              )
+            : ph("নোট — সাজেশন থেকে নিন বা নিজে লিখুন", "Notes — pick a suggestion or write your own")
         }
         value={form.notes}
         onChange={(e) => setForm({ ...form, notes: e.target.value })}

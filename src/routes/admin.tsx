@@ -59,6 +59,7 @@ import { isAdminIdentity } from "@/lib/phone-auth";
 import { AdminAccessProvider, useAdminAccess } from "@/lib/admin-access-context";
 import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
 import { UrgencyAnimationAdmin } from "@/components/admin/UrgencyAnimationAdmin";
+import { NeedReasonAdmin } from "@/components/admin/NeedReasonAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 
 export const Route = createFileRoute("/admin")({
@@ -1955,6 +1956,7 @@ function NotificationsAdmin() {
 function SettingsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
+  const [settingsTab, setSettingsTab] = useState<"urgency" | "reasons" | "form" | "app">("urgency");
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
     emergency_hotline: "",
@@ -2010,59 +2012,120 @@ function SettingsAdmin() {
     notes: { bn: "নোট", en: "Notes" },
   };
 
+  const navItems = [
+    { id: "urgency" as const, bn: "জরুরিতা অ্যানিমেশন", en: "Urgency animation" },
+    { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
+    { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
+    { id: "app" as const, bn: "অ্যাপ", en: "App" },
+  ];
+
   return (
-    <div className="space-y-6 max-w-4xl">
-      <UrgencyAnimationAdmin />
-
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">
-        <h3 className="text-sm font-semibold">
-          {lang === "bn" ? "নতুন রিকোয়েস্ট — অপশনাল ফিল্ড" : "New request — optional fields"}
-        </h3>
-        <p className="text-xs text-slate-400">
-          {lang === "bn"
-            ? "চেক থাকলে ফিল্ডটি ঐচ্ছিক। আনচেক = বাধ্যতামূলক।"
-            : "Checked = optional. Unchecked = required."}
-        </p>
-        <ul className="space-y-2">
-          {REQUEST_FORM_OPTION_KEYS.map((key) => (
-            <li key={key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2">
-              <span className="text-sm">{lang === "bn" ? labels[key].bn : labels[key].en}</span>
-              <label className="flex items-center gap-2 text-xs text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={!!s.request_form_options?.[key]}
-                  onChange={(e) => setOpt(key, e.target.checked)}
-                />
-                {lang === "bn" ? "ঐচ্ছিক" : "Optional"}
-              </label>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
-        {(["app_name", "emergency_hotline", "brand_primary"] as const).map((k) => (
-          <div key={k}>
-            <label className="text-xs text-slate-400">{k}</label>
-            <input className={ainp} value={s[k] ?? ""} onChange={(e) => setS({ ...s, [k]: e.target.value })} />
-          </div>
+    <div className="space-y-4 max-w-4xl">
+      <nav className="flex gap-1 overflow-x-auto no-scrollbar rounded-xl border border-slate-800 bg-slate-950 p-1">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setSettingsTab(item.id)}
+            className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+              settingsTab === item.id
+                ? "bg-rose-600 text-white shadow"
+                : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+            }`}
+          >
+            {lang === "bn" ? item.bn : item.en}
+          </button>
         ))}
-        <div>
-          <label className="text-xs text-slate-400">about_bn</label>
-          <textarea className={ainp} rows={3} value={s.about_bn ?? ""} onChange={(e) => setS({ ...s, about_bn: e.target.value })} />
+      </nav>
+
+      {settingsTab === "urgency" && <UrgencyAnimationAdmin />}
+      {settingsTab === "reasons" && <NeedReasonAdmin />}
+
+      {settingsTab === "form" && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">
+          <h3 className="text-sm font-semibold">
+            {lang === "bn" ? "নতুন রিকোয়েস্ট — অপশনাল ফিল্ড" : "New request — optional fields"}
+          </h3>
+          <p className="text-xs text-slate-400">
+            {lang === "bn"
+              ? "চেক থাকলে ফিল্ডটি ঐচ্ছিক। আনচেক = বাধ্যতামূলক।"
+              : "Checked = optional. Unchecked = required."}
+          </p>
+          <ul className="space-y-2">
+            {REQUEST_FORM_OPTION_KEYS.map((key) => (
+              <li
+                key={key}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2"
+              >
+                <span className="text-sm">{lang === "bn" ? labels[key].bn : labels[key].en}</span>
+                <label className="flex items-center gap-2 text-xs text-slate-400">
+                  <input
+                    type="checkbox"
+                    checked={!!s.request_form_options?.[key]}
+                    onChange={(e) => setOpt(key, e.target.checked)}
+                  />
+                  {lang === "bn" ? "ঐচ্ছিক" : "Optional"}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={save}
+            className="rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold"
+          >
+            {t("save")}
+          </button>
         </div>
-        <div>
-          <label className="text-xs text-slate-400">about_en</label>
-          <textarea className={ainp} rows={3} value={s.about_en ?? ""} onChange={(e) => setS({ ...s, about_en: e.target.value })} />
+      )}
+
+      {settingsTab === "app" && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+          {(["app_name", "emergency_hotline", "brand_primary"] as const).map((k) => (
+            <div key={k}>
+              <label className="text-xs text-slate-400">{k}</label>
+              <input
+                className={ainp}
+                value={s[k] ?? ""}
+                onChange={(e) => setS({ ...s, [k]: e.target.value })}
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-xs text-slate-400">about_bn</label>
+            <textarea
+              className={ainp}
+              rows={3}
+              value={s.about_bn ?? ""}
+              onChange={(e) => setS({ ...s, about_bn: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400">about_en</label>
+            <textarea
+              className={ainp}
+              rows={3}
+              value={s.about_en ?? ""}
+              onChange={(e) => setS({ ...s, about_en: e.target.value })}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={!!s.maintenance_mode}
+              onChange={(e) => setS({ ...s, maintenance_mode: e.target.checked })}
+            />
+            Maintenance mode
+          </label>
+          <button
+            type="button"
+            onClick={save}
+            className="rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold"
+          >
+            {t("save")}
+          </button>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={!!s.maintenance_mode} onChange={(e) => setS({ ...s, maintenance_mode: e.target.checked })} />
-          Maintenance mode
-        </label>
-        <button type="button" onClick={save} className="rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold">
-          {t("save")}
-        </button>
-      </div>
+      )}
     </div>
   );
 }

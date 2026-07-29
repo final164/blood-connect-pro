@@ -135,6 +135,25 @@
     animation: blood-droplet-bounce 0.85s ease-in-out infinite;
   }
 
+  @keyframes composer-slide-down {
+    from {
+      transform: translate3d(0, -18%, 0);
+      opacity: 0;
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+    }
+  }
+  .animate-composer-from-top {
+    animation: composer-slide-down 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-composer-from-top {
+      animation: none;
+    }
+  }
+
   @keyframes ua-breathe {
     0%, 100% {
       opacity: var(--ua-opacity-min, 0.06);
