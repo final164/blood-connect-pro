@@ -6,6 +6,7 @@ import { NotificationsProvider, useNotifications } from "@/lib/notifications-con
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
 import { UserMenuSidebar } from "@/components/menu/UserMenuNav";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { Home, Users, User, WifiOff, Droplet, Shield, Bell, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
@@ -233,7 +234,9 @@ function AppShell({
 
       <div className="flex-1 flex flex-col min-w-0 min-h-dvh">
         {/* Desktop / large screen: top app nav (was bottom on mobile) */}
-        <header className="hidden md:sticky md:top-0 md:z-40 md:flex items-center gap-3 border-b bg-card/95 backdrop-blur-xl px-4 lg:px-6 py-2.5">
+        <AutoHideHeader
+          className="hidden z-40 md:flex items-center gap-3 border-b bg-card/95 backdrop-blur-xl px-4 lg:px-6 py-2.5"
+        >
           <div className="flex items-center gap-2.5 shrink-0 mr-1">
             <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
               <Droplet className="h-4 w-4" fill="currentColor" />
@@ -257,7 +260,7 @@ function AppShell({
               <span className="hidden lg:inline">{t("adminPanel")}</span>
             </Link>
           )}
-        </header>
+        </AutoHideHeader>
 
         {!online && (
           <div className="sticky top-0 z-50 bg-amber-500 text-amber-950 text-xs font-medium px-3 py-1.5 flex items-center justify-center gap-1.5 safe-top">

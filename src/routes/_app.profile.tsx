@@ -10,6 +10,7 @@ import type { District } from "@/lib/api";
 import { Settings as SettingsIcon, HeartHandshake, Award, Shield } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -64,7 +65,7 @@ function ProfilePage() {
 
   return (
     <div className="w-full">
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
+      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
             <UserMenuTrigger />
@@ -82,7 +83,7 @@ function ProfilePage() {
             </Link>
           </div>
         </div>
-      </header>
+      </AutoHideHeader>
 
       <div className="p-4 md:p-6 md:max-w-3xl">
         <div className="flex items-center gap-3">

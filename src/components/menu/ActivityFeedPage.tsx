@@ -12,6 +12,7 @@ import {
   type ActivityView,
 } from "@/lib/user-activity";
 import { fetchCommunityOrgs } from "@/lib/api";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 
 const TITLES: Record<ActivityView, { bn: string; en: string }> = {
   posts: { bn: "আমার পোস্ট", en: "My posts" },
@@ -73,7 +74,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
 
   return (
     <div className="w-full">
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
+      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
           <UserMenuTrigger />
           <Link
@@ -86,7 +87,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
           <h1 className="flex-1 min-w-0 text-sm font-bold truncate">{title}</h1>
           <ChatHeaderButton size="lg" />
         </div>
-      </header>
+      </AutoHideHeader>
 
       <div className="px-3 sm:px-4 py-3 space-y-3 max-w-2xl mx-auto pb-24">
         {loading ? (

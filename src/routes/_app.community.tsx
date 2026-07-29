@@ -10,6 +10,7 @@ import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import { Droplet, Phone, Users, Building2 } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app/community")({
@@ -55,7 +56,7 @@ function CommunityPage() {
 
   return (
     <div className="w-full">
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
+      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <UserMenuTrigger />
@@ -101,7 +102,7 @@ function CommunityPage() {
         />
 
         <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
-      </header>
+      </AutoHideHeader>
 
       <ul className="p-3 space-y-2 pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
         {loading && (
