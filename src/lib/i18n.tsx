@@ -93,7 +93,6 @@ const fallback: Record<string, { bn: string; en: string }> = {
   manageRequests: { bn: "রিকোয়েস্ট ম্যানেজ", en: "Manage requests" },
   openApp: { bn: "অ্যাপে যান", en: "Open app" },
   searchHospital: { bn: "হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক খুঁজুন…", en: "Search hospital / clinic / diagnostic…" },
-  hospital: { bn: "হাসপাতাল", en: "Hospital" },
   hospitals: { bn: "হাসপাতালসমূহ", en: "Hospitals" },
   government: { bn: "সরকারি", en: "Government" },
   private: { bn: "বেসরকারি", en: "Private" },
