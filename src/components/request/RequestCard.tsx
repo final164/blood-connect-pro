@@ -375,24 +375,24 @@ export function RequestCard({
           onReopenCompleting={() => setCompletingMode(true)}
         />
 
-        <div className="flex items-center gap-1 pt-1 border-t">
+        <div className="flex items-center pt-1 border-t">
           <button
             type="button"
             onClick={toggleLike}
-            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition hover:bg-muted ${
+            className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
               liked ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            <ThumbsUp className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
-            {likeCount}
+            <ThumbsUp className="h-4 w-4 shrink-0" fill={liked ? "currentColor" : "none"} />
+            <span className="tabular-nums">{likeCount}</span>
           </button>
           <button
             type="button"
             onClick={() => setShowComments(true)}
-            className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+            className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
-            <MessagesSquare className="h-4 w-4" />
-            {commentCount}
+            <MessagesSquare className="h-4 w-4 shrink-0" />
+            <span className="tabular-nums">{commentCount}</span>
           </button>
           {!isOwner && (
             <Link
@@ -406,9 +406,9 @@ export function RequestCard({
                   /* ignore */
                 }
               }}
-              className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+              className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
-              <MessengerIcon className="h-4 w-4" />
+              <MessengerIcon className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline">{t("chat")}</span>
             </Link>
           )}
@@ -416,9 +416,9 @@ export function RequestCard({
             <a
               href={`tel:${phone.replace(/\s/g, "")}`}
               title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
-              className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center hover:bg-primary/15 transition"
+              className="flex flex-1 min-w-0 items-center justify-center rounded-xl px-1 py-2 text-primary hover:bg-primary/10 transition"
             >
-              <Phone className="h-3.5 w-3.5" />
+              <Phone className="h-4 w-4" />
             </a>
           )}
           {!isOwner && waLink && (
@@ -427,29 +427,29 @@ export function RequestCard({
               target="_blank"
               rel="noreferrer"
               title="WhatsApp"
-              className="h-8 w-8 rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 grid place-items-center hover:bg-emerald-600/15 transition"
+              className="flex flex-1 min-w-0 items-center justify-center rounded-xl px-1 py-2 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/10 transition"
             >
-              <WhatsAppIcon className="h-3.5 w-3.5" />
+              <WhatsAppIcon className="h-4 w-4" />
             </a>
           )}
           <button
             type="button"
             onClick={() => void onToggleSave()}
-            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition hover:bg-muted ${
+            className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
               saved ? "text-primary" : "text-muted-foreground"
             }`}
             title={lang === "bn" ? "সেভ" : "Save"}
           >
-            <Bookmark className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
+            <Bookmark className="h-4 w-4 shrink-0" fill={saved ? "currentColor" : "none"} />
             <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
           </button>
           <button
             type="button"
             onClick={share}
-            className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-muted-foreground hover:bg-muted ml-auto"
+            className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
-            <Share2 className="h-4 w-4" />
-            {t("share")}
+            <Share2 className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">{t("share")}</span>
           </button>
         </div>
 
