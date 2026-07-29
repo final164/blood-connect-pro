@@ -9,6 +9,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import type { District } from "@/lib/api";
 import { Settings as SettingsIcon, HeartHandshake, Award, Shield } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -65,7 +66,10 @@ function ProfilePage() {
     <div className="w-full">
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-base font-bold">{t("profile")}</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <UserMenuTrigger />
+            <h1 className="text-base font-bold">{t("profile")}</h1>
+          </div>
           <div className="flex items-center gap-1">
             <ChatHeaderButton />
             {isAdmin && (

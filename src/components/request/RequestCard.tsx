@@ -27,10 +27,12 @@ import {
   CheckCircle2,
   MoreVertical,
   Trash2,
+  Bookmark,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { DonationPanel } from "@/components/request/DonationPanel";
+import { toggleSave } from "@/lib/request-saves";
 import { toast } from "sonner";
 
 export type FeedRequest = {
@@ -57,6 +59,7 @@ export type FeedRequest = {
   like_count?: number;
   comment_count?: number;
   liked?: boolean;
+  saved?: boolean;
 };
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -81,6 +84,7 @@ export function RequestCard({
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const [liked, setLiked] = useState(!!r.liked);
+  const [saved, setSaved] = useState(!!r.saved);
   const [likeCount, setLikeCount] = useState(r.like_count ?? 0);
   const [commentCount, setCommentCount] = useState(r.comment_count ?? 0);
   const [showComments, setShowComments] = useState(false);
@@ -102,9 +106,10 @@ export function RequestCard({
 
   useEffect(() => {
     setLiked(!!r.liked);
+    setSaved(!!r.saved);
     setLikeCount(r.like_count ?? 0);
     setCommentCount(r.comment_count ?? 0);
-  }, [r.liked, r.like_count, r.comment_count, r.id]);
+  }, [r.liked, r.saved, r.like_count, r.comment_count, r.id]);
 
   const distName = lang === "bn" ? r.district?.name_bn : r.district?.name_en;
   const locationLabel = [r.hospital_name, distName || r.city].filter(Boolean).join(" · ");
@@ -134,6 +139,34 @@ export function RequestCard({
       setLikeCount((c) => Math.max(0, c + (next ? -1 : 1)));
       toast.error((e as Error).message);
     }
+  }
+
+  async function onToggleSave() {
+    if (!user) return;
+    const next = !saved;
+    setSaved(next);
+    const { error } = await toggleSave(r.id, user.id, !next);
+    if (error) {
+      setSaved(!next);
+      if (/request_saves|relation|column/i.test(error.message)) {
+        return toast.error(
+          lang === "bn"
+            ? "আগে scripts/request-saves.sql চালান"
+            : "Run scripts/request-saves.sql first",
+        );
+      }
+      return toast.error(error.message);
+    }
+    toast.success(
+      next
+        ? lang === "bn"
+          ? "পোস্ট সেভ হয়েছে"
+          : "Post saved"
+        : lang === "bn"
+          ? "সেভ সরানো হয়েছে"
+          : "Removed from saved",
+    );
+    onChanged?.();
   }
 
   async function share() {
@@ -367,6 +400,17 @@ export function RequestCard({
               <WhatsAppIcon className="h-3.5 w-3.5" />
             </a>
           )}
+          <button
+            type="button"
+            onClick={() => void onToggleSave()}
+            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition hover:bg-muted ${
+              saved ? "text-primary" : "text-muted-foreground"
+            }`}
+            title={lang === "bn" ? "সেভ" : "Save"}
+          >
+            <Bookmark className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
+            <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
+          </button>
           <button
             type="button"
             onClick={share}

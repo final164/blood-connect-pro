@@ -12,6 +12,8 @@ import { RequestCard, type FeedRequest } from "@/components/request/RequestCard"
 import { cacheGet, cacheSet } from "@/lib/offline";
 import { Droplet, ShieldCheck, Search, X, Moon, Sun } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
+import { fetchSavedIdsForRequests } from "@/lib/request-saves";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
@@ -107,7 +109,7 @@ function FeedPage() {
       }
 
       if (requestIds.length) {
-        const [{ data: likes, error: likesErr }, myLikesRes, { data: comments, error: cmtErr }] =
+        const [{ data: likes, error: likesErr }, myLikesRes, { data: comments, error: cmtErr }, savedSet] =
           await Promise.all([
             supabase.from("request_likes").select("request_id").in("request_id", requestIds),
             user
@@ -118,6 +120,7 @@ function FeedPage() {
                   .in("request_id", requestIds)
               : Promise.resolve({ data: [] as { request_id: string }[], error: null }),
             supabase.from("request_comments").select("request_id").in("request_id", requestIds),
+            user ? fetchSavedIdsForRequests(user.id, requestIds) : Promise.resolve(new Set<string>()),
           ]);
         if (!likesErr && !cmtErr) {
           const likeMap = new Map<string, number>();
@@ -135,6 +138,7 @@ function FeedPage() {
             r.like_count = likeMap.get(r.id) ?? 0;
             r.comment_count = cMap.get(r.id) ?? 0;
             r.liked = mine.has(r.id);
+            r.saved = savedSet.has(r.id);
           }
         }
       }
@@ -235,6 +239,7 @@ function FeedPage() {
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
+            <UserMenuTrigger />
             <div className="h-9 w-9 shrink-0 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
               <Droplet className="h-4 w-4" fill="currentColor" />
             </div>

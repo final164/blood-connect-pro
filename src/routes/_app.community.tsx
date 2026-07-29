@@ -9,6 +9,7 @@ import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-do
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import { Droplet, Phone, Users, Building2 } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app/community")({
@@ -57,6 +58,7 @@ function CommunityPage() {
       <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
+            <UserMenuTrigger />
             <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
               <Users className="h-4 w-4" />
             </div>

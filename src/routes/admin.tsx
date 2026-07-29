@@ -61,6 +61,7 @@ import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
 import { UrgencyAnimationAdmin } from "@/components/admin/UrgencyAnimationAdmin";
 import { NeedReasonAdmin } from "@/components/admin/NeedReasonAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
+import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 
 export const Route = createFileRoute("/admin")({
@@ -1957,9 +1958,9 @@ function NotificationsAdmin() {
 function SettingsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
-  const [settingsTab, setSettingsTab] = useState<"urgency" | "reasons" | "donations" | "form" | "app">(
-    "urgency",
-  );
+  const [settingsTab, setSettingsTab] = useState<
+    "urgency" | "reasons" | "donations" | "menu" | "form" | "app"
+  >("urgency");
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
     emergency_hotline: "",
@@ -2019,6 +2020,7 @@ function SettingsAdmin() {
     { id: "urgency" as const, bn: "জরুরিতা অ্যানিমেশন", en: "Urgency animation" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
+    { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
     { id: "app" as const, bn: "অ্যাপ", en: "App" },
   ];
@@ -2045,6 +2047,7 @@ function SettingsAdmin() {
       {settingsTab === "urgency" && <UrgencyAnimationAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
+      {settingsTab === "menu" && <UserMenuAdmin />}
 
       {settingsTab === "form" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">

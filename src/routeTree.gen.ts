@@ -20,6 +20,7 @@ import { Route as AppNotificationsRouteImport } from './routes/_app.notification
 import { Route as AppMapRouteImport } from './routes/_app.map'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -76,6 +77,11 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMeViewRoute = AppMeViewRouteImport.update({
+  id: '/me/$view',
+  path: '/me/$view',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppChatPeerIdRoute = AppChatPeerIdRouteImport.update({
   id: '/$peerId',
   path: '/$peerId',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
+  '/me/$view': typeof AppMeViewRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
+  '/me/$view': typeof AppMeViewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
+  '/_app/me/$view': typeof AppMeViewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
     | '/requests'
     | '/settings'
     | '/chat/$peerId'
+    | '/me/$view'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/'
     | '/chat/$peerId'
+    | '/me/$view'
   id:
     | '__root__'
     | '/_app'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/'
     | '/_app/chat/$peerId'
+    | '/_app/me/$view'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -251,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/me/$view': {
+      id: '/_app/me/$view'
+      path: '/me/$view'
+      fullPath: '/me/$view'
+      preLoaderRoute: typeof AppMeViewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/chat/$peerId': {
       id: '/_app/chat/$peerId'
       path: '/$peerId'
@@ -281,6 +300,7 @@ interface AppRouteChildren {
   AppRequestsRoute: typeof AppRequestsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppMeViewRoute: typeof AppMeViewRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -292,6 +312,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRequestsRoute: AppRequestsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppMeViewRoute: AppMeViewRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
