@@ -215,9 +215,16 @@ function FeedPage() {
             <RequestComposer
               variant="panel"
               defaultDistrict={district}
-              onCreated={() => {
-                closeComposer();
-                load();
+              onCreated={(id) => {
+                setShowComposer(false);
+                setFilter("ALL");
+                setDistrict(null);
+                setHighlightId(id);
+                void navigate({
+                  to: "/",
+                  search: { requestId: id },
+                  replace: true,
+                }).then(() => load());
               }}
               onCancel={closeComposer}
             />

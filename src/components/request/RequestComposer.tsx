@@ -31,7 +31,7 @@ export function RequestComposer({
   variant = "card",
 }: {
   defaultDistrict: District | null;
-  onCreated: () => void;
+  onCreated: (requestId: string) => void;
   onCancel?: () => void;
   variant?: "card" | "panel";
 }) {
@@ -164,18 +164,24 @@ export function RequestComposer({
       payload.hospital_id = hospital.id;
     }
 
-    let { error } = await supabase.from("blood_requests").insert(payload);
+    async function tryInsert(body: Record<string, unknown>) {
+      return supabase.from("blood_requests").insert(body).select("id").single();
+    }
+
+    let { data: created, error } = await tryInsert(payload);
     if (error && /need_reason_/i.test(error.message)) {
       delete payload.need_reason_key;
       delete payload.need_reason_label;
-      ({ error } = await supabase.from("blood_requests").insert(payload));
+      ({ data: created, error } = await tryInsert(payload));
     }
     if (error && /whatsapp_phone/i.test(error.message)) {
       delete payload.whatsapp_phone;
-      ({ error } = await supabase.from("blood_requests").insert(payload));
+      ({ data: created, error } = await tryInsert(payload));
     }
     setBusy(false);
     if (error) return toast.error(error.message);
+    const newId = (created as { id?: string } | null)?.id;
+    if (!newId) return toast.error(lang === "bn" ? "পোস্ট তৈরি হয়েছে কিন্তু আইডি পাওয়া যায়নি" : "Posted but id missing");
     toast.success(lang === "bn" ? "রিকোয়েস্ট ফিডে পোস্ট হয়েছে" : "Request posted to feed");
     setHospital(null);
     setReasonKey("");
@@ -191,7 +197,7 @@ export function RequestComposer({
       urgency: "normal",
       notes: "",
     });
-    onCreated();
+    onCreated(newId);
   }
 
   const ph = (bn: string, en: string) => (lang === "bn" ? bn : en);
