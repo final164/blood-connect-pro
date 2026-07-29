@@ -14,6 +14,7 @@ import { Droplet, ShieldCheck, Search, X, Moon, Sun } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { fetchSavedIdsForRequests } from "@/lib/request-saves";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
@@ -236,7 +237,7 @@ function FeedPage() {
         </div>
       ) : (
         <>
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
+      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <UserMenuTrigger />
@@ -363,7 +364,7 @@ function FeedPage() {
             </button>
           ))}
         </div>
-      </header>
+      </AutoHideHeader>
 
           <div className="px-3 pt-4 pb-2 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

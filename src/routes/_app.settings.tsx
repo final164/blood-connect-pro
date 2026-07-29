@@ -8,6 +8,7 @@ import { ShieldCheck, Globe, MapPin, Bell, Database, LogOut, Moon } from "lucide
 import { toast } from "sonner";
 import { enableDeviceNotifications, disableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { hasWebPushConfigured } from "@/lib/push-config";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — BloodLink" }] }),
@@ -79,11 +80,11 @@ function SettingsPage() {
 
   return (
     <div className="w-full md:max-w-2xl">
-      <header className="sticky top-0 z-30 glass border-b safe-top">
+      <AutoHideHeader className="z-30 glass border-b safe-top">
         <div className="px-4 py-3">
           <h1 className="text-base font-bold">{t("settings")}</h1>
         </div>
-      </header>
+      </AutoHideHeader>
 
       <div className="p-4 space-y-5">
         <Section title={t("language")} icon={<Globe className="h-4 w-4" />}>

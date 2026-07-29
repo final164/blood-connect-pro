@@ -5,6 +5,7 @@ import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { Bell, ThumbsUp, MessageSquare, Share2, Megaphone, CheckCheck, Droplets } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 
 export const Route = createFileRoute("/_app/notifications")({
   head: () => ({ meta: [{ title: "Notifications — BloodLink" }] }),
@@ -17,7 +18,7 @@ function NotificationsPage() {
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between gap-3 safe-top">
+      <AutoHideHeader className="z-20 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between gap-3 safe-top">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="h-9 w-9 rounded-xl bg-muted grid place-items-center">
             <Bell className="h-4 w-4 text-foreground" />
@@ -48,7 +49,7 @@ function NotificationsPage() {
           )}
           <ChatHeaderButton />
         </div>
-      </header>
+      </AutoHideHeader>
 
       <ul className="px-3 py-4 space-y-2 pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
         {loading && items.length === 0 && (
