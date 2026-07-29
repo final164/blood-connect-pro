@@ -49,7 +49,7 @@ export const signupWithPhone = createServerFn({ method: "POST" })
     const email = phoneToAuthEmail(data.phone);
     const password = pinToPassword(data.pin);
 
-    const { error } = await admin.auth.admin.createUser({
+    const { data: created, error } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -67,6 +67,15 @@ export const signupWithPhone = createServerFn({ method: "POST" })
         return { ok: true as const, exists: true as const };
       }
       throw new Error(error.message);
+    }
+
+    const userId = created.user?.id;
+    if (userId) {
+      await admin.from("profiles").upsert({
+        id: userId,
+        full_name: data.fullName,
+        phone: data.phone,
+      });
     }
 
     return { ok: true as const, exists: false as const };

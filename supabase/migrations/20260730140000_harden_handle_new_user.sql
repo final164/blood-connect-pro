@@ -1,5 +1,4 @@
 -- Harden signup trigger so role/settings conflicts don't block new phone users.
--- Run in Supabase SQL Editor if new registrations fail silently.
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -29,7 +28,6 @@ BEGIN
 
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-  -- Never block auth.users insert because of profile side-effects
   RAISE WARNING 'handle_new_user failed for %: %', NEW.id, SQLERRM;
   RETURN NEW;
 END;
