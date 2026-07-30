@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -13,8 +13,10 @@ import { cacheGet, cacheSet } from "@/lib/offline";
 import { Droplet, ShieldCheck, Search, X } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
-import { fetchSavedIdsForRequests } from "@/lib/request-saves";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { InfiniteSentinel } from "@/components/InfiniteSentinel";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
@@ -39,7 +41,14 @@ function FeedPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [showDistrictSearch, setShowDistrictSearch] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const prefsLoaded = useRef(false);
+  const loadGen = useRef(0);
+  const rtTimer = useRef<number | null>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   useEffect(() => {
     setShowComposer(!!compose);
@@ -62,79 +71,63 @@ function FeedPage() {
     });
   }
 
-  async function load() {
-    try {
-      let q = supabase
-        .from("blood_requests")
-        .select("*, districts(name_bn,name_en)")
-        .eq("status", "open")
-        .order("urgency", { ascending: false })
-        .order("created_at", { ascending: false });
-      if (filter !== "ALL") q = q.eq("blood_group", filter as (typeof BLOOD_GROUPS)[number]);
-      if (district?.id) q = q.eq("district_id", district.id);
-      const { data, error } = await q;
-      if (error) throw error;
-
-      const list = (data ?? []).map((row: any) => ({
-        ...row,
-        district: row.districts,
-      })) as FeedRequest[];
-
-      const requesterIds = [...new Set(list.map((r) => r.requester_id))];
-      const requestIds = list.map((r) => r.id);
-
-      if (requesterIds.length) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, avatar_url")
-          .in("id", requesterIds);
-        const map = new Map((profiles ?? []).map((p) => [p.id, p]));
-        for (const r of list) r.requester = map.get(r.requester_id) ?? null;
+  const loadPage = useCallback(
+    async (reset: boolean) => {
+      const gen = ++loadGen.current;
+      if (reset) {
+        setLoading(true);
+        setHasMore(true);
+      } else {
+        setLoadingMore(true);
       }
-
-      if (requestIds.length) {
-        const [{ data: likes, error: likesErr }, myLikesRes, { data: comments, error: cmtErr }, savedSet] =
-          await Promise.all([
-            supabase.from("request_likes").select("request_id").in("request_id", requestIds),
-            user
-              ? supabase
-                  .from("request_likes")
-                  .select("request_id")
-                  .eq("user_id", user.id)
-                  .in("request_id", requestIds)
-              : Promise.resolve({ data: [] as { request_id: string }[], error: null }),
-            supabase.from("request_comments").select("request_id").in("request_id", requestIds),
-            user ? fetchSavedIdsForRequests(user.id, requestIds) : Promise.resolve(new Set<string>()),
-          ]);
-        if (!likesErr && !cmtErr) {
-          const likeMap = new Map<string, number>();
-          (likes ?? []).forEach((l: { request_id: string }) =>
-            likeMap.set(l.request_id, (likeMap.get(l.request_id) ?? 0) + 1),
-          );
-          const cMap = new Map<string, number>();
-          (comments ?? []).forEach((c: { request_id: string }) =>
-            cMap.set(c.request_id, (cMap.get(c.request_id) ?? 0) + 1),
-          );
-          const mine = new Set(
-            (myLikesRes.data ?? []).map((l: { request_id: string }) => l.request_id),
-          );
-          for (const r of list) {
-            r.like_count = likeMap.get(r.id) ?? 0;
-            r.comment_count = cMap.get(r.id) ?? 0;
-            r.liked = mine.has(r.id);
-            r.saved = savedSet.has(r.id);
+      try {
+        const offset = reset ? 0 : itemsRef.current.length;
+        const { items: page, hasMore: more } = await fetchFeedPage({
+          bloodGroup: filter,
+          districtId: district?.id ?? null,
+          offset,
+          limit: FEED_PAGE_SIZE,
+          userId: user?.id,
+        });
+        if (gen !== loadGen.current) return;
+        setItems((prev) => {
+          if (reset) return page;
+          const seen = new Set(prev.map((p) => p.id));
+          return [...prev, ...page.filter((p) => !seen.has(p.id))];
+        });
+        setHasMore(more);
+        if (reset) {
+          await cacheSet(`feed-req:${district?.id ?? "all"}:${filter}`, page);
+        }
+      } catch (e) {
+        if (gen !== loadGen.current) return;
+        if (reset) {
+          const cached = await cacheGet<FeedRequest[]>(`feed-req:${district?.id ?? "all"}:${filter}`);
+          if (cached?.length) {
+            setItems(cached);
+            setHasMore(false);
+          } else {
+            toast.error((e as Error).message);
           }
         }
+      } finally {
+        if (gen === loadGen.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       }
+    },
+    [district?.id, filter, user?.id],
+  );
 
-      setItems(list);
-      await cacheSet(`feed-req:${district?.id ?? "all"}:${filter}`, list);
-    } catch (e) {
-      const cached = await cacheGet<FeedRequest[]>(`feed-req:${district?.id ?? "all"}:${filter}`);
-      if (cached) setItems(cached);
-      else toast.error((e as Error).message);
-    }
-  }
+  const loadMoreSafe = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    void loadPage(false);
+  }, [hasMore, loading, loadingMore, loadPage]);
+
+  const sentinelRef = useInfiniteScroll(loadMoreSafe, {
+    enabled: hasMore && !loading && !showComposer,
+  });
 
   useEffect(() => {
     if (!user || prefsLoaded.current) return;
@@ -155,18 +148,23 @@ function FeedPage() {
   }, [user?.id]);
 
   useEffect(() => {
-    load();
+    void loadPage(true);
+    const scheduleReload = () => {
+      if (rtTimer.current) window.clearTimeout(rtTimer.current);
+      rtTimer.current = window.setTimeout(() => void loadPage(true), 600);
+    };
     const ch = supabase
       .channel("feed-requests")
-      .on("postgres_changes", { event: "*", schema: "public", table: "blood_requests" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "request_likes" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "request_comments" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "blood_requests" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "request_likes" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "request_comments" }, scheduleReload)
       .subscribe();
     return () => {
+      if (rtTimer.current) window.clearTimeout(rtTimer.current);
       supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, district?.id]);
+  }, [filter, district?.id, user?.id]);
 
   useEffect(() => {
     let targetId = requestId;
@@ -183,9 +181,7 @@ function FeedPage() {
     const id = targetId;
     const scroll = () => {
       const el = document.getElementById(`request-${id}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     };
     const t1 = window.setTimeout(scroll, 300);
     const t2 = window.setTimeout(() => setHighlightId(null), 4000);
@@ -212,7 +208,7 @@ function FeedPage() {
                   to: "/",
                   search: { requestId: id },
                   replace: true,
-                }).then(() => load());
+                }).then(() => void loadPage(true));
               }}
               onCancel={closeComposer}
             />
@@ -220,127 +216,130 @@ function FeedPage() {
         </div>
       ) : (
         <>
-      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
-        <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <UserMenuTrigger />
-            <div className="h-9 w-9 shrink-0 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
-              <Droplet className="h-4 w-4" fill="currentColor" />
+          <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
+            <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <UserMenuTrigger />
+                <div className="h-9 w-9 shrink-0 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
+                  <Droplet className="h-4 w-4" fill="currentColor" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-sm font-bold leading-tight tracking-tight truncate">{t("appName")}</h1>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shrink-0" />
+                    {t("realtime")} · <ShieldCheck className="h-2.5 w-2.5 shrink-0" /> {t("encrypted")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowDistrictSearch((v) => !v)}
+                  title={lang === "bn" ? "জেলা ফিল্টার" : "Filter by district"}
+                  className={`relative h-10 w-10 rounded-xl grid place-items-center transition ${
+                    showDistrictSearch || district
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Search className="h-5 w-5" />
+                  {district && (
+                    <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+                  )}
+                </button>
+                <ChatHeaderButton size="lg" className="ml-0.5" />
+              </div>
             </div>
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold leading-tight tracking-tight truncate">{t("appName")}</h1>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
-                <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shrink-0" />
-                {t("realtime")} · <ShieldCheck className="h-2.5 w-2.5 shrink-0" /> {t("encrypted")}
-              </p>
+
+            {showDistrictSearch && (
+              <div className="px-3 sm:px-4 pb-2.5 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <DistrictTypeahead
+                    value={district}
+                    onChange={(d) => {
+                      setDistrict(d);
+                      if (d) setShowDistrictSearch(false);
+                    }}
+                    placeholder={lang === "bn" ? "জেলা ফিল্টার…" : "Filter by district…"}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDistrictSearch(false)}
+                  className="h-10 w-10 shrink-0 rounded-xl border bg-card text-muted-foreground grid place-items-center hover:bg-muted"
+                  title={t("cancel")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {district && !showDistrictSearch && (
+              <div className="px-3 sm:px-4 pb-2 flex">
+                <button
+                  type="button"
+                  onClick={() => setShowDistrictSearch(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border bg-primary/5 border-primary/20 text-primary px-2.5 py-1 text-[11px] font-medium"
+                >
+                  <Search className="h-3 w-3" />
+                  {lang === "bn" ? district.name_bn : district.name_en}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDistrict(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDistrict(null);
+                      }
+                    }}
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-primary/15"
+                    aria-label={lang === "bn" ? "ফিল্টার সরান" : "Clear filter"}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                </button>
+              </div>
+            )}
+
+            <div className="px-3 pb-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
+              {["ALL", ...BLOOD_GROUPS].map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setFilter(g)}
+                  className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
+                    filter === g
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
-          </div>
-
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowDistrictSearch((v) => !v)}
-              title={lang === "bn" ? "জেলা ফিল্টার" : "Filter by district"}
-              className={`relative h-10 w-10 rounded-xl grid place-items-center transition ${
-                showDistrictSearch || district
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              <Search className="h-5 w-5" />
-              {district && (
-                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-              )}
-            </button>
-            <ChatHeaderButton size="lg" className="ml-0.5" />
-          </div>
-        </div>
-
-        {showDistrictSearch && (
-          <div className="px-3 sm:px-4 pb-2.5 flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <DistrictTypeahead
-                value={district}
-                onChange={(d) => {
-                  setDistrict(d);
-                  if (d) setShowDistrictSearch(false);
-                }}
-                placeholder={lang === "bn" ? "জেলা ফিল্টার…" : "Filter by district…"}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setShowDistrictSearch(false);
-              }}
-              className="h-10 w-10 shrink-0 rounded-xl border bg-card text-muted-foreground grid place-items-center hover:bg-muted"
-              title={t("cancel")}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {district && !showDistrictSearch && (
-          <div className="px-3 sm:px-4 pb-2 flex">
-            <button
-              type="button"
-              onClick={() => setShowDistrictSearch(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-primary/5 border-primary/20 text-primary px-2.5 py-1 text-[11px] font-medium"
-            >
-              <Search className="h-3 w-3" />
-              {lang === "bn" ? district.name_bn : district.name_en}
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDistrict(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDistrict(null);
-                  }
-                }}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-primary/15"
-                aria-label={lang === "bn" ? "ফিল্টার সরান" : "Clear filter"}
-              >
-                <X className="h-3 w-3" />
-              </span>
-            </button>
-          </div>
-        )}
-
-        <div className="px-3 pb-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
-          {["ALL", ...BLOOD_GROUPS].map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setFilter(g)}
-              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold border transition ${
-                filter === g
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted/50"
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-      </AutoHideHeader>
+          </AutoHideHeader>
 
           <div className="px-3 pt-4 pb-2 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t("liveRequests")}
             </h2>
-            <span className="text-[11px] text-muted-foreground">{items.length}</span>
+            <span className="text-[11px] text-muted-foreground">{items.length}{hasMore ? "+" : ""}</span>
           </div>
 
-          <ul className="px-3 pb-6 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:gap-5">
-            {items.length === 0 && (
-              <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
+          <ul className="px-3 pb-2 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:gap-5">
+            {loading && items.length === 0 && (
+              <li className="rounded-2xl border bg-muted/20 py-12 text-center text-sm text-muted-foreground lg:col-span-2">
+                {t("loading")}
+              </li>
+            )}
+            {!loading && items.length === 0 && (
+              <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center lg:col-span-2">
                 <p className="text-sm text-muted-foreground">{t("emptyRequests")}</p>
                 <button
                   type="button"
@@ -356,12 +355,18 @@ function FeedPage() {
                 <RequestCard
                   request={r}
                   currentUserId={user?.id}
-                  onChanged={load}
+                  onChanged={() => void loadPage(true)}
                   highlighted={highlightId === r.id}
                 />
               </li>
             ))}
           </ul>
+          <InfiniteSentinel
+            sentinelRef={sentinelRef}
+            loading={loadingMore}
+            hasMore={hasMore}
+            label={lang === "bn" ? "আরও পোস্ট…" : "More posts…"}
+          />
         </>
       )}
     </div>

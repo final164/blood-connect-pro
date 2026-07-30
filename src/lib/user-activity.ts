@@ -110,7 +110,10 @@ async function distinctRequestIds(
 export async function loadActivityRequests(
   view: Exclude<ActivityView, "organizations">,
   userId: string,
-): Promise<FeedRequest[]> {
+  opts?: { offset?: number; limit?: number },
+): Promise<{ items: FeedRequest[]; hasMore: boolean }> {
+  const limit = opts?.limit ?? 8;
+  const offset = opts?.offset ?? 0;
   let ids: string[] = [];
 
   if (view === "posts") {
@@ -118,9 +121,12 @@ export async function loadActivityRequests(
       .from("blood_requests")
       .select("id")
       .eq("requester_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
     if (error) throw error;
     ids = (data ?? []).map((r: { id: string }) => r.id);
+    const items = await hydrateRequests(ids, userId);
+    return { items, hasMore: ids.length >= limit };
   } else if (view === "liked") {
     ids = await distinctRequestIds("request_likes", "user_id", userId);
   } else if (view === "commented") {
@@ -143,7 +149,13 @@ export async function loadActivityRequests(
           .select("request_id")
           .eq("donor_id", userId)
           .order("created_at", { ascending: false });
-        ids = [...new Set((dons ?? []).map((d: { request_id: string | null }) => d.request_id).filter(Boolean))] as string[];
+        ids = [
+          ...new Set(
+            (dons ?? [])
+              .map((d: { request_id: string | null }) => d.request_id)
+              .filter(Boolean),
+          ),
+        ] as string[];
       } else throw error;
     } else {
       const seen = new Set<string>();
@@ -157,5 +169,7 @@ export async function loadActivityRequests(
     }
   }
 
-  return hydrateRequests(ids, userId);
+  const pageIds = ids.slice(offset, offset + limit);
+  const items = await hydrateRequests(pageIds, userId);
+  return { items, hasMore: offset + limit < ids.length };
 }

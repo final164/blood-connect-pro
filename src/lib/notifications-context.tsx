@@ -59,14 +59,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const settings = await fetchNotificationSettings();
-      await purgeExpiredNotificationsForUser(user.id, settings.retention_days);
+      void purgeExpiredNotificationsForUser(user.id, settings.retention_days).catch(() => undefined);
 
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(80);
+        .limit(40);
       if (error) {
         setItems([]);
         return;

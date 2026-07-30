@@ -39,17 +39,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [checkAdmin, session?.user?.id, session?.user?.email]);
 
   useEffect(() => {
+    let alive = true;
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (!alive) return;
       setSession(s);
       setLoading(false);
       void checkAdmin(s?.user?.id, s?.user?.email);
     });
-    supabase.auth.getSession().then(({ data }) => {
+    // Prefer local session ASAP so the app shell can paint without waiting on admin role.
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!alive) return;
       setSession(data.session);
       setLoading(false);
       void checkAdmin(data.session?.user?.id, data.session?.user?.email);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   }, [checkAdmin]);
 
   const isAnonymous = !!session?.user?.is_anonymous;

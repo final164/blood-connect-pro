@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchCommunityOrgs, type CommunityOrg, type District } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
@@ -11,18 +11,21 @@ import { Droplet, Phone, Users, Building2, X } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { InfiniteSentinel } from "@/components/InfiniteSentinel";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { supabase } from "@/integrations/supabase/client";
 
 type CommunitySearch = {
   orgId?: string;
 };
 
+const PAGE = 24;
+
 export const Route = createFileRoute("/_app/community")({
   head: () => ({ meta: [{ title: "Community — BloodLink" }] }),
   validateSearch: (search: Record<string, unknown>): CommunitySearch => ({
     orgId: typeof search.orgId === "string" && search.orgId ? search.orgId : undefined,
   }),
-  
   component: CommunityPage,
 });
 
@@ -35,6 +38,10 @@ function CommunityPage() {
   const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
   const [filterOrg, setFilterOrg] = useState<CommunityOrg | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const donorsRef = useRef(donors);
+  donorsRef.current = donors;
 
   useEffect(() => {
     if (!orgId) {
@@ -46,38 +53,59 @@ function CommunityPage() {
       .catch(() => setFilterOrg(null));
   }, [orgId]);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const data = await fetchCommunityDonors({
-        bloodGroup,
-        districtId: district?.id ?? null,
-        upazila: upazila.trim() || undefined,
-        orgId: orgId ?? null,
-      });
-      setDonors(data);
-    } catch {
-      setDonors([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadPage = useCallback(
+    async (reset: boolean) => {
+      if (reset) {
+        setLoading(true);
+        setHasMore(true);
+      } else setLoadingMore(true);
+      try {
+        const offset = reset ? 0 : donorsRef.current.length;
+        const { items, hasMore: more } = await fetchCommunityDonors({
+          bloodGroup,
+          districtId: district?.id ?? null,
+          upazila: upazila.trim() || undefined,
+          orgId: orgId ?? null,
+          offset,
+          limit: PAGE,
+        });
+        setDonors((prev) =>
+          reset ? items : [...prev, ...items.filter((d) => !prev.some((p) => p.id === d.id))],
+        );
+        setHasMore(more);
+      } catch {
+        if (reset) setDonors([]);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [bloodGroup, district?.id, orgId, upazila],
+  );
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    void loadPage(false);
+  }, [hasMore, loadPage, loading, loadingMore]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, { enabled: hasMore && !loading });
 
   useEffect(() => {
-    void load();
+    void loadPage(true);
     const ch = supabase
       .channel("community-donors-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "community_donors" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "community_donors" }, () =>
+        void loadPage(true),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bloodGroup, district?.id, upazila, orgId]);
+  }, [loadPage]);
 
   const orgLabel =
-    filterOrg &&
-    (lang === "bn" ? filterOrg.name_bn || filterOrg.name : filterOrg.name);
+    filterOrg && (lang === "bn" ? filterOrg.name_bn || filterOrg.name : filterOrg.name);
 
   return (
     <div className="w-full">
@@ -144,9 +172,11 @@ function CommunityPage() {
         <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
       </AutoHideHeader>
 
-      <ul className="p-3 space-y-2 pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
-        {loading && (
-          <li className="text-center text-sm text-muted-foreground py-12">{lang === "bn" ? "খুঁজছি…" : "Searching…"}</li>
+      <ul className="p-3 space-y-2 pb-2 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
+        {loading && donors.length === 0 && (
+          <li className="text-center text-sm text-muted-foreground py-12 md:col-span-full">
+            {lang === "bn" ? "খুঁজছি…" : "Searching…"}
+          </li>
         )}
         {!loading && donors.length === 0 && (
           <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center md:col-span-full">
@@ -160,6 +190,12 @@ function CommunityPage() {
           <DonorCard key={d.id} donor={d} lang={lang} />
         ))}
       </ul>
+      <InfiniteSentinel
+        sentinelRef={sentinelRef}
+        loading={loadingMore}
+        hasMore={hasMore}
+        label={lang === "bn" ? "আরও রক্তদাতা…" : "More donors…"}
+      />
     </div>
   );
 }

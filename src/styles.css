@@ -304,4 +304,175 @@
       min-width: 0;
     }
   }
+
+  /* ——— Admin themes ——— */
+  .admin-app {
+    font-feature-settings: "ss01" 1, "cv01" 1;
+  }
+
+  /* Dark (default) — refined charcoal console */
+  .admin-app.admin-dark {
+    color-scheme: dark;
+    background-color: #0b1220;
+    color: #e2e8f0;
+  }
+  .admin-app.admin-dark aside.bg-white,
+  .admin-app.admin-dark aside {
+    box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.04);
+  }
+
+  /* Light — clean SaaS dashboard */
+  .admin-app.admin-light {
+    color-scheme: light;
+    color: #0f172a;
+    background-color: #f8fafc;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 100% -20%, rgb(244 63 94 / 0.06), transparent),
+      radial-gradient(ellipse 60% 40% at 0% 100%, rgb(14 165 233 / 0.04), transparent);
+  }
+
+  /* Surfaces */
+  .admin-app.admin-light .bg-slate-950 {
+    background-color: #f8fafc !important;
+  }
+  .admin-app.admin-light .bg-slate-950\/90,
+  .admin-app.admin-light .bg-slate-950\/80 {
+    background-color: rgb(255 255 255 / 0.88) !important;
+    backdrop-filter: blur(12px);
+  }
+  .admin-app.admin-light .bg-slate-900 {
+    background-color: #ffffff !important;
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 0 0 1px rgb(15 23 42 / 0.03);
+  }
+  .admin-app.admin-light .bg-slate-800,
+  .admin-app.admin-light .bg-slate-800\/60,
+  .admin-app.admin-light .bg-slate-700 {
+    background-color: #f1f5f9 !important;
+  }
+  .admin-app.admin-light .bg-black\/30 {
+    background-color: rgb(15 23 42 / 0.04) !important;
+  }
+
+  /* Borders */
+  .admin-app.admin-light .border-slate-800,
+  .admin-app.admin-light .border-slate-700,
+  .admin-app.admin-light .border-slate-600 {
+    border-color: #e2e8f0 !important;
+  }
+
+  /* Typography */
+  .admin-app.admin-light .text-slate-100,
+  .admin-app.admin-light .text-slate-200,
+  .admin-app.admin-light .text-slate-300,
+  .admin-app.admin-light .text-white {
+    color: #0f172a !important;
+  }
+  .admin-app.admin-light .text-slate-400,
+  .admin-app.admin-light .text-slate-500 {
+    color: #64748b !important;
+  }
+  .admin-app.admin-light .text-amber-100,
+  .admin-app.admin-light .text-amber-200,
+  .admin-app.admin-light .text-amber-300 {
+    color: #b45309 !important;
+  }
+  .admin-app.admin-light .text-emerald-200,
+  .admin-app.admin-light .text-emerald-300 {
+    color: #047857 !important;
+  }
+  .admin-app.admin-light .text-rose-200,
+  .admin-app.admin-light .text-rose-300,
+  .admin-app.admin-light .text-rose-400 {
+    color: #e11d48 !important;
+  }
+
+  /* Primary actions */
+  .admin-app.admin-light .bg-rose-600 {
+    background-color: #e11d48 !important;
+    box-shadow: 0 1px 2px rgb(225 29 72 / 0.25);
+  }
+  .admin-app.admin-light .bg-rose-600,
+  .admin-app.admin-light .bg-rose-600 *,
+  .admin-app.admin-light .bg-emerald-600,
+  .admin-app.admin-light .bg-emerald-600 * {
+    color: #ffffff !important;
+  }
+  .admin-app.admin-light .bg-emerald-600 {
+    background-color: #059669 !important;
+  }
+
+  /* Status chips */
+  .admin-app.admin-light .bg-emerald-500\/20,
+  .admin-app.admin-light .bg-emerald-500\/15 {
+    background-color: rgb(16 185 129 / 0.12) !important;
+  }
+  .admin-app.admin-light .bg-rose-500\/15,
+  .admin-app.admin-light .bg-rose-600\/30 {
+    background-color: rgb(244 63 94 / 0.1) !important;
+  }
+  .admin-app.admin-light .bg-amber-500\/10,
+  .admin-app.admin-light .bg-amber-500\/15 {
+    background-color: rgb(245 158 11 / 0.12) !important;
+  }
+
+  /* Interactive */
+  .admin-app.admin-light .hover\:bg-slate-800:hover {
+    background-color: #f1f5f9 !important;
+  }
+  .admin-app.admin-light .hover\:text-slate-100:hover,
+  .admin-app.admin-light .hover\:text-slate-200:hover {
+    color: #0f172a !important;
+  }
+
+  /* Forms */
+  .admin-app.admin-light input,
+  .admin-app.admin-light select,
+  .admin-app.admin-light textarea {
+    color: #0f172a !important;
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 1px rgb(15 23 42 / 0.03);
+  }
+  .admin-app.admin-light input:focus,
+  .admin-app.admin-light select:focus,
+  .admin-app.admin-light textarea:focus {
+    border-color: #fb7185 !important;
+    box-shadow: 0 0 0 3px rgb(244 63 94 / 0.12);
+  }
+  .admin-app.admin-light input::placeholder,
+  .admin-app.admin-light textarea::placeholder {
+    color: #94a3b8 !important;
+  }
+  .admin-app.admin-light option {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+
+  /* Tables */
+  .admin-app.admin-light thead {
+    background-color: #f8fafc !important;
+    color: #64748b !important;
+  }
+  .admin-app.admin-light tbody tr {
+    background-color: #ffffff;
+  }
+  .admin-app.admin-light tbody tr:hover {
+    background-color: #f8fafc;
+  }
+  .admin-app.admin-light .admin-table-scroll {
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 0 0 1px rgb(15 23 42 / 0.03);
+  }
+
+  /* Code */
+  .admin-app.admin-light code {
+    color: #9f1239 !important;
+    background-color: #fff1f2;
+    padding: 0.1rem 0.35rem;
+    border-radius: 0.25rem;
+  }
 }
