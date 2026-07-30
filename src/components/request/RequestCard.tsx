@@ -12,6 +12,12 @@ import {
   fetchDonationFlowSettings,
   type DonationFlowSettings,
 } from "@/lib/donation-flow-settings";
+import {
+  applySmsTemplate,
+  DEFAULT_MESSAGING_SETTINGS,
+  fetchMessagingSettings,
+  type MessagingSettings,
+} from "@/lib/messaging-settings";
 import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
 import {
   UrgencyDropletBackdrop,
@@ -102,6 +108,7 @@ export function RequestCard({
   const [completingMode, setCompletingMode] = useState(false);
   const [showManagedMenu, setShowManagedMenu] = useState(true);
   const [donationFlow, setDonationFlow] = useState<DonationFlowSettings>(DEFAULT_DONATION_FLOW_SETTINGS);
+  const [messaging, setMessaging] = useState<MessagingSettings>(DEFAULT_MESSAGING_SETTINGS);
   const urgencyAnim = useUrgencyAnimationSettings();
 
   useEffect(() => {
@@ -113,6 +120,7 @@ export function RequestCard({
       setShowManagedMenu(s.enable_managed_button);
     });
     fetchDonationFlowSettings().then(setDonationFlow);
+    fetchMessagingSettings().then(setMessaging);
   }, []);
 
   useEffect(() => {
@@ -192,11 +200,22 @@ export function RequestCard({
   }
 
   async function share() {
-    const text =
-      lang === "bn"
-        ? `${r.blood_group} রক্ত দরকার — ${r.patient_name}, ${locationLabel}`
-        : `${r.blood_group} blood needed — ${r.patient_name}, ${locationLabel}`;
-    const url = typeof window !== "undefined" ? window.location.origin : "";
+    const link = typeof window !== "undefined" ? window.location.origin : "";
+    const tpl = lang === "bn" ? messaging.share_sms_bn : messaging.share_sms_en;
+    const text = applySmsTemplate(tpl, {
+      blood_group: r.blood_group,
+      patient_name: r.patient_name,
+      location: locationLabel,
+      hospital: r.hospital_name,
+      upazila: upazilaName,
+      district: distName || r.city,
+      bags: r.bags_needed,
+      urgency: r.urgency,
+      contact: phone,
+      notes: r.notes,
+      link,
+    });
+    const url = link;
     if (user && r.requester_id !== user.id) {
       await supabase
         .from("request_shares")
@@ -208,7 +227,7 @@ export function RequestCard({
     try {
       if (navigator.share) await navigator.share({ title: "BloodLink", text, url });
       else {
-        await navigator.clipboard.writeText(`${text}\n${url}`);
+        await navigator.clipboard.writeText(url ? `${text}\n${url}` : text);
         toast.success(
           lang === "bn" ? "শেয়ার টেক্সট কপি হয়েছে" : "Share text copied",
         );
@@ -378,25 +397,29 @@ export function RequestCard({
         />
 
         <div className="flex items-center pt-1 border-t">
-          <button
-            type="button"
-            onClick={toggleLike}
-            className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
-              liked ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            <ThumbsUp className="h-4 w-4 shrink-0" fill={liked ? "currentColor" : "none"} />
-            <span className="tabular-nums">{likeCount}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowComments(true)}
-            className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
-          >
-            <MessagesSquare className="h-4 w-4 shrink-0" />
-            <span className="tabular-nums">{commentCount}</span>
-          </button>
-          {!isOwner && (
+          {messaging.post_icons.like && (
+            <button
+              type="button"
+              onClick={toggleLike}
+              className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
+                liked ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              <ThumbsUp className="h-4 w-4 shrink-0" fill={liked ? "currentColor" : "none"} />
+              <span className="tabular-nums">{likeCount}</span>
+            </button>
+          )}
+          {messaging.post_icons.comment && (
+            <button
+              type="button"
+              onClick={() => setShowComments(true)}
+              className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+            >
+              <MessagesSquare className="h-4 w-4 shrink-0" />
+              <span className="tabular-nums">{commentCount}</span>
+            </button>
+          )}
+          {!isOwner && messaging.post_icons.chat && (
             <Link
               to="/chat/$peerId"
               params={{ peerId: r.requester_id }}
@@ -414,7 +437,7 @@ export function RequestCard({
               <span className="hidden sm:inline">{t("chat")}</span>
             </Link>
           )}
-          {!isOwner && phone && (
+          {!isOwner && phone && messaging.post_icons.phone && (
             <a
               href={`tel:${phone.replace(/\s/g, "")}`}
               title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
@@ -423,7 +446,7 @@ export function RequestCard({
               <Phone className="h-4 w-4" />
             </a>
           )}
-          {!isOwner && waLink && (
+          {!isOwner && waLink && messaging.post_icons.whatsapp && (
             <a
               href={waLink}
               target="_blank"
@@ -434,25 +457,29 @@ export function RequestCard({
               <WhatsAppIcon className="h-4 w-4" />
             </a>
           )}
-          <button
-            type="button"
-            onClick={() => void onToggleSave()}
-            className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
-              saved ? "text-primary" : "text-muted-foreground"
-            }`}
-            title={lang === "bn" ? "সেভ" : "Save"}
-          >
-            <Bookmark className="h-4 w-4 shrink-0" fill={saved ? "currentColor" : "none"} />
-            <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={share}
-            className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
-          >
-            <Share2 className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">{t("share")}</span>
-          </button>
+          {messaging.post_icons.save && (
+            <button
+              type="button"
+              onClick={() => void onToggleSave()}
+              className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
+                saved ? "text-primary" : "text-muted-foreground"
+              }`}
+              title={lang === "bn" ? "সেভ" : "Save"}
+            >
+              <Bookmark className="h-4 w-4 shrink-0" fill={saved ? "currentColor" : "none"} />
+              <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
+            </button>
+          )}
+          {messaging.post_icons.share && (
+            <button
+              type="button"
+              onClick={share}
+              className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+            >
+              <Share2 className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">{t("share")}</span>
+            </button>
+          )}
         </div>
 
         <CommentsSheet

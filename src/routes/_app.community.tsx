@@ -3,12 +3,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchCommunityOrgs, type CommunityOrg, type District } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
+import { CommunitySendSmsSheet } from "@/components/community/CommunitySendSmsSheet";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
-import { Droplet, Phone, Users, Building2, X } from "lucide-react";
-import { ChatHeaderButton } from "@/components/MessengerIcon";
+import {
+  contactFlagsForGender,
+  normalizeDonorContactSettings,
+} from "@/lib/community-contact-settings";
+import { whatsappHref } from "@/lib/request-form-options";
+import { Droplet, Phone, Users, Building2, X, MessageSquare } from "lucide-react";
+import { MessengerIcon, ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
@@ -40,6 +46,7 @@ function CommunityPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [smsOpen, setSmsOpen] = useState(false);
   const donorsRef = useRef(donors);
   donorsRef.current = donors;
 
@@ -170,16 +177,25 @@ function CommunityPage() {
         />
 
         <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
+
+        <button
+          type="button"
+          onClick={() => setSmsOpen(true)}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          {lang === "bn" ? "Send SMS (ঐচ্ছিক)" : "Send SMS (optional)"}
+        </button>
       </AutoHideHeader>
 
-      <ul className="p-3 space-y-2 pb-2 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
+      <ul className="p-3 space-y-2 pb-2">
         {loading && donors.length === 0 && (
-          <li className="text-center text-sm text-muted-foreground py-12 md:col-span-full">
+          <li className="text-center text-sm text-muted-foreground py-12">
             {lang === "bn" ? "খুঁজছি…" : "Searching…"}
           </li>
         )}
         {!loading && donors.length === 0 && (
-          <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center md:col-span-full">
+          <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
             <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">
               {lang === "bn" ? "কোনো রক্তদাতা পাওয়া যায়নি" : "No donors found"}
@@ -196,6 +212,14 @@ function CommunityPage() {
         hasMore={hasMore}
         label={lang === "bn" ? "আরও রক্তদাতা…" : "More donors…"}
       />
+
+      <CommunitySendSmsSheet
+        open={smsOpen}
+        onClose={() => setSmsOpen(false)}
+        donors={donors}
+        defaultDistrict={district}
+        defaultUpazila={upazila}
+      />
     </div>
   );
 }
@@ -205,6 +229,15 @@ function DonorCard({ donor: d, lang }: { donor: CommunityDonorRow; lang: "bn" | 
   const distName = lang === "bn" ? d.districts?.name_bn : d.districts?.name_en;
   const upazilaName = upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang);
   const location = [upazilaName, distName].filter(Boolean).join(" · ");
+  const flags = contactFlagsForGender(
+    normalizeDonorContactSettings(d.community_orgs?.donor_contact_settings),
+    d.gender,
+  );
+  const phone = d.phone?.trim() || "";
+  const showCall = flags.call && !!phone;
+  const showSms = flags.sms && !!phone;
+  const showChat = flags.chat && !!phone;
+  const wa = phone ? whatsappHref(phone) : null;
 
   return (
     <li className="rounded-2xl border bg-card px-3 py-3 flex items-center gap-3 shadow-sm">
@@ -219,6 +252,11 @@ function DonorCard({ donor: d, lang }: { donor: CommunityDonorRow; lang: "bn" | 
               {d.blood_group}
             </span>
           )}
+          {d.gender && (
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              {d.gender === "male" ? (lang === "bn" ? "পুরুষ" : "Male") : lang === "bn" ? "মহিলা" : "Female"}
+            </span>
+          )}
         </div>
         {orgName && (
           <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1 truncate">
@@ -228,13 +266,37 @@ function DonorCard({ donor: d, lang }: { donor: CommunityDonorRow; lang: "bn" | 
         )}
         {location && <p className="mt-0.5 text-[10px] text-muted-foreground truncate">{location}</p>}
       </div>
-      <a
-        href={`tel:${d.phone.replace(/\s/g, "")}`}
-        title={lang === "bn" ? "কল করুন" : "Call"}
-        className="h-11 w-11 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25 shrink-0 hover:opacity-90 transition"
-      >
-        <Phone className="h-5 w-5" />
-      </a>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {showChat && wa && (
+          <a
+            href={wa}
+            target="_blank"
+            rel="noreferrer"
+            title={lang === "bn" ? "চ্যাট (WhatsApp)" : "Chat (WhatsApp)"}
+            className="h-10 w-10 rounded-2xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 grid place-items-center hover:opacity-90 transition"
+          >
+            <MessengerIcon className="h-4 w-4" />
+          </a>
+        )}
+        {showSms && (
+          <a
+            href={`sms:${phone.replace(/[^\d+]/g, "")}`}
+            title="SMS"
+            className="h-10 w-10 rounded-2xl bg-muted text-foreground grid place-items-center hover:opacity-90 transition"
+          >
+            <MessageSquare className="h-4 w-4" />
+          </a>
+        )}
+        {showCall && (
+          <a
+            href={`tel:${phone.replace(/\s/g, "")}`}
+            title={lang === "bn" ? "কল করুন" : "Call"}
+            className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25 hover:opacity-90 transition"
+          >
+            <Phone className="h-4 w-4" />
+          </a>
+        )}
+      </div>
     </li>
   );
 }

@@ -9,20 +9,28 @@ export type CommunityDonorRow = {
   full_name: string;
   phone: string;
   blood_group: string | null;
+  gender: "male" | "female" | null;
   district_id: string | null;
   upazila: string | null;
   address: string | null;
   is_active: boolean;
   created_at: string;
-  community_orgs?: { name: string; name_bn: string | null } | null;
+  community_orgs?: {
+    name: string;
+    name_bn: string | null;
+    donor_contact_settings?: unknown;
+  } | null;
   districts?: { name_bn: string; name_en: string; slug: string } | null;
 };
 
-/** File columns: name, phone, blood_group, address (optional). District/upazila from form. */
+export type DonorGender = "male" | "female";
+
+/** File columns: name, phone, blood_group, gender, address (optional). District/upazila from form. */
 export type DonorImportInput = {
   name: string;
   phone: string;
   blood_group?: string | null;
+  gender?: string | null;
   address?: string | null;
 };
 
@@ -43,6 +51,9 @@ const HEADER_ALIASES: Record<string, keyof DonorImportInput> = {
   group: "blood_group",
   রক্তের_গ্রুপ: "blood_group",
   "রক্তের গ্রুপ": "blood_group",
+  gender: "gender",
+  sex: "gender",
+  লিঙ্গ: "gender",
   address: "address",
   ঠিকানা: "address",
 };
@@ -78,6 +89,9 @@ function parseJson(text: string): DonorImportInput[] {
       phone: String(item.phone ?? item.phone_number ?? item.mobile ?? item.Phone ?? "").trim(),
       blood_group: item.blood_group || item.Blood_group || item["blood group"]
         ? String(item.blood_group ?? item.Blood_group ?? item["blood group"]).trim()
+        : null,
+      gender: item.gender || item.Gender || item.sex
+        ? String(item.gender ?? item.Gender ?? item.sex).trim()
         : null,
       address: item.address || item.Address
         ? String(item.address ?? item.Address).trim()
@@ -128,9 +142,19 @@ function normalizeBloodGroup(bg: string | null | undefined): string | null {
   return found ?? null;
 }
 
+export function normalizeGender(raw: string | null | undefined): DonorGender | null {
+  if (!raw?.trim()) return null;
+  const g = raw.trim().toLowerCase();
+  if (g === "male" || g === "m" || g === "পুরুষ" || g === "ছেলে") return "male";
+  if (g === "female" || g === "f" || g === "মহিলা" || g === "নারী" || g === "মেয়ে" || g === "মেয়ে") return "female";
+  return null;
+}
+
 export type DonorImportLocation = {
   districtId: string;
   upazila?: string | null;
+  /** Applied when a row has no gender in the file */
+  gender?: DonorGender | null;
 };
 
 export async function bulkImportCommunityDonors(
@@ -157,11 +181,21 @@ export async function bulkImportCommunityDonors(
       if (r.blood_group?.trim() && !bg) {
         errors.push(`Row ${i + 1}: invalid blood group "${r.blood_group}"`);
       }
+      const gender = normalizeGender(r.gender) ?? location.gender ?? null;
+      if (r.gender?.trim() && !normalizeGender(r.gender)) {
+        errors.push(`Row ${i + 1}: invalid gender "${r.gender}" (use male/female)`);
+        return null;
+      }
+      if (!gender) {
+        errors.push(`Row ${i + 1}: gender required (male/female)`);
+        return null;
+      }
       return {
         org_id: orgId,
         full_name: r.name.trim(),
         phone: r.phone.trim(),
         blood_group: bg,
+        gender,
         district_id: location.districtId,
         upazila,
         address: r.address?.trim() || null,
@@ -198,7 +232,7 @@ export async function fetchCommunityDonors(opts: {
   let q = supabase
     .from("community_donors")
     .select(
-      "id, org_id, full_name, phone, blood_group, district_id, upazila, address, is_active, created_at, community_orgs(name, name_bn), districts(name_bn, name_en, slug)",
+      "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, created_at, community_orgs(name, name_bn, donor_contact_settings), districts(name_bn, name_en, slug)",
     )
     .eq("is_active", true)
     .order("full_name", { ascending: true })
@@ -223,7 +257,7 @@ export async function fetchCommunityDonorsByOrg(orgId: string) {
   const { data, error } = await supabase
     .from("community_donors")
     .select(
-      "id, org_id, full_name, phone, blood_group, district_id, upazila, address, is_active, created_at, districts(name_bn, name_en, slug)",
+      "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, created_at, districts(name_bn, name_en, slug)",
     )
     .eq("org_id", orgId)
     .order("full_name", { ascending: true });
@@ -237,6 +271,7 @@ export async function updateCommunityDonor(
     full_name: string;
     phone: string;
     blood_group?: string | null;
+    gender?: string | null;
     district_id?: string | null;
     upazila?: string | null;
     address?: string | null;
@@ -247,12 +282,15 @@ export async function updateCommunityDonor(
   const phone = input.phone.replace(/\D/g, "");
   if (phone.length < 10) throw new Error("Invalid phone");
   const districtHit = input.district_id ? districts.find((d) => d.id === input.district_id) : undefined;
+  const gender = normalizeGender(input.gender);
+  if (input.gender?.trim() && !gender) throw new Error("Invalid gender");
   const { error } = await supabase
     .from("community_donors")
     .update({
       full_name: input.full_name.trim(),
       phone: input.phone.trim(),
       blood_group: normalizeBloodGroup(input.blood_group),
+      gender,
       district_id: input.district_id || null,
       upazila: resolveUpazilaLabel(input.upazila, districtHit?.slug ?? null),
       address: input.address?.trim() || null,

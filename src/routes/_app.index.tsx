@@ -347,14 +347,14 @@ function FeedPage() {
             <span className="text-[11px] text-muted-foreground">{items.length}{hasMore ? "+" : ""}</span>
           </div>
 
-          <ul className="px-3 pb-2 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:gap-5">
+          <ul className="px-3 pb-2 space-y-3">
             {loading && items.length === 0 && (
-              <li className="rounded-2xl border bg-muted/20 py-12 text-center text-sm text-muted-foreground lg:col-span-2">
+              <li className="rounded-2xl border bg-muted/20 py-12 text-center text-sm text-muted-foreground">
                 {t("loading")}
               </li>
             )}
             {!loading && items.length === 0 && (
-              <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center lg:col-span-2">
+              <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
                 <p className="text-sm text-muted-foreground">{t("emptyRequests")}</p>
                 <button
                   type="button"
@@ -368,7 +368,7 @@ function FeedPage() {
             {bannerSettings.enabled &&
               bannerSlides.length > 0 &&
               bannerSettings.insert_after_posts === 0 && (
-                <li className="lg:col-span-2 list-none">
+                <li className="list-none">
                   <FeedBannerSlider settings={bannerSettings} slides={bannerSlides} />
                 </li>
               )}
@@ -395,12 +395,12 @@ function FeedPage() {
                     />
                   </li>
                   {showRail && (
-                    <li className="lg:col-span-2 list-none">
+                    <li className="list-none">
                       <FeedImageCarousel settings={carouselSettings} slides={carouselSlides} />
                     </li>
                   )}
                   {showBanner && (
-                    <li className="lg:col-span-2 list-none">
+                    <li className="list-none">
                       <FeedBannerSlider settings={bannerSettings} slides={bannerSlides} />
                     </li>
                   )}
