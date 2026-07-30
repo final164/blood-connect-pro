@@ -90,8 +90,62 @@ export function upazilaDisplayName(
 
 const D: Dist[] = [
   { slug: "dhaka", en: "Dhaka", bn: "ঢাকা", upazilas: [
+    // Rural / peripheral upazilas
     { en: "Dhamrai", bn: "ধামরাই" }, { en: "Dohar", bn: "দোহার" }, { en: "Keraniganj", bn: "কেরানীগঞ্জ" },
     { en: "Nawabganj", bn: "নবাবগঞ্জ" }, { en: "Savar", bn: "সাভার" },
+    // Dhaka metro areas (treated as upazila for hospital / request scoping)
+    { en: "Adabor", bn: "আদাবর" },
+    { en: "Agargaon", bn: "আগারগাঁও" },
+    { en: "Airport", bn: "বিমানবন্দর" },
+    { en: "Azimpur", bn: "আজিমপুর" },
+    { en: "Badda", bn: "বাড্ডা" },
+    { en: "Banani", bn: "বনানী" },
+    { en: "Bangshal", bn: "বংশাল" },
+    { en: "Baridhara", bn: "বারিধারা" },
+    { en: "Bashundhara", bn: "বসুন্ধরা" },
+    { en: "Cantonment", bn: "ক্যান্টনমেন্ট" },
+    { en: "Dakshinkhan", bn: "দক্ষিণখান" },
+    { en: "Demra", bn: "ডেমরা" },
+    { en: "Dhanmondi", bn: "ধানমন্ডি" },
+    { en: "Elephant Road", bn: "এলিফ্যান্ট রোড" },
+    { en: "Eskaton", bn: "ইস্কাটন" },
+    { en: "Farmgate", bn: "ফার্মগেট" },
+    { en: "Gendaria", bn: "গেন্ডারিয়া" },
+    { en: "Gulshan", bn: "গুলশান" },
+    { en: "Hatirjheel", bn: "হাতিরঝিল" },
+    { en: "Hazaribagh", bn: "হাজারীবাগ" },
+    { en: "Jatrabari", bn: "যাত্রাবাড়ী" },
+    { en: "Kafrul", bn: "কাফরুল" },
+    { en: "Kakrail", bn: "কাকরাইল" },
+    { en: "Kalabagan", bn: "কালাবাগান" },
+    { en: "Kamrangirchar", bn: "কামরাঙ্গীরচর" },
+    { en: "Khilgaon", bn: "খিলগাঁও" },
+    { en: "Khilkhet", bn: "খিলক্ষেত" },
+    { en: "Kotwali", bn: "কোতোয়ালী" },
+    { en: "Lalbagh", bn: "লালবাগ" },
+    { en: "Lalmatia", bn: "লালমাটিয়া" },
+    { en: "Malibagh", bn: "মালিবাগ" },
+    { en: "Mirpur", bn: "মিরপুর" },
+    { en: "Moghbazar", bn: "মগবাজার" },
+    { en: "Mohakhali", bn: "মহাখালী" },
+    { en: "Mohammadpur", bn: "মোহাম্মদপুর" },
+    { en: "Motijheel", bn: "মতিঝিল" },
+    { en: "Mugda", bn: "মুগদা" },
+    { en: "New Market", bn: "নিউ মার্কেট" },
+    { en: "Pallabi", bn: "পল্লবী" },
+    { en: "Paltan", bn: "পল্টন" },
+    { en: "Panthapath", bn: "পান্থপথ" },
+    { en: "Rajarbagh", bn: "রাজারবাগ" },
+    { en: "Rampura", bn: "রামপুরা" },
+    { en: "Sabujbagh", bn: "সবুজবাগ" },
+    { en: "Shahbag", bn: "শাহবাগ" },
+    { en: "Shantinagar", bn: "শান্তিনগর" },
+    { en: "Sher-e-Bangla Nagar", bn: "শেরেবাংলা নগর" },
+    { en: "Sutrapur", bn: "সূত্রাপুর" },
+    { en: "Tejgaon", bn: "তেজগাঁও" },
+    { en: "Turag", bn: "তুরাগ" },
+    { en: "Uttara", bn: "উত্তরা" },
+    { en: "Wari", bn: "ওয়ারী" },
   ]},
   { slug: "gazipur", en: "Gazipur", bn: "গাজীপুর", upazilas: [
     { en: "Kaliakair", bn: "কালিয়াকৈর" }, { en: "Kaliganj", bn: "কালীগঞ্জ" }, { en: "Kapasia", bn: "কাপাসিয়া" },
@@ -414,6 +468,9 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+/** Dhaka rural upazilas — get real UHC naming; metro areas use urban PHC naming */
+const DHAKA_RURAL = new Set(["Dhamrai", "Dohar", "Keraniganj", "Nawabganj", "Savar"]);
+
 /** Generate clinics, diagnostics, community clinics & upazila health complexes */
 export function generateClinicsAndDiagnostics(): FacilitySeed[] {
   const out: FacilitySeed[] = [];
@@ -476,18 +533,29 @@ export function generateClinicsAndDiagnostics(): FacilitySeed[] {
       });
     }
 
-    // Every upazila (including Sadar): UHC, community clinic, diagnostic, clinic, dental, private
+    // Every upazila (including Sadar): UHC/urban PHC, community clinic, diagnostic, clinic, dental, private
     for (const u of upazilas) {
       const us = slugify(u.en);
+      const isDhakaMetro = d.slug === "dhaka" && !DHAKA_RURAL.has(u.en) && !isSadarUpazila(u, d.en);
+      const govPrimary: FacilitySeed = isDhakaMetro
+        ? {
+            districtSlug: d.slug,
+            type: "government",
+            slug: `${d.slug}-uhc-${us}`,
+            name_en: `${u.en} Urban Primary Health Care Centre`,
+            name_bn: `${u.bn} আরবান প্রাইমারি হেলথ কেয়ার সেন্টার`,
+            upazila: u.en,
+          }
+        : {
+            districtSlug: d.slug,
+            type: "government",
+            slug: `${d.slug}-uhc-${us}`,
+            name_en: `${u.en} Upazila Health Complex`,
+            name_bn: `${u.bn} উপজেলা স্বাস্থ্য কমপ্লেক্স`,
+            upazila: u.en,
+          };
       const items: FacilitySeed[] = [
-        {
-          districtSlug: d.slug,
-          type: "government",
-          slug: `${d.slug}-uhc-${us}`,
-          name_en: `${u.en} Upazila Health Complex`,
-          name_bn: `${u.bn} উপজেলা স্বাস্থ্য কমপ্লেক্স`,
-          upazila: u.en,
-        },
+        govPrimary,
         {
           districtSlug: d.slug,
           type: "government",
@@ -533,21 +601,106 @@ export function generateClinicsAndDiagnostics(): FacilitySeed[] {
     }
   }
 
-  // Extra well-known Dhaka city diagnostics / clinics (city → Dhaka Sadar)
-  const dhakaSadar = "Dhaka Sadar";
+  // Dhaka metro diagnostics / clinics / hospitals — scoped to city areas (not Sadar)
   const dhakaExtra: FacilitySeed[] = [
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-dhanmondi", name_en: "Popular Diagnostic — Dhanmondi", name_bn: "পপুলার ডায়াগনস্টিক — ধানমন্ডি", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-mirpur", name_en: "Popular Diagnostic — Mirpur", name_bn: "পপুলার ডায়াগনস্টিক — মিরপুর", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-uttara", name_en: "Popular Diagnostic — Uttara", name_bn: "পপুলার ডায়াগনস্টিক — উত্তরা", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-badda", name_en: "Popular Diagnostic — Badda", name_bn: "পপুলার ডায়াগনস্টিক — বাড্ডা", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-dhanmondi", name_en: "Labaid Diagnostic — Dhanmondi", name_bn: "ল্যাবএইড ডায়াগনস্টিক — ধানমন্ডি", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-gulshan", name_en: "Labaid Diagnostic — Gulshan", name_bn: "ল্যাবএইড ডায়াগনস্টিক — গুলশান", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-dhanmondi", name_en: "Ibn Sina Diagnostic — Dhanmondi", name_bn: "ইবনে সিনা ডায়াগনস্টিক — ধানমন্ডি", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-lalmatia", name_en: "Ibn Sina Diagnostic — Lalmatia", name_bn: "ইবনে সিনা ডায়াগনস্টিক — লালমাটিয়া", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "clinic", slug: "japan-bangladesh-clinic", name_en: "Japan-Bangladesh Friendship Medical Clinic", name_bn: "জাপান-বাংলাদেশ ফ্রেন্ডশিপ মেডিকেল ক্লিনিক", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "clinic", slug: "icddr-b-clinic", name_en: "icddr,b Travellers Clinic", name_bn: "আইসিডিডিআর,বি ট্রাভেলার্স ক্লিনিক", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "lab-aid-uttara", name_en: "Labaid Limited — Uttara", name_bn: "ল্যাবএইড — উত্তরা", upazila: dhakaSadar },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "anower-khan-dx", name_en: "Anwer Khan Modern Diagnostic", name_bn: "আনোয়ার খান মডার্ন ডায়াগনস্টিক", upazila: dhakaSadar },
+    // Diagnostics — chains by area
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-dhanmondi", name_en: "Popular Diagnostic — Dhanmondi", name_bn: "পপুলার ডায়াগনস্টিক — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-mirpur", name_en: "Popular Diagnostic — Mirpur", name_bn: "পপুলার ডায়াগনস্টিক — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-uttara", name_en: "Popular Diagnostic — Uttara", name_bn: "পপুলার ডায়াগনস্টিক — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-badda", name_en: "Popular Diagnostic — Badda", name_bn: "পপুলার ডায়াগনস্টিক — বাড্ডা", upazila: "Badda" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-shantinagar", name_en: "Popular Diagnostic — Shantinagar", name_bn: "পপুলার ডায়াগনস্টিক — শান্তিনগর", upazila: "Shantinagar" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-english-road", name_en: "Popular Diagnostic — English Road", name_bn: "পপুলার ডায়াগনস্টিক — ইংলিশ রোড", upazila: "Kotwali" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-mohammadpur", name_en: "Popular Diagnostic — Mohammadpur", name_bn: "পপুলার ডায়াগনস্টিক — মোহাম্মদপুর", upazila: "Mohammadpur" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-jatrabari", name_en: "Popular Diagnostic — Jatrabari", name_bn: "পপুলার ডায়াগনস্টিক — যাত্রাবাড়ী", upazila: "Jatrabari" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-dhanmondi", name_en: "Labaid Diagnostic — Dhanmondi", name_bn: "ল্যাবএইড ডায়াগনস্টিক — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-gulshan", name_en: "Labaid Diagnostic — Gulshan", name_bn: "ল্যাবএইড ডায়াগনস্টিক — গুলশান", upazila: "Gulshan" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-uttara", name_en: "Labaid Diagnostic — Uttara", name_bn: "ল্যাবএইড ডায়াগনস্টিক — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-mirpur", name_en: "Labaid Diagnostic — Mirpur", name_bn: "ল্যাবএইড ডায়াগনস্টিক — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-mohakhali", name_en: "Labaid Diagnostic — Mohakhali", name_bn: "ল্যাবএইড ডায়াগনস্টিক — মহাখালী", upazila: "Mohakhali" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-dhanmondi", name_en: "Ibn Sina Diagnostic — Dhanmondi", name_bn: "ইবনে সিনা ডায়াগনস্টিক — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-lalmatia", name_en: "Ibn Sina Diagnostic — Lalmatia", name_bn: "ইবনে সিনা ডায়াগনস্টিক — লালমাটিয়া", upazila: "Lalmatia" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-badda", name_en: "Ibn Sina Diagnostic — Badda", name_bn: "ইবনে সিনা ডায়াগনস্টিক — বাড্ডা", upazila: "Badda" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-mirpur", name_en: "Ibn Sina Diagnostic — Mirpur", name_bn: "ইবনে সিনা ডায়াগনস্টিক — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-uttara", name_en: "Ibn Sina Diagnostic — Uttara", name_bn: "ইবনে সিনা ডায়াগনস্টিক — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "anower-khan-dx", name_en: "Anwer Khan Modern Diagnostic", name_bn: "আনোয়ার খান মডার্ন ডায়াগনস্টিক", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "padma-dx-mirpur", name_en: "Padma Diagnostic Centre — Mirpur", name_bn: "পদ্মা ডায়াগনস্টিক — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "medinova-dhanmondi", name_en: "Medinova Medical Services — Dhanmondi", name_bn: "মেডিনোভা — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "comfort-dx-dhanmondi", name_en: "Comfort Diagnostic Centre — Dhanmondi", name_bn: "কমফোর্ট ডায়াগনস্টিক — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "thyroid-clinic-dhanmondi", name_en: "Thyroid Clinic & Diagnostic — Dhanmondi", name_bn: "থাইরয়েড ক্লিনিক — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "lab-aid-uttara", name_en: "Labaid Limited — Uttara", name_bn: "ল্যাবএইড — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "chevron-dhanmondi", name_en: "Chevron Clinical Laboratory — Dhanmondi", name_bn: "শেভরন ল্যাব — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "chevron-gulshan", name_en: "Chevron Clinical Laboratory — Gulshan", name_bn: "শেভরন ল্যাব — গুলশান", upazila: "Gulshan" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "drlab-panthapath", name_en: "Doctors Lab — Panthapath", name_bn: "ডাক্তারস ল্যাব — পান্থপথ", upazila: "Panthapath" },
+    // Clinics
+    { districtSlug: "dhaka", type: "clinic", slug: "japan-bangladesh-clinic", name_en: "Japan-Bangladesh Friendship Medical Clinic", name_bn: "জাপান-বাংলাদেশ ফ্রেন্ডশিপ মেডিকেল ক্লিনিক", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "clinic", slug: "icddr-b-clinic", name_en: "icddr,b Travellers Clinic", name_bn: "আইসিডিডিআর,বি ট্রাভেলার্স ক্লিনিক", upazila: "Mohakhali" },
+    { districtSlug: "dhaka", type: "clinic", slug: "health-plus-gulshan", name_en: "Health Plus Clinic — Gulshan", name_bn: "হেলথ প্লাস ক্লিনিক — গুলশান", upazila: "Gulshan" },
+    { districtSlug: "dhaka", type: "clinic", slug: "apollo-clinic-uttara", name_en: "Apollo Diagnostic & Clinic — Uttara", name_bn: "অ্যাপোলো ক্লিনিক — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "clinic", slug: "praava-banani", name_en: "Praava Health — Banani", name_bn: "প্রাভা হেলথ — বনানী", upazila: "Banani" },
+    { districtSlug: "dhaka", type: "clinic", slug: "dental-world-dhanmondi", name_en: "Dental World — Dhanmondi", name_bn: "ডেন্টাল ওয়ার্ল্ড — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "clinic", slug: "eye-care-mirpur", name_en: "Bangladesh Eye Hospital — Mirpur", name_bn: "বাংলাদেশ আই হাসপাতাল — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "clinic", slug: "eye-care-dhanmondi", name_en: "Bangladesh Eye Hospital — Dhanmondi", name_bn: "বাংলাদেশ আই হাসপাতাল — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "clinic", slug: "eye-care-uttara", name_en: "Bangladesh Eye Hospital — Uttara", name_bn: "বাংলাদেশ আই হাসপাতাল — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "clinic", slug: "vision-eye-dhanmondi", name_en: "Vision Eye Hospital — Dhanmondi", name_bn: "ভিশন আই হাসপাতাল — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "clinic", slug: "dental-care-gulshan", name_en: "Dental Care Centre — Gulshan", name_bn: "ডেন্টাল কেয়ার — গুলশান", upazila: "Gulshan" },
+    { districtSlug: "dhaka", type: "clinic", slug: "skin-care-dhanmondi", name_en: "Skin & Laser Clinic — Dhanmondi", name_bn: "স্কিন অ্যান্ড লেজার — ধানমন্ডি", upazila: "Dhanmondi" },
+    // Government / specialty
+    { districtSlug: "dhaka", type: "government", slug: "kurmitola-uhc", name_en: "Kurmitola Cantonment General Hospital", name_bn: "কুর্মিটোলা ক্যান্টনমেন্ট জেনারেল হাসপাতাল", upazila: "Cantonment" },
+    { districtSlug: "dhaka", type: "government", slug: "cmh-dhaka", name_en: "Combined Military Hospital (CMH) Dhaka", name_bn: "সিএমএইচ ঢাকা", upazila: "Cantonment" },
+    // Airport (Bimanbandar / বিমানবন্দর)
+    { districtSlug: "dhaka", type: "government", slug: "hsia-medical-centre", name_en: "Hazrat Shahjalal International Airport Medical Centre", name_bn: "হজরত শাহজালাল আন্তর্জাতিক বিমানবন্দর মেডিকেল সেন্টার", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "government", slug: "biman-medical-centre", name_en: "Biman Bangladesh Airlines Medical Centre", name_bn: "বিমান বাংলাদেশ এয়ারলাইন্স মেডিকেল সেন্টার", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "government", slug: "airport-quarantine-hospital", name_en: "Airport Quarantine / Isolation Hospital", name_bn: "বিমানবন্দর কোয়ারেন্টাইন / আইসোলেশন হাসপাতাল", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "clinic", slug: "airport-travel-clinic", name_en: "Airport Travel Health Clinic", name_bn: "বিমানবন্দর ট্রাভেল হেলথ ক্লিনিক", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "airport-dx", name_en: "Airport Diagnostic & Pathology Centre", name_bn: "বিমানবন্দর ডায়াগনস্টিক ও প্যাথলজি সেন্টার", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "private", slug: "airport-road-general", name_en: "Airport Road General Hospital & Diagnostic", name_bn: "এয়ারপোর্ট রোড জেনারেল হাসপাতাল ও ডায়াগনস্টিক", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "private", slug: "kurmitola-specialized-airport", name_en: "Kurmitola Specialized Hospital — Airport", name_bn: "কুর্মিটোলা স্পেশালাইজড হাসপাতাল — বিমানবন্দর", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "clinic", slug: "airport-dental", name_en: "Airport Dental Care Centre", name_bn: "বিমানবন্দর ডেন্টাল কেয়ার সেন্টার", upazila: "Airport" },
+    { districtSlug: "dhaka", type: "government", slug: "police-hospital-rajarbagh", name_en: "Police Hospital — Rajarbagh", name_bn: "পুলিশ হাসপাতাল — রাজারবাগ", upazila: "Rajarbagh" },
+    { districtSlug: "dhaka", type: "government", slug: "railway-hospital-kamalapur", name_en: "Bangladesh Railway Hospital — Kamalapur", name_bn: "বাংলাদেশ রেলওয়ে হাসপাতাল — কমলাপুর", upazila: "Motijheel" },
+    { districtSlug: "dhaka", type: "government", slug: "mirpur-10-cc", name_en: "Mirpur-10 Community Clinic", name_bn: "মিরপুর-১০ কমিউনিটি ক্লিনিক", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "government", slug: "uttara-cc", name_en: "Uttara Sector Community Clinic", name_bn: "উত্তরা সেক্টর কমিউনিটি ক্লিনিক", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "government", slug: "national-heart-foundation", name_en: "National Heart Foundation Hospital & Research Institute", name_bn: "জাতীয় হার্ট ফাউন্ডেশন হাসপাতাল", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "government", slug: "icddr-b-hospital", name_en: "icddr,b Dhaka Hospital", name_bn: "আইসিডিডিআর,বি ঢাকা হাসপাতাল", upazila: "Mohakhali" },
+    // Private hospitals by area
+    { districtSlug: "dhaka", type: "private", slug: "universal-medical-mohakhali", name_en: "Universal Medical College Hospital — Mohakhali", name_bn: "ইউনিভার্সাল মেডিকেল কলেজ হাসপাতাল — মহাখালী", upazila: "Mohakhali" },
+    { districtSlug: "dhaka", type: "private", slug: "ibnesina-hospital-dhanmondi", name_en: "Ibn Sina Medical College Hospital — Dhanmondi", name_bn: "ইবনে সিনা মেডিকেল কলেজ হাসপাতাল — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "care-medical-mohammadpur", name_en: "Care Medical College Hospital — Mohammadpur", name_bn: "কেয়ার মেডিকেল কলেজ হাসপাতাল — মোহাম্মদপুর", upazila: "Mohammadpur" },
+    { districtSlug: "dhaka", type: "private", slug: "city-hospital-lalmatia", name_en: "City Hospital — Lalmatia", name_bn: "সিটি হাসপাতাল — লালমাটিয়া", upazila: "Lalmatia" },
+    { districtSlug: "dhaka", type: "private", slug: "al-helal-mirpur", name_en: "Al-Helal Specialized Hospital — Mirpur", name_bn: "আল-হেলাল স্পেশালাইজড হাসপাতাল — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "private", slug: "insaf-barakah-mirpur", name_en: "Insaf Barakah Kidney & General Hospital — Mirpur", name_bn: "ইনসাফ বারাকাহ হাসপাতাল — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "private", slug: "utkh-uttara", name_en: "Uttara Adhunik Medical College Hospital", name_bn: "উত্তরা আধুনিক মেডিকেল কলেজ হাসপাতাল", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "private", slug: "eastern-medical-dhanmondi", name_en: "Eastern Medical College Hospital — Dhanmondi", name_bn: "ইস্টার্ন মেডিকেল — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "bangladesh-medical-dhanmondi", name_en: "Bangladesh Medical College Hospital", name_bn: "বাংলাদেশ মেডিকেল কলেজ হাসপাতাল", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "dhaka-community-moghbazar", name_en: "Dhaka Community Medical College Hospital", name_bn: "ঢাকা কমিউনিটি মেডিকেল কলেজ হাসপাতাল", upazila: "Moghbazar" },
+    { districtSlug: "dhaka", type: "private", slug: "northern-dhanmondi", name_en: "Northern International Medical College Hospital", name_bn: "নর্দান ইন্টারন্যাশনাল মেডিকেল কলেজ হাসপাতাল", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "addin-hospital-moghbazar", name_en: "Ad-din Hospital — Moghbazar", name_bn: "আদ-দ্বীন হাসপাতাল — মগবাজার", upazila: "Moghbazar" },
+    { districtSlug: "dhaka", type: "private", slug: "addin-womens-moghbazar", name_en: "Ad-din Women's Medical College Hospital", name_bn: "আদ-দ্বীন উইমেন্স মেডিকেল কলেজ হাসপাতাল", upazila: "Moghbazar" },
+    { districtSlug: "dhaka", type: "private", slug: "islami-bank-motijheel", name_en: "Islami Bank Hospital — Motijheel", name_bn: "ইসলামী ব্যাংক হাসপাতাল — মতিঝিল", upazila: "Motijheel" },
+    { districtSlug: "dhaka", type: "private", slug: "islami-bank-kakrail", name_en: "Islami Bank Hospital — Kakrail", name_bn: "ইসলামী ব্যাংক হাসপাতাল — কাকরাইল", upazila: "Kakrail" },
+    { districtSlug: "dhaka", type: "private", slug: "shaheed-monsur-ali-uttara", name_en: "Shaheed Monsur Ali Medical College Hospital", name_bn: "শহীদ মনসুর আলী মেডিকেল কলেজ হাসপাতাল", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "private", slug: "enam-medical-savar", name_en: "Enam Medical College & Hospital", name_bn: "এনাম মেডিকেল কলেজ ও হাসপাতাল", upazila: "Savar" },
+    { districtSlug: "dhaka", type: "private", slug: "gonoshasthaya-dhanmondi", name_en: "Gonoshasthaya Nagar Hospital — Dhanmondi", name_bn: "গণস্বাস্থ্য নগর হাসপাতাল — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "gonoshasthaya-savar", name_en: "Gonoshasthaya Samaj Vittik Medical College Hospital — Savar", name_bn: "গণস্বাস্থ্য সমাজভিত্তিক মেডিকেল — সাভার", upazila: "Savar" },
+    { districtSlug: "dhaka", type: "private", slug: "monowara-dhanmondi", name_en: "Monowara Hospital — Dhanmondi", name_bn: "মনোয়ারা হাসপাতাল — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "health-hope-panthapath", name_en: "Health and Hope Hospital", name_bn: "হেলথ অ্যান্ড হোপ হাসপাতাল", upazila: "Panthapath" },
+    { districtSlug: "dhaka", type: "private", slug: "padma-general-malibagh", name_en: "Padma General Hospital", name_bn: "পদ্মা জেনারেল হাসপাতাল", upazila: "Malibagh" },
+    { districtSlug: "dhaka", type: "private", slug: "medical-college-for-women-uttara", name_en: "Medical College for Women & Hospital — Uttara", name_bn: "মেডিকেল কলেজ ফর উইমেন — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "private", slug: "zh-sikder-womens-gulshan", name_en: "Z.H. Sikder Women's Medical College Hospital", name_bn: "জেড.এইচ. সিকদার উইমেন্স মেডিকেল কলেজ হাসপাতাল", upazila: "Gulshan" },
+    { districtSlug: "dhaka", type: "private", slug: "holy-crescent-eskaton", name_en: "Holy Crescent Hospital — Eskaton", name_bn: "হলি ক্রিসেন্ট হাসপাতাল — ইস্কাটন", upazila: "Eskaton" },
+    { districtSlug: "dhaka", type: "private", slug: "al-manar-mohammadpur", name_en: "Al-Manar Hospital — Mohammadpur", name_bn: "আল-মানার হাসপাতাল — মোহাম্মদপুর", upazila: "Mohammadpur" },
+    { districtSlug: "dhaka", type: "private", slug: "bashundhara-ad-din", name_en: "Ad-din Medical College Hospital — Bashundhara", name_bn: "আদ-দ্বীন মেডিকেল কলেজ হাসপাতাল — বসুন্ধরা", upazila: "Bashundhara" },
+    { districtSlug: "dhaka", type: "private", slug: "farazy-hospital-badda", name_en: "Farazy Dental & Hospital Complex — Badda", name_bn: "ফারাজী ডেন্টাল ও হাসপাতাল — বাড্ডা", upazila: "Badda" },
+    { districtSlug: "dhaka", type: "private", slug: "amc-hospital-uttara", name_en: "AMC Hospital — Uttara", name_bn: "এএমসি হাসপাতাল — উত্তরা", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "private", slug: "crescent-gazipur-dhaka", name_en: "Crescent Gastroliver & General Hospital", name_bn: "ক্রিসেন্ট গ্যাস্ট্রোলিভার হাসপাতাল", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "panpacific-hospital", name_en: "Panpacific Hospital — Mirpur", name_bn: "প্যানপ্যাসিফিক হাসপাতাল — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "private", slug: "mirpur-general", name_en: "Mirpur General Hospital & Diagnostic", name_bn: "মিরপুর জেনারেল হাসপাতাল", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "private", slug: "uttara-crescent", name_en: "Uttara Crescent Hospital", name_bn: "উত্তরা ক্রিসেন্ট হাসপাতাল", upazila: "Uttara" },
+    { districtSlug: "dhaka", type: "private", slug: "shomorita-medical", name_en: "Samorita Medical College Hospital", name_bn: "সামরিতা মেডিকেল কলেজ হাসপাতাল", upazila: "Panthapath" },
+    { districtSlug: "dhaka", type: "private", slug: "life-line-hospital", name_en: "Life Line Specialized Hospital", name_bn: "লাইফ লাইন স্পেশালাইজড হাসপাতাল", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "private", slug: "tuk-tuk-hospital", name_en: "T.K. Hospital — Mirpur", name_bn: "টি.কে. হাসপাতাল — মিরপুর", upazila: "Mirpur" },
+    { districtSlug: "dhaka", type: "ngo", slug: "marie-stopes-dhanmondi", name_en: "Marie Stopes Clinic — Dhanmondi", name_bn: "মারি স্টোপস ক্লিনিক — ধানমন্ডি", upazila: "Dhanmondi" },
+    { districtSlug: "dhaka", type: "ngo", slug: "brac-health-mirpur", name_en: "BRAC Health Centre — Mirpur", name_bn: "ব্র্যাক হেলথ সেন্টার — মিরপুর", upazila: "Mirpur" },
   ];
 
   return [...out, ...dhakaExtra];

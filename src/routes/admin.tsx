@@ -20,6 +20,7 @@ import {
 } from "@/lib/community-donor-import";
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import { seedUpazilasFromCatalog, fetchUpazilaOptions } from "@/lib/upazilas";
+import { seedGeoNeighborsFromCatalog } from "@/lib/geo-neighbors-seed";
 import { DistrictUpazilaPanel } from "@/components/admin/DistrictUpazilaPanel";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { BANGLADESH_HOSPITALS } from "@/data/bangladesh-hospitals";
@@ -693,6 +694,11 @@ function DistrictsAdmin() {
             const all = await fetchAllDistrictsAdmin();
             if (!all.length) return;
             await seedUpazilasFromCatalog(all);
+            try {
+              await seedGeoNeighborsFromCatalog();
+            } catch {
+              /* proximity tables may not exist yet */
+            }
             setUpazilaSeedVersion((v) => v + 1);
           }
         } catch {
@@ -737,10 +743,24 @@ function DistrictsAdmin() {
     try {
       const all = await fetchAllDistrictsAdmin();
       const result = await seedUpazilasFromCatalog(all);
+      let neighborMsg = "";
+      try {
+        const geo = await seedGeoNeighborsFromCatalog();
+        neighborMsg =
+          lang === "bn"
+            ? ` · proximity: ${geo.districts} জেলা + ${geo.upazilas} উপজেলা এজ`
+            : ` · proximity: ${geo.districts} district + ${geo.upazilas} upazila edges`;
+      } catch (geoErr) {
+        neighborMsg =
+          lang === "bn"
+            ? ` · proximity সিড স্কিপ (scripts/feed-proximity-ranking.sql চালান?)`
+            : ` · proximity seed skipped (run scripts/feed-proximity-ranking.sql?)`;
+        console.warn(geoErr);
+      }
       toast.success(
         lang === "bn"
-          ? `${result.total}টি উপজেলা — ${result.inserted}টি যোগ/আপডেট`
-          : `${result.total} catalog upazilas — ${result.inserted} synced`,
+          ? `${result.total}টি উপজেলা — ${result.inserted}টি যোগ/আপডেট${neighborMsg}`
+          : `${result.total} catalog upazilas — ${result.inserted} synced${neighborMsg}`,
       );
       setUpazilaSeedVersion((v) => v + 1);
     } catch (e) {
