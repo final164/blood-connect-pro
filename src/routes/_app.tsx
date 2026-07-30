@@ -5,6 +5,8 @@ import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
+import { getProfile } from "@/lib/api";
+import { isProfileComplete } from "@/lib/onboarding";
 import { UserMenuSidebar } from "@/components/menu/UserMenuNav";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { Home, Users, User, WifiOff, Droplet, Shield, Bell, Plus } from "lucide-react";
@@ -19,6 +21,8 @@ function AppLayout() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
+  const [profileGate, setProfileGate] = useState<"checking" | "incomplete" | "ok">("checking");
+  const onOnboarding = location.pathname === "/onboarding";
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -36,6 +40,35 @@ function AppLayout() {
       navigate({ to: "/auth" });
     }
   }, [loading, session, isAnonymous, navigate]);
+
+  useEffect(() => {
+    if (!user || loading || isAnonymous) {
+      setProfileGate("checking");
+      return;
+    }
+    let cancelled = false;
+    setProfileGate("checking");
+    getProfile(user.id)
+      .then((profile) => {
+        if (cancelled) return;
+        const complete = isProfileComplete(profile);
+        setProfileGate(complete ? "ok" : "incomplete");
+        if (!complete && !onOnboarding) {
+          void navigate({ to: "/onboarding" });
+        } else if (complete && onOnboarding) {
+          void navigate({ to: "/" });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProfileGate("incomplete");
+          if (!onOnboarding) void navigate({ to: "/onboarding" });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, loading, isAnonymous, onOnboarding, navigate]);
 
   useEffect(() => {
     if (!user || !canUseDeviceNotifications()) return;
@@ -65,6 +98,14 @@ function AppLayout() {
     );
   }
 
+  if (profileGate === "checking" || (profileGate === "incomplete" && !onOnboarding)) {
+    return (
+      <div className="min-h-dvh grid place-items-center bg-background">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <NotificationsProvider>
       <AppShell
@@ -72,6 +113,7 @@ function AppLayout() {
         locationPath={location.pathname}
         isAdmin={isAdmin}
         online={online}
+        onboarding={onOnboarding}
       />
     </NotificationsProvider>
   );
@@ -82,11 +124,13 @@ function AppShell({
   locationPath,
   isAdmin,
   online,
+  onboarding,
 }: {
   t: (k: string) => string;
   locationPath: string;
   isAdmin: boolean;
   online: boolean;
+  onboarding: boolean;
 }) {
   const { unread } = useNotifications();
   const navigate = useNavigate();
@@ -233,6 +277,16 @@ function AppShell({
           {tab.label}
         </span>
       </Link>
+    );
+  }
+
+  if (onboarding) {
+    return (
+      <div className="min-h-dvh flex bg-background">
+        <main className="flex-1 flex flex-col min-h-0 min-w-0">
+          <Outlet />
+        </main>
+      </div>
     );
   }
 

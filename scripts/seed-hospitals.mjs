@@ -62,6 +62,7 @@ async function main() {
         slug: h.slug,
         district_id,
         hospital_type: h.type,
+        upazila: h.upazila ?? null,
         is_active: true,
         sort_order: i + 1,
       };

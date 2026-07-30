@@ -51,6 +51,7 @@ export type FeedRequest = {
   bags_needed: number;
   hospital_name: string;
   city: string | null;
+  area?: string | null;
   district_id: string | null;
   contact_phone: string | null;
   whatsapp_phone?: string | null;
@@ -122,7 +123,8 @@ export function RequestCard({
   }, [r.liked, r.saved, r.like_count, r.comment_count, r.id]);
 
   const distName = lang === "bn" ? r.district?.name_bn : r.district?.name_en;
-  const locationLabel = [r.hospital_name, distName || r.city].filter(Boolean).join(" · ");
+  const upazilaName = r.area?.trim() || null;
+  const locationLabel = [r.hospital_name, upazilaName, distName || r.city].filter(Boolean).join(" · ");
   const isOwner = !!currentUserId && r.requester_id === currentUserId;
   const phone = r.contact_phone?.trim() || null;
   const waLink = r.whatsapp_phone?.trim() ? whatsappHref(r.whatsapp_phone.trim()) : null;

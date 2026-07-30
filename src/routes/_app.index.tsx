@@ -4,8 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
-import { getProfile, type District } from "@/lib/api";
-import { fetchNotificationSettings } from "@/lib/notification-settings";
+import { type District } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
@@ -44,7 +43,6 @@ function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const prefsLoaded = useRef(false);
   const loadGen = useRef(0);
   const rtTimer = useRef<number | null>(null);
   const itemsRef = useRef(items);
@@ -129,24 +127,8 @@ function FeedPage() {
     enabled: hasMore && !loading && !showComposer,
   });
 
-  useEffect(() => {
-    if (!user || prefsLoaded.current) return;
-    prefsLoaded.current = true;
-    Promise.all([getProfile(user.id), fetchNotificationSettings()]).then(async ([p, settings]) => {
-      if (settings.auto_feed_blood_group && p?.blood_group) {
-        setFilter(String(p.blood_group));
-      }
-      if (settings.auto_feed_district && p?.district_id) {
-        const { data } = await supabase
-          .from("districts")
-          .select("id,name_bn,name_en,slug,is_active,sort_order")
-          .eq("id", p.district_id)
-          .maybeSingle();
-        if (data) setDistrict(data as District);
-      }
-    });
-  }, [user?.id]);
-
+  // Default: all posts via personalized ranking (no hard filter).
+  // District / blood chips only apply when the user sets them manually.
   useEffect(() => {
     void loadPage(true);
     const scheduleReload = () => {
@@ -198,7 +180,7 @@ function FeedPage() {
           <div className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto pb-6 md:max-h-none">
             <RequestComposer
               variant="panel"
-              defaultDistrict={district}
+              defaultDistrict={null}
               onCreated={(id) => {
                 setShowComposer(false);
                 setFilter("ALL");

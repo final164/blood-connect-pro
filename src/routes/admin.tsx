@@ -67,6 +67,7 @@ import { isAdminIdentity } from "@/lib/phone-auth";
 import { AdminAccessProvider, useAdminAccess } from "@/lib/admin-access-context";
 import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
 import { UrgencyAnimationAdmin } from "@/components/admin/UrgencyAnimationAdmin";
+import { FeedRankingAdmin } from "@/components/admin/FeedRankingAdmin";
 import { NeedReasonAdmin } from "@/components/admin/NeedReasonAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
@@ -882,6 +883,7 @@ function HospitalsAdmin() {
     name_en: "",
     slug: "",
     district_id: "",
+    upazila: "",
     hospital_type: "government" as "government" | "private" | "clinic" | "diagnostic",
   });
 
@@ -969,6 +971,7 @@ function HospitalsAdmin() {
         slug: h.slug,
         district_id: bySlug.get(h.districtSlug)!,
         hospital_type: h.type,
+        upazila: h.upazila ?? null,
         is_active: true,
         sort_order: i + 1,
       })).filter((r) => r.district_id);
@@ -1003,9 +1006,17 @@ function HospitalsAdmin() {
       slug,
       district_id: form.district_id,
       hospital_type: form.hospital_type,
+      upazila: form.upazila.trim() || null,
     });
     if (error) return toast.error(error.message);
-    setForm({ name_bn: "", name_en: "", slug: "", district_id: form.district_id, hospital_type: "government" });
+    setForm({
+      name_bn: "",
+      name_en: "",
+      slug: "",
+      district_id: form.district_id,
+      upazila: form.upazila,
+      hospital_type: "government",
+    });
     void loadPage(true, q);
   }
 
@@ -1072,6 +1083,12 @@ function HospitalsAdmin() {
           <option value="diagnostic">{t("diagnostic")}</option>
         </select>
         <input className={ainp} placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+        <input
+          className={ainp}
+          placeholder={lang === "bn" ? "উপজেলা (EN) যেমন: Kishoreganj Sadar" : "Upazila (EN) e.g. Kishoreganj Sadar"}
+          value={form.upazila}
+          onChange={(e) => setForm({ ...form, upazila: e.target.value })}
+        />
         <input className={ainp} placeholder="Name EN" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
         <input className={ainp} placeholder="Name BN" value={form.name_bn} onChange={(e) => setForm({ ...form, name_bn: e.target.value })} />
         <button type="button" onClick={add} className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1">
@@ -1091,6 +1108,7 @@ function HospitalsAdmin() {
             <tr>
               <th className="text-left p-3">Hospital</th>
               <th className="text-left p-3">District</th>
+              <th className="text-left p-3">Upazila</th>
               <th className="text-left p-3">Type</th>
               <th className="text-left p-3">Active</th>
               <th className="p-3" />
@@ -1099,14 +1117,14 @@ function HospitalsAdmin() {
           <tbody>
             {loading && rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-slate-400 text-sm">
+                <td colSpan={6} className="p-6 text-center text-slate-400 text-sm">
                   {t("loading")}
                 </td>
               </tr>
             )}
             {!loading && rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-slate-400 text-sm">
+                <td colSpan={6} className="p-6 text-center text-slate-400 text-sm">
                   {lang === "bn" ? "কোনো হাসপাতাল নেই" : "No hospitals"}
                 </td>
               </tr>
@@ -1118,6 +1136,7 @@ function HospitalsAdmin() {
                   <p className="text-[10px] text-slate-500">{lang === "bn" ? h.name_en : h.name_bn}</p>
                 </td>
                 <td className="p-3 text-xs">{h.district_slug ?? "—"}</td>
+                <td className="p-3 text-xs">{h.upazila ?? "—"}</td>
                 <td className="p-3 text-xs uppercase">{h.hospital_type}</td>
                 <td className="p-3">
                   <button
@@ -2178,7 +2197,7 @@ function SettingsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
   const [settingsTab, setSettingsTab] = useState<
-    "urgency" | "reasons" | "donations" | "menu" | "form" | "app"
+    "urgency" | "feed" | "reasons" | "donations" | "menu" | "form" | "app"
   >("urgency");
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
@@ -2237,6 +2256,7 @@ function SettingsAdmin() {
 
   const navItems = [
     { id: "urgency" as const, bn: "জরুরিতা অ্যানিমেশন", en: "Urgency animation" },
+    { id: "feed" as const, bn: "ফিড র‍্যাঙ্কিং", en: "Feed ranking" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
@@ -2264,6 +2284,7 @@ function SettingsAdmin() {
       </nav>
 
       {settingsTab === "urgency" && <UrgencyAnimationAdmin />}
+      {settingsTab === "feed" && <FeedRankingAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}

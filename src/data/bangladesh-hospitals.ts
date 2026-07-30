@@ -10,7 +10,13 @@ export type HospitalSeed = {
   name_bn: string;
   type: "government" | "private" | "clinic" | "diagnostic" | "ngo";
   districtSlug: string;
+  /** English upazila name — matches request/profile area */
+  upazila?: string;
 };
+
+function districtSadarName(slug: string, en: string) {
+  return `${en} Sadar`;
+}
 
 const sadar = (slug: string, en: string, bn: string): HospitalSeed => ({
   slug: `${slug}-sadar`,
@@ -18,7 +24,83 @@ const sadar = (slug: string, en: string, bn: string): HospitalSeed => ({
   name_bn: `${bn} সদর হাসপাতাল`,
   type: "government",
   districtSlug: slug,
+  upazila: districtSadarName(slug, en),
 });
+
+/** Map districtSlug → English name for assigning named hospitals to Sadar */
+const DISTRICT_EN: Record<string, string> = {
+  dhaka: "Dhaka",
+  gazipur: "Gazipur",
+  narayanganj: "Narayanganj",
+  tangail: "Tangail",
+  kishoreganj: "Kishoreganj",
+  manikganj: "Manikganj",
+  munshiganj: "Munshiganj",
+  narsingdi: "Narsingdi",
+  rajbari: "Rajbari",
+  faridpur: "Faridpur",
+  gopalganj: "Gopalganj",
+  madaripur: "Madaripur",
+  shariatpur: "Shariatpur",
+  chattogram: "Chattogram",
+  "coxs-bazar": "Cox's Bazar",
+  cumilla: "Cumilla",
+  feni: "Feni",
+  noakhali: "Noakhali",
+  lakshmipur: "Lakshmipur",
+  chandpur: "Chandpur",
+  brahmanbaria: "Brahmanbaria",
+  rangamati: "Rangamati",
+  khagrachhari: "Khagrachhari",
+  bandarban: "Bandarban",
+  rajshahi: "Rajshahi",
+  natore: "Natore",
+  naogaon: "Naogaon",
+  chapainawabganj: "Chapainawabganj",
+  pabna: "Pabna",
+  sirajganj: "Sirajganj",
+  bogura: "Bogura",
+  joypurhat: "Joypurhat",
+  khulna: "Khulna",
+  bagerhat: "Bagerhat",
+  satkhira: "Satkhira",
+  jashore: "Jashore",
+  jhenaidah: "Jhenaidah",
+  magura: "Magura",
+  narail: "Narail",
+  kushtia: "Kushtia",
+  chuadanga: "Chuadanga",
+  meherpur: "Meherpur",
+  barishal: "Barishal",
+  bhola: "Bhola",
+  patuakhali: "Patuakhali",
+  pirojpur: "Pirojpur",
+  barguna: "Barguna",
+  jhalokati: "Jhalokati",
+  sylhet: "Sylhet",
+  moulvibazar: "Moulvibazar",
+  habiganj: "Habiganj",
+  sunamganj: "Sunamganj",
+  rangpur: "Rangpur",
+  dinajpur: "Dinajpur",
+  nilphamari: "Nilphamari",
+  gaibandha: "Gaibandha",
+  kurigram: "Kurigram",
+  lalmonirhat: "Lalmonirhat",
+  thakurgaon: "Thakurgaon",
+  panchagarh: "Panchagarh",
+  mymensingh: "Mymensingh",
+  jamalpur: "Jamalpur",
+  sherpur: "Sherpur",
+  netrokona: "Netrokona",
+};
+
+function withSadarUpazila(h: HospitalSeed): HospitalSeed {
+  if (h.upazila) return h;
+  const en = DISTRICT_EN[h.districtSlug];
+  if (!en) return h;
+  return { ...h, upazila: `${en} Sadar` };
+}
 
 /** All 64 district sadar / general hospitals */
 const DISTRICT_SADAR: HospitalSeed[] = [
@@ -208,10 +290,27 @@ const EXTRA_GOVT: HospitalSeed[] = [
 export const BANGLADESH_HOSPITALS: HospitalSeed[] = (() => {
   const map = new Map<string, HospitalSeed>();
   for (const h of [...DISTRICT_SADAR, ...NAMED, ...EXTRA_GOVT, ...generateClinicsAndDiagnostics()]) {
-    map.set(`${h.districtSlug}::${h.slug}`, h);
+    map.set(`${h.districtSlug}::${h.slug}`, withSadarUpazila(h));
   }
   return [...map.values()];
 })();
+
+/** Match a hospital seed to an upazila English name (case-insensitive). */
+export function hospitalMatchesUpazila(h: HospitalSeed, upazila: string | null | undefined): boolean {
+  if (!upazila?.trim()) return true;
+  const needle = upazila.trim().toLowerCase();
+  if (h.upazila?.toLowerCase() === needle) return true;
+  const us = needle.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return (
+    h.slug.endsWith(`-${us}`) ||
+    h.slug.includes(`-uhc-${us}`) ||
+    h.slug.includes(`-cc-${us}`) ||
+    h.slug.includes(`-dx-${us}`) ||
+    h.slug.includes(`-clinic-${us}`) ||
+    h.slug.includes(`-dental-${us}`) ||
+    h.slug.includes(`-private-${us}`)
+  );
+}
 
 export function hospitalCmsKey(h: HospitalSeed) {
   return `hosp:${h.type}:${h.districtSlug}:${h.slug}`;

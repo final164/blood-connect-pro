@@ -16,6 +16,7 @@ export function customHospital(
   name: string,
   districtId?: string | null,
   districtSlug?: string | null,
+  upazila?: string | null,
 ): Hospital {
   const trimmed = name.trim();
   return {
@@ -25,6 +26,7 @@ export function customHospital(
     slug: slugify(trimmed) || "custom",
     district_id: districtId ?? null,
     district_slug: districtSlug ?? null,
+    upazila: upazila ?? null,
     hospital_type: "private",
     is_active: true,
   };
@@ -40,6 +42,7 @@ export function HospitalTypeahead({
   onChange,
   districtId,
   districtSlug,
+  upazila,
   required,
   placeholder,
 }: {
@@ -47,6 +50,7 @@ export function HospitalTypeahead({
   onChange: (h: Hospital | null) => void;
   districtId?: string | null;
   districtSlug?: string | null;
+  upazila?: string | null;
   required?: boolean;
   placeholder?: string;
 }) {
@@ -63,6 +67,11 @@ export function HospitalTypeahead({
 
   useEffect(() => {
     let cancelled = false;
+    if (!districtId && !districtSlug) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const handle = setTimeout(async () => {
       try {
@@ -70,7 +79,9 @@ export function HospitalTypeahead({
           q,
           districtId: districtId ?? undefined,
           districtSlug: districtSlug ?? undefined,
-          limit: 50,
+          // No upazila → all hospitals across every upazila in the district
+          upazila: upazila?.trim() || undefined,
+          limit: upazila?.trim() ? 100 : 400,
         });
         if (!cancelled) setItems(list);
       } catch {
@@ -83,7 +94,7 @@ export function HospitalTypeahead({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [q, districtId, districtSlug]);
+  }, [q, districtId, districtSlug, upazila]);
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -93,10 +104,18 @@ export function HospitalTypeahead({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const label = useMemo(() => placeholder ?? t("searchHospital"), [placeholder, t]);
+  const label = useMemo(() => {
+    if (placeholder) return placeholder;
+    if (!districtId && !districtSlug) {
+      return lang === "bn" ? "আগে জেলা সিলেক্ট করুন" : "Select district first";
+    }
+    return t("searchHospital");
+  }, [placeholder, districtId, districtSlug, lang, t]);
+
+  const disabled = !districtId && !districtSlug;
   const trimmed = q.trim();
   const exactInList = items.some((h) => displayName(h, lang).toLowerCase() === trimmed.toLowerCase());
-  const showCustomOption = !!trimmed && !exactInList;
+  const showCustomOption = !!trimmed && !exactInList && !disabled;
 
   function pick(h: Hospital) {
     onChange(h);
@@ -106,7 +125,7 @@ export function HospitalTypeahead({
 
   function pickCustom() {
     if (!trimmed) return;
-    pick(customHospital(trimmed, districtId, districtSlug));
+    pick(customHospital(trimmed, districtId, districtSlug, upazila));
   }
 
   function onBlurInput() {
@@ -127,13 +146,18 @@ export function HospitalTypeahead({
 
   return (
     <div ref={boxRef} className="relative">
-      <div className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/25">
+      <div
+        className={`flex items-center gap-2 rounded-xl border bg-background px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/25 ${
+          disabled ? "opacity-60" : ""
+        }`}
+      >
         <Building2 className="h-4 w-4 text-primary shrink-0" />
         <input
-          className="flex-1 bg-transparent text-sm outline-none"
+          className="flex-1 bg-transparent text-sm outline-none disabled:cursor-not-allowed"
           value={q}
           placeholder={label}
           required={required && !value}
+          disabled={disabled}
           onFocus={() => setOpen(true)}
           onBlur={onBlurInput}
           onChange={(e) => {
@@ -212,6 +236,9 @@ export function HospitalTypeahead({
                   onClick={() => pick(h)}
                 >
                   <span className="font-medium">{displayName(h, lang)}</span>
+                  {h.upazila && !upazila?.trim() && (
+                    <span className="ml-2 text-[10px] text-muted-foreground">{h.upazila}</span>
+                  )}
                   <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
                     {h.hospital_type === "government"
                       ? t("government")
@@ -227,7 +254,9 @@ export function HospitalTypeahead({
 
           {!loading && !showCustomOption && items.length === 0 && !trimmed && (
             <li className="px-3 py-2.5 text-xs text-muted-foreground">
-              {lang === "bn" ? "হাসপাতালের নাম লিখুন…" : "Type a hospital name…"}
+              {lang === "bn"
+                ? "হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক খুঁজুন…"
+                : "Search hospital / clinic / diagnostic…"}
             </li>
           )}
         </ul>

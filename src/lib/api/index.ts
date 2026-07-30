@@ -20,6 +20,7 @@ export type Hospital = {
   slug: string;
   district_id: string | null;
   district_slug?: string | null;
+  upazila?: string | null;
   hospital_type: "government" | "private" | "ngo" | "clinic" | "diagnostic";
   is_active: boolean;
 };
@@ -39,58 +40,85 @@ export async function fetchHospitals(opts?: {
   q?: string;
   districtId?: string;
   districtSlug?: string;
+  upazila?: string | null;
   limit?: number;
 }): Promise<Hospital[]> {
-  const limit = opts?.limit ?? 40;
+  const upazila = opts?.upazila?.trim() || undefined;
+  // District-wide (no upazila): need room for every upazila's facilities
+  const limit = opts?.limit ?? (upazila ? 80 : 400);
   const q = opts?.q?.trim().toLowerCase() ?? "";
 
-  if (await hospitalsTableExists()) {
-    let query = supabase
-      .from("hospitals")
-      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,districts(slug)")
-      .eq("is_active", true)
-      .order("name_en", { ascending: true })
-      .limit(limit);
-    if (opts?.districtId) query = query.eq("district_id", opts.districtId);
-    if (q) {
-      // Escape %/_ for ilike; commas break PostgREST or()
-      const safe = q.replace(/[%_,]/g, " ").trim();
-      if (safe) query = query.or(`name_en.ilike.%${safe}%,name_bn.ilike.%${safe}%,slug.ilike.%${safe}%`);
-    }
-    const { data, error } = await query;
-    if (!error) {
-      const mapped = (data ?? []).map((row: any) => ({
-        id: row.id as string,
-        name_bn: row.name_bn as string,
-        name_en: row.name_en as string,
-        slug: row.slug as string,
-        district_id: row.district_id as string | null,
-        district_slug: (row.districts?.slug as string | undefined) ?? null,
-        hospital_type: row.hospital_type as Hospital["hospital_type"],
-        is_active: row.is_active as boolean,
-      }));
-      // Table exists but empty / no district rows → use bundled catalog
-      if (mapped.length > 0) return mapped;
-    } else {
-      hospitalsTableAvailable = false;
-    }
+  const bundled = await searchBundledHospitals({
+    q,
+    districtId: opts?.districtId,
+    districtSlug: opts?.districtSlug,
+    upazila,
+    limit: Math.max(limit, 500),
+  });
+
+  if (!(await hospitalsTableExists())) {
+    return bundled.slice(0, limit);
   }
 
-  return searchBundledHospitals({ q, districtId: opts?.districtId, districtSlug: opts?.districtSlug, limit });
+  let query = supabase
+    .from("hospitals")
+    .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,upazila,districts(slug)")
+    .eq("is_active", true)
+    .order("name_en", { ascending: true })
+    .limit(Math.max(limit, 500));
+  if (opts?.districtId) query = query.eq("district_id", opts.districtId);
+  if (upazila) query = query.ilike("upazila", upazila);
+  if (q) {
+    const safe = q.replace(/[%_,]/g, " ").trim();
+    if (safe) query = query.or(`name_en.ilike.%${safe}%,name_bn.ilike.%${safe}%,slug.ilike.%${safe}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (!/upazila|column/i.test(error.message)) {
+      hospitalsTableAvailable = false;
+    }
+    return bundled.slice(0, limit);
+  }
+
+  const fromDb = (data ?? []).map((row: any) => ({
+    id: row.id as string,
+    name_bn: row.name_bn as string,
+    name_en: row.name_en as string,
+    slug: row.slug as string,
+    district_id: row.district_id as string | null,
+    district_slug: (row.districts?.slug as string | undefined) ?? null,
+    upazila: (row.upazila as string | null) ?? null,
+    hospital_type: row.hospital_type as Hospital["hospital_type"],
+    is_active: row.is_active as boolean,
+  }));
+
+  // Prefer DB rows; fill gaps from bundled catalog so every upazila's facilities still appear
+  const bySlug = new Map<string, Hospital>();
+  for (const h of bundled) bySlug.set(h.slug, h);
+  for (const h of fromDb) bySlug.set(h.slug, h);
+
+  const merged = [...bySlug.values()].sort((a, b) =>
+    a.name_en.localeCompare(b.name_en, undefined, { sensitivity: "base" }),
+  );
+  return merged.slice(0, limit);
 }
 
 async function searchBundledHospitals(opts: {
   q: string;
   districtId?: string;
   districtSlug?: string;
+  upazila?: string;
   limit: number;
 }): Promise<Hospital[]> {
-  const { BANGLADESH_HOSPITALS } = await import("@/data/bangladesh-hospitals");
+  const { BANGLADESH_HOSPITALS, hospitalMatchesUpazila } = await import("@/data/bangladesh-hospitals");
   let list = BANGLADESH_HOSPITALS;
   if (opts.districtSlug) {
     const scoped = list.filter((h) => h.districtSlug === opts.districtSlug);
-    // If slug mismatch with seed data, still show national catalog matches
     if (scoped.length > 0) list = scoped;
+  }
+  if (opts.upazila) {
+    list = list.filter((h) => hospitalMatchesUpazila(h, opts.upazila));
   }
   if (opts.q) {
     const q = opts.q;
@@ -109,6 +137,7 @@ async function searchBundledHospitals(opts: {
     slug: h.slug,
     district_id: opts.districtId ?? null,
     district_slug: h.districtSlug,
+    upazila: h.upazila ?? null,
     hospital_type: h.type,
     is_active: true,
   }));
@@ -128,6 +157,7 @@ export async function fetchHospitalsAdminPage(opts?: {
     slug: row.slug,
     district_id: row.district_id,
     district_slug: row.districts?.slug ?? null,
+    upazila: row.upazila ?? null,
     hospital_type: row.hospital_type,
     is_active: row.is_active,
   });
@@ -135,7 +165,7 @@ export async function fetchHospitalsAdminPage(opts?: {
   if (await hospitalsTableExists()) {
     let query = supabase
       .from("hospitals")
-      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,districts(slug)")
+      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,upazila,districts(slug)")
       .order("name_en", { ascending: true })
       .range(offset, offset + limit - 1);
     if (opts?.q?.trim()) {
@@ -158,7 +188,7 @@ export async function fetchAllHospitalsAdmin(): Promise<Hospital[]> {
   if (await hospitalsTableExists()) {
     const { data, error } = await supabase
       .from("hospitals")
-      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,districts(slug)")
+      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,upazila,districts(slug)")
       .order("name_en", { ascending: true });
     if (!error) {
       return (data ?? []).map((row: any) => ({
@@ -168,6 +198,7 @@ export async function fetchAllHospitalsAdmin(): Promise<Hospital[]> {
         slug: row.slug,
         district_id: row.district_id,
         district_slug: row.districts?.slug ?? null,
+        upazila: row.upazila ?? null,
         hospital_type: row.hospital_type,
         is_active: row.is_active,
       }));
