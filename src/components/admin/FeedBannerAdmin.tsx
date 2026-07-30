@@ -427,7 +427,9 @@ export function FeedBannerAdmin() {
             <CarouselRemoteImage
               src={draft.image_url}
               alt=""
-              className="h-24 w-full max-w-sm rounded-lg object-cover border border-slate-700"
+              className="h-24 w-full max-w-sm rounded-lg border border-slate-700"
+              maxWidth={900}
+              priority
             />
           ) : null}
           <button
@@ -519,7 +521,9 @@ export function FeedBannerAdmin() {
                 <CarouselRemoteImage
                   src={slide.image_url}
                   alt=""
-                  className="h-20 w-36 rounded-lg object-cover border border-slate-700 shrink-0"
+                  className="h-20 w-36 rounded-lg border border-slate-700 shrink-0"
+                  maxWidth={400}
+                  priority
                 />
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">

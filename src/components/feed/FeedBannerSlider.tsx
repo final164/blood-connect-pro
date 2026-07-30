@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, PanelsTopLeft } from "lucide-react";
 import {
   Carousel,
@@ -23,10 +23,30 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [inView, setInView] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
-  const active = slides.filter((s) => s.is_active && s.image_url);
+  const active = useMemo(
+    () => slides.filter((s) => s.is_active && s.image_url),
+    [slides],
+  );
   const title = lang === "bn" ? settings.title_bn : settings.title_en;
   const show = settings.enabled && active.length > 0;
+  const bannerW = Math.min(1400, Math.max(640, settings.max_height_px * 3));
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([e]) => setInView(!!e?.isIntersecting),
+      { rootMargin: "160px 0px", threshold: 0.05 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -45,19 +65,24 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
   }, [api]);
 
   useEffect(() => {
-    if (!api || !show || !settings.autoplay || active.length < 2) return;
+    if (!api || !show || !inView || !settings.autoplay || active.length < 2) return;
     const id = window.setInterval(() => {
+      if (document.hidden) return;
       if (api.canScrollNext()) api.scrollNext();
       else if (settings.loop) api.scrollTo(0);
-    }, settings.autoplay_ms);
+    }, Math.max(4000, settings.autoplay_ms));
     return () => window.clearInterval(id);
-  }, [api, show, settings.autoplay, settings.autoplay_ms, settings.loop, active.length]);
+  }, [api, show, inView, settings.autoplay, settings.autoplay_ms, settings.loop, active.length]);
 
   if (!show) return null;
 
   return (
     <section
-      className={cn("rounded-2xl border bg-card overflow-hidden shadow-sm", className)}
+      ref={sectionRef}
+      className={cn(
+        "rounded-2xl border bg-card overflow-hidden shadow-sm [contain:layout_paint] [content-visibility:auto]",
+        className,
+      )}
       aria-label={title}
     >
       {settings.show_header && (
@@ -75,12 +100,16 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
           opts={{
             align: "start",
             loop: settings.loop,
+            duration: 18,
+            skipSnaps: false,
           }}
           className="w-full"
         >
           <CarouselContent className="ml-0">
-            {active.map((slide) => {
+            {active.map((slide, i) => {
               const caption = lang === "bn" ? slide.title_bn : slide.title_en;
+              // Only decode current ±1 slides — big win vs loading every banner frame
+              const near = Math.abs(i - selected) <= 1 || (settings.loop && active.length > 2 && (i === 0 || i === active.length - 1));
               const inner = (
                 <div
                   className="relative w-full overflow-hidden bg-muted"
@@ -90,13 +119,19 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
                     borderRadius: settings.radius_px,
                   }}
                 >
-                  <CarouselRemoteImage
-                    src={slide.image_url}
-                    alt={caption || title}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    loading="lazy"
-                    draggable={false}
-                  />
+                  {inView && near ? (
+                    <CarouselRemoteImage
+                      src={slide.image_url}
+                      alt={caption || title}
+                      className="absolute inset-0 h-full w-full"
+                      maxWidth={bannerW}
+                      priority={i === selected}
+                      loading={i === selected ? "eager" : "lazy"}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-muted" aria-hidden />
+                  )}
                   {settings.show_captions && caption ? (
                     <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent px-3 pb-2.5 pt-8 text-xs font-medium text-white line-clamp-2">
                       {caption}
@@ -131,7 +166,7 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
                 onClick={() => api?.scrollPrev()}
                 disabled={!canPrev && !settings.loop}
                 className={cn(
-                  "absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md border border-black/5 transition",
+                  "absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md border border-black/5",
                   !canPrev && !settings.loop && "opacity-40 pointer-events-none",
                 )}
                 aria-label={lang === "bn" ? "আগে" : "Previous"}
@@ -143,7 +178,7 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
                 onClick={() => api?.scrollNext()}
                 disabled={!canNext && !settings.loop}
                 className={cn(
-                  "absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md border border-black/5 transition",
+                  "absolute right-3 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md border border-black/5",
                   !canNext && !settings.loop && "opacity-40 pointer-events-none",
                 )}
                 aria-label={lang === "bn" ? "পরে" : "Next"}
@@ -162,7 +197,7 @@ export function FeedBannerSlider({ settings, slides, className }: Props) {
                 type="button"
                 onClick={() => api?.scrollTo(i)}
                 className={cn(
-                  "h-1.5 rounded-full transition-all",
+                  "h-1.5 rounded-full",
                   i === selected ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/35",
                 )}
                 aria-label={`${i + 1}`}
