@@ -5,10 +5,10 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
 import { getProfile } from "@/lib/api";
-import { displayUpazilaName, fetchUpazilaOptions } from "@/lib/upazilas";
 import {
   DEFAULT_REQUEST_FORM_OPTIONS,
   fetchRequestFormOptions,
@@ -43,7 +43,6 @@ export function RequestComposer({
   const [opts, setOpts] = useState<RequestFormOptions>(DEFAULT_REQUEST_FORM_OPTIONS);
   const [district, setDistrict] = useState<District | null>(defaultDistrict);
   const [upazila, setUpazila] = useState("");
-  const [upazilaOptions, setUpazilaOptions] = useState<{ en: string; bn: string }[]>([]);
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [categories, setCategories] = useState<NeedReasonCategory[]>([]);
   const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
@@ -86,18 +85,7 @@ export function RequestComposer({
     });
   }, [lang]);
 
-  useEffect(() => {
-    if (!district) {
-      setUpazilaOptions([]);
-      return;
-    }
-    void fetchUpazilaOptions(district).then(setUpazilaOptions);
-  }, [district?.id, district?.slug]);
-
-  const upazilaLabel = useMemo(
-    () => displayUpazilaName(upazila, upazilaOptions, lang),
-    [upazila, upazilaOptions, lang],
-  );
+  const isCustomHospital = !!hospital?.id.startsWith("custom:");
 
   const selectedCategory = useMemo(
     () => categories.find((c) => c.id === reasonKey) ?? null,
@@ -316,7 +304,7 @@ export function RequestComposer({
         </div>
       </div>
 
-      <div className={`grid gap-2 ${hospital ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div className={`grid gap-2 ${isCustomHospital ? "grid-cols-2" : "grid-cols-1"}`}>
         <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground">{t("district")}</label>
           <DistrictTypeahead
@@ -330,12 +318,17 @@ export function RequestComposer({
             placeholder={t("district")}
           />
         </div>
-        {hospital && (
+        {isCustomHospital && (
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">{t("upazila")}</label>
-            <p className="min-h-[42px] rounded-xl border border-border bg-muted/25 px-3 py-2.5 text-sm font-medium leading-snug text-foreground">
-              {upazilaLabel ?? ph("উপজেলা উল্লেখ নেই", "Upazila not listed")}
-            </p>
+            <UpazilaSelect
+              district={district}
+              value={upazila}
+              onChange={(v) => {
+                setUpazila(v);
+                setHospital((h) => (h ? { ...h, upazila: v || null } : h));
+              }}
+            />
           </div>
         )}
       </div>
@@ -349,6 +342,7 @@ export function RequestComposer({
         }}
         districtId={district?.id}
         districtSlug={district?.slug}
+        upazila={isCustomHospital ? upazila || undefined : undefined}
         required={req("hospital")}
         placeholder={ph("হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক…", "Hospital / clinic / diagnostic…")}
       />

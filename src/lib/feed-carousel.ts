@@ -88,13 +88,14 @@ export function extractGoogleDriveFileId(url: string): string | null {
  * Turn pasted Drive share links into an <img>-friendly URL.
  * Prefer thumbnail endpoint (uc?export=view often 403 since 2024).
  */
-export function resolveCarouselImageUrl(url: string): string {
+export function resolveCarouselImageUrl(url: string, maxWidth = 1200): string {
   const trimmed = url.trim();
   if (!trimmed) return "";
+  const w = Math.min(2000, Math.max(200, Math.round(maxWidth)));
 
   const driveId = extractGoogleDriveFileId(trimmed);
   if (driveId) {
-    return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
+    return `https://drive.google.com/thumbnail?id=${driveId}&sz=w${w}`;
   }
 
   // Dropbox share → direct
@@ -113,18 +114,19 @@ export function resolveCarouselImageUrl(url: string): string {
 }
 
 /** Candidate display URLs (primary + fallbacks) for Drive / remote images. */
-export function carouselImageCandidates(url: string): string[] {
+export function carouselImageCandidates(url: string, maxWidth = 1200): string[] {
   const trimmed = url.trim();
   if (!trimmed) return [];
+  const w = Math.min(2000, Math.max(200, Math.round(maxWidth)));
   const driveId = extractGoogleDriveFileId(trimmed);
   if (driveId) {
     return [
-      `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`,
-      `https://lh3.googleusercontent.com/d/${driveId}=w2000`,
+      `https://drive.google.com/thumbnail?id=${driveId}&sz=w${w}`,
+      `https://lh3.googleusercontent.com/d/${driveId}=w${w}`,
       `https://drive.google.com/uc?export=view&id=${driveId}`,
     ];
   }
-  return [resolveCarouselImageUrl(trimmed)];
+  return [resolveCarouselImageUrl(trimmed, w)];
 }
 
 export function isGoogleDriveUrl(url: string): boolean {

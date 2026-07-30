@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Images, MoreHorizontal } from "lucide-react";
 import {
   Carousel,
@@ -22,13 +22,38 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
   const [api, setApi] = useState<CarouselApi>();
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
+  const [inView, setInView] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
-  const active = slides.filter((s) => s.is_active && s.image_url);
+  const active = useMemo(
+    () => slides.filter((s) => s.is_active && s.image_url),
+    [slides],
+  );
   const title = lang === "bn" ? settings.title_bn : settings.title_en;
   const gap = settings.gap_px;
   const radius = settings.radius_px;
   const basis = settings.card_basis_px;
   const show = settings.enabled && active.length > 0;
+  const thumbW = Math.min(640, Math.max(240, basis * 2));
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e?.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "180px 0px", threshold: 0.05 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -46,19 +71,24 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
   }, [api]);
 
   useEffect(() => {
-    if (!api || !show || !settings.autoplay || active.length < 2) return;
+    if (!api || !show || !inView || !settings.autoplay || active.length < 2) return;
     const id = window.setInterval(() => {
+      if (document.hidden) return;
       if (api.canScrollNext()) api.scrollNext();
       else if (settings.loop) api.scrollTo(0);
-    }, settings.autoplay_ms);
+    }, Math.max(3500, settings.autoplay_ms));
     return () => window.clearInterval(id);
-  }, [api, show, settings.autoplay, settings.autoplay_ms, settings.loop, active.length]);
+  }, [api, show, inView, settings.autoplay, settings.autoplay_ms, settings.loop, active.length]);
 
   if (!show) return null;
 
   return (
     <section
-      className={cn("rounded-2xl border bg-card overflow-hidden shadow-sm", className)}
+      ref={sectionRef}
+      className={cn(
+        "rounded-2xl border bg-card overflow-hidden shadow-sm [contain:layout_paint] [content-visibility:auto]",
+        className,
+      )}
       aria-label={title}
     >
       {settings.show_header && (
@@ -69,9 +99,11 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
             </span>
             <h3 className="text-sm font-semibold text-foreground truncate">{title}</h3>
           </div>
-          <span className="rounded-full p-1.5 text-muted-foreground" aria-hidden>
-            <MoreHorizontal className="h-4 w-4" />
-          </span>
+          {settings.show_item_menu ? (
+            <span className="rounded-full p-1.5 text-muted-foreground" aria-hidden>
+              <MoreHorizontal className="h-4 w-4" />
+            </span>
+          ) : null}
         </header>
       )}
 
@@ -81,12 +113,14 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
           opts={{
             align: "start",
             loop: settings.loop,
-            dragFree: true,
+            dragFree: false,
+            skipSnaps: false,
+            duration: 18,
           }}
           className="w-full"
         >
           <CarouselContent className="ml-0" style={{ gap: `${gap}px` }}>
-            {active.map((slide) => {
+            {active.map((slide, i) => {
               const caption = lang === "bn" ? slide.title_bn : slide.title_en;
               const inner = (
                 <div
@@ -96,13 +130,19 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
                     borderRadius: radius,
                   }}
                 >
-                  <CarouselRemoteImage
-                    src={slide.image_url}
-                    alt={caption || title}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    loading="lazy"
-                    draggable={false}
-                  />
+                  {inView ? (
+                    <CarouselRemoteImage
+                      src={slide.image_url}
+                      alt={caption || title}
+                      className="absolute inset-0 h-full w-full"
+                      maxWidth={thumbW}
+                      priority={i < 2}
+                      loading={i < 2 ? "eager" : "lazy"}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-muted" />
+                  )}
                   {settings.show_item_menu && (
                     <span className="absolute top-1.5 right-1.5 rounded-full bg-black/35 p-1 text-white">
                       <MoreHorizontal className="h-3.5 w-3.5" />
@@ -150,7 +190,7 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
                 onClick={() => api?.scrollPrev()}
                 disabled={!canPrev && !settings.loop}
                 className={cn(
-                  "absolute left-1 top-1/2 z-10 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-foreground shadow-md border border-black/5 transition",
+                  "absolute left-1 top-1/2 z-10 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-foreground shadow-md border border-black/5",
                   !canPrev && !settings.loop && "opacity-40 pointer-events-none",
                 )}
                 aria-label={lang === "bn" ? "আগে" : "Previous"}
@@ -162,7 +202,7 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
                 onClick={() => api?.scrollNext()}
                 disabled={!canNext && !settings.loop}
                 className={cn(
-                  "absolute right-1 top-1/2 z-10 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-foreground shadow-md border border-black/5 transition",
+                  "absolute right-1 top-1/2 z-10 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-foreground shadow-md border border-black/5",
                   !canNext && !settings.loop && "opacity-40 pointer-events-none",
                 )}
                 aria-label={lang === "bn" ? "পরে" : "Next"}

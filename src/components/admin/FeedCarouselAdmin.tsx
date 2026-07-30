@@ -436,7 +436,9 @@ export function FeedCarouselAdmin() {
             <CarouselRemoteImage
               src={draft.image_url}
               alt=""
-              className="h-28 w-20 rounded-lg object-cover border border-slate-700"
+              className="h-28 w-20 rounded-lg border border-slate-700"
+              maxWidth={400}
+              priority
             />
           ) : null}
           <div className="flex flex-wrap gap-2">
@@ -530,7 +532,9 @@ export function FeedCarouselAdmin() {
                 <CarouselRemoteImage
                   src={slide.image_url}
                   alt=""
-                  className="h-24 w-18 rounded-lg object-cover border border-slate-700 shrink-0"
+                  className="h-24 w-18 rounded-lg border border-slate-700 shrink-0"
+                  maxWidth={320}
+                  priority
                 />
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
