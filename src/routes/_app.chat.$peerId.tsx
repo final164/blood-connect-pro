@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { Avatar } from "@/components/Avatar";
 import { conversationSecret, encryptMessage, decryptMessage } from "@/lib/e2ee";
 import { ArrowLeft, Check, Send, ShieldCheck, Trash2, X } from "lucide-react";
-import { toast } from "sonner";
+import { fetchProfileForViewer } from "@/lib/profile-lock";
 
 type Msg = {
   id: string;
@@ -51,8 +51,9 @@ function Thread() {
   const longPressTriggeredRef = useRef(false);
 
   useEffect(() => {
-    supabase.from("profiles").select("*").eq("id", peerId).maybeSingle().then(({ data }) => setPeer(data));
-  }, [peerId]);
+    if (!user) return;
+    fetchProfileForViewer(peerId, user.id).then((data) => setPeer(data));
+  }, [peerId, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -289,17 +290,23 @@ function Thread() {
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             )}
-            <Avatar name={peer?.full_name} src={peer?.avatar_url ?? undefined} size={36} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate">{peer?.full_name ?? "User"}</p>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <ShieldCheck className="h-2.5 w-2.5" />
-                {t("encrypted")}
-                {peer?.blood_group && (
-                  <span className="ml-1 font-semibold text-primary">· {peer.blood_group}</span>
-                )}
-              </p>
-            </div>
+            <Link
+              to="/profile/$userId"
+              params={{ userId: peerId }}
+              className="flex items-center gap-2 flex-1 min-w-0"
+            >
+              <Avatar name={peer?.full_name as string} src={(peer?.avatar_url as string) ?? undefined} size={36} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{(peer?.full_name as string) ?? "User"}</p>
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <ShieldCheck className="h-2.5 w-2.5" />
+                  {t("encrypted")}
+                  {peer?.blood_group && (
+                    <span className="ml-1 font-semibold text-primary">· {peer.blood_group as string}</span>
+                  )}
+                </p>
+              </div>
+            </Link>
           </div>
         )}
       </header>

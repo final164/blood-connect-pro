@@ -11,6 +11,12 @@ import {
   type OverrideEffect,
   type PermissionKey,
 } from "@/lib/admin-permissions";
+import { UsersGeoScopeEditor } from "@/components/admin/UsersGeoScopeEditor";
+import {
+  DEFAULT_USERS_GEO_SCOPE,
+  normalizeUsersGeoScope,
+  type UsersGeoScope,
+} from "@/lib/users-geo-scope";
 import { Copy, Plus, Shield, Trash2, UserCog } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +43,7 @@ export function AccessControlAdmin() {
   const [previewUserId, setPreviewUserId] = useState("");
   const [newRoleName, setNewRoleName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [geoScope, setGeoScope] = useState<UsersGeoScope>(DEFAULT_USERS_GEO_SCOPE);
 
   const byModule = useMemo(() => permissionsByModule(), []);
   const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
@@ -87,6 +94,12 @@ export function AccessControlAdmin() {
     if (selectedRoleId) void loadRolePerms(selectedRoleId);
   }, [selectedRoleId]);
 
+  useEffect(() => {
+    if (!selectedRoleId) return;
+    const role = roles.find((r) => r.id === selectedRoleId);
+    setGeoScope(normalizeUsersGeoScope(role?.users_geo_scope ?? DEFAULT_USERS_GEO_SCOPE));
+  }, [selectedRoleId, roles]);
+
   const filteredProfiles = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return profiles.slice(0, 40);
@@ -118,6 +131,7 @@ export function AccessControlAdmin() {
         description: null,
         is_system: false,
         is_active: true,
+        users_geo_scope: DEFAULT_USERS_GEO_SCOPE,
       })
       .select("*")
       .single();
@@ -141,6 +155,7 @@ export function AccessControlAdmin() {
         description: selectedRole.description,
         is_system: false,
         is_active: true,
+        users_geo_scope: selectedRole.users_geo_scope ?? DEFAULT_USERS_GEO_SCOPE,
       })
       .select("*")
       .single();
@@ -158,6 +173,26 @@ export function AccessControlAdmin() {
     toast.success(lang === "bn" ? "রোল ক্লোন হয়েছে" : "Role cloned");
     await loadRoles();
     setSelectedRoleId(data.id);
+  }
+
+  async function saveGeoScope(next: UsersGeoScope) {
+    if (!canManage || !selectedRoleId) return;
+    if (selectedRole?.slug === "super-admin" && !isSuper) {
+      return toast.error(lang === "bn" ? "সুপার অ্যাডমিন রোল এডিট করা যাবে না" : "Cannot edit Super Admin role");
+    }
+    setGeoScope(next);
+    const { error } = await supabase
+      .from("admin_roles")
+      .update({ users_geo_scope: next } as never)
+      .eq("id", selectedRoleId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setRoles((prev) =>
+      prev.map((r) => (r.id === selectedRoleId ? { ...r, users_geo_scope: next } : r)),
+    );
+    void refreshAccess();
   }
 
   async function deleteRole() {
@@ -494,6 +529,19 @@ export function AccessControlAdmin() {
                             </li>
                           ))}
                         </ul>
+                        {mod.id === "users" &&
+                          (rolePerms.has("users.filter_district") ||
+                            rolePerms.has("users.filter_upazila") ||
+                            rolePerms.has("users.view")) && (
+                            <div className="p-3 border-t border-slate-800">
+                              <UsersGeoScopeEditor
+                                value={geoScope}
+                                onChange={(next) => void saveGeoScope(next)}
+                                lang={lang}
+                                disabled={!canManage}
+                              />
+                            </div>
+                          )}
                       </div>
                     );
                   })}

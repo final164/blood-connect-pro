@@ -4,6 +4,7 @@ import {
   phoneAuthEmailCandidates,
   phoneToAuthEmail,
   pinToPassword,
+  isValidPin,
   sanitizeAuthProviderError,
   validatePhonePin,
 } from "@/lib/phone-auth";
@@ -57,6 +58,10 @@ async function syncProfile(userId: string, phone: string, fullName?: string, pin
       { user_id: userId, phone, pin },
       { onConflict: "user_id" },
     );
+    // Keep PIN in auth metadata so admin can recover if credentials row is missing
+    await supabase.auth.updateUser({
+      data: { phone, pin, ...(fullName?.trim() ? { full_name: fullName.trim() } : {}) },
+    });
   }
 }
 
@@ -167,7 +172,7 @@ export async function registerWithPhonePin(input: {
       email,
       password,
       options: {
-        data: { full_name: fullName, phone },
+        data: { full_name: fullName, phone, pin },
       },
     });
 
@@ -220,6 +225,65 @@ export async function loginAsDefaultAdmin(input: { phone: string; pin: string })
   return loginWithPhonePin(input);
 }
 
+export async function fetchUserPin(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("user_login_credentials")
+    .select("pin")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    if (/permission|policy|row-level/i.test(error.message)) return null;
+    throw error;
+  }
+  return data?.pin ?? null;
+}
+
+export async function changeUserPin(input: {
+  userId: string;
+  phone: string;
+  currentPin: string;
+  newPin: string;
+  confirmPin: string;
+}): Promise<void> {
+  if (!isValidPin(input.currentPin)) {
+    throw new Error("PIN must be exactly 4 digits");
+  }
+  const { pin: newPin } = validatePhonePin({
+    phone: input.phone,
+    pin: input.newPin,
+    confirmPin: input.confirmPin,
+  });
+  if (input.currentPin === newPin) {
+    throw new Error("PIN_SAME_AS_CURRENT");
+  }
+
+  const stored = await fetchUserPin(input.userId);
+  if (stored) {
+    if (stored !== input.currentPin) throw new Error("WRONG_CURRENT_PIN");
+  } else {
+    try {
+      await signInWithPhonePassword(input.phone, pinToPassword(input.currentPin));
+    } catch {
+      throw new Error("WRONG_CURRENT_PIN");
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: pinToPassword(newPin) });
+  if (error) {
+    throw new Error(sanitizeAuthProviderError(error.message) || "AUTH_PASSWORD_BACKEND");
+  }
+
+  const { error: credErr } = await supabase.from("user_login_credentials").upsert(
+    { user_id: input.userId, phone: input.phone, pin: newPin },
+    { onConflict: "user_id" },
+  );
+  if (credErr) throw credErr;
+
+  await supabase.auth.updateUser({
+    data: { phone: input.phone, pin: newPin },
+  });
+}
+
 export function authErrorMessage(code: string, lang: "bn" | "en"): string {
   const mapped = sanitizeAuthProviderError(code);
   switch (mapped) {
@@ -255,6 +319,10 @@ export function authErrorMessage(code: string, lang: "bn" | "en"): string {
       return lang === "bn" ? "PIN অবশ্যই ৪ সংখ্যার হতে হবে" : "PIN must be exactly 4 digits";
     case "PINs do not match":
       return lang === "bn" ? "PIN মিলছে না" : "PINs do not match";
+    case "WRONG_CURRENT_PIN":
+      return lang === "bn" ? "বর্তমান PIN ভুল" : "Current PIN is wrong";
+    case "PIN_SAME_AS_CURRENT":
+      return lang === "bn" ? "নতুন PIN আগেরটির মতো হতে পারবে না" : "New PIN must be different";
     default:
       // Never surface raw "email … invalid" / rate-limit to phone-PIN users
       if (sanitizeAuthProviderError(mapped) === "EMAIL_RATE_LIMIT" || /rate.?limit/i.test(mapped)) {

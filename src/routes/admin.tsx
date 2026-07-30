@@ -22,6 +22,7 @@ import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import { seedUpazilasFromCatalog, fetchUpazilaOptions } from "@/lib/upazilas";
 import { seedGeoNeighborsFromCatalog } from "@/lib/geo-neighbors-seed";
 import { DistrictUpazilaPanel } from "@/components/admin/DistrictUpazilaPanel";
+import { UsersAdmin } from "@/components/admin/UsersAdmin";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { BANGLADESH_HOSPITALS } from "@/data/bangladesh-hospitals";
 import { ARCHITECTURE_MARKDOWN } from "@/lib/architecture-doc";
@@ -74,6 +75,7 @@ import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
+import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -394,223 +396,112 @@ function GrantSelfAdmin({ onDone }: { onDone: () => Promise<void> }) {
 }
 
 function Overview() {
-  const { t } = useI18n();
-  const [stats, setStats] = useState({ users: 0, requests: 0, open: 0, orgs: 0, districts: 0 });
+  const { t, lang } = useI18n();
+  const [stats, setStats] = useState({
+    users: 0,
+    blocked: 0,
+    available: 0,
+    requests: 0,
+    open: 0,
+    fulfilled: 0,
+    donors: 0,
+    recipients: 0,
+    orgs: 0,
+    districts: 0,
+    upazilas: 0,
+    hospitals: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    Promise.all([
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("blood_requests").select("id", { count: "exact", head: true }),
-      supabase.from("blood_requests").select("id", { count: "exact", head: true }).eq("status", "open"),
-      supabase.from("community_orgs").select("id", { count: "exact", head: true }),
-      supabase.from("districts").select("id", { count: "exact", head: true }),
-    ]).then(([u, r, o, org, d]) => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const [
+        users,
+        blocked,
+        available,
+        requests,
+        open,
+        fulfilled,
+        orgs,
+        districts,
+        hospitals,
+        upazilas,
+        donorRows,
+        recipientRows,
+      ] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_blocked", true),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_available", true),
+        supabase.from("blood_requests").select("id", { count: "exact", head: true }),
+        supabase.from("blood_requests").select("id", { count: "exact", head: true }).eq("status", "open"),
+        supabase.from("blood_requests").select("id", { count: "exact", head: true }).eq("status", "fulfilled"),
+        supabase.from("community_orgs").select("id", { count: "exact", head: true }),
+        supabase.from("districts").select("id", { count: "exact", head: true }),
+        supabase.from("hospitals").select("id", { count: "exact", head: true }),
+        supabase.from("upazilas").select("id", { count: "exact", head: true }),
+        supabase.from("request_donation_offers").select("donor_id").eq("status", "confirmed").limit(5000),
+        supabase.from("blood_requests").select("requester_id").eq("status", "fulfilled").limit(5000),
+      ]);
+
+      if (cancelled) return;
+
+      const donorSet = new Set(
+        (donorRows.data ?? []).map((r) => r.donor_id as string).filter(Boolean),
+      );
+      const recipientSet = new Set(
+        (recipientRows.data ?? []).map((r) => r.requester_id as string).filter(Boolean),
+      );
+
       setStats({
-        users: u.count ?? 0,
-        requests: r.count ?? 0,
-        open: o.count ?? 0,
-        orgs: org.count ?? 0,
-        districts: d.count ?? 0,
+        users: users.count ?? 0,
+        blocked: blocked.error ? 0 : (blocked.count ?? 0),
+        available: available.count ?? 0,
+        requests: requests.count ?? 0,
+        open: open.count ?? 0,
+        fulfilled: fulfilled.count ?? 0,
+        donors: donorSet.size,
+        recipients: recipientSet.size,
+        orgs: orgs.count ?? 0,
+        districts: districts.count ?? 0,
+        upazilas: upazilas.error ? 0 : (upazilas.count ?? 0),
+        hospitals: hospitals.count ?? 0,
       });
-    });
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const cards = [
-    { label: t("users"), value: stats.users },
-    { label: t("manageRequests"), value: stats.requests },
-    { label: t("emptyRequests").includes("নেই") ? "Open" : "Open", value: stats.open },
-    { label: t("district"), value: stats.districts },
-    { label: t("community"), value: stats.orgs },
+    { label: lang === "bn" ? "ইউজার" : "Users", value: stats.users },
+    { label: lang === "bn" ? "ব্লকড" : "Blocked", value: stats.blocked },
+    { label: lang === "bn" ? "উপলব্ধ ডোনার" : "Available", value: stats.available },
+    { label: lang === "bn" ? "ডোনার" : "Donors", value: stats.donors },
+    { label: lang === "bn" ? "রেসিপিয়েন্ট" : "Recipients", value: stats.recipients },
+    { label: lang === "bn" ? "রিকোয়েস্ট" : "Requests", value: stats.requests },
+    { label: lang === "bn" ? "ওপেন" : "Open", value: stats.open },
+    { label: lang === "bn" ? "সম্পন্ন" : "Fulfilled", value: stats.fulfilled },
+    { label: lang === "bn" ? "জেলা" : "Districts", value: stats.districts },
+    { label: lang === "bn" ? "উপজেলা" : "Upazilas", value: stats.upazilas },
+    { label: lang === "bn" ? "হাসপাতাল" : "Hospitals", value: stats.hospitals },
+    { label: lang === "bn" ? "কমিউনিটি" : "Community", value: stats.orgs },
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-      {cards.map((c) => (
-        <div key={c.label} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <p className="text-xs text-slate-400">{c.label}</p>
-          <p className="text-2xl font-bold mt-1 text-white">{c.value}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function UsersAdmin() {
-  const { t, lang } = useI18n();
-  const { can, isSuper } = useAdminAccess();
-  const [rows, setRows] = useState<any[]>([]);
-  const [roles, setRoles] = useState<Record<string, string[]>>({});
-  const [staffRoles, setStaffRoles] = useState<{ id: string; name: string; name_bn: string | null }[]>([]);
-  const [userStaff, setUserStaff] = useState<{ user_id: string; role_id: string }[]>([]);
-  const [creds, setCreds] = useState<Record<string, { phone: string | null; pin: string }>>({});
-  const [revealPin, setRevealPin] = useState<Record<string, boolean>>({});
-
-  async function load() {
-    const [{ data: profiles }, { data: roleRows }, { data: ar }, { data: aur }, { data: loginCreds }] =
-      await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, full_name, phone, blood_group, city, is_available, created_at")
-          .order("created_at", { ascending: false })
-          .limit(200),
-        supabase.from("user_roles").select("user_id, role"),
-        supabase.from("admin_roles").select("id, name, name_bn").eq("is_active", true),
-        supabase.from("admin_user_roles").select("user_id, role_id"),
-        supabase.from("user_login_credentials").select("user_id, phone, pin"),
-      ]);
-    setRows(profiles ?? []);
-    const map: Record<string, string[]> = {};
-    for (const r of roleRows ?? []) {
-      map[r.user_id] = [...(map[r.user_id] ?? []), r.role];
-    }
-    setRoles(map);
-    setStaffRoles(ar ?? []);
-    setUserStaff(aur ?? []);
-    const cMap: Record<string, { phone: string | null; pin: string }> = {};
-    for (const c of loginCreds ?? []) {
-      cMap[c.user_id] = { phone: c.phone, pin: c.pin };
-    }
-    setCreds(cMap);
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function setLegacyAdmin(userId: string, makeAdmin: boolean) {
-    if (!isSuper) return toast.error("Super Admin only");
-    if (makeAdmin) {
-      const { error } = await supabase.from("user_roles").upsert({ user_id: userId, role: "admin" });
-      if (error) return toast.error(error.message);
-    } else {
-      await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", "admin");
-    }
-    toast.success(t("saved"));
-    load();
-  }
-
-  async function toggleStaffRole(userId: string, roleId: string, on: boolean) {
-    if (!can("users.set_role") && !can("access.manage")) return;
-    if (on) {
-      const { error } = await supabase.from("admin_user_roles").upsert({ user_id: userId, role_id: roleId });
-      if (error) return toast.error(error.message);
-    } else {
-      const { error } = await supabase.from("admin_user_roles").delete().eq("user_id", userId).eq("role_id", roleId);
-      if (error) return toast.error(error.message);
-    }
-    toast.success(t("saved"));
-    load();
-  }
-
-  async function toggleAvailable(id: string, value: boolean) {
-    if (!can("users.toggle_available")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
-    await supabase.from("profiles").update({ is_available: value }).eq("id", id);
-    load();
-  }
-
-  return (
     <div className="space-y-3">
-      <p className="text-xs text-slate-400 px-1">
-        {lang === "bn"
-          ? "ফোন ও PIN শুধু অ্যাডমিন দেখতে পারে। পুরনো ইউজার লগইন করলে PIN সেভ হবে।"
-          : "Phone & PIN are admin-only. Older users get PIN saved on next login."}
-      </p>
-      <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-800/60 text-xs text-slate-400">
-            <tr>
-              <th className="text-left p-3">{lang === "bn" ? "নাম" : "Name"}</th>
-              <th className="text-left p-3">{lang === "bn" ? "ফোন" : "Phone"}</th>
-              <th className="text-left p-3">PIN</th>
-              <th className="text-left p-3">Blood</th>
-              <th className="text-left p-3">App role</th>
-              <th className="text-left p-3">Staff roles</th>
-              <th className="text-left p-3">Available</th>
-              <th className="p-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((u) => {
-              const cred = creds[u.id];
-              const phone = cred?.phone || u.phone || "—";
-              const pin = cred?.pin;
-              const shown = revealPin[u.id];
-              return (
-                <tr key={u.id} className="border-t border-slate-800">
-                  <td className="p-3">
-                    <p className="font-medium">{u.full_name ?? "—"}</p>
-                  </td>
-                  <td className="p-3">
-                    <span className="font-mono text-xs text-slate-200">{phone}</span>
-                  </td>
-                  <td className="p-3">
-                    {pin ? (
-                      <button
-                        type="button"
-                        onClick={() => setRevealPin((prev) => ({ ...prev, [u.id]: !prev[u.id] }))}
-                        className="inline-flex items-center gap-1.5 font-mono text-xs text-rose-200 hover:text-rose-100"
-                        title={lang === "bn" ? "PIN দেখুন/লুকান" : "Show/hide PIN"}
-                      >
-                        {shown ? pin : "••••"}
-                      </button>
-                    ) : (
-                      <span className="text-[10px] text-slate-500">—</span>
-                    )}
-                  </td>
-                  <td className="p-3">{u.blood_group ?? "—"}</td>
-                  <td className="p-3 text-xs">{(roles[u.id] ?? ["user"]).join(", ")}</td>
-                  <td className="p-3">
-                    {(can("users.set_role") || can("access.manage")) ? (
-                      <div className="flex flex-wrap gap-1 max-w-xs">
-                        {staffRoles.map((r) => {
-                          const on = userStaff.some((x) => x.user_id === u.id && x.role_id === r.id);
-                          return (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => void toggleStaffRole(u.id, r.id, !on)}
-                              className={`text-[10px] px-1.5 py-0.5 rounded ${on ? "bg-rose-600/30 text-rose-200" : "bg-slate-800 text-slate-500"}`}
-                            >
-                              {lang === "bn" ? r.name_bn || r.name : r.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-slate-500">
-                        {staffRoles
-                          .filter((r) => userStaff.some((x) => x.user_id === u.id && x.role_id === r.id))
-                          .map((r) => (lang === "bn" ? r.name_bn || r.name : r.name))
-                          .join(", ") || "—"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <button
-                      type="button"
-                      disabled={!can("users.toggle_available")}
-                      onClick={() => toggleAvailable(u.id, !u.is_available)}
-                      className={`text-xs px-2 py-1 rounded-md disabled:opacity-40 ${u.is_available ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}
-                    >
-                      {u.is_available ? "ON" : "OFF"}
-                    </button>
-                  </td>
-                  <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                    {isSuper && (
-                      <>
-                        <button type="button" onClick={() => setLegacyAdmin(u.id, true)} className="text-xs text-rose-400 hover:underline">
-                          Legacy admin
-                        </button>
-                        <button type="button" onClick={() => setLegacyAdmin(u.id, false)} className="text-xs text-slate-400 hover:underline">
-                          Revoke
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {loading && (
+        <p className="text-xs text-slate-500">{t("loading")}</p>
+      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+            <p className="text-xs text-slate-400">{c.label}</p>
+            <p className="text-2xl font-bold mt-1 text-white tabular-nums">{c.value}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -2263,7 +2154,7 @@ function SettingsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
   const [settingsTab, setSettingsTab] = useState<
-    "urgency" | "feed" | "carousel" | "banner" | "reasons" | "donations" | "menu" | "form" | "app"
+    "urgency" | "feed" | "carousel" | "banner" | "reasons" | "donations" | "menu" | "form" | "profilelock" | "app"
   >("urgency");
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
@@ -2329,6 +2220,7 @@ function SettingsAdmin() {
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
+    { id: "profilelock" as const, bn: "প্রোফাইল লক", en: "Profile lock" },
     { id: "app" as const, bn: "অ্যাপ", en: "App" },
   ];
 
@@ -2358,6 +2250,7 @@ function SettingsAdmin() {
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}
+      {settingsTab === "profilelock" && <ProfileLockAdmin />}
 
       {settingsTab === "form" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">
