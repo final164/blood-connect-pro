@@ -3,6 +3,7 @@
  * against the same Supabase project. Keep UI-free business logic here.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { filterHospitalsBySearch } from "@/lib/hospital-search";
 
 export type District = {
   id: string;
@@ -44,20 +45,21 @@ export async function fetchHospitals(opts?: {
   limit?: number;
 }): Promise<Hospital[]> {
   const upazila = opts?.upazila?.trim() || undefined;
-  // District-wide (no upazila): need room for every upazila's facilities
   const limit = opts?.limit ?? (upazila ? 80 : 400);
-  const q = opts?.q?.trim().toLowerCase() ?? "";
+  const q = opts?.q?.trim() ?? "";
+  const searching = q.length > 0;
+  // When searching, load a wider pool then filter client-side (substring anywhere in name).
+  const fetchCap = searching ? 2000 : Math.max(limit, 500);
 
   const bundled = await searchBundledHospitals({
-    q,
     districtId: opts?.districtId,
     districtSlug: opts?.districtSlug,
     upazila,
-    limit: Math.max(limit, 500),
+    limit: fetchCap,
   });
 
   if (!(await hospitalsTableExists())) {
-    return bundled.slice(0, limit);
+    return filterHospitalsBySearch(bundled, q).slice(0, limit);
   }
 
   let query = supabase
@@ -65,20 +67,16 @@ export async function fetchHospitals(opts?: {
     .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,upazila,districts(slug)")
     .eq("is_active", true)
     .order("name_en", { ascending: true })
-    .limit(Math.max(limit, 500));
+    .limit(fetchCap);
   if (opts?.districtId) query = query.eq("district_id", opts.districtId);
   if (upazila) query = query.ilike("upazila", upazila);
-  if (q) {
-    const safe = q.replace(/[%_,]/g, " ").trim();
-    if (safe) query = query.or(`name_en.ilike.%${safe}%,name_bn.ilike.%${safe}%,slug.ilike.%${safe}%`);
-  }
 
   const { data, error } = await query;
   if (error) {
     if (!/upazila|column/i.test(error.message)) {
       hospitalsTableAvailable = false;
     }
-    return bundled.slice(0, limit);
+    return filterHospitalsBySearch(bundled, q).slice(0, limit);
   }
 
   const fromDb = (data ?? []).map((row: any) => ({
@@ -93,19 +91,21 @@ export async function fetchHospitals(opts?: {
     is_active: row.is_active as boolean,
   }));
 
-  // Prefer DB rows; fill gaps from bundled catalog so every upazila's facilities still appear
   const bySlug = new Map<string, Hospital>();
   for (const h of bundled) bySlug.set(h.slug, h);
   for (const h of fromDb) bySlug.set(h.slug, h);
 
-  const merged = [...bySlug.values()].sort((a, b) =>
-    a.name_en.localeCompare(b.name_en, undefined, { sensitivity: "base" }),
-  );
-  return merged.slice(0, limit);
+  const merged = [...bySlug.values()];
+  const ranked = filterHospitalsBySearch(merged, q);
+  if (!searching) {
+    ranked.sort((a, b) =>
+      a.name_en.localeCompare(b.name_en, undefined, { sensitivity: "base" }),
+    );
+  }
+  return ranked.slice(0, limit);
 }
 
 async function searchBundledHospitals(opts: {
-  q: string;
   districtId?: string;
   districtSlug?: string;
   upazila?: string;
@@ -119,16 +119,6 @@ async function searchBundledHospitals(opts: {
   }
   if (opts.upazila) {
     list = list.filter((h) => hospitalMatchesUpazila(h, opts.upazila));
-  }
-  if (opts.q) {
-    const q = opts.q;
-    list = list.filter(
-      (h) =>
-        h.name_en.toLowerCase().includes(q) ||
-        h.name_bn.includes(q) ||
-        h.name_bn.toLowerCase().includes(q) ||
-        h.slug.includes(q),
-    );
   }
   return list.slice(0, opts.limit).map((h) => ({
     id: `seed:${h.districtSlug}:${h.slug}`,
@@ -180,8 +170,9 @@ export async function fetchHospitalsAdminPage(opts?: {
   }
 
   const bundled = await fetchHospitals({ q: opts?.q, limit: 2000 });
-  const slice = bundled.slice(offset, offset + limit);
-  return { items: slice, hasMore: offset + limit < bundled.length };
+  const filtered = filterHospitalsBySearch(bundled, opts?.q ?? "");
+  const slice = filtered.slice(offset, offset + limit);
+  return { items: slice, hasMore: offset + limit < filtered.length };
 }
 
 export async function fetchAllHospitalsAdmin(): Promise<Hospital[]> {

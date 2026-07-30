@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type FeedCarouselSettings = {
   enabled: boolean;
-  /** Insert a carousel block after every N feed posts (default 2). */
+  /** Show the highlights rail once after the first N feed posts (not repeated). */
   insert_after_every: number;
   title_bn: string;
   title_en: string;

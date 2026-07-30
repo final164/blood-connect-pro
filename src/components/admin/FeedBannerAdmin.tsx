@@ -13,21 +13,21 @@ import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
 import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
 import {
-  DEFAULT_FEED_CAROUSEL_SETTINGS,
-  deleteFeedCarouselSlide,
-  fetchAllFeedCarouselSlides,
-  fetchFeedCarouselSettings,
-  invalidateFeedCarouselCache,
+  DEFAULT_FEED_BANNER_SETTINGS,
+  deleteFeedBannerSlide,
+  fetchAllFeedBannerSlides,
+  fetchFeedBannerSettings,
+  invalidateFeedBannerCache,
   isGoogleDriveUrl,
-  normalizeFeedCarouselSettings,
-  reorderFeedCarouselSlides,
+  normalizeFeedBannerSettings,
+  reorderFeedBannerSlides,
   resolveCarouselImageUrl,
-  saveFeedCarouselSettings,
-  uploadFeedCarouselImage,
-  upsertFeedCarouselSlide,
-  type FeedCarouselSettings,
-  type FeedCarouselSlide,
-} from "@/lib/feed-carousel";
+  saveFeedBannerSettings,
+  uploadFeedBannerImage,
+  upsertFeedBannerSlide,
+  type FeedBannerSettings,
+  type FeedBannerSlide,
+} from "@/lib/feed-banner";
 
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40";
@@ -59,7 +59,7 @@ function ToggleRow({
   );
 }
 
-function emptyDraft(sortOrder: number): Omit<FeedCarouselSlide, "id"> & { id?: string } {
+function emptyDraft(sortOrder: number): Omit<FeedBannerSlide, "id"> & { id?: string } {
   return {
     image_url: "",
     title_bn: "",
@@ -70,23 +70,23 @@ function emptyDraft(sortOrder: number): Omit<FeedCarouselSlide, "id"> & { id?: s
   };
 }
 
-export function FeedCarouselAdmin() {
+export function FeedBannerAdmin() {
   const { lang, t } = useI18n();
   const { can } = useAdminAccess();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [cfg, setCfg] = useState<FeedCarouselSettings>(DEFAULT_FEED_CAROUSEL_SETTINGS);
-  const [slides, setSlides] = useState<FeedCarouselSlide[]>([]);
+  const [cfg, setCfg] = useState<FeedBannerSettings>(DEFAULT_FEED_BANNER_SETTINGS);
+  const [slides, setSlides] = useState<FeedBannerSlide[]>([]);
   const [draft, setDraft] = useState(emptyDraft(10));
   const [uploadForId, setUploadForId] = useState<string | "new">("new");
   const [busy, setBusy] = useState(false);
   const [schemaHint, setSchemaHint] = useState(false);
 
   async function reload() {
-    const settings = await fetchFeedCarouselSettings(true);
+    const settings = await fetchFeedBannerSettings(true);
     setCfg(settings);
-    const { slides: rows, error } = await fetchAllFeedCarouselSlides();
+    const { slides: rows, error } = await fetchAllFeedBannerSlides();
     if (error) {
-      if (/feed_carousel|relation|column|schema/i.test(error.message)) {
+      if (/feed_banner|relation|column|schema/i.test(error.message)) {
         setSchemaHint(true);
       }
       toast.error(error.message);
@@ -101,7 +101,7 @@ export function FeedCarouselAdmin() {
     void reload();
   }, []);
 
-  function setFlag<K extends keyof FeedCarouselSettings>(key: K, value: FeedCarouselSettings[K]) {
+  function setFlag<K extends keyof FeedBannerSettings>(key: K, value: FeedBannerSettings[K]) {
     setCfg((p) => ({ ...p, [key]: value }));
   }
 
@@ -110,25 +110,25 @@ export function FeedCarouselAdmin() {
       return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     }
     setBusy(true);
-    const { error, settings } = await saveFeedCarouselSettings(cfg);
+    const { error, settings } = await saveFeedBannerSettings(cfg);
     setBusy(false);
     if (error) {
-      if (/feed_carousel_settings|column/i.test(error.message)) {
+      if (/feed_banner_settings|column/i.test(error.message)) {
         setSchemaHint(true);
         return toast.error(
           lang === "bn"
-            ? "আগে scripts/feed-carousel.sql চালান"
-            : "Run scripts/feed-carousel.sql first",
+            ? "আগে scripts/feed-banner.sql চালান"
+            : "Run scripts/feed-banner.sql first",
         );
       }
       return toast.error(error.message);
     }
     setCfg(settings);
-    invalidateFeedCarouselCache();
+    invalidateFeedBannerCache();
     toast.success(t("saved"));
   }
 
-  async function saveSlide(slide: Partial<FeedCarouselSlide> & { image_url: string }) {
+  async function saveSlide(slide: Partial<FeedBannerSlide> & { image_url: string }) {
     if (!can("settings.edit")) {
       return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     }
@@ -136,18 +136,18 @@ export function FeedCarouselAdmin() {
       return toast.error(lang === "bn" ? "ইমেজ URL বা আপলোড দিন" : "Provide an image URL or upload");
     }
     setBusy(true);
-    const { error } = await upsertFeedCarouselSlide({
+    const { error } = await upsertFeedBannerSlide({
       ...slide,
       image_url: resolveCarouselImageUrl(slide.image_url),
     });
     setBusy(false);
     if (error) {
-      if (/feed_carousel|relation|schema/i.test(error.message)) {
+      if (/feed_banner|relation|schema/i.test(error.message)) {
         setSchemaHint(true);
         return toast.error(
           lang === "bn"
-            ? "আগে scripts/feed-carousel.sql চালান"
-            : "Run scripts/feed-carousel.sql first",
+            ? "আগে scripts/feed-banner.sql চালান"
+            : "Run scripts/feed-banner.sql first",
         );
       }
       return toast.error(error.message);
@@ -162,7 +162,7 @@ export function FeedCarouselAdmin() {
     }
     if (!confirm(lang === "bn" ? "এই ইমেজ ডিলিট?" : "Delete this image?")) return;
     setBusy(true);
-    const { error } = await deleteFeedCarouselSlide(id);
+    const { error } = await deleteFeedBannerSlide(id);
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(lang === "bn" ? "ডিলিট হয়েছে" : "Deleted");
@@ -179,7 +179,7 @@ export function FeedCarouselAdmin() {
     next[j] = tmp;
     setSlides(next);
     setBusy(true);
-    const { error } = await reorderFeedCarouselSlides(next.map((s) => s.id));
+    const { error } = await reorderFeedBannerSlides(next.map((s) => s.id));
     setBusy(false);
     if (error) {
       toast.error(error.message);
@@ -196,7 +196,7 @@ export function FeedCarouselAdmin() {
       return toast.error(lang === "bn" ? "সর্বোচ্চ ৫ MB" : "Max 5 MB");
     }
     setBusy(true);
-    const { url, error } = await uploadFeedCarouselImage(file);
+    const { url, error } = await uploadFeedBannerImage(file);
     setBusy(false);
     if (error || !url) {
       if (/bucket|policy|storage|not found/i.test(error?.message ?? "")) {
@@ -208,14 +208,12 @@ export function FeedCarouselAdmin() {
       setDraft((d) => ({ ...d, image_url: url }));
     } else {
       const target = slides.find((s) => s.id === uploadForId);
-      if (target) {
-        await saveSlide({ ...target, image_url: url });
-      }
+      if (target) await saveSlide({ ...target, image_url: url });
     }
     toast.success(lang === "bn" ? "আপলোড হয়েছে" : "Uploaded");
   }
 
-  function patchSlideLocal(id: string, patch: Partial<FeedCarouselSlide>) {
+  function patchSlideLocal(id: string, patch: Partial<FeedBannerSlide>) {
     setSlides((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
@@ -224,8 +222,8 @@ export function FeedCarouselAdmin() {
       {schemaHint && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
           {lang === "bn"
-            ? "ডাটাবেস সেটআপ বাকি — Supabase SQL Editor-এ scripts/feed-carousel.sql চালান।"
-            : "Database setup pending — run scripts/feed-carousel.sql in the Supabase SQL Editor."}
+            ? "ডাটাবেস সেটআপ বাকি — Supabase SQL Editor-এ scripts/feed-banner.sql চালান।"
+            : "Database setup pending — run scripts/feed-banner.sql in the Supabase SQL Editor."}
         </div>
       )}
 
@@ -233,12 +231,12 @@ export function FeedCarouselAdmin() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold">
-              {lang === "bn" ? "ফিড ইমেজ ক্যারোজেল" : "Feed image carousel"}
+              {lang === "bn" ? "ফুল-উইডথ ব্যানার স্লাইডার" : "Full-width banner slider"}
             </h3>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {lang === "bn"
-                ? "প্রথম Nটি পোস্টের পর একবার হরাইজন্টাল ইমেজ স্লাইডার দেখাবে।"
-                : "Shows a horizontal image slider once after the first N posts."}
+                ? "একটার পর একটা ফুল-উইডথ ইমেজ স্লাইড — প্রথম N পোস্টের পর একবার।"
+                : "Full-width images sliding one-by-one — once after the first N posts."}
             </p>
           </div>
           <button
@@ -254,7 +252,7 @@ export function FeedCarouselAdmin() {
 
         <ToggleRow
           title={lang === "bn" ? "ফিডে দেখাও" : "Show in feed"}
-          hint={lang === "bn" ? "বন্ধ করলে ক্যারোজেল লুকানো থাকবে" : "Hide the carousel when off"}
+          hint={lang === "bn" ? "বন্ধ করলে ব্যানার লুকানো থাকবে" : "Hide the banner when off"}
           checked={cfg.enabled}
           onChange={(v) => setFlag("enabled", v)}
         />
@@ -266,53 +264,40 @@ export function FeedCarouselAdmin() {
             </label>
             <input
               type="number"
-              min={1}
-              max={20}
+              min={0}
+              max={50}
               className={ainp}
-              value={cfg.insert_after_every}
-              onChange={(e) => setFlag("insert_after_every", Number(e.target.value) || 2)}
+              value={cfg.insert_after_posts}
+              onChange={(e) => setFlag("insert_after_posts", Number(e.target.value) || 0)}
             />
             <p className="text-[10px] text-slate-500 mt-1">
               {lang === "bn"
-                ? "উদাহরণ: ২ = শুধু প্রথম ২ পোস্টের পর একবার; পরে আর আসবে না।"
-                : "Example: 2 = once after the first 2 posts only; not repeated."}
+                ? "০ = ফিডের একেবারে উপরে; ৪ = প্রথম ৪ পোস্টের পর একবার।"
+                : "0 = top of feed; 4 = once after the first 4 posts."}
             </p>
           </div>
           <div>
             <label className="text-[10px] text-slate-500">
-              {lang === "bn" ? "কার্ড প্রস্থ (px)" : "Card width (px)"}
+              {lang === "bn" ? "অ্যাস্পেক্ট (যেমন 16/9)" : "Aspect (e.g. 16/9)"}
             </label>
             <input
-              type="number"
-              min={80}
-              max={280}
               className={ainp}
-              value={cfg.card_basis_px}
-              onChange={(e) => setFlag("card_basis_px", Number(e.target.value) || 128)}
+              value={cfg.aspect_ratio}
+              onChange={(e) => setFlag("aspect_ratio", e.target.value)}
+              placeholder="16/9"
             />
           </div>
           <div>
             <label className="text-[10px] text-slate-500">
-              {lang === "bn" ? "অ্যাস্পেক্ট (যেমন 2/3)" : "Aspect (e.g. 2/3)"}
-            </label>
-            <input
-              className={ainp}
-              value={cfg.card_aspect}
-              onChange={(e) => setFlag("card_aspect", e.target.value)}
-              placeholder="2/3"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-500">
-              {lang === "bn" ? "গ্যাপ (px)" : "Gap (px)"}
+              {lang === "bn" ? "সর্বোচ্চ উচ্চতা (px)" : "Max height (px)"}
             </label>
             <input
               type="number"
-              min={0}
-              max={32}
+              min={120}
+              max={640}
               className={ainp}
-              value={cfg.gap_px}
-              onChange={(e) => setFlag("gap_px", Number(e.target.value) || 0)}
+              value={cfg.max_height_px}
+              onChange={(e) => setFlag("max_height_px", Number(e.target.value) || 280)}
             />
           </div>
           <div>
@@ -338,7 +323,7 @@ export function FeedCarouselAdmin() {
               max={60000}
               className={ainp}
               value={cfg.autoplay_ms}
-              onChange={(e) => setFlag("autoplay_ms", Number(e.target.value) || 4500)}
+              onChange={(e) => setFlag("autoplay_ms", Number(e.target.value) || 5000)}
             />
           </div>
         </div>
@@ -376,6 +361,18 @@ export function FeedCarouselAdmin() {
             onChange={(v) => setFlag("show_nav_arrows", v)}
           />
           <ToggleRow
+            title={lang === "bn" ? "ডট ইন্ডিকেটর" : "Dot indicators"}
+            hint={lang === "bn" ? "নিচে পেজ ডট" : "Page dots under the banner"}
+            checked={cfg.show_dots}
+            onChange={(v) => setFlag("show_dots", v)}
+          />
+          <ToggleRow
+            title={lang === "bn" ? "ক্যাপশন দেখাও" : "Show captions"}
+            hint={lang === "bn" ? "ইমেজের উপর টাইটেল" : "Title overlay on image"}
+            checked={cfg.show_captions}
+            onChange={(v) => setFlag("show_captions", v)}
+          />
+          <ToggleRow
             title={lang === "bn" ? "লুপ" : "Loop"}
             hint={lang === "bn" ? "শেষে গিয়ে আবার শুরু" : "Wrap around at ends"}
             checked={cfg.loop}
@@ -388,12 +385,6 @@ export function FeedCarouselAdmin() {
             onChange={(v) => setFlag("autoplay", v)}
           />
           <ToggleRow
-            title={lang === "bn" ? "আইটেম মেনু আইকন" : "Item menu icon"}
-            hint={lang === "bn" ? "ছবির উপর তিন ডট" : "Three dots overlay on cards"}
-            checked={cfg.show_item_menu}
-            onChange={(v) => setFlag("show_item_menu", v)}
-          />
-          <ToggleRow
             title={lang === "bn" ? "লিংক নতুন ট্যাবে" : "Open links in new tab"}
             hint={lang === "bn" ? "স্লাইডে URL থাকলে" : "When a slide has a URL"}
             checked={cfg.open_links_new_tab}
@@ -404,7 +395,7 @@ export function FeedCarouselAdmin() {
         <button
           type="button"
           className="text-[11px] text-slate-400 underline"
-          onClick={() => setCfg(normalizeFeedCarouselSettings(DEFAULT_FEED_CAROUSEL_SETTINGS))}
+          onClick={() => setCfg(normalizeFeedBannerSettings(DEFAULT_FEED_BANNER_SETTINGS))}
         >
           {lang === "bn" ? "ডিফল্ট সেটিংস রিসেট" : "Reset settings to defaults"}
         </button>
@@ -413,7 +404,7 @@ export function FeedCarouselAdmin() {
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <ImagePlus className="h-4 w-4 text-rose-400" />
-          {lang === "bn" ? "ইমেজ স্লাইড" : "Image slides"}
+          {lang === "bn" ? "ব্যানার ইমেজ" : "Banner images"}
         </h3>
 
         <input
@@ -436,23 +427,21 @@ export function FeedCarouselAdmin() {
             <CarouselRemoteImage
               src={draft.image_url}
               alt=""
-              className="h-28 w-20 rounded-lg object-cover border border-slate-700"
+              className="h-24 w-full max-w-sm rounded-lg object-cover border border-slate-700"
             />
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setUploadForId("new");
-                fileRef.current?.click();
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              {lang === "bn" ? "ইমেজ আপলোড" : "Upload image"}
-            </button>
-          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setUploadForId("new");
+              fileRef.current?.click();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            {lang === "bn" ? "ইমেজ আপলোড" : "Upload image"}
+          </button>
           <div>
             <label className="text-[10px] text-slate-500 flex items-center gap-1">
               <Link2 className="h-3 w-3" />
@@ -466,12 +455,12 @@ export function FeedCarouselAdmin() {
             />
             <p className="text-[10px] text-slate-500 mt-1">
               {lang === "bn"
-                ? "Google Drive শেয়ার লিঙ্ক চলবে — ফাইল Share → Anyone with the link রাখুন।"
-                : "Google Drive share links work — set Share → Anyone with the link."}
+                ? "Google Drive শেয়ার লিঙ্ক চলবে — Share → Anyone with the link।"
+                : "Google Drive share links work — Share → Anyone with the link."}
               {isGoogleDriveUrl(draft.image_url) ? (
                 <span className="text-emerald-400">
                   {" "}
-                  {lang === "bn" ? "Drive লিঙ্ক শনাক্ত হয়েছে।" : "Drive link detected."}
+                  {lang === "bn" ? "Drive লিঙ্ক শনাক্ত।" : "Drive link detected."}
                 </span>
               ) : null}
             </p>
@@ -530,7 +519,7 @@ export function FeedCarouselAdmin() {
                 <CarouselRemoteImage
                   src={slide.image_url}
                   alt=""
-                  className="h-24 w-18 rounded-lg object-cover border border-slate-700 shrink-0"
+                  className="h-20 w-36 rounded-lg object-cover border border-slate-700 shrink-0"
                 />
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
@@ -550,7 +539,6 @@ export function FeedCarouselAdmin() {
                         disabled={busy || i === 0}
                         onClick={() => void moveSlide(slide.id, -1)}
                         className="rounded p-1 text-slate-400 hover:bg-slate-800 disabled:opacity-30"
-                        aria-label="Move up"
                       >
                         <ArrowUp className="h-3.5 w-3.5" />
                       </button>
@@ -559,7 +547,6 @@ export function FeedCarouselAdmin() {
                         disabled={busy || i === slides.length - 1}
                         onClick={() => void moveSlide(slide.id, 1)}
                         className="rounded p-1 text-slate-400 hover:bg-slate-800 disabled:opacity-30"
-                        aria-label="Move down"
                       >
                         <ArrowDown className="h-3.5 w-3.5" />
                       </button>
@@ -568,7 +555,6 @@ export function FeedCarouselAdmin() {
                         disabled={busy}
                         onClick={() => void removeSlide(slide.id)}
                         className="rounded p-1 text-rose-400 hover:bg-rose-500/10"
-                        aria-label="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -580,13 +566,6 @@ export function FeedCarouselAdmin() {
                     onChange={(e) => patchSlideLocal(slide.id, { image_url: e.target.value })}
                     placeholder="https://drive.google.com/file/d/…/view"
                   />
-                  {isGoogleDriveUrl(slide.image_url) && (
-                    <p className="text-[10px] text-emerald-400/90">
-                      {lang === "bn"
-                        ? "Drive লিঙ্ক — সেভে প্রিভিউ URL সেভ হবে"
-                        : "Drive link — preview URL saved on save"}
-                    </p>
-                  )}
                   <div className="grid grid-cols-2 gap-1.5">
                     <input
                       className={ainp}

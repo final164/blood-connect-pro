@@ -161,9 +161,11 @@ export function HospitalTypeahead({
           onFocus={() => setOpen(true)}
           onBlur={onBlurInput}
           onChange={(e) => {
-            setQ(e.target.value);
+            const next = e.target.value;
+            setQ(next);
             setOpen(true);
             if (value) onChange(null);
+            if (next.trim()) setItems([]);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && showCustomOption) {
