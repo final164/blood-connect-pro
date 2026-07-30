@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -16,6 +16,13 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
+import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
+import {
+  DEFAULT_FEED_CAROUSEL_SETTINGS,
+  fetchFeedCarouselBundle,
+  type FeedCarouselSettings,
+  type FeedCarouselSlide,
+} from "@/lib/feed-carousel";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
@@ -43,6 +50,10 @@ function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [carouselSettings, setCarouselSettings] = useState<FeedCarouselSettings>(
+    DEFAULT_FEED_CAROUSEL_SETTINGS,
+  );
+  const [carouselSlides, setCarouselSlides] = useState<FeedCarouselSlide[]>([]);
   const loadGen = useRef(0);
   const rtTimer = useRef<number | null>(null);
   const itemsRef = useRef(items);
@@ -51,6 +62,13 @@ function FeedPage() {
   useEffect(() => {
     setShowComposer(!!compose);
   }, [compose]);
+
+  useEffect(() => {
+    void fetchFeedCarouselBundle(true).then(({ settings, slides }) => {
+      setCarouselSettings(settings);
+      setCarouselSlides(slides);
+    });
+  }, []);
 
   function closeComposer() {
     setShowComposer(false);
@@ -332,16 +350,28 @@ function FeedPage() {
                 </button>
               </li>
             )}
-            {items.map((r) => (
-              <li key={r.id} id={`request-${r.id}`}>
-                <RequestCard
-                  request={r}
-                  currentUserId={user?.id}
-                  onChanged={() => void loadPage(true)}
-                  highlighted={highlightId === r.id}
-                />
-              </li>
-            ))}
+            {items.map((r, index) => {
+              const every = Math.max(1, carouselSettings.insert_after_every || 2);
+              const showCarousel =
+                carouselSettings.enabled && carouselSlides.length > 0 && (index + 1) % every === 0;
+              return (
+                <Fragment key={r.id}>
+                  <li id={`request-${r.id}`}>
+                    <RequestCard
+                      request={r}
+                      currentUserId={user?.id}
+                      onChanged={() => void loadPage(true)}
+                      highlighted={highlightId === r.id}
+                    />
+                  </li>
+                  {showCarousel && (
+                    <li className="lg:col-span-2 list-none">
+                      <FeedImageCarousel settings={carouselSettings} slides={carouselSlides} />
+                    </li>
+                  )}
+                </Fragment>
+              );
+            })}
           </ul>
           <InfiniteSentinel
             sentinelRef={sentinelRef}
