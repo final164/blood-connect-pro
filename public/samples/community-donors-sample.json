@@ -1,42 +1,12 @@
 [
-  {
-    "name": "রফিক উদ্দিন",
-    "phone": "01711111111",
-    "blood_group": "O+",
-    "district": "Dhaka",
-    "upazila": "Savar",
-    "address": "মিরপুর-১০"
-  },
-  {
-    "name": "সালমা খাতুন",
-    "phone": "01822222222",
-    "blood_group": "A+",
-    "district": "Dhaka",
-    "upazila": "Keraniganj",
-    "address": "গুলশান-২"
-  },
-  {
-    "name": "করিম হোসেন",
-    "phone": "01933333333",
-    "blood_group": "B+",
-    "district": "Chattogram",
-    "upazila": "Patiya",
-    "address": "আগ্রাবাদ"
-  },
-  {
-    "name": "নাসির উদ্দিন",
-    "phone": "01644444444",
-    "blood_group": "AB+",
-    "district": "Sylhet",
-    "upazila": "Golapganj",
-    "address": "জিন্দাবাজার"
-  },
-  {
-    "name": "ফাতেমা বেগম",
-    "phone": "01555555555",
-    "blood_group": "O-",
-    "district": "Rajshahi",
-    "upazila": "Paba",
-    "address": "শাহ মখদুম"
-  }
+  { "name": "রফিক উদ্দিন", "phone": "01711111111", "blood_group": "O+", "address": "মিরপুর-১০" },
+  { "name": "সালমা খাতুন", "phone": "01822222222", "blood_group": "A+", "address": "গুলশান-২" },
+  { "name": "করিম হোসেন", "phone": "01933333333", "blood_group": "B+", "address": "আগ্রাবাদ" },
+  { "name": "নাসির উদ্দিন", "phone": "01644444444", "blood_group": "AB+", "address": "জিন্দাবাজার" },
+  { "name": "ফাতেমা বেগম", "phone": "01555555555", "blood_group": "O-", "address": "শাহ মখদুম" },
+  { "name": "আব্দুল্লাহ আল মামুন", "phone": "01766666666", "blood_group": "A-", "address": "ধানমন্ডি ৩২" },
+  { "name": "নাজমা আক্তার", "phone": "01877777777", "blood_group": "B-", "address": "উত্তরা সেক্টর ৭" },
+  { "name": "ইমরান হোসেন", "phone": "01988888888", "blood_group": "AB-", "address": "মগবাজার" },
+  { "name": "শাহানা পারভীন", "phone": "01699999999", "blood_group": "O+", "address": "বনানী" },
+  { "name": "তানভীর আহমেদ", "phone": "01510101010", "blood_group": "A+" }
 ]

@@ -18,12 +18,11 @@ export type CommunityDonorRow = {
   districts?: { name_bn: string; name_en: string; slug: string } | null;
 };
 
+/** File columns: name, phone, blood_group, address (optional). District/upazila from form. */
 export type DonorImportInput = {
   name: string;
   phone: string;
   blood_group?: string | null;
-  district?: string | null;
-  upazila?: string | null;
   address?: string | null;
 };
 
@@ -36,16 +35,14 @@ const HEADER_ALIASES: Record<string, keyof DonorImportInput> = {
   phone_number: "phone",
   mobile: "phone",
   contact: "phone",
+  ফোন: "phone",
   blood_group: "blood_group",
   "blood group": "blood_group",
   bloodgroup: "blood_group",
+  bg: "blood_group",
   group: "blood_group",
-  district: "district",
-  জেলা: "district",
-  upazila: "upazila",
-  upazilla: "upazila",
-  subdistrict: "upazila",
-  উপজেলা: "upazila",
+  রক্তের_গ্রুপ: "blood_group",
+  "রক্তের গ্রুপ": "blood_group",
   address: "address",
   ঠিকানা: "address",
 };
@@ -77,12 +74,14 @@ function parseJson(text: string): DonorImportInput[] {
   const list = Array.isArray(data) ? data : [data];
   return list
     .map((item: Record<string, unknown>) => ({
-      name: String(item.name ?? item.full_name ?? "").trim(),
-      phone: String(item.phone ?? item.phone_number ?? item.mobile ?? "").trim(),
-      blood_group: item.blood_group ? String(item.blood_group).trim() : null,
-      district: item.district ? String(item.district).trim() : null,
-      upazila: item.upazila ? String(item.upazila).trim() : null,
-      address: item.address ? String(item.address).trim() : null,
+      name: String(item.name ?? item.full_name ?? item.Name ?? "").trim(),
+      phone: String(item.phone ?? item.phone_number ?? item.mobile ?? item.Phone ?? "").trim(),
+      blood_group: item.blood_group || item.Blood_group || item["blood group"]
+        ? String(item.blood_group ?? item.Blood_group ?? item["blood group"]).trim()
+        : null,
+      address: item.address || item.Address
+        ? String(item.address ?? item.Address).trim()
+        : null,
     }))
     .filter((r) => r.name && r.phone);
 }
@@ -100,7 +99,9 @@ async function parseXlsx(file: File): Promise<DonorImportInput[]> {
       for (const [rawKey, val] of Object.entries(item)) {
         const key = HEADER_ALIASES[normHeader(rawKey)];
         if (!key) continue;
-        (mapped as Record<string, string | null>)[key] = String(val ?? "").trim() || null;
+        const s = String(val ?? "").trim();
+        if (!s) continue;
+        (mapped as Record<string, string | null>)[key] = s;
       }
       return mapped;
     })
@@ -120,20 +121,6 @@ export async function parseDonorImportFile(file: File): Promise<DonorImportInput
   }
 }
 
-function resolveDistrictId(label: string | null | undefined, districts: District[]): string | null {
-  if (!label?.trim()) return null;
-  const q = label.trim().toLowerCase();
-  const hit = districts.find(
-    (d) =>
-      d.name_en.toLowerCase() === q ||
-      d.name_bn.toLowerCase() === q ||
-      d.slug.toLowerCase() === q ||
-      d.name_en.toLowerCase().includes(q) ||
-      d.name_bn.includes(label.trim()),
-  );
-  return hit?.id ?? null;
-}
-
 function normalizeBloodGroup(bg: string | null | undefined): string | null {
   if (!bg?.trim()) return null;
   const u = bg.trim().toUpperCase().replace(/\s/g, "");
@@ -141,12 +128,24 @@ function normalizeBloodGroup(bg: string | null | undefined): string | null {
   return found ?? null;
 }
 
+export type DonorImportLocation = {
+  districtId: string;
+  upazila?: string | null;
+};
+
 export async function bulkImportCommunityDonors(
   orgId: string,
   rows: DonorImportInput[],
+  location: DonorImportLocation,
   districts: District[],
 ): Promise<{ inserted: number; skipped: number; errors: string[] }> {
   const errors: string[] = [];
+  if (!location.districtId) {
+    return { inserted: 0, skipped: rows.length, errors: ["District is required"] };
+  }
+  const districtHit = districts.find((d) => d.id === location.districtId);
+  const upazila = resolveUpazilaLabel(location.upazila, districtHit?.slug ?? null);
+
   const payload = rows
     .map((r, i) => {
       const phone = r.phone.replace(/\D/g, "");
@@ -158,15 +157,13 @@ export async function bulkImportCommunityDonors(
       if (r.blood_group?.trim() && !bg) {
         errors.push(`Row ${i + 1}: invalid blood group "${r.blood_group}"`);
       }
-      const districtId = resolveDistrictId(r.district, districts);
-      const districtHit = districtId ? districts.find((d) => d.id === districtId) : undefined;
       return {
         org_id: orgId,
         full_name: r.name.trim(),
         phone: r.phone.trim(),
         blood_group: bg,
-        district_id: districtId,
-        upazila: resolveUpazilaLabel(r.upazila, districtHit?.slug ?? null),
+        district_id: location.districtId,
+        upazila,
         address: r.address?.trim() || null,
         is_active: true,
       };
