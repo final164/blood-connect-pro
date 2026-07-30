@@ -439,14 +439,22 @@ function UsersAdmin() {
   const [roles, setRoles] = useState<Record<string, string[]>>({});
   const [staffRoles, setStaffRoles] = useState<{ id: string; name: string; name_bn: string | null }[]>([]);
   const [userStaff, setUserStaff] = useState<{ user_id: string; role_id: string }[]>([]);
+  const [creds, setCreds] = useState<Record<string, { phone: string | null; pin: string }>>({});
+  const [revealPin, setRevealPin] = useState<Record<string, boolean>>({});
 
   async function load() {
-    const [{ data: profiles }, { data: roleRows }, { data: ar }, { data: aur }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, phone, blood_group, city, is_available, created_at").order("created_at", { ascending: false }).limit(200),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("admin_roles").select("id, name, name_bn").eq("is_active", true),
-      supabase.from("admin_user_roles").select("user_id, role_id"),
-    ]);
+    const [{ data: profiles }, { data: roleRows }, { data: ar }, { data: aur }, { data: loginCreds }] =
+      await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, phone, blood_group, city, is_available, created_at")
+          .order("created_at", { ascending: false })
+          .limit(200),
+        supabase.from("user_roles").select("user_id, role"),
+        supabase.from("admin_roles").select("id, name, name_bn").eq("is_active", true),
+        supabase.from("admin_user_roles").select("user_id, role_id"),
+        supabase.from("user_login_credentials").select("user_id, phone, pin"),
+      ]);
     setRows(profiles ?? []);
     const map: Record<string, string[]> = {};
     for (const r of roleRows ?? []) {
@@ -455,6 +463,11 @@ function UsersAdmin() {
     setRoles(map);
     setStaffRoles(ar ?? []);
     setUserStaff(aur ?? []);
+    const cMap: Record<string, { phone: string | null; pin: string }> = {};
+    for (const c of loginCreds ?? []) {
+      cMap[c.user_id] = { phone: c.phone, pin: c.pin };
+    }
+    setCreds(cMap);
   }
 
   useEffect(() => {
@@ -493,79 +506,110 @@ function UsersAdmin() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-800/60 text-xs text-slate-400">
-          <tr>
-            <th className="text-left p-3">Name</th>
-            <th className="text-left p-3">Blood</th>
-            <th className="text-left p-3">App role</th>
-            <th className="text-left p-3">Staff roles</th>
-            <th className="text-left p-3">Available</th>
-            <th className="p-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((u) => (
-            <tr key={u.id} className="border-t border-slate-800">
-              <td className="p-3">
-                <p className="font-medium">{u.full_name ?? "—"}</p>
-                <p className="text-[10px] text-slate-500">{u.phone}</p>
-              </td>
-              <td className="p-3">{u.blood_group ?? "—"}</td>
-              <td className="p-3 text-xs">{(roles[u.id] ?? ["user"]).join(", ")}</td>
-              <td className="p-3">
-                {(can("users.set_role") || can("access.manage")) ? (
-                  <div className="flex flex-wrap gap-1 max-w-xs">
-                    {staffRoles.map((r) => {
-                      const on = userStaff.some((x) => x.user_id === u.id && x.role_id === r.id);
-                      return (
-                        <button
-                          key={r.id}
-                          type="button"
-                          onClick={() => void toggleStaffRole(u.id, r.id, !on)}
-                          className={`text-[10px] px-1.5 py-0.5 rounded ${on ? "bg-rose-600/30 text-rose-200" : "bg-slate-800 text-slate-500"}`}
-                        >
-                          {lang === "bn" ? r.name_bn || r.name : r.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-slate-500">
-                    {staffRoles
-                      .filter((r) => userStaff.some((x) => x.user_id === u.id && x.role_id === r.id))
-                      .map((r) => (lang === "bn" ? r.name_bn || r.name : r.name))
-                      .join(", ") || "—"}
-                  </span>
-                )}
-              </td>
-              <td className="p-3">
-                <button
-                  type="button"
-                  disabled={!can("users.toggle_available")}
-                  onClick={() => toggleAvailable(u.id, !u.is_available)}
-                  className={`text-xs px-2 py-1 rounded-md disabled:opacity-40 ${u.is_available ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}
-                >
-                  {u.is_available ? "ON" : "OFF"}
-                </button>
-              </td>
-              <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                {isSuper && (
-                  <>
-                    <button type="button" onClick={() => setLegacyAdmin(u.id, true)} className="text-xs text-rose-400 hover:underline">
-                      Legacy admin
-                    </button>
-                    <button type="button" onClick={() => setLegacyAdmin(u.id, false)} className="text-xs text-slate-400 hover:underline">
-                      Revoke
-                    </button>
-                  </>
-                )}
-              </td>
+    <div className="space-y-3">
+      <p className="text-xs text-slate-400 px-1">
+        {lang === "bn"
+          ? "ফোন ও PIN শুধু অ্যাডমিন দেখতে পারে। পুরনো ইউজার লগইন করলে PIN সেভ হবে।"
+          : "Phone & PIN are admin-only. Older users get PIN saved on next login."}
+      </p>
+      <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-800/60 text-xs text-slate-400">
+            <tr>
+              <th className="text-left p-3">{lang === "bn" ? "নাম" : "Name"}</th>
+              <th className="text-left p-3">{lang === "bn" ? "ফোন" : "Phone"}</th>
+              <th className="text-left p-3">PIN</th>
+              <th className="text-left p-3">Blood</th>
+              <th className="text-left p-3">App role</th>
+              <th className="text-left p-3">Staff roles</th>
+              <th className="text-left p-3">Available</th>
+              <th className="p-3" />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((u) => {
+              const cred = creds[u.id];
+              const phone = cred?.phone || u.phone || "—";
+              const pin = cred?.pin;
+              const shown = revealPin[u.id];
+              return (
+                <tr key={u.id} className="border-t border-slate-800">
+                  <td className="p-3">
+                    <p className="font-medium">{u.full_name ?? "—"}</p>
+                  </td>
+                  <td className="p-3">
+                    <span className="font-mono text-xs text-slate-200">{phone}</span>
+                  </td>
+                  <td className="p-3">
+                    {pin ? (
+                      <button
+                        type="button"
+                        onClick={() => setRevealPin((prev) => ({ ...prev, [u.id]: !prev[u.id] }))}
+                        className="inline-flex items-center gap-1.5 font-mono text-xs text-rose-200 hover:text-rose-100"
+                        title={lang === "bn" ? "PIN দেখুন/লুকান" : "Show/hide PIN"}
+                      >
+                        {shown ? pin : "••••"}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-500">—</span>
+                    )}
+                  </td>
+                  <td className="p-3">{u.blood_group ?? "—"}</td>
+                  <td className="p-3 text-xs">{(roles[u.id] ?? ["user"]).join(", ")}</td>
+                  <td className="p-3">
+                    {(can("users.set_role") || can("access.manage")) ? (
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {staffRoles.map((r) => {
+                          const on = userStaff.some((x) => x.user_id === u.id && x.role_id === r.id);
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => void toggleStaffRole(u.id, r.id, !on)}
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${on ? "bg-rose-600/30 text-rose-200" : "bg-slate-800 text-slate-500"}`}
+                            >
+                              {lang === "bn" ? r.name_bn || r.name : r.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-slate-500">
+                        {staffRoles
+                          .filter((r) => userStaff.some((x) => x.user_id === u.id && x.role_id === r.id))
+                          .map((r) => (lang === "bn" ? r.name_bn || r.name : r.name))
+                          .join(", ") || "—"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <button
+                      type="button"
+                      disabled={!can("users.toggle_available")}
+                      onClick={() => toggleAvailable(u.id, !u.is_available)}
+                      className={`text-xs px-2 py-1 rounded-md disabled:opacity-40 ${u.is_available ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-400"}`}
+                    >
+                      {u.is_available ? "ON" : "OFF"}
+                    </button>
+                  </td>
+                  <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                    {isSuper && (
+                      <>
+                        <button type="button" onClick={() => setLegacyAdmin(u.id, true)} className="text-xs text-rose-400 hover:underline">
+                          Legacy admin
+                        </button>
+                        <button type="button" onClick={() => setLegacyAdmin(u.id, false)} className="text-xs text-slate-400 hover:underline">
+                          Revoke
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
