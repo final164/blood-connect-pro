@@ -5,8 +5,10 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaTypeahead } from "@/components/district/UpazilaTypeahead";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
+import { getProfile } from "@/lib/api";
 import {
   DEFAULT_REQUEST_FORM_OPTIONS,
   fetchRequestFormOptions,
@@ -40,6 +42,7 @@ export function RequestComposer({
   const [busy, setBusy] = useState(false);
   const [opts, setOpts] = useState<RequestFormOptions>(DEFAULT_REQUEST_FORM_OPTIONS);
   const [district, setDistrict] = useState<District | null>(defaultDistrict);
+  const [upazila, setUpazila] = useState("");
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [categories, setCategories] = useState<NeedReasonCategory[]>([]);
   const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
@@ -58,6 +61,22 @@ export function RequestComposer({
   });
 
   useEffect(() => setDistrict(defaultDistrict), [defaultDistrict]);
+  useEffect(() => {
+    if (!user) return;
+    // Do not auto-fill upazila — leave blank until hospital pick or manual select.
+    if (defaultDistrict) return;
+    getProfile(user.id).then((p) => {
+      if (!p?.district_id) return;
+      void supabase
+        .from("districts")
+        .select("id,name_bn,name_en,slug,is_active,sort_order")
+        .eq("id", p.district_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setDistrict(data as District);
+        });
+    });
+  }, [user?.id, defaultDistrict]);
   useEffect(() => {
     fetchRequestFormOptions().then(setOpts);
     fetchNeedReasonCatalog().then((c: NeedReasonCatalog) => {
@@ -154,6 +173,7 @@ export function RequestComposer({
       requester_id: user.id,
       district_id: district?.id ?? null,
       city: district ? (lang === "bn" ? district.name_bn : district.name_en) : "",
+      area: upazila.trim() || null,
       needed_by: resolveNeededByIso(),
       urgency: form.urgency,
       notes: form.notes.trim() || null,
@@ -281,23 +301,41 @@ export function RequestComposer({
         </div>
       </div>
 
-      <DistrictTypeahead
-        value={district}
-        onChange={(d) => {
-          setDistrict(d);
-          setHospital(null);
-        }}
-        required={req("district")}
-        placeholder={ph("জেলা খুঁজুন…", "Search district…")}
-      />
+      <div className="grid grid-cols-2 gap-2">
+        <DistrictTypeahead
+          value={district}
+          onChange={(d) => {
+            setDistrict(d);
+            setUpazila("");
+            setHospital(null);
+          }}
+          required={req("district")}
+          placeholder={ph("জেলা খুঁজুন…", "Search district…")}
+        />
+        <UpazilaTypeahead
+          key={district?.id ?? "none"}
+          district={district}
+          value={upazila}
+          onChange={(v) => {
+            setUpazila(v);
+            setHospital(null);
+          }}
+          placeholder={ph("উপজেলা খুঁজুন…", "Search upazila…")}
+        />
+      </div>
 
       <HospitalTypeahead
+        key={district?.id ?? "d"}
         value={hospital}
-        onChange={setHospital}
+        onChange={(h) => {
+          setHospital(h);
+          if (h?.upazila?.trim()) setUpazila(h.upazila.trim());
+        }}
         districtId={district?.id}
         districtSlug={district?.slug}
+        upazila={upazila || null}
         required={req("hospital")}
-        placeholder={ph("হাসপাতাল খুঁজুন…", "Search hospital…")}
+        placeholder={ph("হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক…", "Hospital / clinic / diagnostic…")}
       />
 
       <input

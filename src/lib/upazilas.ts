@@ -1,5 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getAllDistrictUpazilaSeeds, getUpazilasForDistrictSlug, type UpazilaOption } from "@/data/bangladesh-clinics";
+import {
+  getAllDistrictUpazilaSeeds,
+  getUpazilasForDistrictSlug,
+  withDistrictSadar,
+  type UpazilaOption,
+} from "@/data/bangladesh-clinics";
 import type { District } from "@/lib/api";
 
 export type Upazila = {
@@ -64,15 +69,22 @@ export async function fetchUpazilasForDistrict(districtId: string, admin = false
 export async function fetchUpazilaOptions(district: District | null): Promise<UpazilaOption[]> {
   if (!district) return [];
   const catalog = getUpazilasForDistrictSlug(district.slug);
+  let list: UpazilaOption[];
   if (await upazilasTableExists()) {
     try {
       const rows = await fetchUpazilasForDistrict(district.id);
-      return mergeUpazilaOptions(upazilaOptionsFromRows(rows), catalog);
+      list = mergeUpazilaOptions(upazilaOptionsFromRows(rows), catalog);
     } catch {
-      return catalog;
+      list = catalog;
     }
+  } else {
+    list = catalog;
   }
-  return catalog;
+  // Always guarantee "{District} Sadar" using live district names (covers DB-only gaps).
+  return withDistrictSadar(
+    { en: district.name_en, bn: district.name_bn },
+    list,
+  );
 }
 
 export function displayUpazilaName(

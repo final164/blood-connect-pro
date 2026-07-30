@@ -6,7 +6,9 @@ import { useI18n } from "@/lib/i18n";
 import { Avatar } from "@/components/Avatar";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaTypeahead } from "@/components/district/UpazilaTypeahead";
 import type { District } from "@/lib/api";
+import { ageFromDateOfBirth, dateOfBirthFromAge } from "@/lib/onboarding";
 import { Settings as SettingsIcon, HeartHandshake, Award, Shield } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -23,12 +25,16 @@ function ProfilePage() {
   const { t, lang } = useI18n();
   const [profile, setProfile] = useState<any>(null);
   const [district, setDistrict] = useState<District | null>(null);
+  const [upazila, setUpazila] = useState("");
+  const [age, setAge] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(async ({ data }) => {
       setProfile(data ?? {});
+      setUpazila(data?.area ?? "");
+      setAge(ageFromDateOfBirth(data?.date_of_birth));
       if (data?.district_id) {
         const { data: d } = await supabase
           .from("districts")
@@ -42,6 +48,10 @@ function ProfilePage() {
 
   async function save() {
     if (!user) return;
+    const ageNum = age.trim() ? Number(age) : null;
+    if (age.trim() && (!Number.isFinite(ageNum) || ageNum! < 1 || ageNum! > 120)) {
+      return toast.error(lang === "bn" ? "সঠিক বয়স দিন" : "Enter a valid age");
+    }
     setBusy(true);
     const { error } = await supabase
       .from("profiles")
@@ -50,8 +60,11 @@ function ProfilePage() {
         bio: profile.bio,
         phone: profile.phone,
         blood_group: profile.blood_group || null,
+        gender: profile.gender || null,
         district_id: district?.id ?? null,
         city: district ? (lang === "bn" ? district.name_bn : district.name_en) : profile.city,
+        area: upazila.trim() || null,
+        date_of_birth: ageNum != null ? dateOfBirthFromAge(ageNum) : null,
         is_available: !!profile.is_available,
         last_donation_date: profile.last_donation_date || null,
       })
@@ -124,6 +137,17 @@ function ProfilePage() {
                 ))}
               </select>
             </Field>
+            <Field label={t("gender")}>
+              <select
+                className={inp}
+                value={(profile.gender ?? "").toLowerCase()}
+                onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
+              >
+                <option value="">—</option>
+                <option value="male">{t("male")}</option>
+                <option value="female">{t("female")}</option>
+              </select>
+            </Field>
             <Field label={t("lastDonation")}>
               <input
                 className={inp}
@@ -132,9 +156,35 @@ function ProfilePage() {
                 onChange={(e) => setProfile({ ...profile, last_donation_date: e.target.value })}
               />
             </Field>
+            <Field label={t("ageOptional")}>
+              <input
+                className={inp}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={120}
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                placeholder={lang === "bn" ? "যেমন: ২৫" : "e.g. 25"}
+              />
+            </Field>
           </div>
           <Field label={lang === "bn" ? "জেলা" : "District"}>
-            <DistrictTypeahead value={district} onChange={setDistrict} />
+            <DistrictTypeahead
+              value={district}
+              onChange={(d) => {
+                setDistrict(d);
+                setUpazila("");
+              }}
+            />
+          </Field>
+          <Field label={t("upazila")}>
+            <UpazilaTypeahead
+              key={district?.id ?? "none"}
+              district={district}
+              value={upazila}
+              onChange={setUpazila}
+            />
           </Field>
           <Field label={t("bio")} className="md:col-span-2">
             <textarea className={inp} rows={2} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })} />

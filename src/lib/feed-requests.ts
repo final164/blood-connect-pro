@@ -13,7 +13,7 @@ export type FeedQuery = {
   userId?: string | null;
 };
 
-/** Enrich request rows with requester + like/comment/save counts. */
+/** Enrich request rows with requester + like/comment/save state. */
 export async function enrichFeedRequests(
   list: FeedRequest[],
   userId?: string | null,
@@ -57,8 +57,8 @@ export async function enrichFeedRequests(
     );
     const mine = new Set((myLikesRes.data ?? []).map((l: { request_id: string }) => l.request_id));
     for (const r of list) {
-      r.like_count = likeMap.get(r.id) ?? 0;
-      r.comment_count = cMap.get(r.id) ?? 0;
+      r.like_count = likeMap.get(r.id) ?? r.like_count ?? 0;
+      r.comment_count = cMap.get(r.id) ?? r.comment_count ?? 0;
       r.liked = mine.has(r.id);
       r.saved = savedSet.has(r.id);
     }
@@ -67,7 +67,22 @@ export async function enrichFeedRequests(
   return list;
 }
 
-export async function fetchFeedPage(q: FeedQuery): Promise<{
+function mapRpcRow(row: Record<string, unknown>): FeedRequest {
+  return {
+    ...(row as unknown as FeedRequest),
+    like_count: Number(row.like_count ?? 0),
+    comment_count: Number(row.comment_count ?? 0),
+    district:
+      row.district_name_bn || row.district_name_en
+        ? {
+            name_bn: String(row.district_name_bn ?? ""),
+            name_en: String(row.district_name_en ?? ""),
+          }
+        : null,
+  };
+}
+
+async function fetchFeedPageLegacy(q: FeedQuery): Promise<{
   items: FeedRequest[];
   hasMore: boolean;
 }> {
@@ -97,4 +112,35 @@ export async function fetchFeedPage(q: FeedQuery): Promise<{
 
   const items = await enrichFeedRequests(list, q.userId);
   return { items, hasMore: list.length >= limit };
+}
+
+/** Personalized ranked feed; optional hard blood/district filters still applied. */
+export async function fetchFeedPage(q: FeedQuery): Promise<{
+  items: FeedRequest[];
+  hasMore: boolean;
+}> {
+  const limit = q.limit ?? FEED_PAGE_SIZE;
+  const offset = q.offset ?? 0;
+  const blood =
+    q.bloodGroup && q.bloodGroup !== "ALL" ? q.bloodGroup : null;
+
+  const { data, error } = await supabase.rpc("fetch_ranked_feed", {
+    p_viewer: q.userId ?? null,
+    p_limit: limit,
+    p_offset: offset,
+    p_blood: blood,
+    p_district: q.districtId ?? null,
+  });
+
+  if (error) {
+    if (/fetch_ranked_feed|function|schema cache/i.test(error.message)) {
+      return fetchFeedPageLegacy(q);
+    }
+    throw error;
+  }
+
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const list = rows.map(mapRpcRow);
+  const items = await enrichFeedRequests(list, q.userId);
+  return { items, hasMore: rows.length >= limit };
 }

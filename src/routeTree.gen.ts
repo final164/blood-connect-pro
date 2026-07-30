@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppRequestsRouteImport } from './routes/_app.requests'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppMapRouteImport } from './routes/_app.map'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
@@ -57,6 +58,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/community': typeof AppCommunityRoute
   '/map': typeof AppMapRoute
   '/notifications': typeof AppNotificationsRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/profile': typeof AppProfileRoute
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/community': typeof AppCommunityRoute
   '/map': typeof AppMapRoute
   '/notifications': typeof AppNotificationsRoute
+  '/onboarding': typeof AppOnboardingRoute
   '/profile': typeof AppProfileRoute
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_app/community': typeof AppCommunityRoute
   '/_app/map': typeof AppMapRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/requests': typeof AppRequestsRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/map'
     | '/notifications'
+    | '/onboarding'
     | '/profile'
     | '/requests'
     | '/settings'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/community'
     | '/map'
     | '/notifications'
+    | '/onboarding'
     | '/profile'
     | '/requests'
     | '/settings'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_app/community'
     | '/_app/map'
     | '/_app/notifications'
+    | '/_app/onboarding'
     | '/_app/profile'
     | '/_app/requests'
     | '/_app/settings'
@@ -235,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -296,6 +315,7 @@ interface AppRouteChildren {
   AppCommunityRoute: typeof AppCommunityRoute
   AppMapRoute: typeof AppMapRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOnboardingRoute: typeof AppOnboardingRoute
   AppProfileRoute: typeof AppProfileRoute
   AppRequestsRoute: typeof AppRequestsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -308,6 +328,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCommunityRoute: AppCommunityRoute,
   AppMapRoute: AppMapRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOnboardingRoute: AppOnboardingRoute,
   AppProfileRoute: AppProfileRoute,
   AppRequestsRoute: AppRequestsRoute,
   AppSettingsRoute: AppSettingsRoute,

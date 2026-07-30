@@ -22,8 +22,8 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   push_interactions: true,
   match_district_for_alerts: true,
   match_blood_group_for_alerts: true,
-  auto_feed_district: true,
-  auto_feed_blood_group: true,
+  auto_feed_district: false,
+  auto_feed_blood_group: false,
   web_push_hook_secret: "",
   enable_critical_droplet_animation: true,
 };

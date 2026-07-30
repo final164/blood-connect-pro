@@ -7,18 +7,54 @@ export type FacilitySeed = {
   name_bn: string;
   type: "government" | "private" | "clinic" | "diagnostic" | "ngo";
   districtSlug: string;
+  /** English upazila name — matches profiles/requests.area */
+  upazila?: string;
 };
 
 export type UpazilaOption = { en: string; bn: string };
 type Dist = { slug: string; en: string; bn: string; upazilas: UpazilaOption[] };
 
+/** True if this option is the district sadar / city HQ */
+function isSadarUpazila(u: UpazilaOption, districtEn: string): boolean {
+  const en = u.en.toLowerCase().trim();
+  const needle = `${districtEn} Sadar`.toLowerCase();
+  return (
+    en === needle ||
+    en === "sadar" ||
+    en === `${districtEn.toLowerCase()} sadar` ||
+    /city corporation/i.test(u.en)
+  );
+}
+
+/** Ensure every district list includes "{District} Sadar" / "{জেলা} সদর" at the front */
+export function withDistrictSadar(
+  district: { en: string; bn: string },
+  upazilas: UpazilaOption[],
+): UpazilaOption[] {
+  const enName = district.en?.trim();
+  const bnName = district.bn?.trim();
+  if (!enName) return upazilas;
+  const existing = upazilas.find((u) => isSadarUpazila(u, enName));
+  const rest = upazilas.filter((u) => !isSadarUpazila(u, enName));
+  const sadar: UpazilaOption = existing ?? {
+    en: `${enName} Sadar`,
+    bn: `${bnName || enName} সদর`,
+  };
+  return [sadar, ...rest];
+}
+
 export function getUpazilasForDistrictSlug(slug: string): UpazilaOption[] {
-  return D.find((d) => d.slug === slug)?.upazilas ?? [];
+  const d = D.find((x) => x.slug === slug);
+  if (!d) return [];
+  return withDistrictSadar(d, d.upazilas);
 }
 
 /** All bundled upazila seeds keyed by district slug (for DB seeding). */
 export function getAllDistrictUpazilaSeeds(): { districtSlug: string; upazilas: UpazilaOption[] }[] {
-  return D.map((d) => ({ districtSlug: d.slug, upazilas: d.upazilas }));
+  return D.map((d) => ({
+    districtSlug: d.slug,
+    upazilas: withDistrictSadar(d, d.upazilas),
+  }));
 }
 
 export function resolveUpazilaLabel(
@@ -383,51 +419,52 @@ export function generateClinicsAndDiagnostics(): FacilitySeed[] {
   const out: FacilitySeed[] = [];
 
   for (const d of D) {
-    // District-level govt primary facilities
-    out.push({
-      districtSlug: d.slug,
-      type: "government",
-      slug: `${d.slug}-community-clinic-sadar`,
-      name_en: `${d.en} Sadar Community Clinic`,
-      name_bn: `${d.bn} সদর কমিউনিটি ক্লিনিক`,
-    });
-    out.push({
-      districtSlug: d.slug,
-      type: "government",
-      slug: `${d.slug}-mcwc`,
-      name_en: `${d.en} Mother & Child Welfare Centre (MCWC)`,
-      name_bn: `${d.bn} মা ও শিশু কল্যাণ কেন্দ্র`,
-    });
-    out.push({
-      districtSlug: d.slug,
-      type: "diagnostic",
-      slug: `${d.slug}-district-dx`,
-      name_en: `${d.en} District Diagnostic Centre`,
-      name_bn: `${d.bn} জেলা ডায়াগনস্টিক সেন্টার`,
-    });
-    out.push({
-      districtSlug: d.slug,
-      type: "clinic",
-      slug: `${d.slug}-central-clinic`,
-      name_en: `${d.en} Central Medical Clinic`,
-      name_bn: `${d.bn} সেন্ট্রাল মেডিকেল ক্লিনিক`,
-    });
-    out.push({
-      districtSlug: d.slug,
-      type: "clinic",
-      slug: `${d.slug}-sadar-pathology`,
-      name_en: `${d.en} Sadar Pathology Lab`,
-      name_bn: `${d.bn} সদর প্যাথলজি ল্যাব`,
-    });
-    out.push({
-      districtSlug: d.slug,
-      type: "clinic",
-      slug: `${d.slug}-blood-bank-clinic`,
-      name_en: `${d.en} Local Blood Bank / Transfusion Centre`,
-      name_bn: `${d.bn} স্থানীয় ব্লাড ব্যাংক / ট্রান্সফিউশন সেন্টার`,
-    });
+    const sadarName = `${d.en} Sadar`;
+    const upazilas = withDistrictSadar(d, d.upazilas);
 
-    // National diagnostic / clinic chains per district
+    // District HQ facilities → Sadar upazila
+    const sadarFacilities: Omit<FacilitySeed, "districtSlug">[] = [
+      {
+        type: "government",
+        slug: `${d.slug}-community-clinic-sadar`,
+        name_en: `${d.en} Sadar Community Clinic`,
+        name_bn: `${d.bn} সদর কমিউনিটি ক্লিনিক`,
+      },
+      {
+        type: "government",
+        slug: `${d.slug}-mcwc`,
+        name_en: `${d.en} Mother & Child Welfare Centre (MCWC)`,
+        name_bn: `${d.bn} মা ও শিশু কল্যাণ কেন্দ্র`,
+      },
+      {
+        type: "diagnostic",
+        slug: `${d.slug}-district-dx`,
+        name_en: `${d.en} District Diagnostic Centre`,
+        name_bn: `${d.bn} জেলা ডায়াগনস্টিক সেন্টার`,
+      },
+      {
+        type: "clinic",
+        slug: `${d.slug}-central-clinic`,
+        name_en: `${d.en} Central Medical Clinic`,
+        name_bn: `${d.bn} সেন্ট্রাল মেডিকেল ক্লিনিক`,
+      },
+      {
+        type: "clinic",
+        slug: `${d.slug}-sadar-pathology`,
+        name_en: `${d.en} Sadar Pathology Lab`,
+        name_bn: `${d.bn} সদর প্যাথলজি ল্যাব`,
+      },
+      {
+        type: "clinic",
+        slug: `${d.slug}-blood-bank-clinic`,
+        name_en: `${d.en} Local Blood Bank / Transfusion Centre`,
+        name_bn: `${d.bn} স্থানীয় ব্লাড ব্যাংক / ট্রান্সফিউশন সেন্টার`,
+      },
+    ];
+    for (const f of sadarFacilities) {
+      out.push({ ...f, districtSlug: d.slug, upazila: sadarName });
+    }
+
     for (const c of CHAINS) {
       out.push({
         districtSlug: d.slug,
@@ -435,64 +472,82 @@ export function generateClinicsAndDiagnostics(): FacilitySeed[] {
         slug: `${d.slug}-${c.slug}`,
         name_en: `${c.en} — ${d.en}`,
         name_bn: `${c.bn} — ${d.bn}`,
+        upazila: sadarName,
       });
     }
 
-    // Upazila Health Complex + local clinic + diagnostic
-    for (const u of d.upazilas) {
+    // Every upazila (including Sadar): UHC, community clinic, diagnostic, clinic, dental, private
+    for (const u of upazilas) {
       const us = slugify(u.en);
-      out.push({
-        districtSlug: d.slug,
-        type: "government",
-        slug: `${d.slug}-uhc-${us}`,
-        name_en: `${u.en} Upazila Health Complex`,
-        name_bn: `${u.bn} উপজেলা স্বাস্থ্য কমপ্লেক্স`,
-      });
-      out.push({
-        districtSlug: d.slug,
-        type: "government",
-        slug: `${d.slug}-cc-${us}`,
-        name_en: `${u.en} Community Clinic`,
-        name_bn: `${u.bn} কমিউনিটি ক্লিনিক`,
-      });
-      out.push({
-        districtSlug: d.slug,
-        type: "diagnostic",
-        slug: `${d.slug}-dx-${us}`,
-        name_en: `${u.en} Diagnostic Centre`,
-        name_bn: `${u.bn} ডায়াগনস্টিক সেন্টার`,
-      });
-      out.push({
-        districtSlug: d.slug,
-        type: "clinic",
-        slug: `${d.slug}-clinic-${us}`,
-        name_en: `${u.en} Medical Clinic & Pathology`,
-        name_bn: `${u.bn} মেডিকেল ক্লিনিক ও প্যাথলজি`,
-      });
-      out.push({
-        districtSlug: d.slug,
-        type: "clinic",
-        slug: `${d.slug}-dental-${us}`,
-        name_en: `${u.en} Dental Clinic`,
-        name_bn: `${u.bn} ডেন্টাল ক্লিনিক`,
-      });
+      const items: FacilitySeed[] = [
+        {
+          districtSlug: d.slug,
+          type: "government",
+          slug: `${d.slug}-uhc-${us}`,
+          name_en: `${u.en} Upazila Health Complex`,
+          name_bn: `${u.bn} উপজেলা স্বাস্থ্য কমপ্লেক্স`,
+          upazila: u.en,
+        },
+        {
+          districtSlug: d.slug,
+          type: "government",
+          slug: `${d.slug}-cc-${us}`,
+          name_en: `${u.en} Community Clinic`,
+          name_bn: `${u.bn} কমিউনিটি ক্লিনিক`,
+          upazila: u.en,
+        },
+        {
+          districtSlug: d.slug,
+          type: "diagnostic",
+          slug: `${d.slug}-dx-${us}`,
+          name_en: `${u.en} Diagnostic Centre`,
+          name_bn: `${u.bn} ডায়াগনস্টিক সেন্টার`,
+          upazila: u.en,
+        },
+        {
+          districtSlug: d.slug,
+          type: "clinic",
+          slug: `${d.slug}-clinic-${us}`,
+          name_en: `${u.en} Medical Clinic & Pathology`,
+          name_bn: `${u.bn} মেডিকেল ক্লিনিক ও প্যাথলজি`,
+          upazila: u.en,
+        },
+        {
+          districtSlug: d.slug,
+          type: "clinic",
+          slug: `${d.slug}-dental-${us}`,
+          name_en: `${u.en} Dental Clinic`,
+          name_bn: `${u.bn} ডেন্টাল ক্লিনিক`,
+          upazila: u.en,
+        },
+        {
+          districtSlug: d.slug,
+          type: "private",
+          slug: `${d.slug}-private-${us}`,
+          name_en: `${u.en} Private Hospital & Diagnostic`,
+          name_bn: `${u.bn} প্রাইভেট হাসপাতাল ও ডায়াগনস্টিক`,
+          upazila: u.en,
+        },
+      ];
+      out.push(...items);
     }
   }
 
-  // Extra well-known Dhaka city diagnostics / clinics
+  // Extra well-known Dhaka city diagnostics / clinics (city → Dhaka Sadar)
+  const dhakaSadar = "Dhaka Sadar";
   const dhakaExtra: FacilitySeed[] = [
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-dhanmondi", name_en: "Popular Diagnostic — Dhanmondi", name_bn: "পপুলার ডায়াগনস্টিক — ধানমন্ডি" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-mirpur", name_en: "Popular Diagnostic — Mirpur", name_bn: "পপুলার ডায়াগনস্টিক — মিরপুর" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-uttara", name_en: "Popular Diagnostic — Uttara", name_bn: "পপুলার ডায়াগনস্টিক — উত্তরা" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-badda", name_en: "Popular Diagnostic — Badda", name_bn: "পপুলার ডায়াগনস্টিক — বাড্ডা" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-dhanmondi", name_en: "Labaid Diagnostic — Dhanmondi", name_bn: "ল্যাবএইড ডায়াগনস্টিক — ধানমন্ডি" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-gulshan", name_en: "Labaid Diagnostic — Gulshan", name_bn: "ল্যাবএইড ডায়াগনস্টিক — গুলশান" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-dhanmondi", name_en: "Ibn Sina Diagnostic — Dhanmondi", name_bn: "ইবনে সিনা ডায়াগনস্টিক — ধানমন্ডি" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-lalmatia", name_en: "Ibn Sina Diagnostic — Lalmatia", name_bn: "ইবনে সিনা ডায়াগনস্টিক — লালমাটিয়া" },
-    { districtSlug: "dhaka", type: "clinic", slug: "japan-bangladesh-clinic", name_en: "Japan-Bangladesh Friendship Medical Clinic", name_bn: "জাপান-বাংলাদেশ ফ্রেন্ডশিপ মেডিকেল ক্লিনিক" },
-    { districtSlug: "dhaka", type: "clinic", slug: "icddr-b-clinic", name_en: "icddr,b Travellers Clinic", name_bn: "আইসিডিডিআর,বি ট্রাভেলার্স ক্লিনিক" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "lab-aid-uttara", name_en: "Labaid Limited — Uttara", name_bn: "ল্যাবএইড — উত্তরা" },
-    { districtSlug: "dhaka", type: "diagnostic", slug: "anower-khan-dx", name_en: "Anwer Khan Modern Diagnostic", name_bn: "আনোয়ার খান মডার্ন ডায়াগনস্টিক" },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-dhanmondi", name_en: "Popular Diagnostic — Dhanmondi", name_bn: "পপুলার ডায়াগনস্টিক — ধানমন্ডি", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-mirpur", name_en: "Popular Diagnostic — Mirpur", name_bn: "পপুলার ডায়াগনস্টিক — মিরপুর", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-uttara", name_en: "Popular Diagnostic — Uttara", name_bn: "পপুলার ডায়াগনস্টিক — উত্তরা", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "popular-badda", name_en: "Popular Diagnostic — Badda", name_bn: "পপুলার ডায়াগনস্টিক — বাড্ডা", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-dhanmondi", name_en: "Labaid Diagnostic — Dhanmondi", name_bn: "ল্যাবএইড ডায়াগনস্টিক — ধানমন্ডি", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "labaid-gulshan", name_en: "Labaid Diagnostic — Gulshan", name_bn: "ল্যাবএইড ডায়াগনস্টিক — গুলশান", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-dhanmondi", name_en: "Ibn Sina Diagnostic — Dhanmondi", name_bn: "ইবনে সিনা ডায়াগনস্টিক — ধানমন্ডি", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "ibn-sina-lalmatia", name_en: "Ibn Sina Diagnostic — Lalmatia", name_bn: "ইবনে সিনা ডায়াগনস্টিক — লালমাটিয়া", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "clinic", slug: "japan-bangladesh-clinic", name_en: "Japan-Bangladesh Friendship Medical Clinic", name_bn: "জাপান-বাংলাদেশ ফ্রেন্ডশিপ মেডিকেল ক্লিনিক", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "clinic", slug: "icddr-b-clinic", name_en: "icddr,b Travellers Clinic", name_bn: "আইসিডিডিআর,বি ট্রাভেলার্স ক্লিনিক", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "lab-aid-uttara", name_en: "Labaid Limited — Uttara", name_bn: "ল্যাবএইড — উত্তরা", upazila: dhakaSadar },
+    { districtSlug: "dhaka", type: "diagnostic", slug: "anower-khan-dx", name_en: "Anwer Khan Modern Diagnostic", name_bn: "আনোয়ার খান মডার্ন ডায়াগনস্টিক", upazila: dhakaSadar },
   ];
 
   return [...out, ...dhakaExtra];
