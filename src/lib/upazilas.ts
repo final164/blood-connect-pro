@@ -181,7 +181,7 @@ export async function seedUpazilasFromCatalog(
           sort_order: i + 1,
           is_active: true,
         },
-        { onConflict: "district_id,slug", ignoreDuplicates: true },
+        { onConflict: "district_id,slug" },
       );
       if (error) {
         if (error.code === "23505") skipped++;
