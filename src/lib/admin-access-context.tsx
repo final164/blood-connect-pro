@@ -11,12 +11,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { isAdminIdentity } from "@/lib/phone-auth";
 import type { AdminModule, PermissionKey } from "@/lib/admin-permissions";
+import {
+  DEFAULT_USERS_GEO_SCOPE,
+  normalizeUsersGeoScope,
+  type UsersGeoScope,
+} from "@/lib/users-geo-scope";
 
 type Ctx = {
   loading: boolean;
   keys: Set<string>;
   isSuper: boolean;
   isStaff: boolean;
+  usersGeoScope: UsersGeoScope;
   can: (key: PermissionKey | string) => boolean;
   canAny: (...keys: (PermissionKey | string)[]) => boolean;
   canModule: (module: AdminModule) => boolean;
@@ -29,10 +35,12 @@ export function AdminAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [rawKeys, setRawKeys] = useState<string[]>([]);
+  const [usersGeoScope, setUsersGeoScope] = useState<UsersGeoScope>(DEFAULT_USERS_GEO_SCOPE);
 
   const refresh = useCallback(async () => {
     if (!user) {
       setRawKeys([]);
+      setUsersGeoScope(DEFAULT_USERS_GEO_SCOPE);
       setLoading(false);
       return;
     }
@@ -40,17 +48,26 @@ export function AdminAccessProvider({ children }: { children: ReactNode }) {
     try {
       if (isAdmin || isAdminIdentity(user.email)) {
         setRawKeys(["*"]);
+        setUsersGeoScope(DEFAULT_USERS_GEO_SCOPE);
         return;
       }
-      const { data, error } = await supabase.rpc("get_my_admin_permissions");
+      const [{ data, error }, geoRes] = await Promise.all([
+        supabase.rpc("get_my_admin_permissions"),
+        supabase.rpc("get_my_users_geo_scope"),
+      ]);
       if (error) {
-        // Fallback: table missing or RPC not applied yet
         setRawKeys(isAdmin ? ["*"] : []);
-        return;
+      } else {
+        setRawKeys((data as string[] | null) ?? []);
       }
-      setRawKeys((data as string[] | null) ?? []);
+      if (!geoRes.error && geoRes.data) {
+        setUsersGeoScope(normalizeUsersGeoScope(geoRes.data));
+      } else {
+        setUsersGeoScope(DEFAULT_USERS_GEO_SCOPE);
+      }
     } catch {
       setRawKeys(isAdmin || isAdminIdentity(user.email) ? ["*"] : []);
+      setUsersGeoScope(DEFAULT_USERS_GEO_SCOPE);
     } finally {
       setLoading(false);
     }
@@ -89,12 +106,13 @@ export function AdminAccessProvider({ children }: { children: ReactNode }) {
       keys,
       isSuper,
       isStaff,
+      usersGeoScope: isSuper ? DEFAULT_USERS_GEO_SCOPE : usersGeoScope,
       can,
       canAny,
       canModule,
       refresh,
     }),
-    [authLoading, loading, keys, isSuper, isStaff, can, canAny, canModule, refresh],
+    [authLoading, loading, keys, isSuper, isStaff, usersGeoScope, can, canAny, canModule, refresh],
   );
 
   return <AdminAccessContext.Provider value={value}>{children}</AdminAccessContext.Provider>;

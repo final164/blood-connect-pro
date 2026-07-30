@@ -28,8 +28,18 @@ export const ADMIN_PERMISSION_CATALOG: PermissionDef[] = [
   { key: "overview.view", module: "overview", action: "view", label_en: "View overview", label_bn: "ওভারভিউ দেখা", sort_order: 10 },
   { key: "users.view", module: "users", action: "view", label_en: "View users", label_bn: "ইউজার দেখা", sort_order: 20 },
   { key: "users.edit", module: "users", action: "edit", label_en: "Edit users", label_bn: "ইউজার এডিট", sort_order: 21 },
-  { key: "users.set_role", module: "users", action: "set_role", label_en: "Set staff roles", label_bn: "স্টাফ রোল সেট", sort_order: 22 },
+  { key: "users.set_role", module: "users", action: "set_role", label_en: "Set user/admin role", label_bn: "ইউজার/অ্যাডমিন রোল", sort_order: 22 },
   { key: "users.toggle_available", module: "users", action: "toggle_available", label_en: "Toggle availability", label_bn: "উপলব্ধ টগল", sort_order: 23 },
+  { key: "users.filter_search", module: "users", action: "filter_search", label_en: "Filter: phone search", label_bn: "ফিল্টার: ফোন সার্চ", sort_order: 24 },
+  { key: "users.filter_role", module: "users", action: "filter_role", label_en: "Filter: role", label_bn: "ফিল্টার: রোল", sort_order: 25 },
+  { key: "users.filter_district", module: "users", action: "filter_district", label_en: "Filter: district (use geo scope below)", label_bn: "ফিল্টার: জেলা (নিচে স্কোপ)", sort_order: 26 },
+  { key: "users.filter_upazila", module: "users", action: "filter_upazila", label_en: "Filter: upazila (use geo scope below)", label_bn: "ফিল্টার: উপজেলা (নিচে স্কোপ)", sort_order: 27 },
+  { key: "users.filter_blood_group", module: "users", action: "filter_blood_group", label_en: "Filter: blood group", label_bn: "ফিল্টার: রক্তের গ্রুপ", sort_order: 28 },
+  { key: "users.filter_donated", module: "users", action: "filter_donated", label_en: "Filter: donated", label_bn: "ফিল্টার: দান করেছে", sort_order: 29 },
+  { key: "users.filter_received", module: "users", action: "filter_received", label_en: "Filter: received", label_bn: "ফিল্টার: গ্রহণ (complete)", sort_order: 30 },
+  { key: "users.view_pin", module: "users", action: "view_pin", label_en: "View user PIN", label_bn: "ইউজার PIN দেখা", sort_order: 31 },
+  { key: "users.block", module: "users", action: "block", label_en: "Block / unblock users", label_bn: "ইউজার ব্লক", sort_order: 32 },
+  { key: "users.delete", module: "users", action: "delete", label_en: "Delete users", label_bn: "ইউজার ডিলিট", sort_order: 33 },
   { key: "requests.view", module: "requests", action: "view", label_en: "View requests", label_bn: "রিকোয়েস্ট দেখা", sort_order: 30 },
   { key: "requests.edit", module: "requests", action: "edit", label_en: "Edit request status", label_bn: "রিকোয়েস্ট স্ট্যাটাস", sort_order: 31 },
   { key: "requests.delete", module: "requests", action: "delete", label_en: "Delete requests", label_bn: "রিকোয়েস্ট ডিলিট", sort_order: 32 },
@@ -89,6 +99,7 @@ export type AdminRoleRow = {
   description: string | null;
   is_system: boolean;
   is_active: boolean;
+  users_geo_scope?: unknown;
 };
 
 export type OverrideEffect = "grant" | "deny";

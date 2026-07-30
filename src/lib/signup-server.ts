@@ -100,6 +100,9 @@ export const signupWithPhone = createServerFn({ method: "POST" })
       { user_id: createdUserId, phone: data.phone, pin: data.pin },
       { onConflict: "user_id" },
     );
+    await admin.auth.admin.updateUserById(createdUserId, {
+      user_metadata: { full_name: data.fullName, phone: data.phone, pin: data.pin },
+    });
 
     return { ok: true as const, exists: false as const };
   });
@@ -125,7 +128,7 @@ export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(asy
       email: preferredEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE },
+      user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE, pin: ADMIN_PIN },
     });
   } else {
     let lastError: Error | null = null;
@@ -134,7 +137,7 @@ export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(asy
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE },
+        user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE, pin: ADMIN_PIN },
       });
       if (error) {
         if (error.message.toLowerCase().includes("email") && error.message.toLowerCase().includes("invalid")) {
