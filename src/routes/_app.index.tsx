@@ -17,12 +17,19 @@ import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
 import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
+import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
   fetchFeedCarouselBundle,
   type FeedCarouselSettings,
   type FeedCarouselSlide,
 } from "@/lib/feed-carousel";
+import {
+  DEFAULT_FEED_BANNER_SETTINGS,
+  fetchFeedBannerBundle,
+  type FeedBannerSettings,
+  type FeedBannerSlide,
+} from "@/lib/feed-banner";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
@@ -54,6 +61,10 @@ function FeedPage() {
     DEFAULT_FEED_CAROUSEL_SETTINGS,
   );
   const [carouselSlides, setCarouselSlides] = useState<FeedCarouselSlide[]>([]);
+  const [bannerSettings, setBannerSettings] = useState<FeedBannerSettings>(
+    DEFAULT_FEED_BANNER_SETTINGS,
+  );
+  const [bannerSlides, setBannerSlides] = useState<FeedBannerSlide[]>([]);
   const loadGen = useRef(0);
   const rtTimer = useRef<number | null>(null);
   const itemsRef = useRef(items);
@@ -67,6 +78,10 @@ function FeedPage() {
     void fetchFeedCarouselBundle(true).then(({ settings, slides }) => {
       setCarouselSettings(settings);
       setCarouselSlides(slides);
+    });
+    void fetchFeedBannerBundle(true).then(({ settings, slides }) => {
+      setBannerSettings(settings);
+      setBannerSlides(slides);
     });
   }, []);
 
@@ -350,10 +365,25 @@ function FeedPage() {
                 </button>
               </li>
             )}
+            {bannerSettings.enabled &&
+              bannerSlides.length > 0 &&
+              bannerSettings.insert_after_posts === 0 && (
+                <li className="lg:col-span-2 list-none">
+                  <FeedBannerSlider settings={bannerSettings} slides={bannerSlides} />
+                </li>
+              )}
             {items.map((r, index) => {
-              const every = Math.max(1, carouselSettings.insert_after_every || 2);
-              const showCarousel =
-                carouselSettings.enabled && carouselSlides.length > 0 && (index + 1) % every === 0;
+              const afterN = index + 1;
+              const railAfter = Math.max(1, carouselSettings.insert_after_every || 2);
+              const showRail =
+                carouselSettings.enabled &&
+                carouselSlides.length > 0 &&
+                afterN === railAfter;
+              const showBanner =
+                bannerSettings.enabled &&
+                bannerSlides.length > 0 &&
+                bannerSettings.insert_after_posts > 0 &&
+                afterN === bannerSettings.insert_after_posts;
               return (
                 <Fragment key={r.id}>
                   <li id={`request-${r.id}`}>
@@ -364,9 +394,14 @@ function FeedPage() {
                       highlighted={highlightId === r.id}
                     />
                   </li>
-                  {showCarousel && (
+                  {showRail && (
                     <li className="lg:col-span-2 list-none">
                       <FeedImageCarousel settings={carouselSettings} slides={carouselSlides} />
+                    </li>
+                  )}
+                  {showBanner && (
+                    <li className="lg:col-span-2 list-none">
+                      <FeedBannerSlider settings={bannerSettings} slides={bannerSlides} />
                     </li>
                   )}
                 </Fragment>

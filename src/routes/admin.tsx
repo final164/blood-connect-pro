@@ -73,6 +73,7 @@ import { NeedReasonAdmin } from "@/components/admin/NeedReasonAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
+import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -2262,7 +2263,7 @@ function SettingsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
   const [settingsTab, setSettingsTab] = useState<
-    "urgency" | "feed" | "carousel" | "reasons" | "donations" | "menu" | "form" | "app"
+    "urgency" | "feed" | "carousel" | "banner" | "reasons" | "donations" | "menu" | "form" | "app"
   >("urgency");
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
@@ -2323,6 +2324,7 @@ function SettingsAdmin() {
     { id: "urgency" as const, bn: "জরুরিতা অ্যানিমেশন", en: "Urgency animation" },
     { id: "feed" as const, bn: "ফিড র‍্যাঙ্কিং", en: "Feed ranking" },
     { id: "carousel" as const, bn: "ইমেজ ক্যারোজেল", en: "Image carousel" },
+    { id: "banner" as const, bn: "ফুল ব্যানার", en: "Full banner" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
@@ -2352,6 +2354,7 @@ function SettingsAdmin() {
       {settingsTab === "urgency" && <UrgencyAnimationAdmin />}
       {settingsTab === "feed" && <FeedRankingAdmin />}
       {settingsTab === "carousel" && <FeedCarouselAdmin />}
+      {settingsTab === "banner" && <FeedBannerAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}
