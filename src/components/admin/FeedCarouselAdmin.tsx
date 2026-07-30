@@ -11,14 +11,17 @@ import {
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
+import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
   deleteFeedCarouselSlide,
   fetchAllFeedCarouselSlides,
   fetchFeedCarouselSettings,
   invalidateFeedCarouselCache,
+  isGoogleDriveUrl,
   normalizeFeedCarouselSettings,
   reorderFeedCarouselSlides,
+  resolveCarouselImageUrl,
   saveFeedCarouselSettings,
   uploadFeedCarouselImage,
   upsertFeedCarouselSlide,
@@ -133,7 +136,10 @@ export function FeedCarouselAdmin() {
       return toast.error(lang === "bn" ? "ইমেজ URL বা আপলোড দিন" : "Provide an image URL or upload");
     }
     setBusy(true);
-    const { error } = await upsertFeedCarouselSlide(slide);
+    const { error } = await upsertFeedCarouselSlide({
+      ...slide,
+      image_url: resolveCarouselImageUrl(slide.image_url),
+    });
     setBusy(false);
     if (error) {
       if (/feed_carousel|relation|schema/i.test(error.message)) {
@@ -422,7 +428,7 @@ export function FeedCarouselAdmin() {
             {lang === "bn" ? "নতুন স্লাইড যোগ করুন" : "Add a new slide"}
           </p>
           {draft.image_url ? (
-            <img
+            <CarouselRemoteImage
               src={draft.image_url}
               alt=""
               className="h-28 w-20 rounded-lg object-cover border border-slate-700"
@@ -445,14 +451,25 @@ export function FeedCarouselAdmin() {
           <div>
             <label className="text-[10px] text-slate-500 flex items-center gap-1">
               <Link2 className="h-3 w-3" />
-              {lang === "bn" ? "অথবা ইমেজ URL" : "Or image URL"}
+              {lang === "bn" ? "অথবা ইমেজ / Drive URL" : "Or image / Drive URL"}
             </label>
             <input
               className={ainp}
               value={draft.image_url}
               onChange={(e) => setDraft((d) => ({ ...d, image_url: e.target.value }))}
-              placeholder="https://..."
+              placeholder="https://drive.google.com/file/d/…/view"
             />
+            <p className="text-[10px] text-slate-500 mt-1">
+              {lang === "bn"
+                ? "Google Drive শেয়ার লিঙ্ক চলবে — ফাইল Share → Anyone with the link রাখুন।"
+                : "Google Drive share links work — set Share → Anyone with the link."}
+              {isGoogleDriveUrl(draft.image_url) ? (
+                <span className="text-emerald-400">
+                  {" "}
+                  {lang === "bn" ? "Drive লিঙ্ক শনাক্ত হয়েছে।" : "Drive link detected."}
+                </span>
+              ) : null}
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input
@@ -505,7 +522,7 @@ export function FeedCarouselAdmin() {
               className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-2"
             >
               <div className="flex gap-3">
-                <img
+                <CarouselRemoteImage
                   src={slide.image_url}
                   alt=""
                   className="h-24 w-18 rounded-lg object-cover border border-slate-700 shrink-0"
@@ -556,7 +573,15 @@ export function FeedCarouselAdmin() {
                     className={ainp}
                     value={slide.image_url}
                     onChange={(e) => patchSlideLocal(slide.id, { image_url: e.target.value })}
+                    placeholder="https://drive.google.com/file/d/…/view"
                   />
+                  {isGoogleDriveUrl(slide.image_url) && (
+                    <p className="text-[10px] text-emerald-400/90">
+                      {lang === "bn"
+                        ? "Drive লিঙ্ক — সেভে প্রিভিউ URL সেভ হবে"
+                        : "Drive link — preview URL saved on save"}
+                    </p>
+                  )}
                   <div className="grid grid-cols-2 gap-1.5">
                     <input
                       className={ainp}
