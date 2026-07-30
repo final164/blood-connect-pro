@@ -4,6 +4,7 @@ import { PUBLIC_SUPABASE_URL } from "@/integrations/supabase/public-env";
 import {
   ADMIN_PHONE,
   ADMIN_PIN,
+  phoneAuthEmailCandidates,
   phoneToAuthEmail,
   pinToPassword,
   validatePhonePin,
@@ -46,37 +47,50 @@ export const signupWithPhone = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const admin = adminClient();
-    const email = phoneToAuthEmail(data.phone);
     const password = pinToPassword(data.pin);
+    const emails = phoneAuthEmailCandidates(data.phone).filter((e) => !e.endsWith(".local"));
 
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: data.fullName, phone: data.phone },
-    });
+    let lastError: Error | null = null;
+    let createdUserId: string | null = null;
 
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (
-        msg.includes("already") ||
-        msg.includes("registered") ||
-        msg.includes("exists") ||
-        msg.includes("duplicate")
-      ) {
-        return { ok: true as const, exists: true as const };
-      }
-      throw new Error(error.message);
-    }
-
-    const userId = created.user?.id;
-    if (userId) {
-      await admin.from("profiles").upsert({
-        id: userId,
-        full_name: data.fullName,
-        phone: data.phone,
+    for (const email of emails) {
+      const { data: created, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: data.fullName, phone: data.phone },
       });
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (
+          msg.includes("already") ||
+          msg.includes("registered") ||
+          msg.includes("exists") ||
+          msg.includes("duplicate")
+        ) {
+          return { ok: true as const, exists: true as const };
+        }
+        // Try next domain if this email format is rejected
+        if (msg.includes("email") && msg.includes("invalid")) {
+          lastError = new Error(error.message);
+          continue;
+        }
+        throw new Error(error.message);
+      }
+
+      createdUserId = created.user?.id ?? null;
+      break;
     }
+
+    if (!createdUserId && lastError) throw lastError;
+    if (!createdUserId) throw new Error("Could not create user");
+
+    await admin.from("profiles").upsert({
+      id: createdUserId,
+      full_name: data.fullName,
+      phone: data.phone,
+    });
 
     return { ok: true as const, exists: false as const };
   });
@@ -86,29 +100,44 @@ export const signupWithPhone = createServerFn({ method: "POST" })
  */
 export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(async () => {
   const admin = adminClient();
-  const email = phoneToAuthEmail(ADMIN_PHONE);
+  const emails = phoneAuthEmailCandidates(ADMIN_PHONE);
   const password = pinToPassword(ADMIN_PIN);
+  const preferredEmail = phoneToAuthEmail(ADMIN_PHONE);
 
   let userId: string | null = null;
 
   const { data: listed } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-  const existing = listed?.users?.find((u) => u.email?.toLowerCase() === email);
+  const existing = listed?.users?.find((u) =>
+    emails.some((e) => u.email?.toLowerCase() === e.toLowerCase()),
+  );
   if (existing) {
     userId = existing.id;
     await admin.auth.admin.updateUserById(userId, {
+      email: preferredEmail,
       password,
       email_confirm: true,
       user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE },
     });
   } else {
-    const { data: created, error } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE },
-    });
-    if (error) throw new Error(error.message);
-    userId = created.user?.id ?? null;
+    let lastError: Error | null = null;
+    for (const email of emails.filter((e) => !e.endsWith(".local"))) {
+      const { data: created, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE },
+      });
+      if (error) {
+        if (error.message.toLowerCase().includes("email") && error.message.toLowerCase().includes("invalid")) {
+          lastError = new Error(error.message);
+          continue;
+        }
+        throw new Error(error.message);
+      }
+      userId = created.user?.id ?? null;
+      break;
+    }
+    if (!userId && lastError) throw lastError;
   }
 
   if (!userId) throw new Error("Could not resolve admin user");

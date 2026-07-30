@@ -91,8 +91,8 @@ function AuthPage() {
       navigate({ to: "/" });
     } catch (err) {
       const raw = (err as Error)?.message || String(err);
-      toast.error(authErrorMessage(raw, lang) || raw);
-      if (raw === "ACCOUNT_EXISTS_WRONG_PIN") setMode("login");
+      toast.error(authErrorMessage(raw, lang));
+      if (raw === "ACCOUNT_EXISTS_WRONG_PIN" || /ACCOUNT_EXISTS_WRONG_PIN/.test(raw)) setMode("login");
     } finally {
       setBusy(false);
     }
@@ -155,15 +155,12 @@ function AuthPage() {
               {mode === "signup" && (
                 <Field label={t("fullName")} value={name} onChange={setName} required />
               )}
-              <Field
+              <PhoneField
                 label={t("phone")}
-                type="tel"
                 value={phone}
                 onChange={setPhone}
-                required
-                placeholder="01712345678"
-                autoComplete="tel"
-                inputMode="numeric"
+                lang={lang}
+                readOnly={mode === "admin"}
               />
               <PinField
                 label={lang === "bn" ? "৪ সংখ্যার PIN" : "4-digit PIN"}
@@ -194,7 +191,12 @@ function AuthPage() {
               )}
               <button
                 type="submit"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  phone.replace(/\D/g, "").length !== 11 ||
+                  pin.length !== 4 ||
+                  (mode === "signup" && confirmPin.length !== 4)
+                }
                 className="w-full rounded-2xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:brightness-105 transition"
               >
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -220,6 +222,88 @@ function AuthPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function clampPhoneDigits(raw: string): string {
+  // Digits only; if pasted with country code, normalize then keep 11
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("880") && digits.length > 11) digits = "0" + digits.slice(3);
+  else if (digits.startsWith("88") && digits.length > 11) digits = "0" + digits.slice(2);
+  else if (digits.length === 10 && digits.startsWith("1")) digits = "0" + digits;
+  return digits.slice(0, 11);
+}
+
+function PhoneField({
+  label,
+  value,
+  onChange,
+  lang,
+  readOnly,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  lang: "bn" | "en";
+  readOnly?: boolean;
+}) {
+  const len = value.replace(/\D/g, "").length;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
+        <span
+          className={`text-[10px] font-mono tabular-nums ${
+            len === 11 ? "text-emerald-600" : "text-muted-foreground"
+          }`}
+        >
+          {len}/11
+        </span>
+      </div>
+      <input
+        className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 font-mono tracking-wide"
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel"
+        maxLength={11}
+        value={value}
+        placeholder="01712345678"
+        readOnly={readOnly}
+        required
+        onChange={(e) => onChange(clampPhoneDigits(e.target.value))}
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text") || "";
+          onChange(clampPhoneDigits(text));
+        }}
+        onKeyDown={(e) => {
+          // Block non-digit keys (allow control/nav)
+          if (
+            e.ctrlKey ||
+            e.metaKey ||
+            e.altKey ||
+            ["Backspace", "Delete", "Tab", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
+          ) {
+            return;
+          }
+          if (!/^\d$/.test(e.key)) {
+            e.preventDefault();
+            return;
+          }
+          if (value.replace(/\D/g, "").length >= 11 && !e.key.match(/^(Backspace|Delete)$/)) {
+            // Selection replace is ok; otherwise block extra digit
+            const el = e.currentTarget;
+            const hasSelection = (el.selectionEnd ?? 0) > (el.selectionStart ?? 0);
+            if (!hasSelection) e.preventDefault();
+          }
+        }}
+      />
+      {len > 0 && len < 11 && (
+        <p className="mt-1 text-[10px] text-amber-600/90">
+          {lang === "bn" ? "ঠিক ১১ সংখ্যার মোবাইল নম্বর দিন" : "Enter exactly 11 digits"}
+        </p>
+      )}
     </div>
   );
 }
@@ -276,7 +360,6 @@ function PinField({
         className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 tracking-[0.35em] font-mono text-center"
         type="password"
         inputMode="numeric"
-        pattern="\d{4}"
         maxLength={4}
         value={value}
         placeholder="••••"
