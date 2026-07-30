@@ -7,7 +7,7 @@ import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import type { District } from "@/lib/api";
 import type { CommunityDonorRow } from "@/lib/community-donor-import";
 import {
-  contactFlagsForGender,
+  contactFlagsForViewerDonor,
   normalizeDonorContactSettings,
   type DonorContactSettings,
 } from "@/lib/community-contact-settings";
@@ -55,12 +55,14 @@ export function CommunitySendSmsSheet({
   donors,
   defaultDistrict,
   defaultUpazila,
+  viewerGender,
 }: {
   open: boolean;
   onClose: () => void;
   donors: CommunityDonorRow[];
   defaultDistrict: District | null;
   defaultUpazila: string;
+  viewerGender?: string | null;
 }) {
   const { lang } = useI18n();
   const [step, setStep] = useState<1 | 2>(1);
@@ -82,10 +84,10 @@ export function CommunitySendSmsSheet({
   const smsEligible = useMemo(
     () =>
       donors.filter((d) => {
-        const flags = contactFlagsForGender(orgSettings(d), d.gender);
+        const flags = contactFlagsForViewerDonor(orgSettings(d), viewerGender, d.gender);
         return flags.sms && d.phone?.trim();
       }),
-    [donors],
+    [donors, viewerGender],
   );
 
   const field =

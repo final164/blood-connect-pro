@@ -1323,19 +1323,27 @@ function OrgContactSettingsPanel({
   onSaved: () => void;
 }) {
   const { can } = useAdminAccess();
-  const [settings, setSettings] = useState<DonorContactSettings>(() =>
+  const [settings, setSettings] = useState(() =>
     normalizeDonorContactSettings(initial ?? DEFAULT_DONOR_CONTACT_SETTINGS),
   );
+  const [viewerTab, setViewerTab] = useState<"male" | "female">("male");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setSettings(normalizeDonorContactSettings(initial ?? DEFAULT_DONOR_CONTACT_SETTINGS));
   }, [orgId, initial]);
 
-  function setFlag(gender: "male" | "female", key: keyof GenderContactFlags, value: boolean) {
+  function setFlag(
+    donor: "male" | "female",
+    key: keyof GenderContactFlags,
+    value: boolean,
+  ) {
     setSettings((prev) => ({
       ...prev,
-      [gender]: { ...prev[gender], [key]: value },
+      [viewerTab]: {
+        ...prev[viewerTab],
+        [donor]: { ...prev[viewerTab][donor], [key]: value },
+      },
     }));
   }
 
@@ -1354,42 +1362,76 @@ function OrgContactSettingsPanel({
     onSaved();
   }
 
-  const labels: Record<keyof GenderContactFlags, { bn: string; en: string }> = {
-    call: { bn: "কল আইকন", en: "Call icon" },
-    sms: { bn: "Send SMS / মেসেজ", en: "Send SMS / message" },
-    chat: { bn: "চ্যাট (WhatsApp)", en: "Chat (WhatsApp)" },
+  const iconLabels: Record<keyof GenderContactFlags, string> = {
+    call: "Call icon",
+    sms: "Send SMS / message",
+    chat: "Chat (WhatsApp)",
   };
 
   return (
     <div className="border-t border-slate-800 mt-3 pt-3 space-y-3">
       <p className="text-xs font-semibold text-slate-400">
-        {lang === "bn" ? "ডোনার কন্টাক্ট আইকন (লিঙ্গ অনুযায়ী)" : "Donor contact icons (by gender)"}
+        {lang === "bn" ? "ডোনার কন্টাক্ট আইকন" : "Donor contact icons"}
       </p>
-      <p className="text-[10px] text-slate-500">
+      <p className="text-[10px] text-slate-500 leading-relaxed">
         {lang === "bn"
-          ? "ডিফল্ট: মহিলা — শুধু চ্যাট; পুরুষ — সব। এই সংস্থার ডোনারদের জন্য প্রযোজ্য।"
-          : "Defaults: female — chat only; male — all. Applies to this org’s donors."}
+          ? "লগইন ইউজার (Male/Female) কোন ডোনার (Male/Female) দেখলে কোন আইকন পাবে। ডিফল্ট: Female ডোনার — শুধু Chat; Male ডোনার — সব।"
+          : "For each logged-in viewer gender, choose which icons they see on male vs female donors. Defaults: female donors — chat only; male donors — all."}
       </p>
-      {(["female", "male"] as const).map((g) => (
-        <div key={g} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-2">
-          <p className="text-xs font-medium text-slate-300">
-            {g === "female" ? (lang === "bn" ? "মহিলা" : "Female") : lang === "bn" ? "পুরুষ" : "Male"}
-          </p>
-          <div className="grid gap-2">
-            {(Object.keys(labels) as (keyof GenderContactFlags)[]).map((key) => (
-              <label key={key} className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span>{lang === "bn" ? labels[key].bn : labels[key].en}</span>
+
+      <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-800 bg-slate-950 p-1">
+        {(["male", "female"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setViewerTab(v)}
+            className={`rounded-lg px-2 py-2.5 text-[11px] font-semibold leading-snug transition ${
+              viewerTab === v
+                ? "bg-rose-600 text-white shadow"
+                : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+            }`}
+          >
+            {v === "male"
+              ? lang === "bn"
+                ? "When logged-in user is Male"
+                : "When logged-in user is Male"
+              : lang === "bn"
+                ? "When logged-in user is Female"
+                : "When logged-in user is Female"}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+        {(["male", "female"] as const).map((donor) => (
+          <div key={donor} className="rounded-lg border border-slate-800 bg-slate-900/80 p-2.5 space-y-1.5">
+            <p className="text-[11px] font-medium text-slate-300">
+              {donor === "male"
+                ? lang === "bn"
+                  ? "Male ডোনারদের ওপর"
+                  : "On Male donors"
+                : lang === "bn"
+                  ? "Female ডোনারদের ওপর"
+                  : "On Female donors"}
+            </p>
+            {(Object.keys(iconLabels) as (keyof GenderContactFlags)[]).map((key) => (
+              <label
+                key={key}
+                className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[11px] text-slate-400 hover:bg-slate-950/50 cursor-pointer"
+              >
+                <span>{iconLabels[key]}</span>
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-rose-500"
-                  checked={settings[g][key]}
-                  onChange={(e) => setFlag(g, key, e.target.checked)}
+                  checked={settings[viewerTab][donor][key]}
+                  onChange={(e) => setFlag(donor, key, e.target.checked)}
                 />
               </label>
             ))}
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
+
       <button
         type="button"
         disabled={busy}
