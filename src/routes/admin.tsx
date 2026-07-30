@@ -23,6 +23,8 @@ import { seedUpazilasFromCatalog, fetchUpazilaOptions } from "@/lib/upazilas";
 import { seedGeoNeighborsFromCatalog } from "@/lib/geo-neighbors-seed";
 import { DistrictUpazilaPanel } from "@/components/admin/DistrictUpazilaPanel";
 import { UsersAdmin } from "@/components/admin/UsersAdmin";
+import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { BANGLADESH_HOSPITALS } from "@/data/bangladesh-hospitals";
 import { ARCHITECTURE_MARKDOWN } from "@/lib/architecture-doc";
@@ -1547,8 +1549,13 @@ function CommunityAdmin() {
     description_bn: "",
   });
   const [importOrgId, setImportOrgId] = useState("");
+  const [importDistrict, setImportDistrict] = useState<District | null>(null);
+  const [importUpazila, setImportUpazila] = useState("");
   const [importPreview, setImportPreview] = useState<DonorImportInput[]>([]);
   const [importBusy, setImportBusy] = useState(false);
+  const [showQuickAddOrg, setShowQuickAddOrg] = useState(false);
+  const [quickOrg, setQuickOrg] = useState({ name: "", phone: "" });
+  const [quickOrgBusy, setQuickOrgBusy] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
   const [expandedOrgId, setExpandedOrgId] = useState<string | null>(null);
   const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
@@ -1646,8 +1653,34 @@ function CommunityAdmin() {
     }
   }
 
+  async function quickAddOrg() {
+    if (!can("community.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!quickOrg.name.trim() || !quickOrg.phone.trim()) {
+      return toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone are required");
+    }
+    setQuickOrgBusy(true);
+    const { data, error } = await supabase
+      .from("community_orgs")
+      .insert({
+        name: quickOrg.name.trim(),
+        phone: quickOrg.phone.trim(),
+      })
+      .select("id")
+      .single();
+    setQuickOrgBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(lang === "bn" ? "সংস্থা যোগ হয়েছে" : "Organization added");
+    setQuickOrg({ name: "", phone: "" });
+    setShowQuickAddOrg(false);
+    await load();
+    if (data?.id) setImportOrgId(data.id);
+  }
+
   async function runImport() {
     if (!can("community.import")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!importDistrict) {
+      return toast.error(lang === "bn" ? "জেলা সিলেক্ট করুন" : "Select a district");
+    }
     if (!importOrgId) {
       return toast.error(lang === "bn" ? "সংস্থা সিলেক্ট করুন" : "Select an organization");
     }
@@ -1655,7 +1688,12 @@ function CommunityAdmin() {
       return toast.error(lang === "bn" ? "ফাইল আপলোড করুন" : "Upload a file first");
     }
     setImportBusy(true);
-    const result = await bulkImportCommunityDonors(importOrgId, importPreview, districts);
+    const result = await bulkImportCommunityDonors(
+      importOrgId,
+      importPreview,
+      { districtId: importDistrict.id, upazila: importUpazila || null },
+      districts,
+    );
     setImportBusy(false);
     if (result.errors.length) toast.error(result.errors[0]!);
     toast.success(
@@ -1718,29 +1756,114 @@ function CommunityAdmin() {
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">
           {lang === "bn"
-            ? "CSV, Excel (.xlsx) বা JSON — কলাম: name, phone, blood_group, district, upazila (ঐচ্ছিক, জেলার অধীনে), address (ঐচ্ছিক)"
-            : "CSV, Excel (.xlsx), or JSON — columns: name, phone, blood_group, district, upazila (opt, under district), address (opt)"}
+            ? "আগে জেলা ও উপজেলা দিন, তারপর সংস্থা সিলেক্ট করে CSV / Excel / JSON আপলোড করুন। ফাইল কলাম: Name, Phone, blood_group, Address (ঐচ্ছিক) — সব রো সেই জেলা/উপজেলায় যাবে।"
+            : "Set District & Upazila first, then pick an organization and upload CSV / Excel / JSON. File columns: Name, Phone, blood_group, Address (optional) — all rows get that district/upazila."}
         </p>
         <div className="flex flex-wrap gap-2 text-xs">
           <a href="/samples/community-donors-sample.csv" download className="text-rose-400 hover:underline flex items-center gap-1">
-            <Download className="h-3 w-3" /> Sample CSV (5)
+            <Download className="h-3 w-3" /> Sample CSV (10)
+          </a>
+          <a href="/samples/community-donors-sample.xlsx" download className="text-rose-400 hover:underline flex items-center gap-1">
+            <FileSpreadsheet className="h-3 w-3" /> Sample Excel (10)
           </a>
           <a href="/samples/community-donors-sample.json" download className="text-rose-400 hover:underline flex items-center gap-1">
-            <FileSpreadsheet className="h-3 w-3" /> Sample JSON (5)
+            <FileSpreadsheet className="h-3 w-3" /> Sample JSON (10)
           </a>
         </div>
-        <select
-          className={ainp}
-          value={importOrgId}
-          onChange={(e) => setImportOrgId(e.target.value)}
-        >
-          <option value="">{lang === "bn" ? "সংস্থা সিলেক্ট…" : "Select organization…"}</option>
-          {rows.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400">{lang === "bn" ? "জেলা *" : "District *"}</label>
+            <DistrictTypeahead
+              value={importDistrict}
+              onChange={(d) => {
+                setImportDistrict(d);
+                setImportUpazila("");
+              }}
+              placeholder={lang === "bn" ? "জেলা খুঁজুন…" : "Search district…"}
+              variant="admin"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400">{lang === "bn" ? "উপজেলা" : "Upazila"}</label>
+            <UpazilaSelect
+              district={importDistrict}
+              value={importUpazila}
+              onChange={setImportUpazila}
+              variant="admin"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-[10px] text-slate-400">{lang === "bn" ? "সংস্থা *" : "Organization *"}</label>
+          <select
+            className={ainp}
+            value={showQuickAddOrg ? "__add__" : importOrgId}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "__add__") {
+                setShowQuickAddOrg(true);
+                return;
+              }
+              setShowQuickAddOrg(false);
+              setImportOrgId(v);
+            }}
+          >
+            <option value="">{lang === "bn" ? "সংস্থা সিলেক্ট…" : "Select organization…"}</option>
+            {can("community.add") && (
+              <option value="__add__">
+                {lang === "bn" ? "+ নতুন সংস্থা যোগ করুন" : "+ Add new organization"}
+              </option>
+            )}
+            {rows.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          {showQuickAddOrg && (
+            <div className="rounded-lg border border-rose-900/50 bg-slate-950/80 p-3 space-y-2">
+              <p className="text-[10px] text-slate-400">
+                {lang === "bn" ? "ম্যানুয়ালি সংস্থা যোগ করুন (নাম ও ফোন বাধ্যতামূলক)" : "Add organization manually (name & phone required)"}
+              </p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <input
+                  className={ainp}
+                  placeholder={lang === "bn" ? "সংস্থার নাম *" : "Organization name *"}
+                  value={quickOrg.name}
+                  onChange={(e) => setQuickOrg({ ...quickOrg, name: e.target.value })}
+                />
+                <input
+                  className={ainp}
+                  placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
+                  value={quickOrg.phone}
+                  onChange={(e) => setQuickOrg({ ...quickOrg, phone: e.target.value })}
+                  inputMode="tel"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={quickOrgBusy}
+                  onClick={() => void quickAddOrg()}
+                  className="rounded-lg bg-rose-600 text-white text-xs font-semibold px-3 py-2 disabled:opacity-50"
+                >
+                  <Plus className="h-3.5 w-3.5 inline mr-1" />
+                  {quickOrgBusy ? "…" : lang === "bn" ? "যোগ করুন" : "Add"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowQuickAddOrg(false);
+                    setQuickOrg({ name: "", phone: "" });
+                  }}
+                  className="rounded-lg border border-slate-700 text-slate-300 text-xs px-3 py-2"
+                >
+                  {lang === "bn" ? "বাতিল" : "Cancel"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <input
           type="file"
           accept=".csv,.json,.xlsx,.xls"
@@ -1753,16 +1876,18 @@ function CommunityAdmin() {
               <thead className="bg-slate-950 text-slate-400">
                 <tr>
                   <th className="px-2 py-1 text-left">Name</th>
-                  <th className="px-2 py-1">BG</th>
-                  <th className="px-2 py-1">District</th>
+                  <th className="px-2 py-1 text-left">Phone</th>
+                  <th className="px-2 py-1 text-center">BG</th>
+                  <th className="px-2 py-1 text-left">Address</th>
                 </tr>
               </thead>
               <tbody>
                 {importPreview.slice(0, 8).map((r, i) => (
                   <tr key={i} className="border-t border-slate-800">
                     <td className="px-2 py-1">{r.name}</td>
+                    <td className="px-2 py-1">{r.phone}</td>
                     <td className="px-2 py-1 text-center">{r.blood_group || "—"}</td>
-                    <td className="px-2 py-1">{r.district || "—"}</td>
+                    <td className="px-2 py-1">{r.address || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1774,7 +1899,7 @@ function CommunityAdmin() {
         )}
         <button
           type="button"
-          disabled={importBusy || !importPreview.length || !importOrgId}
+          disabled={importBusy || !importPreview.length || !importOrgId || !importDistrict}
           onClick={() => void runImport()}
           className="rounded-lg bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50"
         >
