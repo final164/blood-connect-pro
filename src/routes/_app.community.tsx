@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchCommunityOrgs, type CommunityOrg, type District } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { fetchCommunityOrgs, getProfile, type CommunityOrg, type District } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { CommunitySendSmsSheet } from "@/components/community/CommunitySendSmsSheet";
@@ -9,7 +8,7 @@ import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import {
-  contactFlagsForGender,
+  contactFlagsForViewerDonor,
   normalizeDonorContactSettings,
 } from "@/lib/community-contact-settings";
 import { whatsappHref } from "@/lib/request-form-options";
@@ -20,6 +19,8 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type CommunitySearch = {
   orgId?: string;
@@ -37,18 +38,30 @@ export const Route = createFileRoute("/_app/community")({
 
 function CommunityPage() {
   const { lang } = useI18n();
+  const { user } = useAuth();
   const { orgId } = Route.useSearch();
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
   const [bloodGroup, setBloodGroup] = useState("ALL");
   const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
   const [filterOrg, setFilterOrg] = useState<CommunityOrg | null>(null);
+  const [viewerGender, setViewerGender] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [smsOpen, setSmsOpen] = useState(false);
   const donorsRef = useRef(donors);
   donorsRef.current = donors;
+
+  useEffect(() => {
+    if (!user?.id) {
+      setViewerGender(null);
+      return;
+    }
+    void getProfile(user.id).then((p) => {
+      setViewerGender((p?.gender as string | null | undefined)?.trim().toLowerCase() ?? null);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     if (!orgId) {
@@ -203,7 +216,7 @@ function CommunityPage() {
           </li>
         )}
         {donors.map((d) => (
-          <DonorCard key={d.id} donor={d} lang={lang} />
+          <DonorCard key={d.id} donor={d} lang={lang} viewerGender={viewerGender} />
         ))}
       </ul>
       <InfiniteSentinel
@@ -219,18 +232,28 @@ function CommunityPage() {
         donors={donors}
         defaultDistrict={district}
         defaultUpazila={upazila}
+        viewerGender={viewerGender}
       />
     </div>
   );
 }
 
-function DonorCard({ donor: d, lang }: { donor: CommunityDonorRow; lang: "bn" | "en" }) {
+function DonorCard({
+  donor: d,
+  lang,
+  viewerGender,
+}: {
+  donor: CommunityDonorRow;
+  lang: "bn" | "en";
+  viewerGender: string | null;
+}) {
   const orgName = lang === "bn" ? d.community_orgs?.name_bn || d.community_orgs?.name : d.community_orgs?.name;
   const distName = lang === "bn" ? d.districts?.name_bn : d.districts?.name_en;
   const upazilaName = upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang);
   const location = [upazilaName, distName].filter(Boolean).join(" · ");
-  const flags = contactFlagsForGender(
+  const flags = contactFlagsForViewerDonor(
     normalizeDonorContactSettings(d.community_orgs?.donor_contact_settings),
+    viewerGender,
     d.gender,
   );
   const phone = d.phone?.trim() || "";
