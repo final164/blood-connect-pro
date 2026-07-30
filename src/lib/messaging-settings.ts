@@ -11,13 +11,17 @@ export type PostIconSettings = {
 };
 
 export type MessagingSettings = {
-  /** Community bulk / donor SMS body. Placeholders: {{blood_group}} {{patient_name}} {{hospital}} {{upazila}} {{district}} {{bags}} {{urgency}} {{contact}} {{notes}} {{link}} */
+  /** Community bulk / donor SMS body. Placeholders: {{blood_group}} {{patient_name}} {{hospital}} {{upazila}} {{district}} {{bags}} {{urgency}} {{notes}} {{reason}} {{link}} */
   community_sms_bn: string;
   community_sms_en: string;
   /** Feed share text (RequestCard). Same placeholders + {{location}} */
   share_sms_bn: string;
   share_sms_en: string;
   post_icons: PostIconSettings;
+  /** Show “Send SMS” on community page */
+  show_community_send_sms: boolean;
+  /** Max donors selectable per bulk SMS */
+  max_sms_donors: number;
 };
 
 export const DEFAULT_POST_ICONS: PostIconSettings = {
@@ -32,22 +36,27 @@ export const DEFAULT_POST_ICONS: PostIconSettings = {
 
 export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   community_sms_bn:
-    "{{blood_group}} রক্ত দরকার — {{patient_name}}\nহাসপাতাল: {{hospital}}\nস্থান: {{upazila}}, {{district}}\nব্যাগ: {{bags}}\nযোগাযোগ: {{contact}}\n{{link}}",
+    "{{blood_group}} রক্ত দরকার — {{patient_name}}\nহাসপাতাল: {{hospital}}\nস্থান: {{upazila}}, {{district}}\nব্যাগ: {{bags}}\nকারণ: {{reason}}\n{{notes}}\n{{link}}",
   community_sms_en:
-    "{{blood_group}} blood needed — {{patient_name}}\nHospital: {{hospital}}\nPlace: {{upazila}}, {{district}}\nBags: {{bags}}\nContact: {{contact}}\n{{link}}",
+    "{{blood_group}} blood needed — {{patient_name}}\nHospital: {{hospital}}\nPlace: {{upazila}}, {{district}}\nBags: {{bags}}\nReason: {{reason}}\n{{notes}}\n{{link}}",
   share_sms_bn: "{{blood_group}} রক্ত দরকার — {{patient_name}}, {{location}}\n{{link}}",
   share_sms_en: "{{blood_group}} blood needed — {{patient_name}}, {{location}}\n{{link}}",
   post_icons: { ...DEFAULT_POST_ICONS },
+  show_community_send_sms: true,
+  max_sms_donors: 10,
 };
 
 export type SmsTemplateVars = Record<string, string | number | null | undefined>;
 
 export function applySmsTemplate(template: string, vars: SmsTemplateVars): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    const v = vars[key];
-    if (v == null || v === "") return "";
-    return String(v);
-  }).replace(/\n{3,}/g, "\n\n").trim();
+  return template
+    .replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+      const v = vars[key];
+      if (v == null || v === "") return "";
+      return String(v);
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function normalizeIcons(raw: unknown): PostIconSettings {
@@ -65,6 +74,7 @@ function normalizeIcons(raw: unknown): PostIconSettings {
 
 export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Partial<MessagingSettings>;
+  const max = Number(r.max_sms_donors);
   return {
     community_sms_bn:
       typeof r.community_sms_bn === "string" && r.community_sms_bn.trim()
@@ -83,6 +93,14 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
         ? r.share_sms_en
         : DEFAULT_MESSAGING_SETTINGS.share_sms_en,
     post_icons: normalizeIcons(r.post_icons),
+    show_community_send_sms:
+      typeof r.show_community_send_sms === "boolean"
+        ? r.show_community_send_sms
+        : DEFAULT_MESSAGING_SETTINGS.show_community_send_sms,
+    max_sms_donors:
+      Number.isFinite(max) && max >= 1
+        ? Math.min(100, Math.floor(max))
+        : DEFAULT_MESSAGING_SETTINGS.max_sms_donors,
   };
 }
 
@@ -123,6 +141,5 @@ export function buildSmsHref(phones: string[], body: string): string {
   if (!nums.length) return "";
   const to = nums.join(",");
   const q = encodeURIComponent(body);
-  // `?&body=` works on iOS; Android often accepts `?body=`
   return `sms:${to}?&body=${q}`;
 }

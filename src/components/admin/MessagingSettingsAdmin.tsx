@@ -62,10 +62,47 @@ export function MessagingSettingsAdmin() {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "কমিউনিটি Send SMS" : "Community Send SMS"}
+        </h3>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300">
+            {lang === "bn" ? "Send SMS বাটন দেখাবে" : "Show Send SMS button"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500"
+            checked={s.show_community_send_sms}
+            onChange={(e) => setS({ ...s, show_community_send_sms: e.target.checked })}
+          />
+        </label>
+        <div>
+          <label className="text-[10px] text-slate-400 block mb-1">
+            {lang === "bn"
+              ? "একসাথে সর্বোচ্চ কতজন ডোনার সিলেক্ট"
+              : "Max donors selectable per SMS"}
+          </label>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            className={ainp}
+            value={s.max_sms_donors}
+            onChange={(e) =>
+              setS({
+                ...s,
+                max_sms_donors: Math.max(1, Math.min(100, Number(e.target.value) || 1)),
+              })
+            }
+          />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">
           {lang === "bn" ? "কমিউনিটি SMS টেমপ্লেট" : "Community SMS template"}
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">
-          {"{{blood_group}} {{patient_name}} {{hospital}} {{upazila}} {{district}} {{bags}} {{urgency}} {{contact}} {{notes}} {{link}}"}
+          {"{{blood_group}} {{patient_name}} {{hospital}} {{upazila}} {{district}} {{bags}} {{urgency}} {{reason}} {{notes}} {{link}}"}
         </p>
         <label className="block text-[10px] text-slate-400 mb-1">Bangla</label>
         <textarea
