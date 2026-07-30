@@ -6,6 +6,7 @@ import {
   CarouselItem,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
 import { useI18n } from "@/lib/i18n";
 import type { FeedCarouselSettings, FeedCarouselSlide } from "@/lib/feed-carousel";
 import { cn } from "@/lib/utils";
@@ -95,7 +96,7 @@ export function FeedImageCarousel({ settings, slides, className }: Props) {
                     borderRadius: radius,
                   }}
                 >
-                  <img
+                  <CarouselRemoteImage
                     src={slide.image_url}
                     alt={caption || title}
                     className="absolute inset-0 h-full w-full object-cover"

@@ -71,6 +71,66 @@ function clampInt(n: unknown, min: number, max: number, fallback: number) {
   return Math.min(max, Math.max(min, v));
 }
 
+/** Extract Google Drive file id from share / open / uc / thumbnail links. */
+export function extractGoogleDriveFileId(url: string): string | null {
+  const raw = url.trim();
+  if (!raw) return null;
+  const filePath = raw.match(/\/(?:file|uc)\/d\/([a-zA-Z0-9_-]{10,})/i);
+  if (filePath?.[1]) return filePath[1];
+  const folders = raw.match(/\/(?:open|thumbnail|uc)\b[^#]*[?&]id=([a-zA-Z0-9_-]{10,})/i);
+  if (folders?.[1]) return folders[1];
+  const anyId = raw.match(/[?&]id=([a-zA-Z0-9_-]{10,})/i);
+  if (anyId?.[1] && /drive\.google\.com|docs\.google\.com/i.test(raw)) return anyId[1];
+  return null;
+}
+
+/**
+ * Turn pasted Drive share links into an <img>-friendly URL.
+ * Prefer thumbnail endpoint (uc?export=view often 403 since 2024).
+ */
+export function resolveCarouselImageUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+
+  const driveId = extractGoogleDriveFileId(trimmed);
+  if (driveId) {
+    return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
+  }
+
+  // Dropbox share → direct
+  if (/dropbox\.com\//i.test(trimmed)) {
+    try {
+      const u = new URL(trimmed);
+      u.searchParams.delete("dl");
+      u.searchParams.set("raw", "1");
+      return u.toString();
+    } catch {
+      return trimmed.replace(/\?dl=0/, "?raw=1").replace(/&dl=0/, "&raw=1");
+    }
+  }
+
+  return trimmed;
+}
+
+/** Candidate display URLs (primary + fallbacks) for Drive / remote images. */
+export function carouselImageCandidates(url: string): string[] {
+  const trimmed = url.trim();
+  if (!trimmed) return [];
+  const driveId = extractGoogleDriveFileId(trimmed);
+  if (driveId) {
+    return [
+      `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`,
+      `https://lh3.googleusercontent.com/d/${driveId}=w2000`,
+      `https://drive.google.com/uc?export=view&id=${driveId}`,
+    ];
+  }
+  return [resolveCarouselImageUrl(trimmed)];
+}
+
+export function isGoogleDriveUrl(url: string): boolean {
+  return !!extractGoogleDriveFileId(url) || /drive\.google\.com|docs\.google\.com/i.test(url);
+}
+
 export function normalizeFeedCarouselSettings(raw: unknown): FeedCarouselSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Partial<FeedCarouselSettings>;
   const aspect =
@@ -186,7 +246,7 @@ export async function upsertFeedCarouselSlide(
   slide: Partial<FeedCarouselSlide> & { image_url: string },
 ) {
   const payload: Record<string, unknown> = {
-    image_url: slide.image_url.trim(),
+    image_url: resolveCarouselImageUrl(slide.image_url),
     title_bn: slide.title_bn?.trim() ?? "",
     title_en: slide.title_en?.trim() ?? "",
     link_url: slide.link_url?.trim() || null,
