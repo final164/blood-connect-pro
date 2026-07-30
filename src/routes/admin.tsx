@@ -1,9 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n, ensureCmsSeed } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllDistrictsAdmin, fetchAllHospitalsAdmin, type District, type Hospital } from "@/lib/api";
+import {
+  fetchAllDistrictsAdmin,
+  fetchDistrictsAdminPage,
+  fetchHospitalsAdminPage,
+  type District,
+  type Hospital,
+} from "@/lib/api";
 import {
   bulkImportCommunityDonors,
   fetchCommunityDonorsByOrg,
@@ -53,6 +59,8 @@ import {
   FileSpreadsheet,
   ChevronDown,
   Pencil,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { toast } from "sonner";
 import { isAdminIdentity } from "@/lib/phone-auth";
@@ -63,6 +71,8 @@ import { NeedReasonAdmin } from "@/components/admin/NeedReasonAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
+import { InfiniteSentinel } from "@/components/InfiniteSentinel";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — BloodLink" }] }),
@@ -97,6 +107,23 @@ function AdminPageInner() {
   const { t, lang, reloadCms } = useI18n();
   const [tab, setTab] = useState<Tab>("overview");
   const [ready, setReady] = useState(false);
+  const [dark, setDark] = useState(true);
+
+  useEffect(() => {
+    // Admin-only preference — default dark. Never touches user app `theme` / html.dark.
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem("admin-theme") : null;
+    const next = stored !== "light";
+    setDark(next);
+    if (typeof window !== "undefined" && !stored) {
+      window.localStorage.setItem("admin-theme", "dark");
+    }
+  }, []);
+
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    window.localStorage.setItem("admin-theme", next ? "dark" : "light");
+  }
 
   useEffect(() => {
     void refreshAdmin();
@@ -172,32 +199,69 @@ function AdminPageInner() {
   const tabs = allTabs.filter((item) => canModule(item.module) || (item.id === "access" && can("access.view")));
 
   return (
-    <div className="min-h-dvh flex flex-col sm:flex-row bg-slate-950 text-slate-100 overflow-x-hidden">
-      <aside className="shrink-0 w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-slate-800 bg-slate-900 flex flex-col sm:sticky sm:top-0 sm:h-dvh z-30">
-        <div className="px-3 sm:px-4 py-3 border-b border-slate-800 flex items-center gap-2.5 shrink-0 safe-top">
+    <div
+      className={`admin-app h-dvh flex flex-col sm:flex-row overflow-hidden ${
+        dark ? "admin-dark bg-[#0b1220] text-slate-100" : "admin-light bg-slate-100 text-slate-900"
+      }`}
+    >
+      <aside
+        className={`shrink-0 w-full sm:w-64 border-b sm:border-b-0 sm:border-r flex flex-col sm:h-full z-30 sm:shadow-none backdrop-blur-sm ${
+          dark
+            ? "border-white/5 bg-slate-900/80"
+            : "border-slate-200/80 bg-white shadow-[0_1px_0_rgb(15_23_42/0.04)]"
+        }`}
+      >
+        <div
+          className={`px-3 sm:px-4 py-3 border-b flex items-center gap-2.5 shrink-0 safe-top ${
+            dark ? "border-slate-800" : "border-slate-200"
+          }`}
+        >
           <div className="h-9 w-9 rounded-lg bg-rose-600 grid place-items-center shrink-0">
             <Shield className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold truncate">{t("adminPanel")}</p>
-            <p className="text-[10px] text-slate-400 truncate">
+            <p className={`text-sm font-bold truncate ${dark ? "text-slate-100" : "text-slate-900"}`}>
+              {t("adminPanel")}
+            </p>
+            <p className={`text-[10px] truncate ${dark ? "text-slate-400" : "text-slate-500"}`}>
               {isSuper ? "Super Admin" : user.email}
             </p>
           </div>
-          <div className="flex sm:hidden items-center gap-1 shrink-0">
-            <Link to="/" className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-slate-800">
-              {t("openApp")}
-            </Link>
+          <div className="flex items-center gap-0.5 shrink-0">
             <button
               type="button"
-              onClick={() => signOut()}
-              className="text-[10px] text-slate-400 px-2 py-1 rounded-md hover:bg-slate-800"
+              onClick={toggleTheme}
+              title={dark ? t("darkMode") : "Light"}
+              className={`h-8 w-8 rounded-lg grid place-items-center ${
+                dark
+                  ? "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              }`}
             >
-              {t("logout")}
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
+            <div className="flex sm:hidden items-center gap-1">
+              <Link
+                to="/"
+                className={`text-[10px] px-2 py-1 rounded-md ${
+                  dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {t("openApp")}
+              </Link>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className={`text-[10px] px-2 py-1 rounded-md ${
+                  dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {t("logout")}
+              </button>
+            </div>
           </div>
         </div>
-        <nav className="flex sm:flex-col gap-1 p-2 overflow-x-auto no-scrollbar sm:overflow-y-auto sm:flex-1 shrink-0">
+        <nav className="flex sm:flex-col gap-1 p-2 overflow-x-auto no-scrollbar sm:overflow-y-auto sm:flex-1 sm:min-h-0 shrink-0">
           {tabs.map((item) => {
             const Icon = item.icon;
             const active = tab === item.id;
@@ -207,7 +271,11 @@ function AdminPageInner() {
                 type="button"
                 onClick={() => setTab(item.id)}
                 className={`shrink-0 sm:w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[11px] sm:text-sm font-medium transition ${
-                  active ? "bg-rose-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                  active
+                    ? "bg-rose-600 text-white shadow-sm shadow-rose-600/25"
+                    : dark
+                      ? "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -216,10 +284,26 @@ function AdminPageInner() {
             );
           })}
         </nav>
-        <div className="hidden sm:block p-3 border-t border-slate-800 space-y-1 shrink-0">
+        <div
+          className={`hidden sm:block p-3 border-t space-y-1 shrink-0 ${
+            dark ? "border-slate-800" : "border-slate-200"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+              dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {dark ? (lang === "bn" ? "লাইট মোড" : "Light mode") : t("darkMode")}
+          </button>
           <Link
             to="/"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800"
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+              dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"
+            }`}
           >
             <ExternalLink className="h-4 w-4" />
             {t("openApp")}
@@ -227,7 +311,9 @@ function AdminPageInner() {
           <button
             type="button"
             onClick={() => signOut()}
-            className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800"
+            className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+              dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"
+            }`}
           >
             <LogOut className="h-4 w-4" />
             {t("logout")}
@@ -235,13 +321,33 @@ function AdminPageInner() {
         </div>
       </aside>
 
-      <div className="flex-1 min-w-0 flex flex-col min-h-0">
-        <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/90 backdrop-blur px-3 sm:px-6 py-2.5 sm:py-3 shrink-0">
-          <h1 className="text-sm sm:text-base font-semibold truncate">
-            {tabs.find((x) => x.id === tab)?.label}
-          </h1>
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+        <header
+          className={`shrink-0 z-20 border-b backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 ${
+            dark ? "border-white/5 bg-[#0b1220]/90" : "border-slate-200/80 bg-white/80"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h1
+              className={`text-sm sm:text-base font-semibold truncate ${
+                dark ? "text-slate-100" : "text-slate-900"
+              }`}
+            >
+              {tabs.find((x) => x.id === tab)?.label}
+            </h1>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={`sm:hidden h-8 w-8 rounded-lg grid place-items-center ${
+                dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"
+              }`}
+              title={dark ? t("darkMode") : "Light"}
+            >
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          </div>
         </header>
-        <main className="flex-1 p-3 sm:p-6 overflow-y-auto overflow-x-hidden min-h-0 safe-bottom">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto overflow-x-hidden min-h-0 safe-bottom overscroll-contain">
           <div className="max-w-6xl mx-auto w-full min-w-0">
             {!isAdmin && isAdminIdentity(user.email) && (
               <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
@@ -546,20 +652,46 @@ function DistrictsAdmin() {
   const [expandedDistrictId, setExpandedDistrictId] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [upazilaSeedVersion, setUpazilaSeedVersion] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const PAGE = 20;
 
-  async function load() {
-    const list = await fetchAllDistrictsAdmin();
-    setRows(list);
-    return list;
-  }
+  const loadPage = useCallback(async (reset: boolean) => {
+    if (reset) {
+      setLoading(true);
+      setHasMore(true);
+    } else setLoadingMore(true);
+    try {
+      const offset = reset ? 0 : rowsRef.current.length;
+      const { items, hasMore: more } = await fetchDistrictsAdminPage({ offset, limit: PAGE });
+      setRows((prev) => (reset ? items : [...prev, ...items.filter((d) => !prev.some((p) => p.id === d.id))]));
+      setHasMore(more);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    void loadPage(false).catch((e) => toast.error(e.message));
+  }, [hasMore, loadPage, loading, loadingMore]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, { enabled: hasMore && !loading });
+
   useEffect(() => {
-    load()
-      .then(async (list) => {
-        if (!can("districts.add") || !list.length) return;
+    void loadPage(true)
+      .then(async () => {
+        if (!can("districts.add")) return;
         try {
           const { count } = await supabase.from("upazilas").select("id", { count: "exact", head: true });
           if ((count ?? 0) === 0) {
-            await seedUpazilasFromCatalog(list);
+            const all = await fetchAllDistrictsAdmin();
+            if (!all.length) return;
+            await seedUpazilasFromCatalog(all);
             setUpazilaSeedVersion((v) => v + 1);
           }
         } catch {
@@ -567,6 +699,7 @@ function DistrictsAdmin() {
         }
       })
       .catch((e) => toast.error(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function add() {
@@ -580,13 +713,13 @@ function DistrictsAdmin() {
     });
     if (error) return toast.error(error.message);
     setForm({ name_bn: "", name_en: "", slug: "" });
-    load();
+    void loadPage(true);
   }
 
   async function toggle(d: District) {
     if (!can("districts.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("districts").update({ is_active: !d.is_active }).eq("id", d.id);
-    load();
+    setRows((prev) => prev.map((x) => (x.id === d.id ? { ...x, is_active: !d.is_active } : x)));
   }
 
   async function remove(id: string) {
@@ -594,14 +727,15 @@ function DistrictsAdmin() {
     if (!confirm("Delete?")) return;
     await supabase.from("districts").delete().eq("id", id);
     if (expandedDistrictId === id) setExpandedDistrictId(null);
-    load();
+    setRows((prev) => prev.filter((x) => x.id !== id));
   }
 
   async function seedCatalog() {
     if (!can("districts.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     setSeeding(true);
     try {
-      const result = await seedUpazilasFromCatalog(rows);
+      const all = await fetchAllDistrictsAdmin();
+      const result = await seedUpazilasFromCatalog(all);
       toast.success(
         lang === "bn"
           ? `${result.total}টি উপজেলা — ${result.inserted}টি যোগ/আপডেট`
@@ -663,6 +797,13 @@ function DistrictsAdmin() {
             </tr>
           </thead>
           <tbody>
+            {loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-slate-400 text-sm">
+                  {t("loading")}
+                </td>
+              </tr>
+            )}
             {rows.map((d) => (
               <Fragment key={d.id}>
                 <tr className="border-t border-slate-800">
@@ -708,6 +849,12 @@ function DistrictsAdmin() {
             ))}
           </tbody>
         </table>
+        <InfiniteSentinel
+          sentinelRef={sentinelRef}
+          loading={loadingMore}
+          hasMore={hasMore}
+          label={lang === "bn" ? "আরও জেলা…" : "More districts…"}
+        />
       </div>
     </div>
   );
@@ -721,6 +868,15 @@ function HospitalsAdmin() {
   const [q, setQ] = useState("");
   const [dbReady, setDbReady] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalHint, setTotalHint] = useState(0);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const qRef = useRef(q);
+  qRef.current = q;
+  const PAGE = 25;
   const [form, setForm] = useState({
     name_bn: "",
     name_en: "",
@@ -729,22 +885,67 @@ function HospitalsAdmin() {
     hospital_type: "government" as "government" | "private" | "clinic" | "diagnostic",
   });
 
-  async function load() {
+  const loadPage = useCallback(async (reset: boolean, search = qRef.current) => {
+    if (reset) {
+      setLoading(true);
+      setHasMore(true);
+    } else setLoadingMore(true);
     try {
-      const [h, d] = await Promise.all([fetchAllHospitalsAdmin(), fetchAllDistrictsAdmin()]);
-      setRows(h);
-      setDistricts(d);
-      const { error } = await supabase.from("hospitals").select("id").limit(1);
-      setDbReady(!error);
-    } catch (e) {
-      setDbReady(false);
-      toast.error((e as Error).message);
+      const offset = reset ? 0 : rowsRef.current.length;
+      const { items, hasMore: more } = await fetchHospitalsAdminPage({
+        offset,
+        limit: PAGE,
+        q: search,
+      });
+      setRows((prev) =>
+        reset ? items : [...prev, ...items.filter((h) => !prev.some((p) => p.id === h.id))],
+      );
+      setHasMore(more);
+      if (reset) setTotalHint(items.length + (more ? PAGE : 0));
+      else setTotalHint((n) => Math.max(n, rowsRef.current.length + items.length));
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-  }
+  }, []);
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    void loadPage(false).catch((e) => toast.error(e.message));
+  }, [hasMore, loadPage, loading, loadingMore]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, { enabled: hasMore && !loading });
 
   useEffect(() => {
-    load();
+    void (async () => {
+      try {
+        const [{ error }, d] = await Promise.all([
+          supabase.from("hospitals").select("id").limit(1),
+          fetchAllDistrictsAdmin(),
+        ]);
+        setDbReady(!error);
+        setDistricts(d);
+        await loadPage(true, "");
+      } catch (e) {
+        setDbReady(false);
+        toast.error((e as Error).message);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const searchBoot = useRef(true);
+  useEffect(() => {
+    if (searchBoot.current) {
+      searchBoot.current = false;
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      void loadPage(true, q).catch((e) => toast.error(e.message));
+    }, 220);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
 
   async function seedAll() {
     if (!can("hospitals.seed")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
@@ -760,7 +961,8 @@ function HospitalsAdmin() {
         setDbReady(false);
         return;
       }
-      const bySlug = new Map(districts.map((d) => [d.slug, d.id]));
+      const allDistricts = districts.length ? districts : await fetchAllDistrictsAdmin();
+      const bySlug = new Map(allDistricts.map((d) => [d.slug, d.id]));
       const payload = BANGLADESH_HOSPITALS.map((h, i) => ({
         name_bn: h.name_bn,
         name_en: h.name_en,
@@ -782,7 +984,8 @@ function HospitalsAdmin() {
         }
       }
       toast.success(`${payload.length} hospitals seeded`);
-      await load();
+      setQ("");
+      await loadPage(true, "");
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -803,14 +1006,14 @@ function HospitalsAdmin() {
     });
     if (error) return toast.error(error.message);
     setForm({ name_bn: "", name_en: "", slug: "", district_id: form.district_id, hospital_type: "government" });
-    load();
+    void loadPage(true, q);
   }
 
   async function toggle(h: Hospital) {
     if (!can("hospitals.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (h.id.startsWith("seed:")) return;
     await supabase.from("hospitals").update({ is_active: !h.is_active }).eq("id", h.id);
-    load();
+    setRows((prev) => prev.map((x) => (x.id === h.id ? { ...x, is_active: !h.is_active } : x)));
   }
 
   async function remove(id: string) {
@@ -818,14 +1021,8 @@ function HospitalsAdmin() {
     if (id.startsWith("seed:")) return;
     if (!confirm("Delete hospital?")) return;
     await supabase.from("hospitals").delete().eq("id", id);
-    load();
+    setRows((prev) => prev.filter((x) => x.id !== id));
   }
-
-  const filtered = rows.filter((h) => {
-    if (!q.trim()) return true;
-    const s = q.toLowerCase();
-    return h.name_en.toLowerCase().includes(s) || h.name_bn.includes(q) || (h.district_slug ?? "").includes(s);
-  });
 
   return (
     <div className="space-y-4">
@@ -883,7 +1080,9 @@ function HospitalsAdmin() {
       </div>
 
       <p className="text-xs text-slate-400">
-        Showing {filtered.length} / {rows.length || BANGLADESH_HOSPITALS.length}
+        Showing {rows.length}
+        {hasMore ? "+" : ""}
+        {totalHint > rows.length ? ` · ~${totalHint}+` : ""}
       </p>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll max-h-[60vh]">
@@ -898,7 +1097,21 @@ function HospitalsAdmin() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((h) => (
+            {loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-slate-400 text-sm">
+                  {t("loading")}
+                </td>
+              </tr>
+            )}
+            {!loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-6 text-center text-slate-400 text-sm">
+                  {lang === "bn" ? "কোনো হাসপাতাল নেই" : "No hospitals"}
+                </td>
+              </tr>
+            )}
+            {rows.map((h) => (
               <tr key={h.id} className="border-t border-slate-800">
                 <td className="p-3">
                   <p className="font-medium">{lang === "bn" ? h.name_bn : h.name_en}</p>
@@ -926,6 +1139,12 @@ function HospitalsAdmin() {
             ))}
           </tbody>
         </table>
+        <InfiniteSentinel
+          sentinelRef={sentinelRef}
+          loading={loadingMore}
+          hasMore={hasMore}
+          label={lang === "bn" ? "আরও হাসপাতাল…" : "More hospitals…"}
+        />
       </div>
     </div>
   );

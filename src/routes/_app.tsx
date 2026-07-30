@@ -49,7 +49,15 @@ function AppLayout() {
       });
   }, [user?.id]);
 
-  if (loading || !session || isAnonymous) {
+  if (loading && !session) {
+    return (
+      <div className="min-h-dvh grid place-items-center bg-background">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session || isAnonymous) {
     return (
       <div className="min-h-dvh grid place-items-center bg-background">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />

@@ -193,7 +193,11 @@ export async function fetchCommunityDonors(opts: {
   districtId?: string | null;
   upazila?: string;
   orgId?: string | null;
+  offset?: number;
+  limit?: number;
 }) {
+  const limit = opts.limit ?? 24;
+  const offset = opts.offset ?? 0;
   let q = supabase
     .from("community_donors")
     .select(
@@ -201,7 +205,7 @@ export async function fetchCommunityDonors(opts: {
     )
     .eq("is_active", true)
     .order("full_name", { ascending: true })
-    .limit(200);
+    .range(offset, offset + limit - 1);
 
   if (opts.bloodGroup && opts.bloodGroup !== "ALL") {
     q = q.eq("blood_group", opts.bloodGroup);
@@ -214,7 +218,8 @@ export async function fetchCommunityDonors(opts: {
 
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as CommunityDonorRow[];
+  const rows = (data ?? []) as CommunityDonorRow[];
+  return { items: rows, hasMore: rows.length >= limit };
 }
 
 export async function fetchCommunityDonorsByOrg(orgId: string) {

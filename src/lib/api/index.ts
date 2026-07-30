@@ -114,6 +114,46 @@ async function searchBundledHospitals(opts: {
   }));
 }
 
+export async function fetchHospitalsAdminPage(opts?: {
+  offset?: number;
+  limit?: number;
+  q?: string;
+}): Promise<{ items: Hospital[]; hasMore: boolean }> {
+  const limit = opts?.limit ?? 25;
+  const offset = opts?.offset ?? 0;
+  const mapRow = (row: any): Hospital => ({
+    id: row.id,
+    name_bn: row.name_bn,
+    name_en: row.name_en,
+    slug: row.slug,
+    district_id: row.district_id,
+    district_slug: row.districts?.slug ?? null,
+    hospital_type: row.hospital_type,
+    is_active: row.is_active,
+  });
+
+  if (await hospitalsTableExists()) {
+    let query = supabase
+      .from("hospitals")
+      .select("id,name_bn,name_en,slug,district_id,hospital_type,is_active,districts(slug)")
+      .order("name_en", { ascending: true })
+      .range(offset, offset + limit - 1);
+    if (opts?.q?.trim()) {
+      const term = `%${opts.q.trim()}%`;
+      query = query.or(`name_en.ilike.${term},name_bn.ilike.${term},slug.ilike.${term}`);
+    }
+    const { data, error } = await query;
+    if (!error) {
+      const items = (data ?? []).map(mapRow);
+      return { items, hasMore: items.length >= limit };
+    }
+  }
+
+  const bundled = await fetchHospitals({ q: opts?.q, limit: 2000 });
+  const slice = bundled.slice(offset, offset + limit);
+  return { items: slice, hasMore: offset + limit < bundled.length };
+}
+
 export async function fetchAllHospitalsAdmin(): Promise<Hospital[]> {
   if (await hospitalsTableExists()) {
     const { data, error } = await supabase
@@ -149,6 +189,22 @@ export async function fetchDistricts(q?: string): Promise<District[]> {
   const { data, error } = await query.limit(20);
   if (error) throw error;
   return (data ?? []) as District[];
+}
+
+export async function fetchDistrictsAdminPage(opts?: {
+  offset?: number;
+  limit?: number;
+}): Promise<{ items: District[]; hasMore: boolean }> {
+  const limit = opts?.limit ?? 20;
+  const offset = opts?.offset ?? 0;
+  const { data, error } = await supabase
+    .from("districts")
+    .select("id,name_bn,name_en,slug,is_active,sort_order")
+    .order("sort_order", { ascending: true })
+    .range(offset, offset + limit - 1);
+  if (error) throw error;
+  const items = (data ?? []) as District[];
+  return { items, hasMore: items.length >= limit };
 }
 
 export async function fetchAllDistrictsAdmin(): Promise<District[]> {

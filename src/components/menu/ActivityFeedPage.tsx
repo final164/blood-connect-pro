@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Building2, Phone, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -13,6 +13,10 @@ import {
 } from "@/lib/user-activity";
 import { fetchCommunityOrgs, type CommunityOrg } from "@/lib/api";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { InfiniteSentinel } from "@/components/InfiniteSentinel";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+
+const PAGE = 8;
 
 const TITLES: Record<ActivityView, { bn: string; en: string }> = {
   posts: { bn: "আমার পোস্ট", en: "My posts" },
@@ -44,34 +48,71 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
   const [items, setItems] = useState<FeedRequest[]>([]);
   const [orgs, setOrgs] = useState<CommunityOrg[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
-  async function load() {
-    setLoading(true);
-    try {
+  const loadPage = useCallback(
+    async (reset: boolean) => {
       if (view === "organizations") {
-        setOrgs(await fetchCommunityOrgs());
-        setItems([]);
-      } else {
-        if (!user) {
+        setLoading(true);
+        try {
+          setOrgs(await fetchCommunityOrgs());
           setItems([]);
+          setHasMore(false);
+        } catch {
           setOrgs([]);
-          return;
+        } finally {
+          setLoading(false);
         }
-        setItems(await loadActivityRequests(view, user.id));
-        setOrgs([]);
+        return;
       }
-    } catch {
-      setItems([]);
-      setOrgs([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+      if (!user) {
+        setItems([]);
+        setOrgs([]);
+        setLoading(false);
+        setHasMore(false);
+        return;
+      }
+      if (reset) {
+        setLoading(true);
+        setHasMore(true);
+      } else setLoadingMore(true);
+      try {
+        const offset = reset ? 0 : itemsRef.current.length;
+        const { items: page, hasMore: more } = await loadActivityRequests(view, user.id, {
+          offset,
+          limit: PAGE,
+        });
+        setItems((prev) =>
+          reset ? page : [...prev, ...page.filter((r) => !prev.some((p) => p.id === r.id))],
+        );
+        setOrgs([]);
+        setHasMore(more);
+      } catch {
+        if (reset) setItems([]);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [user, view],
+  );
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore || view === "organizations") return;
+    void loadPage(false);
+  }, [hasMore, loadPage, loading, loadingMore, view]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, {
+    enabled: hasMore && !loading && view !== "organizations",
+  });
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, user?.id]);
+    void loadPage(true);
+  }, [loadPage]);
 
   const title = lang === "bn" ? TITLES[view].bn : TITLES[view].en;
   const empty = lang === "bn" ? EMPTY[view].bn : EMPTY[view].en;
@@ -93,8 +134,8 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
         </div>
       </AutoHideHeader>
 
-      <div className="px-3 sm:px-4 py-3 space-y-3 max-w-2xl mx-auto pb-24">
-        {loading ? (
+      <div className="px-3 sm:px-4 py-3 space-y-3 max-w-2xl mx-auto pb-8">
+        {loading && items.length === 0 && orgs.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">{t("loading")}</p>
         ) : view === "organizations" ? (
           orgs.length === 0 ? (
@@ -114,10 +155,16 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
               key={r.id}
               request={r}
               currentUserId={user?.id}
-              onChanged={() => void load()}
+              onChanged={() => void loadPage(true)}
             />
           ))
         )}
+        <InfiniteSentinel
+          sentinelRef={sentinelRef}
+          loading={loadingMore}
+          hasMore={hasMore && view !== "organizations"}
+          label={lang === "bn" ? "আরও পোস্ট…" : "More posts…"}
+        />
       </div>
     </div>
   );
