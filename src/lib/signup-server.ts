@@ -91,6 +91,10 @@ export const signupWithPhone = createServerFn({ method: "POST" })
       full_name: data.fullName,
       phone: data.phone,
     });
+    await admin.from("user_login_credentials").upsert(
+      { user_id: createdUserId, phone: data.phone, pin: data.pin },
+      { onConflict: "user_id" },
+    );
 
     return { ok: true as const, exists: false as const };
   });
@@ -147,6 +151,10 @@ export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(asy
     full_name: "BloodLink Admin",
     phone: ADMIN_PHONE,
   });
+  await admin.from("user_login_credentials").upsert(
+    { user_id: userId, phone: ADMIN_PHONE, pin: ADMIN_PIN },
+    { onConflict: "user_id" },
+  );
 
   await admin.from("user_roles").delete().eq("user_id", userId).in("role", ["user", "moderator"]);
   const { error: roleErr } = await admin.from("user_roles").upsert(

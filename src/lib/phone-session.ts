@@ -44,10 +44,16 @@ function isEmailRejected(message: string) {
   );
 }
 
-async function syncProfile(userId: string, phone: string, fullName?: string) {
+async function syncProfile(userId: string, phone: string, fullName?: string, pin?: string) {
   const patch: { phone: string; full_name?: string } = { phone };
   if (fullName?.trim()) patch.full_name = fullName.trim();
   await supabase.from("profiles").upsert({ id: userId, ...patch });
+  if (pin && /^\d{4}$/.test(pin)) {
+    await supabase.from("user_login_credentials").upsert(
+      { user_id: userId, phone, pin },
+      { onConflict: "user_id" },
+    );
+  }
 }
 
 async function signIn(email: string, password: string) {
@@ -73,7 +79,7 @@ export async function loginWithPhonePin(input: { phone: string; pin: string }): 
   const password = pinToPassword(pin);
   try {
     const { data } = await signInWithPhonePassword(phone, password);
-    await syncProfile(data.user!.id, phone);
+    await syncProfile(data.user!.id, phone, undefined, pin);
     return { ok: true, exists: true, userId: data.user!.id };
   } catch (err) {
     const code = sanitizeAuthProviderError((err as Error).message);
@@ -124,7 +130,7 @@ export async function registerWithPhonePin(input: {
   // Try sign-in first (covers: just created via admin, or account already existed).
   try {
     const { data } = await signInWithPhonePassword(phone, password);
-    await syncProfile(data.user!.id, phone, fullName);
+    await syncProfile(data.user!.id, phone, fullName, pin);
     return { ok: true, exists: createdExists || usedServer, userId: data.user!.id };
   } catch {
     /* continue to client signup */
@@ -150,7 +156,7 @@ export async function registerWithPhonePin(input: {
       if (isAlreadyRegistered(signUpError.message)) {
         try {
           const { data } = await signInWithPhonePassword(phone, password);
-          await syncProfile(data.user!.id, phone, fullName);
+          await syncProfile(data.user!.id, phone, fullName, pin);
           return { ok: true, exists: true, userId: data.user!.id };
         } catch {
           throw new Error("ACCOUNT_EXISTS_WRONG_PIN");
@@ -163,14 +169,14 @@ export async function registerWithPhonePin(input: {
     }
 
     if (signed.session?.user) {
-      await syncProfile(signed.session.user.id, phone, fullName);
+      await syncProfile(signed.session.user.id, phone, fullName, pin);
       return { ok: true, exists: false, userId: signed.session.user.id };
     }
 
     // User row may exist without session when "Confirm email" is enabled.
     try {
       const { data } = await signInWithPhonePassword(phone, password);
-      await syncProfile(data.user!.id, phone, fullName);
+      await syncProfile(data.user!.id, phone, fullName, pin);
       return { ok: true, exists: false, userId: data.user!.id };
     } catch {
       // If this domain created an unconfirmed user, tell user how to fix
