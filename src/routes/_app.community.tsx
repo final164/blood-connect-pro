@@ -11,8 +11,13 @@ import {
   contactFlagsForViewerDonor,
   normalizeDonorContactSettings,
 } from "@/lib/community-contact-settings";
+import {
+  DEFAULT_MESSAGING_SETTINGS,
+  fetchMessagingSettings,
+  type MessagingSettings,
+} from "@/lib/messaging-settings";
 import { whatsappHref } from "@/lib/request-form-options";
-import { Droplet, Phone, Users, Building2, X, MessageSquare } from "lucide-react";
+import { Phone, Users, Building2, X, MessageSquare } from "lucide-react";
 import { MessengerIcon, ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
@@ -50,8 +55,13 @@ function CommunityPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [smsOpen, setSmsOpen] = useState(false);
+  const [msgSettings, setMsgSettings] = useState<MessagingSettings>(DEFAULT_MESSAGING_SETTINGS);
   const donorsRef = useRef(donors);
   donorsRef.current = donors;
+
+  useEffect(() => {
+    void fetchMessagingSettings().then(setMsgSettings);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) {
@@ -191,14 +201,16 @@ function CommunityPage() {
 
         <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
 
-        <button
-          type="button"
-          onClick={() => setSmsOpen(true)}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition"
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-          {lang === "bn" ? "Send SMS (ঐচ্ছিক)" : "Send SMS (optional)"}
-        </button>
+        {msgSettings.show_community_send_sms && (
+          <button
+            type="button"
+            onClick={() => setSmsOpen(true)}
+            className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            {lang === "bn" ? "Send SMS (ঐচ্ছিক)" : "Send SMS (optional)"}
+          </button>
+        )}
       </AutoHideHeader>
 
       <ul className="p-3 space-y-2 pb-2">
@@ -263,13 +275,10 @@ function DonorCard({
   const wa = phone ? whatsappHref(phone) : null;
 
   return (
-    <li className="rounded-2xl border bg-card px-3 py-3 flex items-center gap-3 shadow-sm">
-      <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-        <Droplet className="h-5 w-5" fill="currentColor" />
-      </div>
+    <li className="rounded-2xl border bg-card px-3 py-3 flex items-start gap-3 shadow-sm">
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-semibold text-sm truncate">{d.full_name}</p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="font-semibold text-sm break-words">{d.full_name}</p>
           {d.blood_group && (
             <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
               {d.blood_group}
@@ -282,12 +291,14 @@ function DonorCard({
           )}
         </div>
         {orgName && (
-          <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1 truncate">
-            <Building2 className="h-3 w-3 shrink-0" />
-            {orgName}
+          <p className="mt-0.5 text-xs text-muted-foreground flex items-start gap-1 break-words">
+            <Building2 className="h-3 w-3 shrink-0 mt-0.5" />
+            <span className="break-words">{orgName}</span>
           </p>
         )}
-        {location && <p className="mt-0.5 text-[10px] text-muted-foreground truncate">{location}</p>}
+        {location && (
+          <p className="mt-0.5 text-[10px] text-muted-foreground break-words">{location}</p>
+        )}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         {showChat && wa && (

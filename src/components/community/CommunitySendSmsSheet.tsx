@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, X, ChevronRight, ChevronLeft } from "lucide-react";
+import { MessageSquare, X, ChevronRight, ChevronLeft, Minus, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
-import type { District } from "@/lib/api";
+import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
+import type { District, Hospital } from "@/lib/api";
 import type { CommunityDonorRow } from "@/lib/community-donor-import";
 import {
   contactFlagsForViewerDonor,
@@ -14,40 +15,56 @@ import {
 import {
   applySmsTemplate,
   buildSmsHref,
+  DEFAULT_MESSAGING_SETTINGS,
   fetchMessagingSettings,
   type MessagingSettings,
 } from "@/lib/messaging-settings";
+import {
+  NEED_REASON_CUSTOM_ID,
+  activeNeedReasons,
+  fetchNeedReasonCatalog,
+  isCustomNeedReason,
+  pickLocalized,
+  resolveNeedReasonLang,
+  type NeedReasonCatalog,
+  type NeedReasonCategory,
+} from "@/lib/need-reason-catalog";
+import {
+  DEFAULT_REQUEST_FORM_OPTIONS,
+  fetchRequestFormOptions,
+  type RequestFormOptions,
+} from "@/lib/request-form-options";
 import { toast } from "sonner";
-
-export type CommunitySmsDraft = {
-  patient_name: string;
-  blood_group: (typeof BLOOD_GROUPS)[number];
-  bags_needed: number;
-  hospital: string;
-  district: District | null;
-  upazila: string;
-  contact: string;
-  urgency: "normal" | "urgent" | "critical";
-  notes: string;
-};
-
-const emptyDraft = (district: District | null): CommunitySmsDraft => ({
-  patient_name: "",
-  blood_group: "O+",
-  bags_needed: 1,
-  hospital: "",
-  district,
-  upazila: "",
-  contact: "",
-  urgency: "normal",
-  notes: "",
-});
 
 function orgSettings(d: CommunityDonorRow): DonorContactSettings {
   const raw = (d.community_orgs as { donor_contact_settings?: unknown } | null | undefined)
     ?.donor_contact_settings;
   return normalizeDonorContactSettings(raw);
 }
+
+function donorGenderKey(g: string | null | undefined): "male" | "female" {
+  return (g ?? "").trim().toLowerCase() === "female" ? "female" : "male";
+}
+
+function viewerGenderKey(g: string | null | undefined): "male" | "female" {
+  return (g ?? "").trim().toLowerCase() === "female" ? "female" : "male";
+}
+
+/** Male viewer → only male donors. Female viewer → male + female. Also requires org SMS flag. */
+export function isSmsPickEligible(
+  d: CommunityDonorRow,
+  viewerGender: string | null | undefined,
+): boolean {
+  if (!d.phone?.trim()) return false;
+  const viewer = viewerGenderKey(viewerGender);
+  const donor = donorGenderKey(d.gender);
+  if (viewer === "male" && donor === "female") return false;
+  const flags = contactFlagsForViewerDonor(orgSettings(d), viewerGender, d.gender);
+  return flags.sms;
+}
+
+const field =
+  "w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25 placeholder:text-muted-foreground/70";
 
 export function CommunitySendSmsSheet({
   open,
@@ -64,44 +81,97 @@ export function CommunitySendSmsSheet({
   defaultUpazila: string;
   viewerGender?: string | null;
 }) {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const [step, setStep] = useState<1 | 2>(1);
-  const [draft, setDraft] = useState<CommunitySmsDraft>(() => emptyDraft(defaultDistrict));
+  const [opts, setOpts] = useState<RequestFormOptions>(DEFAULT_REQUEST_FORM_OPTIONS);
+  const [district, setDistrict] = useState<District | null>(defaultDistrict);
+  const [upazila, setUpazila] = useState(defaultUpazila);
+  const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [categories, setCategories] = useState<NeedReasonCategory[]>([]);
+  const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
+  const [reasonKey, setReasonKey] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [setDateTime, setSetDateTime] = useState(true);
+  const [form, setForm] = useState({
+    patient_name: "",
+    blood_group: "O+" as (typeof BLOOD_GROUPS)[number],
+    bags_needed: 1,
+    needed_by: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
+    urgency: "normal" as "normal" | "urgent" | "critical",
+    notes: "",
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [msgSettings, setMsgSettings] = useState<MessagingSettings | null>(null);
+  const [msgSettings, setMsgSettings] = useState<MessagingSettings>(DEFAULT_MESSAGING_SETTINGS);
 
   useEffect(() => {
     if (!open) return;
     setStep(1);
-    setDraft({
-      ...emptyDraft(defaultDistrict),
-      upazila: defaultUpazila,
+    setDistrict(defaultDistrict);
+    setUpazila(defaultUpazila);
+    setHospital(null);
+    setReasonKey("");
+    setCustomReason("");
+    setSetDateTime(true);
+    setForm({
+      patient_name: "",
+      blood_group: "O+",
+      bags_needed: 1,
+      needed_by: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
+      urgency: "normal",
+      notes: "",
     });
     setSelected(new Set());
     void fetchMessagingSettings().then(setMsgSettings);
-  }, [open, defaultDistrict, defaultUpazila]);
+    void fetchRequestFormOptions().then(setOpts);
+    void fetchNeedReasonCatalog().then((c: NeedReasonCatalog) => {
+      setCategories(activeNeedReasons(c));
+      setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
+    });
+  }, [open, defaultDistrict, defaultUpazila, lang]);
+
+  const isCustomHospital = !!hospital?.id.startsWith("custom:");
+  const selectedCategory = useMemo(
+    () => categories.find((c) => c.id === reasonKey) ?? null,
+    [categories, reasonKey],
+  );
+  const suggestionChips = selectedCategory?.suggestions ?? [];
+  const maxDonors = msgSettings.max_sms_donors;
 
   const smsEligible = useMemo(
-    () =>
-      donors.filter((d) => {
-        const flags = contactFlagsForViewerDonor(orgSettings(d), viewerGender, d.gender);
-        return flags.sms && d.phone?.trim();
-      }),
+    () => donors.filter((d) => isSmsPickEligible(d, viewerGender)),
     [donors, viewerGender],
   );
 
-  const field =
-    "w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/25";
+  function req(key: keyof RequestFormOptions) {
+    return !opts[key];
+  }
+
+  function setUrgency(u: "normal" | "urgent" | "critical") {
+    setForm((prev) => ({ ...prev, urgency: u }));
+    setSetDateTime(u === "normal");
+  }
+
+  function applySuggestion(text: string) {
+    setForm((prev) => ({ ...prev, notes: text }));
+  }
+
+  const ph = (bn: string, en: string) => (lang === "bn" ? bn : en);
 
   function goSelect() {
-    if (!draft.patient_name.trim()) {
+    if (!reasonKey) {
+      return toast.error(lang === "bn" ? "রক্তের প্রয়োজনের কারণ নির্বাচন করুন" : "Select why blood is needed");
+    }
+    if (isCustomNeedReason(reasonKey) && !customReason.trim()) {
+      return toast.error(lang === "bn" ? "কাস্টম কারণ লিখুন" : "Enter a custom reason");
+    }
+    if (req("district") && !district) {
+      return toast.error(lang === "bn" ? "জেলা নির্বাচন করুন" : "Select a district");
+    }
+    if (req("hospital") && !hospital) {
+      return toast.error(lang === "bn" ? "হাসপাতালের নাম দিন" : "Enter a hospital name");
+    }
+    if (req("patient_name") && !form.patient_name.trim()) {
       return toast.error(lang === "bn" ? "রোগীর নাম দিন" : "Enter patient name");
-    }
-    if (!draft.hospital.trim()) {
-      return toast.error(lang === "bn" ? "হাসপাতালের নাম দিন" : "Enter hospital name");
-    }
-    if (!draft.district) {
-      return toast.error(lang === "bn" ? "জেলা সিলেক্ট করুন" : "Select a district");
     }
     if (!smsEligible.length) {
       return toast.error(
@@ -114,26 +184,31 @@ export function CommunitySendSmsSheet({
   }
 
   function buildBody(): string {
-    const s = msgSettings;
-    const tpl =
-      lang === "bn"
-        ? s?.community_sms_bn ?? ""
-        : s?.community_sms_en ?? "";
+    const tpl = lang === "bn" ? msgSettings.community_sms_bn : msgSettings.community_sms_en;
     const link = typeof window !== "undefined" ? window.location.origin : "";
-    const distName =
-      draft.district && (lang === "bn" ? draft.district.name_bn : draft.district.name_en);
+    const distName = district ? (lang === "bn" ? district.name_bn : district.name_en) : "";
+    const hospitalName = hospital
+      ? lang === "bn"
+        ? hospital.name_bn
+        : hospital.name_en
+      : "";
+    const reasonLabel = isCustomNeedReason(reasonKey)
+      ? customReason.trim()
+      : selectedCategory
+        ? pickLocalized(selectedCategory.label, reasonDisplayLang)
+        : "";
     return applySmsTemplate(tpl, {
-      blood_group: draft.blood_group,
-      patient_name: draft.patient_name.trim(),
-      hospital: draft.hospital.trim(),
-      upazila: draft.upazila.trim(),
+      blood_group: form.blood_group,
+      patient_name: form.patient_name.trim(),
+      hospital: hospitalName,
+      upazila: upazila.trim(),
       district: distName,
-      bags: draft.bags_needed,
-      urgency: draft.urgency,
-      contact: draft.contact.trim(),
-      notes: draft.notes.trim(),
+      bags: form.bags_needed,
+      urgency: form.urgency,
+      notes: form.notes.trim(),
+      reason: reasonLabel,
       link,
-      location: [draft.hospital.trim(), draft.upazila.trim(), distName].filter(Boolean).join(" · "),
+      location: [hospitalName, upazila.trim(), distName].filter(Boolean).join(" · "),
     });
   }
 
@@ -141,6 +216,13 @@ export function CommunitySendSmsSheet({
     const picks = smsEligible.filter((d) => selected.has(d.id));
     if (!picks.length) {
       return toast.error(lang === "bn" ? "কমপক্ষে একজন সিলেক্ট করুন" : "Select at least one donor");
+    }
+    if (picks.length > maxDonors) {
+      return toast.error(
+        lang === "bn"
+          ? `সর্বোচ্চ ${maxDonors} জন সিলেক্ট করা যাবে`
+          : `You can select at most ${maxDonors} donor(s)`,
+      );
     }
     const href = buildSmsHref(
       picks.map((d) => d.phone),
@@ -154,15 +236,37 @@ export function CommunitySendSmsSheet({
   function toggle(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      }
+      if (next.size >= maxDonors) {
+        toast.error(
+          lang === "bn"
+            ? `সর্বোচ্চ ${maxDonors} জন সিলেক্ট করা যাবে`
+            : `Max ${maxDonors} donor(s)`,
+        );
+        return prev;
+      }
+      next.add(id);
       return next;
     });
   }
 
   function toggleAll() {
-    if (selected.size === smsEligible.length) setSelected(new Set());
-    else setSelected(new Set(smsEligible.map((d) => d.id)));
+    const capped = smsEligible.slice(0, maxDonors);
+    if (selected.size === capped.length && capped.every((d) => selected.has(d.id))) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(capped.map((d) => d.id)));
+      if (smsEligible.length > maxDonors) {
+        toast.message(
+          lang === "bn"
+            ? `প্রথম ${maxDonors} জন সিলেক্ট হয়েছে`
+            : `Selected first ${maxDonors} donor(s)`,
+        );
+      }
+    }
   }
 
   if (!open) return null;
@@ -180,8 +284,8 @@ export function CommunitySendSmsSheet({
                   ? "SMS — রিকোয়েস্ট ফর্ম"
                   : "SMS — request form"
                 : lang === "bn"
-                  ? "প্রাপক সিলেক্ট"
-                  : "Select recipients"}
+                  ? "ডোনার সিলেক্ট"
+                  : "Select donors"}
             </h2>
           </div>
           <button type="button" onClick={onClose} className="h-8 w-8 rounded-lg hover:bg-muted grid place-items-center">
@@ -193,17 +297,20 @@ export function CommunitySendSmsSheet({
           <div className="p-4 space-y-3">
             <input
               className={field}
-              placeholder={lang === "bn" ? "রোগীর নাম *" : "Patient name *"}
-              value={draft.patient_name}
-              onChange={(e) => setDraft({ ...draft, patient_name: e.target.value })}
+              placeholder={ph("রোগীর নাম", "Patient name")}
+              value={form.patient_name}
+              onChange={(e) => setForm({ ...form, patient_name: e.target.value })}
+              required={req("patient_name")}
             />
-            <div className="grid grid-cols-2 gap-2">
+
+            <div className="grid grid-cols-2 gap-2.5">
               <select
                 className={field}
-                value={draft.blood_group}
+                value={form.blood_group}
                 onChange={(e) =>
-                  setDraft({ ...draft, blood_group: e.target.value as (typeof BLOOD_GROUPS)[number] })
+                  setForm({ ...form, blood_group: e.target.value as (typeof BLOOD_GROUPS)[number] })
                 }
+                required={req("blood_group")}
               >
                 {BLOOD_GROUPS.map((g) => (
                   <option key={g} value={g}>
@@ -211,68 +318,221 @@ export function CommunitySendSmsSheet({
                   </option>
                 ))}
               </select>
-              <input
-                className={field}
-                type="number"
-                min={1}
-                value={draft.bags_needed}
-                onChange={(e) =>
-                  setDraft({ ...draft, bags_needed: Math.max(1, Number(e.target.value) || 1) })
-                }
-                placeholder={lang === "bn" ? "ব্যাগ" : "Bags"}
-              />
+              <div className="flex items-center gap-1.5 rounded-xl border bg-background px-1.5 py-1">
+                <button
+                  type="button"
+                  aria-label="Decrease bags"
+                  className="h-9 w-9 rounded-lg grid place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={() => setForm({ ...form, bags_needed: Math.max(1, form.bags_needed - 1) })}
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <input
+                  className="flex-1 min-w-0 bg-transparent text-center text-sm font-semibold outline-none"
+                  type="number"
+                  min={1}
+                  value={form.bags_needed}
+                  onChange={(e) =>
+                    setForm({ ...form, bags_needed: Math.max(1, Number(e.target.value) || 1) })
+                  }
+                  aria-label={t("bagsNeeded")}
+                />
+                <button
+                  type="button"
+                  aria-label="Increase bags"
+                  className="h-9 w-9 rounded-lg grid place-items-center text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={() => setForm({ ...form, bags_needed: form.bags_needed + 1 })}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-            <input
-              className={field}
-              placeholder={lang === "bn" ? "হাসপাতাল *" : "Hospital *"}
-              value={draft.hospital}
-              onChange={(e) => setDraft({ ...draft, hospital: e.target.value })}
+
+            <div className={`grid gap-2 ${isCustomHospital ? "grid-cols-2" : "grid-cols-1"}`}>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">{t("district")}</label>
+                <DistrictTypeahead
+                  value={district}
+                  onChange={(d) => {
+                    setDistrict(d);
+                    setUpazila("");
+                    setHospital(null);
+                  }}
+                  required={req("district")}
+                  placeholder={t("district")}
+                />
+              </div>
+              {isCustomHospital && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">{t("upazila")}</label>
+                  <UpazilaSelect
+                    district={district}
+                    value={upazila}
+                    onChange={(v) => {
+                      setUpazila(v);
+                      setHospital((h) => (h ? { ...h, upazila: v || null } : h));
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <HospitalTypeahead
+              key={district?.id ?? "d"}
+              value={hospital}
+              onChange={(h) => {
+                setHospital(h);
+                setUpazila(h?.upazila?.trim() ?? "");
+              }}
+              districtId={district?.id}
+              districtSlug={district?.slug}
+              upazila={isCustomHospital ? upazila || undefined : undefined}
+              required={req("hospital")}
+              placeholder={ph("হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক…", "Hospital / clinic / diagnostic…")}
             />
-            <DistrictTypeahead
-              value={draft.district}
-              onChange={(d) => setDraft({ ...draft, district: d, upazila: "" })}
-              placeholder={lang === "bn" ? "জেলা *" : "District *"}
-            />
-            <UpazilaSelect
-              district={draft.district}
-              value={draft.upazila}
-              onChange={(v) => setDraft({ ...draft, upazila: v })}
-            />
-            <input
-              className={field}
-              placeholder={lang === "bn" ? "যোগাযোগ নম্বর" : "Contact phone"}
-              value={draft.contact}
-              onChange={(e) => setDraft({ ...draft, contact: e.target.value })}
-              inputMode="tel"
-            />
+
             <div className="grid grid-cols-3 gap-1.5">
               {(["normal", "urgent", "critical"] as const).map((u) => (
                 <button
                   key={u}
                   type="button"
-                  onClick={() => setDraft({ ...draft, urgency: u })}
-                  className={`rounded-xl py-2 text-xs font-semibold border ${
-                    draft.urgency === u
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-border text-muted-foreground"
+                  onClick={() => setUrgency(u)}
+                  className={`rounded-xl py-2.5 text-xs font-semibold border transition ${
+                    form.urgency === u
+                      ? u === "critical"
+                        ? "bg-destructive text-destructive-foreground border-destructive"
+                        : u === "urgent"
+                          ? "bg-[color:var(--urgent)] text-white border-transparent"
+                          : "bg-primary text-primary-foreground border-primary"
+                      : "border-border bg-background text-muted-foreground"
                   }`}
                 >
-                  {u}
+                  {t(u)}
                 </button>
               ))}
             </div>
+
+            <label className="flex items-center justify-between gap-3 rounded-xl border bg-background px-3 py-2.5">
+              <span className="text-xs font-medium text-foreground">
+                {lang === "bn" ? "তারিখ ও সময় সেট করুন" : "Set date and time"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={setDateTime}
+                onClick={() => setSetDateTime((v) => !v)}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                  setDateTime ? "bg-primary" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+                    setDateTime ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
+
+            {setDateTime && (
+              <input
+                className={field}
+                type="datetime-local"
+                value={form.needed_by}
+                onChange={(e) => setForm({ ...form, needed_by: e.target.value })}
+                required={req("needed_by")}
+              />
+            )}
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                {reasonDisplayLang === "bn" ? "সমস্যার কারণ / রোগের ধরন" : "Reason / disease type"}
+              </label>
+              <select
+                className={field}
+                value={reasonKey}
+                onChange={(e) => {
+                  setReasonKey(e.target.value);
+                  if (!isCustomNeedReason(e.target.value)) setCustomReason("");
+                }}
+                required
+              >
+                <option value="">
+                  {reasonDisplayLang === "bn" ? "কারণ নির্বাচন করুন…" : "Select a reason…"}
+                </option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {pickLocalized(c.label, reasonDisplayLang)}
+                  </option>
+                ))}
+                <option value={NEED_REASON_CUSTOM_ID}>
+                  {reasonDisplayLang === "bn" ? "কাস্টম (নিজে লিখুন)" : "Custom (write your own)"}
+                </option>
+              </select>
+              {isCustomNeedReason(reasonKey) && (
+                <input
+                  className={field}
+                  placeholder={
+                    reasonDisplayLang === "bn" ? "কাস্টম কারণ লিখুন…" : "Write custom reason…"
+                  }
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  required
+                />
+              )}
+            </div>
+
+            {suggestionChips.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-muted-foreground">
+                  {reasonDisplayLang === "bn"
+                    ? "নোট সাজেশন — ট্যাপ করে নিন (চাইলে এডিট করুন)"
+                    : "Note suggestions — tap to use (edit anytime)"}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {suggestionChips.map((s, i) => {
+                    const text = pickLocalized(s, reasonDisplayLang);
+                    const active = form.notes.trim() === text.trim();
+                    return (
+                      <button
+                        key={`${reasonKey}-chip-${i}`}
+                        type="button"
+                        onClick={() => applySuggestion(text)}
+                        className={`text-left rounded-xl border px-3 py-2 text-xs leading-relaxed transition ${
+                          active
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        {text}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <textarea
-              className={`${field} min-h-[72px] resize-y`}
-              placeholder={lang === "bn" ? "নোট (ঐচ্ছিক)" : "Notes (optional)"}
-              value={draft.notes}
-              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+              className={field}
+              rows={3}
+              placeholder={
+                opts.notes
+                  ? ph(
+                      "নোট (ঐচ্ছিক) — সাজেশন থেকে নিন বা নিজে লিখুন",
+                      "Notes (optional) — pick a suggestion or write your own",
+                    )
+                  : ph("নোট — সাজেশন থেকে নিন বা নিজে লিখুন", "Notes — pick a suggestion or write your own")
+              }
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              required={req("notes")}
             />
+
             <button
               type="button"
               onClick={goSelect}
               className="w-full rounded-xl bg-primary text-primary-foreground text-sm font-semibold py-3 flex items-center justify-center gap-1"
             >
-              {lang === "bn" ? "পরবর্তী — প্রাপক বাছুন" : "Next — pick recipients"}
+              {lang === "bn" ? "Next — pick donor" : "Next — pick donor"}
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -284,7 +544,9 @@ export function CommunitySendSmsSheet({
                 {lang === "bn" ? "ফর্ম" : "Form"}
               </button>
               <button type="button" onClick={toggleAll} className="text-primary font-medium">
-                {selected.size === smsEligible.length
+                {selected.size > 0 &&
+                selected.size === Math.min(smsEligible.length, maxDonors) &&
+                [...selected].every((id) => smsEligible.some((d) => d.id === id))
                   ? lang === "bn"
                     ? "সব সরান"
                     : "Clear all"
@@ -293,6 +555,11 @@ export function CommunitySendSmsSheet({
                     : "Select all"}
               </button>
             </div>
+            <p className="text-[10px] text-muted-foreground">
+              {lang === "bn"
+                ? `সর্বোচ্চ ${maxDonors} জন · ${selected.size} সিলেক্ট`
+                : `Max ${maxDonors} · ${selected.size} selected`}
+            </p>
             <ul className="max-h-[50vh] overflow-auto space-y-1.5 rounded-xl border p-2">
               {smsEligible.map((d) => (
                 <li key={d.id}>
@@ -304,8 +571,8 @@ export function CommunitySendSmsSheet({
                       className="h-4 w-4 accent-primary"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{d.full_name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">
+                      <p className="text-sm font-medium break-words">{d.full_name}</p>
+                      <p className="text-[10px] text-muted-foreground break-words">
                         {d.blood_group || "—"} · {d.phone}
                         {d.gender
                           ? ` · ${d.gender === "male" ? (lang === "bn" ? "পুরুষ" : "Male") : lang === "bn" ? "মহিলা" : "Female"}`
@@ -316,11 +583,6 @@ export function CommunitySendSmsSheet({
                 </li>
               ))}
             </ul>
-            <p className="text-[10px] text-muted-foreground">
-              {lang === "bn"
-                ? `${selected.size} জন সিলেক্ট — ফোনের SMS অ্যাপে যাবে (ওয়েবসাইট লিঙ্কসহ)`
-                : `${selected.size} selected — opens phone SMS with website link`}
-            </p>
             <button
               type="button"
               onClick={send}
