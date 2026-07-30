@@ -44,6 +44,10 @@ function isEmailRejected(message: string) {
   );
 }
 
+function isEmailRateLimited(message: string) {
+  return sanitizeAuthProviderError(message) === "EMAIL_RATE_LIMIT";
+}
+
 async function syncProfile(userId: string, phone: string, fullName?: string, pin?: string) {
   const patch: { phone: string; full_name?: string } = { phone };
   if (fullName?.trim()) patch.full_name = fullName.trim();
@@ -88,8 +92,8 @@ export async function loginWithPhonePin(input: { phone: string; pin: string }): 
 }
 
 /**
- * Register then sign in. Prefers Admin API (email auto-confirmed).
- * Falls back to client signUp when SERVICE_ROLE_KEY / server fn is unavailable (Lovable).
+ * Register then sign in. Prefers Admin API (email auto-confirmed, no outbound email).
+ * Client signUp only when SERVICE_ROLE / server fn is unavailable — never after a real server failure.
  */
 export async function registerWithPhonePin(input: {
   phone: string;
@@ -107,6 +111,7 @@ export async function registerWithPhonePin(input: {
 
   let createdExists = false;
   let usedServer = false;
+  let allowClientSignup = false;
 
   try {
     const created = await signupWithPhone({
@@ -116,43 +121,61 @@ export async function registerWithPhonePin(input: {
     createdExists = !!created.exists;
   } catch (err) {
     const msg = (err as Error)?.message || String(err);
-    // Fall through to client signup when server secrets aren't set / RPC fails.
-    if (!isServerAuthMissing(msg) && !/fetch|network|500|503|failed to fetch/i.test(msg)) {
-      // Still try client path for Lovable/server-fn quirks; only rethrow clearly fatal validation errors.
-      if (/invalid phone|pin must|pins do not/i.test(msg)) throw err;
-      // Email-backend errors from admin API → try client with alternate domains
-      if (!isEmailRejected(msg) && !isAlreadyRegistered(msg)) {
-        /* continue to sign-in / client signup */
-      }
+    if (/invalid phone|pin must|pins do not/i.test(msg)) throw err;
+    if (isEmailRateLimited(msg)) throw new Error("EMAIL_RATE_LIMIT");
+
+    // Only fall back to client signUp when admin API truly isn't available.
+    if (isServerAuthMissing(msg) || /fetch|network|500|503|failed to fetch|server fn/i.test(msg)) {
+      allowClientSignup = true;
+    } else if (isAlreadyRegistered(msg)) {
+      createdExists = true;
+      usedServer = true;
+    } else if (isEmailRejected(msg)) {
+      // Admin rejected synthetic email — last resort client try (still one domain).
+      allowClientSignup = true;
+    } else {
+      throw new Error(sanitizeAuthProviderError(msg));
     }
   }
 
-  // Try sign-in first (covers: just created via admin, or account already existed).
+  // Sign-in covers: just created via admin, or account already existed.
   try {
     const { data } = await signInWithPhonePassword(phone, password);
     await syncProfile(data.user!.id, phone, fullName, pin);
     return { ok: true, exists: createdExists || usedServer, userId: data.user!.id };
   } catch {
-    /* continue to client signup */
+    if (usedServer && !allowClientSignup) {
+      throw new Error(createdExists ? "ACCOUNT_EXISTS_WRONG_PIN" : "AUTH_EMAIL_BACKEND");
+    }
+    if (!allowClientSignup) {
+      throw new Error("AUTH_EMAIL_BACKEND");
+    }
   }
 
-  // Client signUp fallback — try each non-legacy domain until Supabase accepts the email.
-  const candidates = phoneAuthEmailCandidates(phone).filter((e) => !e.endsWith(".local"));
+  // Client fallback: prefer ONE signUp. Extra domains only if email format is rejected.
+  // Each signUp can send a confirmation email when Confirm email is ON → rate limit.
+  const primary = phoneToAuthEmail(phone);
+  const alternates = phoneAuthEmailCandidates(phone).filter(
+    (e) => !e.endsWith(".local") && e !== primary,
+  );
+  const candidates = [primary, ...alternates];
   let lastSignUpMessage = "";
 
-  for (const email of candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const email = candidates[i]!;
     const { data: signed, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName, phone },
-        // Avoid confirmation-email flow for phone-PIN accounts
-        emailRedirectTo: undefined,
       },
     });
 
     if (signUpError) {
       lastSignUpMessage = signUpError.message;
+      if (isEmailRateLimited(signUpError.message)) {
+        throw new Error("EMAIL_RATE_LIMIT");
+      }
       if (isAlreadyRegistered(signUpError.message)) {
         try {
           const { data } = await signInWithPhonePassword(phone, password);
@@ -162,8 +185,9 @@ export async function registerWithPhonePin(input: {
           throw new Error("ACCOUNT_EXISTS_WRONG_PIN");
         }
       }
-      if (isEmailRejected(signUpError.message)) {
-        continue; // try next domain
+      // Only try next domain when format is rejected — never burn more emails otherwise.
+      if (isEmailRejected(signUpError.message) && i < candidates.length - 1) {
+        continue;
       }
       throw new Error(sanitizeAuthProviderError(signUpError.message));
     }
@@ -173,13 +197,12 @@ export async function registerWithPhonePin(input: {
       return { ok: true, exists: false, userId: signed.session.user.id };
     }
 
-    // User row may exist without session when "Confirm email" is enabled.
+    // User created but no session → Confirm email is still ON in the hosted project.
     try {
       const { data } = await signInWithPhonePassword(phone, password);
       await syncProfile(data.user!.id, phone, fullName, pin);
       return { ok: true, exists: false, userId: data.user!.id };
     } catch {
-      // If this domain created an unconfirmed user, tell user how to fix
       throw new Error("EMAIL_CONFIRM_REQUIRED");
     }
   }
@@ -210,8 +233,12 @@ export function authErrorMessage(code: string, lang: "bn" | "en"): string {
         : "Account exists — check PIN or log in";
     case "EMAIL_CONFIRM_REQUIRED":
       return lang === "bn"
-        ? "সাইনআপ আটকেছে: Supabase Auth → Providers → Email-এ Confirm email বন্ধ করুন"
-        : "Signup blocked: disable Confirm email in Supabase Auth → Providers → Email";
+        ? "সাইনআপ আটকেছে: Supabase Dashboard → Authentication → Providers → Email → Confirm email বন্ধ করুন"
+        : "Signup blocked: disable Confirm email in Supabase → Authentication → Providers → Email";
+    case "EMAIL_RATE_LIMIT":
+      return lang === "bn"
+        ? "অনেকবার সাইনআপ চেষ্টা হয়েছে। ১৫–৬০ মিনিট পর আবার চেষ্টা করুন। স্থায়ী সমাধান: Supabase-এ Confirm email বন্ধ করুন এবং .env-এ SUPABASE_SERVICE_ROLE_KEY সেট করুন।"
+        : "Too many signup attempts. Wait 15–60 minutes, then try again. Fix: disable Confirm email in Supabase and set SUPABASE_SERVICE_ROLE_KEY in .env.";
     case "AUTH_EMAIL_BACKEND":
       return lang === "bn"
         ? "অ্যাকাউন্ট তৈরি করা যায়নি — একটু পর আবার চেষ্টা করুন। সমস্যা থাকলে অ্যাডমিনকে জানান।"
@@ -229,7 +256,10 @@ export function authErrorMessage(code: string, lang: "bn" | "en"): string {
     case "PINs do not match":
       return lang === "bn" ? "PIN মিলছে না" : "PINs do not match";
     default:
-      // Never surface raw "email … invalid" to phone-PIN users
+      // Never surface raw "email … invalid" / rate-limit to phone-PIN users
+      if (sanitizeAuthProviderError(mapped) === "EMAIL_RATE_LIMIT" || /rate.?limit/i.test(mapped)) {
+        return authErrorMessage("EMAIL_RATE_LIMIT", lang);
+      }
       if (/email/i.test(mapped) && /invalid/i.test(mapped)) {
         return authErrorMessage("AUTH_EMAIL_BACKEND", lang);
       }

@@ -48,7 +48,12 @@ export const signupWithPhone = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const admin = adminClient();
     const password = pinToPassword(data.pin);
-    const emails = phoneAuthEmailCandidates(data.phone).filter((e) => !e.endsWith(".local"));
+    // Prefer primary synthetic email; only try alternate if format is rejected.
+    const primary = phoneToAuthEmail(data.phone);
+    const emails = [
+      primary,
+      ...phoneAuthEmailCandidates(data.phone).filter((e) => !e.endsWith(".local") && e !== primary),
+    ];
 
     let lastError: Error | null = null;
     let createdUserId: string | null = null;
