@@ -341,7 +341,7 @@ function AppShell({
               <Outlet />
             </div>
           ) : (
-            <div className="w-full max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl xl:max-w-6xl md:mx-auto md:px-6 md:py-4 lg:py-6">
+            <div className="w-full max-w-lg mx-auto">
               <Outlet />
             </div>
           )}

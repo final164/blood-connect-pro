@@ -16,6 +16,7 @@ import {
   parseDonorImportFile,
   updateCommunityDonor,
   type CommunityDonorRow,
+  type DonorGender,
   type DonorImportInput,
 } from "@/lib/community-donor-import";
 import { upazilaDisplayName } from "@/data/bangladesh-clinics";
@@ -73,7 +74,13 @@ import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
 import { UrgencyAnimationAdmin } from "@/components/admin/UrgencyAnimationAdmin";
 import { FeedRankingAdmin } from "@/components/admin/FeedRankingAdmin";
 import { NeedReasonAdmin } from "@/components/admin/NeedReasonAdmin";
-import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
+import { MessagingSettingsAdmin } from "@/components/admin/MessagingSettingsAdmin";
+import {
+  DEFAULT_DONOR_CONTACT_SETTINGS,
+  normalizeDonorContactSettings,
+  type DonorContactSettings,
+  type GenderContactFlags,
+} from "@/lib/community-contact-settings";
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
@@ -1229,6 +1236,7 @@ type CommunityOrg = {
   description: string | null;
   description_bn: string | null;
   is_active: boolean;
+  donor_contact_settings?: unknown;
 };
 
 const emptyOrgForm = () => ({
@@ -1303,6 +1311,97 @@ function OrgEditForm({
   );
 }
 
+function OrgContactSettingsPanel({
+  orgId,
+  initial,
+  lang,
+  onSaved,
+}: {
+  orgId: string;
+  initial: unknown;
+  lang: "bn" | "en";
+  onSaved: () => void;
+}) {
+  const { can } = useAdminAccess();
+  const [settings, setSettings] = useState<DonorContactSettings>(() =>
+    normalizeDonorContactSettings(initial ?? DEFAULT_DONOR_CONTACT_SETTINGS),
+  );
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setSettings(normalizeDonorContactSettings(initial ?? DEFAULT_DONOR_CONTACT_SETTINGS));
+  }, [orgId, initial]);
+
+  function setFlag(gender: "male" | "female", key: keyof GenderContactFlags, value: boolean) {
+    setSettings((prev) => ({
+      ...prev,
+      [gender]: { ...prev[gender], [key]: value },
+    }));
+  }
+
+  async function save() {
+    if (!can("community.edit") && !can("community.donors_edit")) {
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("community_orgs")
+      .update({ donor_contact_settings: settings })
+      .eq("id", orgId);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(lang === "bn" ? "কন্টাক্ট সেটিংস সেভ" : "Contact settings saved");
+    onSaved();
+  }
+
+  const labels: Record<keyof GenderContactFlags, { bn: string; en: string }> = {
+    call: { bn: "কল আইকন", en: "Call icon" },
+    sms: { bn: "Send SMS / মেসেজ", en: "Send SMS / message" },
+    chat: { bn: "চ্যাট (WhatsApp)", en: "Chat (WhatsApp)" },
+  };
+
+  return (
+    <div className="border-t border-slate-800 mt-3 pt-3 space-y-3">
+      <p className="text-xs font-semibold text-slate-400">
+        {lang === "bn" ? "ডোনার কন্টাক্ট আইকন (লিঙ্গ অনুযায়ী)" : "Donor contact icons (by gender)"}
+      </p>
+      <p className="text-[10px] text-slate-500">
+        {lang === "bn"
+          ? "ডিফল্ট: মহিলা — শুধু চ্যাট; পুরুষ — সব। এই সংস্থার ডোনারদের জন্য প্রযোজ্য।"
+          : "Defaults: female — chat only; male — all. Applies to this org’s donors."}
+      </p>
+      {(["female", "male"] as const).map((g) => (
+        <div key={g} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-2">
+          <p className="text-xs font-medium text-slate-300">
+            {g === "female" ? (lang === "bn" ? "মহিলা" : "Female") : lang === "bn" ? "পুরুষ" : "Male"}
+          </p>
+          <div className="grid gap-2">
+            {(Object.keys(labels) as (keyof GenderContactFlags)[]).map((key) => (
+              <label key={key} className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <span>{lang === "bn" ? labels[key].bn : labels[key].en}</span>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-rose-500"
+                  checked={settings[g][key]}
+                  onChange={(e) => setFlag(g, key, e.target.checked)}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void save()}
+        className="rounded-lg bg-rose-600 text-white text-xs font-semibold px-3 py-2 disabled:opacity-50"
+      >
+        {busy ? "…" : lang === "bn" ? "কন্টাক্ট সেটিংস সেভ" : "Save contact settings"}
+      </button>
+    </div>
+  );
+}
+
 function OrgDonorsPanel({
   orgId,
   districts,
@@ -1322,6 +1421,7 @@ function OrgDonorsPanel({
     full_name: "",
     phone: "",
     blood_group: "",
+    gender: "" as "" | DonorGender,
     district_id: "",
     upazila: "",
     address: "",
@@ -1352,6 +1452,7 @@ function OrgDonorsPanel({
       full_name: d.full_name,
       phone: d.phone,
       blood_group: d.blood_group ?? "",
+      gender: (d.gender === "male" || d.gender === "female" ? d.gender : "") as "" | DonorGender,
       district_id: d.district_id ?? "",
       upazila: d.upazila ?? "",
       address: d.address ?? "",
@@ -1372,6 +1473,7 @@ function OrgDonorsPanel({
           full_name: editForm.full_name,
           phone: editForm.phone,
           blood_group: editForm.blood_group || null,
+          gender: editForm.gender || null,
           district_id: editForm.district_id || null,
           upazila: editForm.upazila || null,
           address: editForm.address || null,
@@ -1439,6 +1541,7 @@ function OrgDonorsPanel({
                   <th className="px-2 py-1.5 text-left">{lang === "bn" ? "নাম" : "Name"}</th>
                   <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ফোন" : "Phone"}</th>
                   <th className="px-2 py-1.5">BG</th>
+                  <th className="px-2 py-1.5">{lang === "bn" ? "লিঙ্গ" : "Gender"}</th>
                   <th className="px-2 py-1.5 text-left">{lang === "bn" ? "জেলা" : "District"}</th>
                   <th className="px-2 py-1.5 text-left">{lang === "bn" ? "উপজেলা" : "Upazila"}</th>
                   <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ঠিকানা" : "Address"}</th>
@@ -1449,7 +1552,7 @@ function OrgDonorsPanel({
                 {donors.map((d) =>
                   editingId === d.id ? (
                     <tr key={d.id} className="border-t border-slate-800 bg-slate-950/80">
-                      <td colSpan={7} className="p-2">
+                      <td colSpan={8} className="p-2">
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <input className={ainp} placeholder={lang === "bn" ? "নাম *" : "Name *"} value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
                           <input className={ainp} placeholder={lang === "bn" ? "ফোন *" : "Phone *"} value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
@@ -1458,6 +1561,17 @@ function OrgDonorsPanel({
                             {BLOOD_GROUPS.map((g) => (
                               <option key={g} value={g}>{g}</option>
                             ))}
+                          </select>
+                          <select
+                            className={ainp}
+                            value={editForm.gender}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, gender: e.target.value as "" | DonorGender })
+                            }
+                          >
+                            <option value="">{lang === "bn" ? "লিঙ্গ" : "Gender"}</option>
+                            <option value="male">{lang === "bn" ? "পুরুষ" : "Male"}</option>
+                            <option value="female">{lang === "bn" ? "মহিলা" : "Female"}</option>
                           </select>
                           <select
                             className={ainp}
@@ -1505,6 +1619,17 @@ function OrgDonorsPanel({
                       <td className="px-2 py-1.5 font-medium">{d.full_name}</td>
                       <td className="px-2 py-1.5">{d.phone}</td>
                       <td className="px-2 py-1.5 text-center">{d.blood_group || "—"}</td>
+                      <td className="px-2 py-1.5 text-center">
+                        {d.gender === "male"
+                          ? lang === "bn"
+                            ? "পুরুষ"
+                            : "Male"
+                          : d.gender === "female"
+                            ? lang === "bn"
+                              ? "মহিলা"
+                              : "Female"
+                            : "—"}
+                      </td>
                       <td className="px-2 py-1.5">{lang === "bn" ? d.districts?.name_bn : d.districts?.name_en || "—"}</td>
                       <td className="px-2 py-1.5">
                         {upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang) || "—"}
@@ -1551,6 +1676,7 @@ function CommunityAdmin() {
   const [importOrgId, setImportOrgId] = useState("");
   const [importDistrict, setImportDistrict] = useState<District | null>(null);
   const [importUpazila, setImportUpazila] = useState("");
+  const [importGender, setImportGender] = useState<"" | DonorGender>("");
   const [importPreview, setImportPreview] = useState<DonorImportInput[]>([]);
   const [importBusy, setImportBusy] = useState(false);
   const [showQuickAddOrg, setShowQuickAddOrg] = useState(false);
@@ -1687,11 +1813,23 @@ function CommunityAdmin() {
     if (!importPreview.length) {
       return toast.error(lang === "bn" ? "ফাইল আপলোড করুন" : "Upload a file first");
     }
+    const missingGender = importPreview.some((r) => !r.gender?.trim()) && !importGender;
+    if (missingGender) {
+      return toast.error(
+        lang === "bn"
+          ? "লিঙ্গ সিলেক্ট করুন অথবা ফাইলে gender (male/female) দিন"
+          : "Select gender or include gender (male/female) in the file",
+      );
+    }
     setImportBusy(true);
     const result = await bulkImportCommunityDonors(
       importOrgId,
       importPreview,
-      { districtId: importDistrict.id, upazila: importUpazila || null },
+      {
+        districtId: importDistrict.id,
+        upazila: importUpazila || null,
+        gender: importGender || null,
+      },
       districts,
     );
     setImportBusy(false);
@@ -1756,8 +1894,8 @@ function CommunityAdmin() {
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">
           {lang === "bn"
-            ? "আগে জেলা ও উপজেলা দিন, তারপর সংস্থা সিলেক্ট করে CSV / Excel / JSON আপলোড করুন। ফাইল কলাম: Name, Phone, blood_group, Address (ঐচ্ছিক) — সব রো সেই জেলা/উপজেলায় যাবে।"
-            : "Set District & Upazila first, then pick an organization and upload CSV / Excel / JSON. File columns: Name, Phone, blood_group, Address (optional) — all rows get that district/upazila."}
+            ? "আগে জেলা, উপজেলা ও লিঙ্গ দিন, তারপর সংস্থা সিলেক্ট করে CSV / Excel / JSON আপলোড করুন। ফাইল কলাম: Name, Phone, blood_group, gender (male/female), Address (ঐচ্ছিক)। ফাইলে gender না থাকলে ফর্মের লিঙ্গ সব রোতে প্রয়োগ হবে।"
+            : "Set District, Upazila & Gender first, then pick an organization and upload CSV / Excel / JSON. File columns: Name, Phone, blood_group, gender (male/female), Address (optional). Form gender is used when a row has no gender."}
         </p>
         <div className="flex flex-wrap gap-2 text-xs">
           <a href="/samples/community-donors-sample.csv" download className="text-rose-400 hover:underline flex items-center gap-1">
@@ -1770,7 +1908,7 @@ function CommunityAdmin() {
             <FileSpreadsheet className="h-3 w-3" /> Sample JSON (10)
           </a>
         </div>
-        <div className="grid sm:grid-cols-2 gap-2">
+        <div className="grid sm:grid-cols-3 gap-2">
           <div className="space-y-1">
             <label className="text-[10px] text-slate-400">{lang === "bn" ? "জেলা *" : "District *"}</label>
             <DistrictTypeahead
@@ -1791,6 +1929,36 @@ function CommunityAdmin() {
               onChange={setImportUpazila}
               variant="admin"
             />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400">{lang === "bn" ? "লিঙ্গ" : "Gender"}</label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(["male", "female"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setImportGender((cur) => (cur === g ? "" : g))}
+                  className={`rounded-lg border px-2 py-2.5 text-xs font-semibold transition ${
+                    importGender === g
+                      ? "border-rose-500 bg-rose-600/20 text-rose-300"
+                      : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-500"
+                  }`}
+                >
+                  {g === "male"
+                    ? lang === "bn"
+                      ? "পুরুষ"
+                      : "Male"
+                    : lang === "bn"
+                      ? "মহিলা"
+                      : "Female"}
+                </button>
+              ))}
+            </div>
+            <p className="text-[9px] text-slate-500">
+              {lang === "bn"
+                ? "ফাইলে gender থাকলে সেটা প্রাধান্য পাবে"
+                : "File gender overrides this default"}
+            </p>
           </div>
         </div>
         <div className="space-y-2">
@@ -1878,6 +2046,7 @@ function CommunityAdmin() {
                   <th className="px-2 py-1 text-left">Name</th>
                   <th className="px-2 py-1 text-left">Phone</th>
                   <th className="px-2 py-1 text-center">BG</th>
+                  <th className="px-2 py-1 text-center">Gender</th>
                   <th className="px-2 py-1 text-left">Address</th>
                 </tr>
               </thead>
@@ -1887,6 +2056,7 @@ function CommunityAdmin() {
                     <td className="px-2 py-1">{r.name}</td>
                     <td className="px-2 py-1">{r.phone}</td>
                     <td className="px-2 py-1 text-center">{r.blood_group || "—"}</td>
+                    <td className="px-2 py-1 text-center">{r.gender || importGender || "—"}</td>
                     <td className="px-2 py-1">{r.address || "—"}</td>
                   </tr>
                 ))}
@@ -1968,7 +2138,15 @@ function CommunityAdmin() {
             )}
 
             {expandedOrgId === o.id && editingOrgId !== o.id && (
-              <OrgDonorsPanel orgId={o.id} districts={districts} lang={lang} refreshKey={donorRefreshKey} />
+              <>
+                <OrgContactSettingsPanel
+                  orgId={o.id}
+                  initial={o.donor_contact_settings}
+                  lang={lang}
+                  onSaved={() => void load()}
+                />
+                <OrgDonorsPanel orgId={o.id} districts={districts} lang={lang} refreshKey={donorRefreshKey} />
+              </>
             )}
           </li>
         ))}
@@ -2279,7 +2457,17 @@ function SettingsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
   const [settingsTab, setSettingsTab] = useState<
-    "urgency" | "feed" | "carousel" | "banner" | "reasons" | "donations" | "menu" | "form" | "profilelock" | "app"
+    | "urgency"
+    | "feed"
+    | "carousel"
+    | "banner"
+    | "reasons"
+    | "donations"
+    | "menu"
+    | "form"
+    | "profilelock"
+    | "messaging"
+    | "app"
   >("urgency");
   const [s, setS] = useState<any>({
     app_name: "BloodLink",
@@ -2346,6 +2534,7 @@ function SettingsAdmin() {
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
     { id: "profilelock" as const, bn: "প্রোফাইল লক", en: "Profile lock" },
+    { id: "messaging" as const, bn: "SMS ও আইকন", en: "SMS & icons" },
     { id: "app" as const, bn: "অ্যাপ", en: "App" },
   ];
 
@@ -2376,6 +2565,7 @@ function SettingsAdmin() {
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}
       {settingsTab === "profilelock" && <ProfileLockAdmin />}
+      {settingsTab === "messaging" && <MessagingSettingsAdmin />}
 
       {settingsTab === "form" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">

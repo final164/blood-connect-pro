@@ -52,7 +52,7 @@ function NotificationsPage() {
         </div>
       </AutoHideHeader>
 
-      <ul className="px-3 py-4 space-y-2 pb-8 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:space-y-0">
+      <ul className="px-3 py-4 space-y-2 pb-8">
         {loading && items.length === 0 && (
           <li className="py-16 text-center text-sm text-muted-foreground">{t("loading")}</li>
         )}

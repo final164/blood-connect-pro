@@ -361,6 +361,7 @@ export type CommunityOrg = {
   is_verified: boolean;
   is_active: boolean;
   sort_order: number;
+  donor_contact_settings?: unknown;
   districts?: { name_bn: string; name_en: string } | null;
 };
 
@@ -369,7 +370,7 @@ export async function fetchCommunityOrgs(districtId?: string | null): Promise<Co
   let q = supabase
     .from("community_orgs")
     .select(
-      "id,name,name_bn,description,description_bn,website,phone,email,district_id,logo_url,is_verified,is_active,sort_order",
+      "id,name,name_bn,description,description_bn,website,phone,email,district_id,logo_url,is_verified,is_active,sort_order,donor_contact_settings",
     )
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
