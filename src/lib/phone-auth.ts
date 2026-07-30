@@ -85,6 +85,14 @@ export function isAdminIdentity(email?: string | null) {
 export function sanitizeAuthProviderError(message: string): string {
   const m = message.toLowerCase();
   if (
+    m.includes("email rate limit") ||
+    m.includes("over_email_send_rate_limit") ||
+    m.includes("email_send_rate_limit") ||
+    (m.includes("rate limit") && m.includes("email"))
+  ) {
+    return "EMAIL_RATE_LIMIT";
+  }
+  if (
     m.includes("email_address_invalid") ||
     (m.includes("email address") && m.includes("invalid")) ||
     m.includes("unable to validate email") ||
