@@ -47,7 +47,12 @@ function AppLayout() {
       return;
     }
     let cancelled = false;
+<<<<<<< HEAD
     setProfileGate("checking");
+=======
+    // Skip full-screen gate spinner when this user already passed the check.
+    setProfileGate((prev) => (prev === "ok" ? "ok" : "checking"));
+>>>>>>> main
     getProfile(user.id)
       .then((profile) => {
         if (cancelled) return;
@@ -145,13 +150,13 @@ function AppShell({
     if (composeOpen) {
       void navigate({
         to: "/",
-        search: (prev) => ({ ...prev, compose: undefined }),
+        search: (prev: Record<string, unknown>) => ({ ...prev, compose: undefined }),
       });
       return;
     }
     void navigate({
       to: "/",
-      search: (prev) => ({ ...prev, compose: true }),
+      search: (prev: Record<string, unknown>) => ({ ...prev, compose: true }),
     });
   }
 

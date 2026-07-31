@@ -3,7 +3,12 @@ import type { FeedRequest } from "@/components/request/RequestCard";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchSavedIdsForRequests } from "@/lib/request-saves";
 
+<<<<<<< HEAD
 export const FEED_PAGE_SIZE = 8;
+=======
+/** Small pages → first post paints fast; more load on scroll. */
+export const FEED_PAGE_SIZE = 3;
+>>>>>>> main
 
 export type FeedQuery = {
   bloodGroup?: string;
@@ -22,6 +27,7 @@ export async function enrichFeedRequests(
 
   const requesterIds = [...new Set(list.map((r) => r.requester_id))];
   const requestIds = list.map((r) => r.id);
+<<<<<<< HEAD
 
   if (requesterIds.length) {
     const { data: profiles } = await supabase
@@ -64,6 +70,72 @@ export async function enrichFeedRequests(
     }
   }
 
+=======
+  // Ranked RPC already returns counts — skip heavy full-table count scans.
+  const needsCounts = list.some(
+    (r) => typeof r.like_count !== "number" || typeof r.comment_count !== "number",
+  );
+
+  const profilesP = requesterIds.length
+    ? supabase.from("profiles").select("id, full_name, avatar_url").in("id", requesterIds)
+    : Promise.resolve({ data: [] as { id: string; full_name: string | null; avatar_url: string | null }[] });
+
+  const myLikesP = userId
+    ? supabase
+        .from("request_likes")
+        .select("request_id")
+        .eq("user_id", userId)
+        .in("request_id", requestIds)
+    : Promise.resolve({ data: [] as { request_id: string }[] });
+
+  const savedP = userId
+    ? fetchSavedIdsForRequests(userId, requestIds)
+    : Promise.resolve(new Set<string>());
+
+  const likesP = needsCounts
+    ? supabase.from("request_likes").select("request_id").in("request_id", requestIds)
+    : Promise.resolve({ data: null as { request_id: string }[] | null, error: null });
+
+  const commentsP = needsCounts
+    ? supabase.from("request_comments").select("request_id").in("request_id", requestIds)
+    : Promise.resolve({ data: null as { request_id: string }[] | null, error: null });
+
+  const [{ data: profiles }, myLikesRes, savedSet, likesRes, commentsRes] = await Promise.all([
+    profilesP,
+    myLikesP,
+    savedP,
+    likesP,
+    commentsP,
+  ]);
+
+  const map = new Map((profiles ?? []).map((p) => [p.id, p]));
+  for (const r of list) r.requester = map.get(r.requester_id) ?? r.requester ?? null;
+
+  const mine = new Set((myLikesRes.data ?? []).map((l: { request_id: string }) => l.request_id));
+
+  if (needsCounts && !(likesRes as { error?: unknown }).error && !(commentsRes as { error?: unknown }).error) {
+    const likeMap = new Map<string, number>();
+    (likesRes.data ?? []).forEach((l: { request_id: string }) =>
+      likeMap.set(l.request_id, (likeMap.get(l.request_id) ?? 0) + 1),
+    );
+    const cMap = new Map<string, number>();
+    (commentsRes.data ?? []).forEach((c: { request_id: string }) =>
+      cMap.set(c.request_id, (cMap.get(c.request_id) ?? 0) + 1),
+    );
+    for (const r of list) {
+      r.like_count = likeMap.get(r.id) ?? r.like_count ?? 0;
+      r.comment_count = cMap.get(r.id) ?? r.comment_count ?? 0;
+    }
+  }
+
+  for (const r of list) {
+    r.liked = mine.has(r.id);
+    r.saved = savedSet.has(r.id);
+    r.like_count = r.like_count ?? 0;
+    r.comment_count = r.comment_count ?? 0;
+  }
+
+>>>>>>> main
   return list;
 }
 

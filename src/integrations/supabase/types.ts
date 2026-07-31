@@ -16,31 +16,73 @@ export type Database = {
     Tables: {
       app_settings: {
         Row: {
+          about_bn: string | null
+          about_en: string | null
           allow_anon_read: boolean
           app_name: string
+          architecture_md: string | null
+          brand_primary: string | null
           default_language: string
+          donation_flow_settings: Json
           emergency_hotline: string | null
+          enable_guest: boolean
           google_maps_api_key: string | null
           id: number
+          maintenance_mode: boolean
+          need_reason_catalog: Json
+          notification_settings: Json
+          request_form_options: Json
+          require_auth: boolean
+          support_email: string | null
           updated_at: string
+          urgency_animation: Json
+          user_menu_settings: Json
         }
         Insert: {
+          about_bn?: string | null
+          about_en?: string | null
           allow_anon_read?: boolean
           app_name?: string
+          architecture_md?: string | null
+          brand_primary?: string | null
           default_language?: string
+          donation_flow_settings?: Json
           emergency_hotline?: string | null
+          enable_guest?: boolean
           google_maps_api_key?: string | null
           id?: number
+          maintenance_mode?: boolean
+          need_reason_catalog?: Json
+          notification_settings?: Json
+          request_form_options?: Json
+          require_auth?: boolean
+          support_email?: string | null
           updated_at?: string
+          urgency_animation?: Json
+          user_menu_settings?: Json
         }
         Update: {
+          about_bn?: string | null
+          about_en?: string | null
           allow_anon_read?: boolean
           app_name?: string
+          architecture_md?: string | null
+          brand_primary?: string | null
           default_language?: string
+          donation_flow_settings?: Json
           emergency_hotline?: string | null
+          enable_guest?: boolean
           google_maps_api_key?: string | null
           id?: number
+          maintenance_mode?: boolean
+          need_reason_catalog?: Json
+          notification_settings?: Json
+          request_form_options?: Json
+          require_auth?: boolean
+          support_email?: string | null
           updated_at?: string
+          urgency_animation?: Json
+          user_menu_settings?: Json
         }
         Relationships: []
       }
@@ -49,13 +91,16 @@ export type Database = {
           area: string | null
           bags_needed: number
           blood_group: Database["public"]["Enums"]["blood_group"]
-          city: string
-          contact_phone: string
+          city: string | null
+          contact_phone: string | null
           created_at: string
+          district_id: string | null
           hospital_name: string
           id: string
           latitude: number | null
           longitude: number | null
+          need_reason_key: string | null
+          need_reason_label: string | null
           needed_by: string
           notes: string | null
           patient_name: string
@@ -63,18 +108,22 @@ export type Database = {
           status: Database["public"]["Enums"]["request_status"]
           updated_at: string
           urgency: Database["public"]["Enums"]["urgency"]
+          whatsapp_phone: string | null
         }
         Insert: {
           area?: string | null
           bags_needed?: number
           blood_group: Database["public"]["Enums"]["blood_group"]
-          city: string
-          contact_phone: string
+          city?: string | null
+          contact_phone?: string | null
           created_at?: string
+          district_id?: string | null
           hospital_name: string
           id?: string
           latitude?: number | null
           longitude?: number | null
+          need_reason_key?: string | null
+          need_reason_label?: string | null
           needed_by: string
           notes?: string | null
           patient_name: string
@@ -82,18 +131,22 @@ export type Database = {
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
           urgency?: Database["public"]["Enums"]["urgency"]
+          whatsapp_phone?: string | null
         }
         Update: {
           area?: string | null
           bags_needed?: number
           blood_group?: Database["public"]["Enums"]["blood_group"]
-          city?: string
-          contact_phone?: string
+          city?: string | null
+          contact_phone?: string | null
           created_at?: string
+          district_id?: string | null
           hospital_name?: string
           id?: string
           latitude?: number | null
           longitude?: number | null
+          need_reason_key?: string | null
+          need_reason_label?: string | null
           needed_by?: string
           notes?: string | null
           patient_name?: string
@@ -101,8 +154,157 @@ export type Database = {
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
           urgency?: Database["public"]["Enums"]["urgency"]
+          whatsapp_phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blood_requests_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cms_strings: {
+        Row: {
+          category: string
+          key: string
+          updated_at: string
+          value_bn: string
+          value_en: string
+        }
+        Insert: {
+          category?: string
+          key: string
+          updated_at?: string
+          value_bn?: string
+          value_en?: string
+        }
+        Update: {
+          category?: string
+          key?: string
+          updated_at?: string
+          value_bn?: string
+          value_en?: string
         }
         Relationships: []
+      }
+      community_donors: {
+        Row: {
+          address: string | null
+          blood_group: string | null
+          created_at: string
+          district_id: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          org_id: string
+          phone: string
+          upazila: string | null
+        }
+        Insert: {
+          address?: string | null
+          blood_group?: string | null
+          created_at?: string
+          district_id?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          org_id: string
+          phone: string
+          upazila?: string | null
+        }
+        Update: {
+          address?: string | null
+          blood_group?: string | null
+          created_at?: string
+          district_id?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          org_id?: string
+          phone?: string
+          upazila?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_donors_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_donors_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "community_orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_orgs: {
+        Row: {
+          created_at: string
+          description: string | null
+          description_bn: string | null
+          district_id: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          is_verified: boolean
+          logo_url: string | null
+          name: string
+          name_bn: string | null
+          phone: string | null
+          sort_order: number
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          description_bn?: string | null
+          district_id?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          is_verified?: boolean
+          logo_url?: string | null
+          name: string
+          name_bn?: string | null
+          phone?: string | null
+          sort_order?: number
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          description_bn?: string | null
+          district_id?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          is_verified?: boolean
+          logo_url?: string | null
+          name?: string
+          name_bn?: string | null
+          phone?: string | null
+          sort_order?: number
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_orgs_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
@@ -125,6 +327,39 @@ export type Database = {
           last_message_at?: string
           user_a?: string
           user_b?: string
+        }
+        Relationships: []
+      }
+      districts: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name_bn: string
+          name_en: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_bn: string
+          name_en: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_bn?: string
+          name_en?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -168,6 +403,13 @@ export type Database = {
             columns: ["request_id"]
             isOneToOne: false
             referencedRelation: "blood_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "blood_requests_public"
             referencedColumns: ["id"]
           },
         ]
@@ -330,6 +572,7 @@ export type Database = {
           author_id: string
           content: string
           created_at: string
+          district_id: string | null
           id: string
           image_url: string | null
           post_type: string
@@ -339,6 +582,7 @@ export type Database = {
           author_id: string
           content: string
           created_at?: string
+          district_id?: string | null
           id?: string
           image_url?: string | null
           post_type?: string
@@ -348,12 +592,21 @@ export type Database = {
           author_id?: string
           content?: string
           created_at?: string
+          district_id?: string | null
           id?: string
           image_url?: string | null
           post_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -364,6 +617,7 @@ export type Database = {
           city: string | null
           created_at: string
           date_of_birth: string | null
+          district_id: string | null
           e2ee_public_key: string | null
           full_name: string | null
           gender: string | null
@@ -391,6 +645,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           date_of_birth?: string | null
+          district_id?: string | null
           e2ee_public_key?: string | null
           full_name?: string | null
           gender?: string | null
@@ -418,6 +673,7 @@ export type Database = {
           city?: string | null
           created_at?: string
           date_of_birth?: string | null
+          district_id?: string | null
           e2ee_public_key?: string | null
           full_name?: string | null
           gender?: string | null
@@ -437,7 +693,59 @@ export type Database = {
           username?: string | null
           weight_kg?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upazilas: {
+        Row: {
+          created_at: string
+          district_id: string
+          id: string
+          is_active: boolean
+          name_bn: string
+          name_en: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          district_id: string
+          id?: string
+          is_active?: boolean
+          name_bn: string
+          name_en: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          district_id?: string
+          id?: string
+          is_active?: boolean
+          name_bn?: string
+          name_en?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upazilas_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -464,7 +772,6 @@ export type Database = {
         Row: {
           e2ee_enabled: boolean
           e2ee_private_key_encrypted: string | null
-          google_maps_api_key: string | null
           language: string
           notif_email: boolean
           notif_new_request: boolean
@@ -478,7 +785,6 @@ export type Database = {
         Insert: {
           e2ee_enabled?: boolean
           e2ee_private_key_encrypted?: string | null
-          google_maps_api_key?: string | null
           language?: string
           notif_email?: boolean
           notif_new_request?: boolean
@@ -492,7 +798,6 @@ export type Database = {
         Update: {
           e2ee_enabled?: boolean
           e2ee_private_key_encrypted?: string | null
-          google_maps_api_key?: string | null
           language?: string
           notif_email?: boolean
           notif_new_request?: boolean
@@ -507,7 +812,123 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      blood_requests_public: {
+        Row: {
+          area: string | null
+          bags_needed: number | null
+          blood_group: Database["public"]["Enums"]["blood_group"] | null
+          city: string | null
+          contact_phone: string | null
+          created_at: string | null
+          hospital_name: string | null
+          id: string | null
+          latitude: number | null
+          longitude: number | null
+          needed_by: string | null
+          notes: string | null
+          patient_name: string | null
+          requester_id: string | null
+          status: Database["public"]["Enums"]["request_status"] | null
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["urgency"] | null
+        }
+        Insert: {
+          area?: string | null
+          bags_needed?: number | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          city?: string | null
+          contact_phone?: never
+          created_at?: string | null
+          hospital_name?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          needed_by?: string | null
+          notes?: string | null
+          patient_name?: string | null
+          requester_id?: string | null
+          status?: Database["public"]["Enums"]["request_status"] | null
+          updated_at?: string | null
+          urgency?: Database["public"]["Enums"]["urgency"] | null
+        }
+        Update: {
+          area?: string | null
+          bags_needed?: number | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          city?: string | null
+          contact_phone?: never
+          created_at?: string | null
+          hospital_name?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          needed_by?: string | null
+          notes?: string | null
+          patient_name?: string | null
+          requester_id?: string | null
+          status?: Database["public"]["Enums"]["request_status"] | null
+          updated_at?: string | null
+          urgency?: Database["public"]["Enums"]["urgency"] | null
+        }
+        Relationships: []
+      }
+      profiles_public: {
+        Row: {
+          area: string | null
+          avatar_url: string | null
+          bio: string | null
+          blood_group: Database["public"]["Enums"]["blood_group"] | null
+          city: string | null
+          created_at: string | null
+          e2ee_public_key: string | null
+          full_name: string | null
+          id: string | null
+          is_available: boolean | null
+          is_donor: boolean | null
+          is_recipient: boolean | null
+          is_verified: boolean | null
+          lives_saved: number | null
+          total_donations: number | null
+          username: string | null
+        }
+        Insert: {
+          area?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          city?: string | null
+          created_at?: string | null
+          e2ee_public_key?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_available?: boolean | null
+          is_donor?: boolean | null
+          is_recipient?: boolean | null
+          is_verified?: boolean | null
+          lives_saved?: number | null
+          total_donations?: number | null
+          username?: string | null
+        }
+        Update: {
+          area?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          blood_group?: Database["public"]["Enums"]["blood_group"] | null
+          city?: string | null
+          created_at?: string | null
+          e2ee_public_key?: string | null
+          full_name?: string | null
+          id?: string | null
+          is_available?: boolean | null
+          is_donor?: boolean | null
+          is_recipient?: boolean | null
+          is_verified?: boolean | null
+          lives_saved?: number | null
+          total_donations?: number | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {

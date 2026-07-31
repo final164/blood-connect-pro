@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import {
-  ADMIN_PHONE,
-  ADMIN_PIN,
   isValidPhone,
   isValidPin,
   normalizePhone,
@@ -124,15 +122,12 @@ function AuthPage() {
                   type="button"
                   onClick={() => {
                     setMode(m);
+                    setConfirmPin("");
+                    setName("");
+                    // Admin: empty inputs — user types phone/PIN (no prefilled credentials)
                     if (m === "admin") {
-                      setPhone(ADMIN_PHONE);
-                      setPin(ADMIN_PIN);
-                      setConfirmPin("");
-                      setName("");
-                    } else if (phone === ADMIN_PHONE) {
                       setPhone("");
                       setPin("");
-                      setConfirmPin("");
                     }
                   }}
                   className={`flex-1 rounded-xl px-2 py-2 text-xs font-semibold transition ${
@@ -160,7 +155,10 @@ function AuthPage() {
                 value={phone}
                 onChange={setPhone}
                 lang={lang}
+<<<<<<< HEAD
                 readOnly={mode === "admin"}
+=======
+>>>>>>> main
               />
               <PinField
                 label={lang === "bn" ? "৪ সংখ্যার PIN" : "4-digit PIN"}
@@ -173,21 +171,6 @@ function AuthPage() {
                   value={confirmPin}
                   onChange={setConfirmPin}
                 />
-              )}
-              {mode === "admin" && (
-                <p className="text-xs text-muted-foreground rounded-xl bg-muted/50 px-3 py-2 leading-relaxed">
-                  {lang === "bn" ? (
-                    <>
-                      অ্যাডমিন: <span className="font-mono text-foreground">{ADMIN_PHONE}</span>
-                      {" · "}PIN <span className="font-mono text-foreground">{ADMIN_PIN}</span>
-                    </>
-                  ) : (
-                    <>
-                      Admin: <span className="font-mono text-foreground">{ADMIN_PHONE}</span>
-                      {" · "}PIN <span className="font-mono text-foreground">{ADMIN_PIN}</span>
-                    </>
-                  )}
-                </p>
               )}
               <button
                 type="submit"
