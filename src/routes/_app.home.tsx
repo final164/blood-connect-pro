@@ -36,7 +36,7 @@ import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
 
-export const Route = createFileRoute("/_app/")({
+export const Route = createFileRoute("/_app/home")({
   head: () => ({ meta: [{ title: "Feed — BloodLink" }] }),
   validateSearch: (search: Record<string, unknown>): FeedSearch => ({
     requestId: typeof search.requestId === "string" ? search.requestId : undefined,
@@ -167,7 +167,7 @@ function FeedPage() {
   function closeComposer() {
     setShowComposer(false);
     void navigate({
-      to: "/",
+      to: "/home",
       search: (prev: Record<string, unknown>) => ({ ...prev, compose: undefined }),
       replace: true,
     });
@@ -175,7 +175,7 @@ function FeedPage() {
 
   function openComposerLocal() {
     void navigate({
-      to: "/",
+      to: "/home",
       search: (prev: Record<string, unknown>) => ({ ...prev, compose: true }),
       replace: true,
     });
@@ -262,7 +262,7 @@ function FeedPage() {
                 setHighlightId(id);
                 void queryClient.invalidateQueries({ queryKey: ["feed"] });
                 void navigate({
-                  to: "/",
+                  to: "/home",
                   search: { requestId: id },
                   replace: true,
                 });

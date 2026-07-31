@@ -84,6 +84,8 @@ import {
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
+import { LandingAdmin } from "@/components/admin/LandingAdmin";
+import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
@@ -152,7 +154,7 @@ function AdminPageInner() {
     }
     const timer = setTimeout(() => {
       if (!isStaff && !isAdmin && !isAdminIdentity(user.email)) {
-        navigate({ to: "/" });
+        navigate({ to: "/home" });
       } else {
         setReady(true);
       }
@@ -257,7 +259,7 @@ function AdminPageInner() {
             </button>
             <div className="flex sm:hidden items-center gap-1">
               <Link
-                to="/"
+                to="/home"
                 className={`text-[10px] px-2 py-1 rounded-md ${
                   dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"
                 }`}
@@ -315,7 +317,7 @@ function AdminPageInner() {
             {dark ? (lang === "bn" ? "লাইট মোড" : "Light mode") : t("darkMode")}
           </button>
           <Link
-            to="/"
+            to="/home"
             className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
               dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"
             }`}
@@ -2503,6 +2505,7 @@ function SettingsAdmin() {
     | "feed"
     | "carousel"
     | "banner"
+    | "landing"
     | "reasons"
     | "donations"
     | "menu"
@@ -2571,6 +2574,7 @@ function SettingsAdmin() {
     { id: "feed" as const, bn: "ফিড র‍্যাঙ্কিং", en: "Feed ranking" },
     { id: "carousel" as const, bn: "ইমেজ ক্যারোজেল", en: "Image carousel" },
     { id: "banner" as const, bn: "ফুল ব্যানার", en: "Full banner" },
+    { id: "landing" as const, bn: "ল্যান্ডিং / Frontpage", en: "Landing / Frontpage" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
@@ -2603,6 +2607,7 @@ function SettingsAdmin() {
       {settingsTab === "feed" && <FeedRankingAdmin />}
       {settingsTab === "carousel" && <FeedCarouselAdmin />}
       {settingsTab === "banner" && <FeedBannerAdmin />}
+      {settingsTab === "landing" && <LandingAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}

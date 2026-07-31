@@ -278,7 +278,7 @@ function Thread() {
           <div className="flex items-center gap-2 px-3 py-2.5">
             {fromRequestId ? (
               <Link
-                to="/"
+                to="/home"
                 search={{ requestId: fromRequestId }}
                 className="p-1.5 rounded-lg hover:bg-muted"
                 aria-label={lang === "bn" ? "পোস্টে ফিরুন" : "Back to post"}

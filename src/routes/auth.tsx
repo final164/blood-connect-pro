@@ -36,7 +36,7 @@ function AuthPage() {
 
   useEffect(() => {
     if (loading || !session || isAnonymous) return;
-    navigate({ to: isAdmin || mode === "admin" ? "/admin" : "/" });
+    navigate({ to: isAdmin || mode === "admin" ? "/admin" : "/home" });
   }, [session, loading, isAnonymous, isAdmin, mode, navigate]);
 
   async function submit(e: React.FormEvent) {
@@ -75,7 +75,7 @@ function AuthPage() {
               ? "অ্যাকাউন্ট তৈরি হয়েছে"
               : "Account created",
         );
-        navigate({ to: "/" });
+        navigate({ to: "/home" });
         return;
       }
 
@@ -86,7 +86,7 @@ function AuthPage() {
       }
 
       await loginWithPhonePin({ phone: normalized, pin });
-      navigate({ to: "/" });
+      navigate({ to: "/home" });
     } catch (err) {
       const raw = (err as Error)?.message || String(err);
       toast.error(authErrorMessage(raw, lang));

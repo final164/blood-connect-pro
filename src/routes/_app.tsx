@@ -57,7 +57,7 @@ function AppLayout() {
         if (!complete && !onOnboarding) {
           void navigate({ to: "/onboarding" });
         } else if (complete && onOnboarding) {
-          void navigate({ to: "/" });
+          void navigate({ to: "/home" });
         }
       })
       .catch(() => {
@@ -139,32 +139,32 @@ function AppShell({
   const isChatThread = /^\/chat\/[^/]+$/.test(locationPath);
   const isChatSection = locationPath.startsWith("/chat");
   const composeOpen =
-    locationPath === "/" &&
+    (locationPath === "/home" || locationPath === "/") &&
     !!(location.search as { compose?: boolean | string }).compose;
 
   function openComposer() {
     if (composeOpen) {
       void navigate({
-        to: "/",
+        to: "/home",
         search: (prev: Record<string, unknown>) => ({ ...prev, compose: undefined }),
       });
       return;
     }
     void navigate({
-      to: "/",
+      to: "/home",
       search: (prev: Record<string, unknown>) => ({ ...prev, compose: true }),
     });
   }
 
   type NavTab =
-    | { id: string; kind: "link"; to: "/"; label: string; icon: typeof Home; badge?: number }
+    | { id: string; kind: "link"; to: "/home"; label: string; icon: typeof Home; badge?: number }
     | { id: string; kind: "link"; to: "/community"; label: string; icon: typeof Users; badge?: number }
     | { id: string; kind: "link"; to: "/notifications"; label: string; icon: typeof Bell; badge?: number }
     | { id: string; kind: "link"; to: "/profile"; label: string; icon: typeof User; badge?: number }
     | { id: string; kind: "compose"; label: string; icon: typeof Plus };
 
   const tabs: NavTab[] = [
-    { id: "feed", kind: "link", to: "/", label: t("feed"), icon: Home },
+    { id: "feed", kind: "link", to: "/home", label: t("feed"), icon: Home },
     { id: "community", kind: "link", to: "/community", label: t("community"), icon: Users },
     { id: "compose", kind: "compose", label: t("createRequest"), icon: Plus },
     {
@@ -217,8 +217,8 @@ function AppShell({
     }
 
     const active =
-      tab.to === "/"
-        ? locationPath === "/" && !composeOpen
+      tab.to === "/home"
+        ? (locationPath === "/home" || locationPath === "/") && !composeOpen
         : locationPath.startsWith(tab.to);
     const badge = tab.badge ?? 0;
 

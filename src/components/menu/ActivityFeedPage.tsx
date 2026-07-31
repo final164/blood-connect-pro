@@ -124,7 +124,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
         <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
           <UserMenuTrigger />
           <Link
-            to="/"
+            to="/home"
             className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center"
             aria-label={t("feed")}
           >

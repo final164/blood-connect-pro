@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_app/me/$view")({
   }),
   beforeLoad: ({ params }) => {
     if (!isActivityView(params.view)) {
-      throw redirect({ to: "/" });
+      throw redirect({ to: "/home" });
     }
   },
   component: MeActivityRoute,

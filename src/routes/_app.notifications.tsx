@@ -116,7 +116,7 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
   const requestId = n.request_id ?? (n.data?.request_id as string | undefined);
   if (requestId) {
     return (
-      <Link to="/" search={{ requestId }} onClick={onOpen} className="block">
+      <Link to="/home" search={{ requestId }} onClick={onOpen} className="block">
         {inner}
       </Link>
     );

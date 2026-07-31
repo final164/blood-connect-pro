@@ -62,7 +62,7 @@ function PublicProfilePage() {
         <p className="text-sm text-muted-foreground">
           {lang === "bn" ? "প্রোফাইল পাওয়া যায়নি" : "Profile not found"}
         </p>
-        <Link to="/" className="text-sm text-primary mt-2 inline-block">
+        <Link to="/home" className="text-sm text-primary mt-2 inline-block">
           {lang === "bn" ? "ফিডে ফিরুন" : "Back to feed"}
         </Link>
       </div>

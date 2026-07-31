@@ -39,7 +39,7 @@ function OnboardingPage() {
       const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
       if (cancelled) return;
       if (isProfileComplete(data)) {
-        void navigate({ to: "/" });
+        void navigate({ to: "/home" });
         return;
       }
       if (data?.blood_group) setBloodGroup(data.blood_group);
@@ -90,7 +90,7 @@ function OnboardingPage() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(t("saved"));
-    void navigate({ to: "/" });
+    void navigate({ to: "/home" });
   }
 
   if (!ready) {

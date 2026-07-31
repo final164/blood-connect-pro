@@ -12,13 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppRequestsRouteImport } from './routes/_app.requests'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppMapRouteImport } from './routes/_app.map'
+import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
@@ -39,10 +40,10 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppIndexRoute = AppIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
@@ -74,6 +75,11 @@ const AppMapRoute = AppMapRouteImport.update({
   path: '/map',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCommunityRoute = AppCommunityRouteImport.update({
   id: '/community',
   path: '/community',
@@ -101,11 +107,12 @@ const AppChatPeerIdRoute = AppChatPeerIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
+  '/home': typeof AppHomeRoute
   '/map': typeof AppMapRoute
   '/notifications': typeof AppNotificationsRoute
   '/onboarding': typeof AppOnboardingRoute
@@ -117,35 +124,37 @@ export interface FileRoutesByFullPath {
   '/profile/$userId': typeof AppProfileUserIdRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
+  '/home': typeof AppHomeRoute
   '/map': typeof AppMapRoute
   '/notifications': typeof AppNotificationsRoute
   '/onboarding': typeof AppOnboardingRoute
   '/profile': typeof AppProfileRouteWithChildren
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
-  '/': typeof AppIndexRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/community': typeof AppCommunityRoute
+  '/_app/home': typeof AppHomeRoute
   '/_app/map': typeof AppMapRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/profile': typeof AppProfileRouteWithChildren
   '/_app/requests': typeof AppRequestsRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/': typeof AppIndexRoute
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/chat'
     | '/community'
+    | '/home'
     | '/map'
     | '/notifications'
     | '/onboarding'
@@ -169,40 +179,43 @@ export interface FileRouteTypes {
     | '/profile/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/admin'
     | '/auth'
     | '/chat'
     | '/community'
+    | '/home'
     | '/map'
     | '/notifications'
     | '/onboarding'
     | '/profile'
     | '/requests'
     | '/settings'
-    | '/'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
   id:
     | '__root__'
+    | '/'
     | '/_app'
     | '/admin'
     | '/auth'
     | '/_app/chat'
     | '/_app/community'
+    | '/_app/home'
     | '/_app/map'
     | '/_app/notifications'
     | '/_app/onboarding'
     | '/_app/profile'
     | '/_app/requests'
     | '/_app/settings'
-    | '/_app/'
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
@@ -231,12 +244,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/': {
-      id: '/_app/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/settings': {
       id: '/_app/settings'
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/map'
       fullPath: '/map'
       preLoaderRoute: typeof AppMapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/home': {
+      id: '/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AppHomeRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/community': {
@@ -344,32 +364,33 @@ const AppProfileRouteWithChildren = AppProfileRoute._addFileChildren(
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRouteWithChildren
   AppCommunityRoute: typeof AppCommunityRoute
+  AppHomeRoute: typeof AppHomeRoute
   AppMapRoute: typeof AppMapRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppOnboardingRoute: typeof AppOnboardingRoute
   AppProfileRoute: typeof AppProfileRouteWithChildren
   AppRequestsRoute: typeof AppRequestsRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppIndexRoute: typeof AppIndexRoute
   AppMeViewRoute: typeof AppMeViewRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRouteWithChildren,
   AppCommunityRoute: AppCommunityRoute,
+  AppHomeRoute: AppHomeRoute,
   AppMapRoute: AppMapRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppOnboardingRoute: AppOnboardingRoute,
   AppProfileRoute: AppProfileRouteWithChildren,
   AppRequestsRoute: AppRequestsRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppIndexRoute: AppIndexRoute,
   AppMeViewRoute: AppMeViewRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,

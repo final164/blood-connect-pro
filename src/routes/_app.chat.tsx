@@ -79,7 +79,7 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
       window.history.back();
       return;
     }
-    void navigate({ to: "/" });
+    void navigate({ to: "/home" });
   }
 
   useEffect(() => {
