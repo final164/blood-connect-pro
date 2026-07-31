@@ -3,12 +3,8 @@ import type { FeedRequest } from "@/components/request/RequestCard";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchSavedIdsForRequests } from "@/lib/request-saves";
 
-<<<<<<< HEAD
-export const FEED_PAGE_SIZE = 8;
-=======
 /** Small pages → first post paints fast; more load on scroll. */
 export const FEED_PAGE_SIZE = 3;
->>>>>>> main
 
 export type FeedQuery = {
   bloodGroup?: string;
@@ -27,50 +23,6 @@ export async function enrichFeedRequests(
 
   const requesterIds = [...new Set(list.map((r) => r.requester_id))];
   const requestIds = list.map((r) => r.id);
-<<<<<<< HEAD
-
-  if (requesterIds.length) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, avatar_url")
-      .in("id", requesterIds);
-    const map = new Map((profiles ?? []).map((p) => [p.id, p]));
-    for (const r of list) r.requester = map.get(r.requester_id) ?? null;
-  }
-
-  const [{ data: likes, error: likesErr }, myLikesRes, { data: comments, error: cmtErr }, savedSet] =
-    await Promise.all([
-      supabase.from("request_likes").select("request_id").in("request_id", requestIds),
-      userId
-        ? supabase
-            .from("request_likes")
-            .select("request_id")
-            .eq("user_id", userId)
-            .in("request_id", requestIds)
-        : Promise.resolve({ data: [] as { request_id: string }[], error: null }),
-      supabase.from("request_comments").select("request_id").in("request_id", requestIds),
-      userId ? fetchSavedIdsForRequests(userId, requestIds) : Promise.resolve(new Set<string>()),
-    ]);
-
-  if (!likesErr && !cmtErr) {
-    const likeMap = new Map<string, number>();
-    (likes ?? []).forEach((l: { request_id: string }) =>
-      likeMap.set(l.request_id, (likeMap.get(l.request_id) ?? 0) + 1),
-    );
-    const cMap = new Map<string, number>();
-    (comments ?? []).forEach((c: { request_id: string }) =>
-      cMap.set(c.request_id, (cMap.get(c.request_id) ?? 0) + 1),
-    );
-    const mine = new Set((myLikesRes.data ?? []).map((l: { request_id: string }) => l.request_id));
-    for (const r of list) {
-      r.like_count = likeMap.get(r.id) ?? r.like_count ?? 0;
-      r.comment_count = cMap.get(r.id) ?? r.comment_count ?? 0;
-      r.liked = mine.has(r.id);
-      r.saved = savedSet.has(r.id);
-    }
-  }
-
-=======
   // Ranked RPC already returns counts — skip heavy full-table count scans.
   const needsCounts = list.some(
     (r) => typeof r.like_count !== "number" || typeof r.comment_count !== "number",
@@ -135,7 +87,6 @@ export async function enrichFeedRequests(
     r.comment_count = r.comment_count ?? 0;
   }
 
->>>>>>> main
   return list;
 }
 

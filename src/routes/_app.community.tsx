@@ -16,10 +16,7 @@ import {
   fetchMessagingSettings,
   type MessagingSettings,
 } from "@/lib/messaging-settings";
-<<<<<<< HEAD
-=======
 import { queryKeys } from "@/lib/query-client";
->>>>>>> main
 import { whatsappHref } from "@/lib/request-form-options";
 import { Phone, Users, Building2, X, MessageSquare } from "lucide-react";
 import { MessengerIcon, ChatHeaderButton } from "@/components/MessengerIcon";
@@ -29,23 +26,15 @@ import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { supabase } from "@/integrations/supabase/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
-<<<<<<< HEAD
-import { useCallback, useEffect, useRef, useState } from "react";
-=======
 import { useInfiniteQuery, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
->>>>>>> main
 
 type CommunitySearch = {
   orgId?: string;
 };
 
-<<<<<<< HEAD
-const PAGE = 24;
-=======
 /** Smaller pages → faster first paint; more on scroll. */
 const PAGE = 12;
->>>>>>> main
 
 export const Route = createFileRoute("/_app/community")({
   head: () => ({ meta: [{ title: "Community — BloodLink" }] }),
@@ -58,96 +47,11 @@ export const Route = createFileRoute("/_app/community")({
 function CommunityPage() {
   const { lang } = useI18n();
   const { user } = useAuth();
-<<<<<<< HEAD
-=======
   const queryClient = useQueryClient();
->>>>>>> main
   const { orgId } = Route.useSearch();
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
   const [bloodGroup, setBloodGroup] = useState("ALL");
-<<<<<<< HEAD
-  const [donors, setDonors] = useState<CommunityDonorRow[]>([]);
-  const [filterOrg, setFilterOrg] = useState<CommunityOrg | null>(null);
-  const [viewerGender, setViewerGender] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [smsOpen, setSmsOpen] = useState(false);
-  const [msgSettings, setMsgSettings] = useState<MessagingSettings>(DEFAULT_MESSAGING_SETTINGS);
-  const donorsRef = useRef(donors);
-  donorsRef.current = donors;
-
-  useEffect(() => {
-    void fetchMessagingSettings().then(setMsgSettings);
-  }, []);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setViewerGender(null);
-      return;
-    }
-    void getProfile(user.id).then((p) => {
-      setViewerGender((p?.gender as string | null | undefined)?.trim().toLowerCase() ?? null);
-    });
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!orgId) {
-      setFilterOrg(null);
-      return;
-    }
-    void fetchCommunityOrgs()
-      .then((orgs) => setFilterOrg(orgs.find((o) => o.id === orgId) ?? null))
-      .catch(() => setFilterOrg(null));
-  }, [orgId]);
-
-  const loadPage = useCallback(
-    async (reset: boolean) => {
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else setLoadingMore(true);
-      try {
-        const offset = reset ? 0 : donorsRef.current.length;
-        const { items, hasMore: more } = await fetchCommunityDonors({
-          bloodGroup,
-          districtId: district?.id ?? null,
-          upazila: upazila.trim() || undefined,
-          orgId: orgId ?? null,
-          offset,
-          limit: PAGE,
-        });
-        setDonors((prev) =>
-          reset ? items : [...prev, ...items.filter((d) => !prev.some((p) => p.id === d.id))],
-        );
-        setHasMore(more);
-      } catch {
-        if (reset) setDonors([]);
-        setHasMore(false);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [bloodGroup, district?.id, orgId, upazila],
-  );
-
-  const loadMore = useCallback(() => {
-    if (loading || loadingMore || !hasMore) return;
-    void loadPage(false);
-  }, [hasMore, loadPage, loading, loadingMore]);
-
-  const sentinelRef = useInfiniteScroll(loadMore, { enabled: hasMore && !loading });
-
-  useEffect(() => {
-    void loadPage(true);
-    const ch = supabase
-      .channel("community-donors-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "community_donors" }, () =>
-        void loadPage(true),
-      )
-=======
   const [smsOpen, setSmsOpen] = useState(false);
 
   const msgQuery = useQuery({
@@ -249,16 +153,11 @@ function CommunityPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "community_donors" }, () => {
         void queryClient.invalidateQueries({ queryKey: ["community-donors"] });
       })
->>>>>>> main
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-<<<<<<< HEAD
-  }, [loadPage]);
-=======
   }, [queryClient]);
->>>>>>> main
 
   const orgLabel =
     filterOrg && (lang === "bn" ? filterOrg.name_bn || filterOrg.name : filterOrg.name);
@@ -340,11 +239,7 @@ function CommunityPage() {
       </AutoHideHeader>
 
       <ul className="p-3 space-y-2 pb-2">
-<<<<<<< HEAD
-        {loading && donors.length === 0 && (
-=======
         {loading && (
->>>>>>> main
           <li className="text-center text-sm text-muted-foreground py-12">
             {lang === "bn" ? "খুঁজছি…" : "Searching…"}
           </li>

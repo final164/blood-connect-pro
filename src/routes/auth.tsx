@@ -155,10 +155,6 @@ function AuthPage() {
                 value={phone}
                 onChange={setPhone}
                 lang={lang}
-<<<<<<< HEAD
-                readOnly={mode === "admin"}
-=======
->>>>>>> main
               />
               <PinField
                 label={lang === "bn" ? "৪ সংখ্যার PIN" : "4-digit PIN"}

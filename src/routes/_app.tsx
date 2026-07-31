@@ -47,12 +47,8 @@ function AppLayout() {
       return;
     }
     let cancelled = false;
-<<<<<<< HEAD
-    setProfileGate("checking");
-=======
     // Skip full-screen gate spinner when this user already passed the check.
     setProfileGate((prev) => (prev === "ok" ? "ok" : "checking"));
->>>>>>> main
     getProfile(user.id)
       .then((profile) => {
         if (cancelled) return;

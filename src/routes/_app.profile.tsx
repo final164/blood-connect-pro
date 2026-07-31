@@ -194,7 +194,4 @@ function ProfilePage() {
 }
 
 export { ProfileToggle as Toggle } from "@/components/profile/ProfileToggle";
-<<<<<<< HEAD
-=======
 
->>>>>>> main

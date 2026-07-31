@@ -226,11 +226,7 @@ export async function fetchCommunityDonors(opts: {
   orgId?: string | null;
   offset?: number;
   limit?: number;
-<<<<<<< HEAD
-}) {
-=======
 }): Promise<{ items: CommunityDonorRow[]; hasMore: boolean }> {
->>>>>>> main
   const limit = opts.limit ?? 24;
   const offset = opts.offset ?? 0;
   let q = supabase
@@ -253,11 +249,7 @@ export async function fetchCommunityDonors(opts: {
 
   const { data, error } = await q;
   if (error) throw error;
-<<<<<<< HEAD
-  const rows = (data ?? []) as CommunityDonorRow[];
-=======
   const rows = (data ?? []) as unknown as CommunityDonorRow[];
->>>>>>> main
   return { items: rows, hasMore: rows.length >= limit };
 }
 

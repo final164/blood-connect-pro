@@ -1,10 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-<<<<<<< HEAD
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-=======
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
->>>>>>> main
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -21,10 +17,7 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
-<<<<<<< HEAD
-=======
 import { queryKeys } from "@/lib/query-client";
->>>>>>> main
 import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
 import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
 import {
@@ -67,12 +60,6 @@ function FeedPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [showDistrictSearch, setShowDistrictSearch] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-<<<<<<< HEAD
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-=======
->>>>>>> main
   const [carouselSettings, setCarouselSettings] = useState<FeedCarouselSettings>(
     DEFAULT_FEED_CAROUSEL_SETTINGS,
   );
@@ -81,12 +68,6 @@ function FeedPage() {
     DEFAULT_FEED_BANNER_SETTINGS,
   );
   const [bannerSlides, setBannerSlides] = useState<FeedBannerSlide[]>([]);
-<<<<<<< HEAD
-  const loadGen = useRef(0);
-  const rtTimer = useRef<number | null>(null);
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-=======
   const rtTimer = useRef<number | null>(null);
   const hydratedKey = useRef<string | null>(null);
 
@@ -167,7 +148,6 @@ function FeedPage() {
   const hasMore = hasNextPage ?? false;
   const loading = isPending && items.length === 0;
   const loadingMore = isFetchingNextPage;
->>>>>>> main
 
   useEffect(() => {
     setShowComposer(!!compose);
@@ -201,61 +181,6 @@ function FeedPage() {
     });
   }
 
-<<<<<<< HEAD
-  const loadPage = useCallback(
-    async (reset: boolean) => {
-      const gen = ++loadGen.current;
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
-      }
-      try {
-        const offset = reset ? 0 : itemsRef.current.length;
-        const { items: page, hasMore: more } = await fetchFeedPage({
-          bloodGroup: filter,
-          districtId: district?.id ?? null,
-          offset,
-          limit: FEED_PAGE_SIZE,
-          userId: user?.id,
-        });
-        if (gen !== loadGen.current) return;
-        setItems((prev) => {
-          if (reset) return page;
-          const seen = new Set(prev.map((p) => p.id));
-          return [...prev, ...page.filter((p) => !seen.has(p.id))];
-        });
-        setHasMore(more);
-        if (reset) {
-          await cacheSet(`feed-req:${district?.id ?? "all"}:${filter}`, page);
-        }
-      } catch (e) {
-        if (gen !== loadGen.current) return;
-        if (reset) {
-          const cached = await cacheGet<FeedRequest[]>(`feed-req:${district?.id ?? "all"}:${filter}`);
-          if (cached?.length) {
-            setItems(cached);
-            setHasMore(false);
-          } else {
-            toast.error((e as Error).message);
-          }
-        }
-      } finally {
-        if (gen === loadGen.current) {
-          setLoading(false);
-          setLoadingMore(false);
-        }
-      }
-    },
-    [district?.id, filter, user?.id],
-  );
-
-  const loadMoreSafe = useCallback(() => {
-    if (loading || loadingMore || !hasMore) return;
-    void loadPage(false);
-  }, [hasMore, loading, loadingMore, loadPage]);
-=======
   const refreshFeed = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: qKey });
   }, [queryClient, qKey]);
@@ -269,7 +194,6 @@ function FeedPage() {
     enabled: hasMore && !loading && !showComposer,
     rootMargin: "480px",
   });
->>>>>>> main
 
   const sentinelRef = useInfiniteScroll(loadMoreSafe, {
     enabled: hasMore && !loading && !showComposer,
@@ -278,18 +202,11 @@ function FeedPage() {
   // Default: all posts via personalized ranking (no hard filter).
   // District / blood chips only apply when the user sets them manually.
   useEffect(() => {
-<<<<<<< HEAD
-    void loadPage(true);
-    const scheduleReload = () => {
-      if (rtTimer.current) window.clearTimeout(rtTimer.current);
-      rtTimer.current = window.setTimeout(() => void loadPage(true), 600);
-=======
     const scheduleReload = () => {
       if (rtTimer.current) window.clearTimeout(rtTimer.current);
       rtTimer.current = window.setTimeout(() => {
         void queryClient.invalidateQueries({ queryKey: ["feed"] });
       }, 800);
->>>>>>> main
     };
     const ch = supabase
       .channel("feed-requests")
@@ -301,10 +218,6 @@ function FeedPage() {
       if (rtTimer.current) window.clearTimeout(rtTimer.current);
       supabase.removeChannel(ch);
     };
-<<<<<<< HEAD
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, district?.id, user?.id]);
-=======
   }, [queryClient]);
 
   useEffect(() => {
@@ -312,7 +225,6 @@ function FeedPage() {
       toast.error((feedError as Error)?.message ?? "Failed to load feed");
     }
   }, [isError, feedError, items.length]);
->>>>>>> main
 
   useEffect(() => {
     let targetId = requestId;
@@ -357,11 +269,7 @@ function FeedPage() {
                   to: "/",
                   search: { requestId: id },
                   replace: true,
-<<<<<<< HEAD
-                }).then(() => void loadPage(true));
-=======
                 });
->>>>>>> main
               }}
               onCancel={closeComposer}
             />
@@ -482,13 +390,6 @@ function FeedPage() {
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t("liveRequests")}
             </h2>
-<<<<<<< HEAD
-            <span className="text-[11px] text-muted-foreground">{items.length}{hasMore ? "+" : ""}</span>
-          </div>
-
-          <ul className="px-3 pb-2 space-y-3">
-            {loading && items.length === 0 && (
-=======
             <span className="text-[11px] text-muted-foreground">
               {items.length}
               {hasMore ? "+" : ""}
@@ -497,7 +398,6 @@ function FeedPage() {
 
           <ul className="px-3 pb-2 space-y-3">
             {loading && (
->>>>>>> main
               <li className="rounded-2xl border bg-muted/20 py-12 text-center text-sm text-muted-foreground">
                 {t("loading")}
               </li>
@@ -525,13 +425,7 @@ function FeedPage() {
               const afterN = index + 1;
               const railAfter = Math.max(1, carouselSettings.insert_after_every || 2);
               const showRail =
-<<<<<<< HEAD
-                carouselSettings.enabled &&
-                carouselSlides.length > 0 &&
-                afterN === railAfter;
-=======
                 carouselSettings.enabled && carouselSlides.length > 0 && afterN === railAfter;
->>>>>>> main
               const showBanner =
                 bannerSettings.enabled &&
                 bannerSlides.length > 0 &&
@@ -543,11 +437,7 @@ function FeedPage() {
                     <RequestCard
                       request={r}
                       currentUserId={user?.id}
-<<<<<<< HEAD
-                      onChanged={() => void loadPage(true)}
-=======
                       onChanged={refreshFeed}
->>>>>>> main
                       highlighted={highlightId === r.id}
                     />
                   </li>

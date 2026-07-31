@@ -1,10 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-<<<<<<< HEAD
-import { useEffect, useState } from "react";
-=======
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
->>>>>>> main
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { fetchProfileForViewer } from "@/lib/profile-lock";
@@ -14,18 +10,13 @@ import { ArrowLeft, MessageCircle } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import type { District } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
-<<<<<<< HEAD
-=======
 import { queryKeys } from "@/lib/query-client";
->>>>>>> main
 
 export const Route = createFileRoute("/_app/profile/$userId")({
   head: () => ({ meta: [{ title: "Profile — BloodLink" }] }),
   component: PublicProfilePage,
 });
 
-<<<<<<< HEAD
-=======
 async function loadPublicProfile(userId: string, viewerId?: string) {
   const data = await fetchProfileForViewer(userId, viewerId);
   let district: District | null = null;
@@ -40,46 +31,11 @@ async function loadPublicProfile(userId: string, viewerId?: string) {
   return { profile: data as Record<string, unknown> | null, district };
 }
 
->>>>>>> main
 function PublicProfilePage() {
   const { userId } = Route.useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t, lang } = useI18n();
-<<<<<<< HEAD
-  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
-  const [district, setDistrict] = useState<District | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (user?.id === userId) {
-      void navigate({ to: "/profile" });
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const data = await fetchProfileForViewer(userId, user?.id);
-        if (cancelled) return;
-        setProfile(data);
-        if (data?.district_id) {
-          const { data: d } = await supabase
-            .from("districts")
-            .select("id,name_bn,name_en,slug,is_active,sort_order")
-            .eq("id", data.district_id as string)
-            .maybeSingle();
-          if (d && !cancelled) setDistrict(d as District);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, user?.id, navigate]);
-=======
 
   useEffect(() => {
     if (user?.id === userId) void navigate({ to: "/profile" });
@@ -95,7 +51,6 @@ function PublicProfilePage() {
   const profile = q.data?.profile ?? null;
   const district = q.data?.district ?? null;
   const loading = q.isPending && !q.data;
->>>>>>> main
 
   if (loading) {
     return <div className="p-6 text-sm text-muted-foreground">{t("loading")}</div>;
@@ -168,13 +123,7 @@ function PublicProfilePage() {
             lives_saved: profile.lives_saved as number | undefined,
           }}
           lang={lang}
-<<<<<<< HEAD
-          headerExtra={
-            user && user.id !== userId ? null : undefined
-          }
-=======
           headerExtra={user && user.id !== userId ? null : undefined}
->>>>>>> main
         />
       </div>
     </div>
