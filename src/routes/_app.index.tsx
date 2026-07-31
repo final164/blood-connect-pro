@@ -195,10 +195,6 @@ function FeedPage() {
     rootMargin: "480px",
   });
 
-  const sentinelRef = useInfiniteScroll(loadMoreSafe, {
-    enabled: hasMore && !loading && !showComposer,
-  });
-
   // Default: all posts via personalized ranking (no hard filter).
   // District / blood chips only apply when the user sets them manually.
   useEffect(() => {
