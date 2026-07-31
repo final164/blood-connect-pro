@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Building2, Phone, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -12,11 +13,12 @@ import {
   type ActivityView,
 } from "@/lib/user-activity";
 import { fetchCommunityOrgs, type CommunityOrg } from "@/lib/api";
+import { queryKeys } from "@/lib/query-client";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
-const PAGE = 8;
+const PAGE = 4;
 
 const TITLES: Record<ActivityView, { bn: string; en: string }> = {
   posts: { bn: "আমার পোস্ট", en: "My posts" },
@@ -45,74 +47,73 @@ export function isActivityView(v: string): v is ActivityView {
 export function ActivityFeedPage({ view }: { view: ActivityView }) {
   const { user } = useAuth();
   const { lang, t } = useI18n();
-  const [items, setItems] = useState<FeedRequest[]>([]);
-  const [orgs, setOrgs] = useState<CommunityOrg[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
+  const queryClient = useQueryClient();
 
-  const loadPage = useCallback(
-    async (reset: boolean) => {
-      if (view === "organizations") {
-        setLoading(true);
-        try {
-          setOrgs(await fetchCommunityOrgs());
-          setItems([]);
-          setHasMore(false);
-        } catch {
-          setOrgs([]);
-        } finally {
-          setLoading(false);
-        }
-        return;
-      }
-      if (!user) {
-        setItems([]);
-        setOrgs([]);
-        setLoading(false);
-        setHasMore(false);
-        return;
-      }
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else setLoadingMore(true);
-      try {
-        const offset = reset ? 0 : itemsRef.current.length;
-        const { items: page, hasMore: more } = await loadActivityRequests(view, user.id, {
-          offset,
-          limit: PAGE,
-        });
-        setItems((prev) =>
-          reset ? page : [...prev, ...page.filter((r) => !prev.some((p) => p.id === r.id))],
-        );
-        setOrgs([]);
-        setHasMore(more);
-      } catch {
-        if (reset) setItems([]);
-        setHasMore(false);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
+  const orgsQuery = useQuery({
+    queryKey: ["community-orgs"],
+    queryFn: () => fetchCommunityOrgs(),
+    enabled: view === "organizations",
+    staleTime: 120_000,
+  });
+
+  const listQuery = useInfiniteQuery({
+    queryKey: queryKeys.activity(view, user?.id),
+    queryFn: ({ pageParam }) =>
+      loadActivityRequests(view as Exclude<ActivityView, "organizations">, user!.id, {
+        offset: pageParam,
+        limit: PAGE,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => {
+      if (!last.hasMore) return undefined;
+      return pages.reduce((n, p) => n + p.items.length, 0);
     },
-    [user, view],
-  );
+    enabled: view !== "organizations" && !!user?.id,
+    staleTime: 45_000,
+  });
+
+  const {
+    data: listData,
+    isPending: listPending,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = listQuery;
+
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const out: FeedRequest[] = [];
+    for (const page of listData?.pages ?? []) {
+      for (const r of page.items) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        out.push(r);
+      }
+    }
+    return out;
+  }, [listData]);
+
+  const orgs = orgsQuery.data ?? [];
+  const hasMore = hasNextPage ?? false;
+  const loading =
+    view === "organizations"
+      ? orgsQuery.isPending && orgs.length === 0
+      : listPending && items.length === 0;
+  const loadingMore = isFetchingNextPage;
+
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.activity(view, user?.id) });
+  }, [queryClient, view, user?.id]);
 
   const loadMore = useCallback(() => {
-    if (loading || loadingMore || !hasMore || view === "organizations") return;
-    void loadPage(false);
-  }, [hasMore, loadPage, loading, loadingMore, view]);
+    if (!hasMore || isFetchingNextPage || listPending) return;
+    void fetchNextPage();
+  }, [hasMore, isFetchingNextPage, listPending, fetchNextPage]);
 
   const sentinelRef = useInfiniteScroll(loadMore, {
     enabled: hasMore && !loading && view !== "organizations",
+    rootMargin: "400px",
   });
-
-  useEffect(() => {
-    void loadPage(true);
-  }, [loadPage]);
 
   const title = lang === "bn" ? TITLES[view].bn : TITLES[view].en;
   const empty = lang === "bn" ? EMPTY[view].bn : EMPTY[view].en;
@@ -135,7 +136,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
       </AutoHideHeader>
 
       <div className="px-3 sm:px-4 py-3 space-y-3 max-w-2xl mx-auto pb-8">
-        {loading && items.length === 0 && orgs.length === 0 ? (
+        {loading ? (
           <p className="text-sm text-muted-foreground text-center py-10">{t("loading")}</p>
         ) : view === "organizations" ? (
           orgs.length === 0 ? (
@@ -155,7 +156,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
               key={r.id}
               request={r}
               currentUserId={user?.id}
-              onChanged={() => void loadPage(true)}
+              onChanged={refresh}
             />
           ))
         )}

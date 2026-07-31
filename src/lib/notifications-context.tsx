@@ -50,13 +50,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const seenIds = useRef(new Set<string>());
+  const itemsLenRef = useRef(0);
+  itemsLenRef.current = items.length;
 
   const refresh = useCallback(async () => {
     if (!user) {
       setItems([]);
       return;
     }
-    setLoading(true);
+    // Keep previous notifications visible — no full-page spinner on revisit/refresh.
+    if (itemsLenRef.current === 0) setLoading(true);
     try {
       const settings = await fetchNotificationSettings();
       void purgeExpiredNotificationsForUser(user.id, settings.retention_days).catch(() => undefined);

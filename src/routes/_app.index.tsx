@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -16,6 +17,7 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
+import { queryKeys } from "@/lib/query-client";
 import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
 import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
 import {
@@ -43,20 +45,21 @@ export const Route = createFileRoute("/_app/")({
   component: FeedPage,
 });
 
+function feedIdbKey(districtId: string | null | undefined, filter: string) {
+  return `feed-req:${districtId ?? "all"}:${filter}`;
+}
+
 function FeedPage() {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { requestId, compose } = Route.useSearch();
-  const [items, setItems] = useState<FeedRequest[]>([]);
   const [district, setDistrict] = useState<District | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
   const [showComposer, setShowComposer] = useState(false);
   const [showDistrictSearch, setShowDistrictSearch] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [carouselSettings, setCarouselSettings] = useState<FeedCarouselSettings>(
     DEFAULT_FEED_CAROUSEL_SETTINGS,
   );
@@ -65,10 +68,86 @@ function FeedPage() {
     DEFAULT_FEED_BANNER_SETTINGS,
   );
   const [bannerSlides, setBannerSlides] = useState<FeedBannerSlide[]>([]);
-  const loadGen = useRef(0);
   const rtTimer = useRef<number | null>(null);
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
+  const hydratedKey = useRef<string | null>(null);
+
+  const qKey = queryKeys.feed(filter, district?.id, user?.id);
+  const idbKey = feedIdbKey(district?.id, filter);
+
+  const feedQuery = useInfiniteQuery({
+    queryKey: qKey,
+    queryFn: async ({ pageParam }) => {
+      const page = await fetchFeedPage({
+        bloodGroup: filter,
+        districtId: district?.id ?? null,
+        offset: pageParam,
+        limit: FEED_PAGE_SIZE,
+        userId: user?.id,
+      });
+      if (pageParam === 0 && page.items.length) {
+        void cacheSet(idbKey, page.items);
+      }
+      return page;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => {
+      if (!last.hasMore) return undefined;
+      return pages.reduce((n, p) => n + p.items.length, 0);
+    },
+    staleTime: 45_000,
+    gcTime: 20 * 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+  // Paint instantly from IndexedDB on cold visit (before network returns).
+  useEffect(() => {
+    if (hydratedKey.current === idbKey) return;
+    const existing = queryClient.getQueryData(qKey);
+    if (existing) {
+      hydratedKey.current = idbKey;
+      return;
+    }
+    let cancelled = false;
+    void cacheGet<FeedRequest[]>(idbKey).then((cached) => {
+      if (cancelled || !cached?.length) return;
+      if (queryClient.getQueryData(qKey)) return;
+      queryClient.setQueryData(qKey, {
+        pages: [{ items: cached, hasMore: true }],
+        pageParams: [0],
+      });
+      hydratedKey.current = idbKey;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [idbKey, qKey, queryClient]);
+
+  const {
+    data: feedData,
+    isPending,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    isError,
+    error: feedError,
+  } = feedQuery;
+
+  const items = useMemo(() => {
+    const seen = new Set<string>();
+    const out: FeedRequest[] = [];
+    for (const page of feedData?.pages ?? []) {
+      for (const r of page.items) {
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        out.push(r);
+      }
+    }
+    return out;
+  }, [feedData]);
+
+  const hasMore = hasNextPage ?? false;
+  const loading = isPending && items.length === 0;
+  const loadingMore = isFetchingNextPage;
 
   useEffect(() => {
     setShowComposer(!!compose);
@@ -102,71 +181,26 @@ function FeedPage() {
     });
   }
 
-  const loadPage = useCallback(
-    async (reset: boolean) => {
-      const gen = ++loadGen.current;
-      if (reset) {
-        setLoading(true);
-        setHasMore(true);
-      } else {
-        setLoadingMore(true);
-      }
-      try {
-        const offset = reset ? 0 : itemsRef.current.length;
-        const { items: page, hasMore: more } = await fetchFeedPage({
-          bloodGroup: filter,
-          districtId: district?.id ?? null,
-          offset,
-          limit: FEED_PAGE_SIZE,
-          userId: user?.id,
-        });
-        if (gen !== loadGen.current) return;
-        setItems((prev) => {
-          if (reset) return page;
-          const seen = new Set(prev.map((p) => p.id));
-          return [...prev, ...page.filter((p) => !seen.has(p.id))];
-        });
-        setHasMore(more);
-        if (reset) {
-          await cacheSet(`feed-req:${district?.id ?? "all"}:${filter}`, page);
-        }
-      } catch (e) {
-        if (gen !== loadGen.current) return;
-        if (reset) {
-          const cached = await cacheGet<FeedRequest[]>(`feed-req:${district?.id ?? "all"}:${filter}`);
-          if (cached?.length) {
-            setItems(cached);
-            setHasMore(false);
-          } else {
-            toast.error((e as Error).message);
-          }
-        }
-      } finally {
-        if (gen === loadGen.current) {
-          setLoading(false);
-          setLoadingMore(false);
-        }
-      }
-    },
-    [district?.id, filter, user?.id],
-  );
+  const refreshFeed = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: qKey });
+  }, [queryClient, qKey]);
 
   const loadMoreSafe = useCallback(() => {
-    if (loading || loadingMore || !hasMore) return;
-    void loadPage(false);
-  }, [hasMore, loading, loadingMore, loadPage]);
+    if (!hasMore || isFetchingNextPage || isPending) return;
+    void fetchNextPage();
+  }, [hasMore, isFetchingNextPage, isPending, fetchNextPage]);
 
   const sentinelRef = useInfiniteScroll(loadMoreSafe, {
     enabled: hasMore && !loading && !showComposer,
+    rootMargin: "480px",
   });
 
-  // Default: all posts via personalized ranking (no hard filter).
-  // District / blood chips only apply when the user sets them manually.
   useEffect(() => {
-    void loadPage(true);
     const scheduleReload = () => {
       if (rtTimer.current) window.clearTimeout(rtTimer.current);
-      rtTimer.current = window.setTimeout(() => void loadPage(true), 600);
+      rtTimer.current = window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ["feed"] });
+      }, 800);
     };
     const ch = supabase
       .channel("feed-requests")
@@ -178,8 +212,13 @@ function FeedPage() {
       if (rtTimer.current) window.clearTimeout(rtTimer.current);
       supabase.removeChannel(ch);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, district?.id, user?.id]);
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (isError && items.length === 0) {
+      toast.error((feedError as Error)?.message ?? "Failed to load feed");
+    }
+  }, [isError, feedError, items.length]);
 
   useEffect(() => {
     let targetId = requestId;
@@ -219,11 +258,12 @@ function FeedPage() {
                 setFilter("ALL");
                 setDistrict(null);
                 setHighlightId(id);
+                void queryClient.invalidateQueries({ queryKey: ["feed"] });
                 void navigate({
                   to: "/",
                   search: { requestId: id },
                   replace: true,
-                }).then(() => void loadPage(true));
+                });
               }}
               onCancel={closeComposer}
             />
@@ -344,11 +384,14 @@ function FeedPage() {
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {t("liveRequests")}
             </h2>
-            <span className="text-[11px] text-muted-foreground">{items.length}{hasMore ? "+" : ""}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {items.length}
+              {hasMore ? "+" : ""}
+            </span>
           </div>
 
           <ul className="px-3 pb-2 space-y-3">
-            {loading && items.length === 0 && (
+            {loading && (
               <li className="rounded-2xl border bg-muted/20 py-12 text-center text-sm text-muted-foreground">
                 {t("loading")}
               </li>
@@ -376,9 +419,7 @@ function FeedPage() {
               const afterN = index + 1;
               const railAfter = Math.max(1, carouselSettings.insert_after_every || 2);
               const showRail =
-                carouselSettings.enabled &&
-                carouselSlides.length > 0 &&
-                afterN === railAfter;
+                carouselSettings.enabled && carouselSlides.length > 0 && afterN === railAfter;
               const showBanner =
                 bannerSettings.enabled &&
                 bannerSlides.length > 0 &&
@@ -390,7 +431,7 @@ function FeedPage() {
                     <RequestCard
                       request={r}
                       currentUserId={user?.id}
-                      onChanged={() => void loadPage(true)}
+                      onChanged={refreshFeed}
                       highlighted={highlightId === r.id}
                     />
                   </li>

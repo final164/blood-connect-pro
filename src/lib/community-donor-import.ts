@@ -226,7 +226,7 @@ export async function fetchCommunityDonors(opts: {
   orgId?: string | null;
   offset?: number;
   limit?: number;
-}) {
+}): Promise<{ items: CommunityDonorRow[]; hasMore: boolean }> {
   const limit = opts.limit ?? 24;
   const offset = opts.offset ?? 0;
   let q = supabase
