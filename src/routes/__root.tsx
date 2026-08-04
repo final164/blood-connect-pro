@@ -15,6 +15,9 @@ import { setupNotificationClickHandler } from "@/lib/device-push";
 import { LangProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "sonner";
+import { DEFAULT_SEO_SETTINGS, buildHead } from "@/lib/seo-settings";
+
+const rootSeoHead = buildHead(DEFAULT_SEO_SETTINGS, "bn");
 
 function NotFoundComponent() {
   return (
@@ -65,15 +68,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#c1121f" },
-      { title: "BloodLink — রক্তদানে জীবন বাঁচান" },
-      { name: "description", content: "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট।" },
-      { property: "og:title", content: "BloodLink — Save lives" },
-      { property: "og:description", content: "Realtime blood donor social network with E2EE chat and live map." },
-      { property: "og:type", content: "website" },
-      { property: "og:image", content: "/icon-512.png" },
-      { name: "twitter:card", content: "summary" },
-      { name: "application-name", content: "BloodLink" },
-      { name: "apple-mobile-web-app-title", content: "BloodLink" },
+      ...rootSeoHead.meta,
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -84,6 +79,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" },
+      ...rootSeoHead.links,
     ],
   }),
   shellComponent: RootShell,

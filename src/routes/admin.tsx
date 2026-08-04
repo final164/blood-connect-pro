@@ -64,6 +64,7 @@ import {
   FileSpreadsheet,
   ChevronDown,
   Pencil,
+  X,
   Moon,
   Sun,
   Flag,
@@ -86,6 +87,7 @@ import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import { LandingAdmin } from "@/components/admin/LandingAdmin";
+import { SeoAdmin } from "@/components/admin/SeoAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
@@ -629,6 +631,8 @@ function DistrictsAdmin() {
   const [rows, setRows] = useState<District[]>([]);
   const [form, setForm] = useState({ name_bn: "", name_en: "", slug: "" });
   const [expandedDistrictId, setExpandedDistrictId] = useState<string | null>(null);
+  const [editingDistrictId, setEditingDistrictId] = useState<string | null>(null);
+  const [districtEditForm, setDistrictEditForm] = useState({ name_bn: "", name_en: "", slug: "" });
   const [seeding, setSeeding] = useState(false);
   const [upazilaSeedVersion, setUpazilaSeedVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -704,6 +708,33 @@ function DistrictsAdmin() {
     if (!can("districts.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("districts").update({ is_active: !d.is_active }).eq("id", d.id);
     setRows((prev) => prev.map((x) => (x.id === d.id ? { ...x, is_active: !d.is_active } : x)));
+  }
+
+  async function saveDistrictEdit(id: string) {
+    if (!can("districts.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    const { error } = await supabase
+      .from("districts")
+      .update({
+        name_bn: districtEditForm.name_bn.trim(),
+        name_en: districtEditForm.name_en.trim(),
+        slug: districtEditForm.slug.trim() || undefined,
+      })
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    setEditingDistrictId(null);
+    setRows((prev) =>
+      prev.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              name_bn: districtEditForm.name_bn.trim(),
+              name_en: districtEditForm.name_en.trim(),
+              slug: districtEditForm.slug.trim() || x.slug,
+            }
+          : x,
+      ),
+    );
+    toast.success(lang === "bn" ? "সেভ হয়েছে" : "Saved");
   }
 
   async function remove(id: string) {
@@ -804,37 +835,99 @@ function DistrictsAdmin() {
             )}
             {rows.map((d) => (
               <Fragment key={d.id}>
-                <tr className="border-t border-slate-800">
+                <tr className={`border-t border-slate-800 ${editingDistrictId === d.id ? "bg-slate-900/80" : ""}`}>
                   <td className="p-3">
                     <button
                       type="button"
                       onClick={() => setExpandedDistrictId(expandedDistrictId === d.id ? null : d.id)}
                       className="p-1 rounded-md hover:bg-slate-800 text-slate-400"
                       title={lang === "bn" ? "উপজেলা দেখুন" : "Show upazilas"}
+                      disabled={editingDistrictId === d.id}
                     >
                       <ChevronDown
                         className={`h-4 w-4 transition ${expandedDistrictId === d.id ? "rotate-180" : ""}`}
                       />
                     </button>
                   </td>
-                  <td className="p-3">{d.name_bn}</td>
-                  <td className="p-3">{d.name_en}</td>
-                  <td className="p-3">
-                    {can("districts.toggle") ? (
-                      <button type="button" onClick={() => toggle(d)} className={`text-xs font-semibold px-2 py-1 rounded-md ${d.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}>
-                        {d.is_active ? "ON" : "OFF"}
-                      </button>
-                    ) : (
-                      <span className="text-xs">{d.is_active ? "ON" : "OFF"}</span>
-                    )}
-                  </td>
-                  <td className="p-3 text-right">
-                    {can("districts.delete") && (
-                      <button type="button" onClick={() => remove(d.id)} className="text-rose-400 p-1">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </td>
+                  {editingDistrictId === d.id ? (
+                    <>
+                      <td className="p-3">
+                        <input
+                          className={ainp}
+                          value={districtEditForm.name_bn}
+                          onChange={(e) => setDistrictEditForm({ ...districtEditForm, name_bn: e.target.value })}
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          className={ainp}
+                          value={districtEditForm.name_en}
+                          onChange={(e) => setDistrictEditForm({ ...districtEditForm, name_en: e.target.value })}
+                        />
+                      </td>
+                      <td className="p-3">
+                        <input
+                          className={ainp}
+                          placeholder="slug"
+                          value={districtEditForm.slug}
+                          onChange={(e) => setDistrictEditForm({ ...districtEditForm, slug: e.target.value })}
+                        />
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => saveDistrictEdit(d.id)}
+                            className="p-1.5 rounded-md bg-emerald-600/20 text-emerald-300"
+                          >
+                            <Save className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingDistrictId(null)}
+                            className="p-1.5 rounded-md bg-slate-800 text-slate-400"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="p-3">{d.name_bn}</td>
+                      <td className="p-3">{d.name_en}</td>
+                      <td className="p-3">
+                        {can("districts.toggle") ? (
+                          <button type="button" onClick={() => toggle(d)} className={`text-xs font-semibold px-2 py-1 rounded-md ${d.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}>
+                            {d.is_active ? "ON" : "OFF"}
+                          </button>
+                        ) : (
+                          <span className="text-xs">{d.is_active ? "ON" : "OFF"}</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          {can("districts.edit") && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDistrictId(d.id);
+                                setDistrictEditForm({ name_bn: d.name_bn, name_en: d.name_en, slug: d.slug });
+                              }}
+                              className="p-1 text-slate-400 hover:text-slate-200"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {can("districts.delete") && (
+                            <button type="button" onClick={() => remove(d.id)} className="text-rose-400 p-1">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
                 {expandedDistrictId === d.id && (
                   <tr className="border-t border-slate-800">
@@ -876,6 +969,15 @@ function HospitalsAdmin() {
   qRef.current = q;
   const PAGE = 25;
   const [form, setForm] = useState({
+    name_bn: "",
+    name_en: "",
+    slug: "",
+    district_id: "",
+    upazila: "",
+    hospital_type: "government" as "government" | "private" | "clinic" | "diagnostic",
+  });
+  const [editingHospitalId, setEditingHospitalId] = useState<string | null>(null);
+  const [hospitalEditForm, setHospitalEditForm] = useState({
     name_bn: "",
     name_en: "",
     slug: "",
@@ -1024,6 +1126,47 @@ function HospitalsAdmin() {
     setRows((prev) => prev.map((x) => (x.id === h.id ? { ...x, is_active: !h.is_active } : x)));
   }
 
+  async function saveHospitalEdit(id: string) {
+    if (!can("hospitals.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!hospitalEditForm.district_id || !hospitalEditForm.name_en.trim()) {
+      return toast.error(lang === "bn" ? "জেলা ও ইংরেজি নাম দিন" : "District + EN name required");
+    }
+    const slug =
+      hospitalEditForm.slug.trim() ||
+      hospitalEditForm.name_en.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const { error } = await supabase
+      .from("hospitals")
+      .update({
+        name_bn: hospitalEditForm.name_bn.trim() || hospitalEditForm.name_en.trim(),
+        name_en: hospitalEditForm.name_en.trim(),
+        slug,
+        district_id: hospitalEditForm.district_id,
+        hospital_type: hospitalEditForm.hospital_type,
+        upazila: hospitalEditForm.upazila.trim() || null,
+      })
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    const districtSlug = districts.find((d) => d.id === hospitalEditForm.district_id)?.slug ?? null;
+    setEditingHospitalId(null);
+    setRows((prev) =>
+      prev.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              name_bn: hospitalEditForm.name_bn.trim() || hospitalEditForm.name_en.trim(),
+              name_en: hospitalEditForm.name_en.trim(),
+              slug,
+              district_id: hospitalEditForm.district_id,
+              district_slug: districtSlug,
+              hospital_type: hospitalEditForm.hospital_type,
+              upazila: hospitalEditForm.upazila.trim() || null,
+            }
+          : x,
+      ),
+    );
+    toast.success(lang === "bn" ? "সেভ হয়েছে" : "Saved");
+  }
+
   async function remove(id: string) {
     if (!can("hospitals.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (id.startsWith("seed:")) return;
@@ -1127,30 +1270,141 @@ function HospitalsAdmin() {
               </tr>
             )}
             {rows.map((h) => (
-              <tr key={h.id} className="border-t border-slate-800">
-                <td className="p-3">
-                  <p className="font-medium">{lang === "bn" ? h.name_bn : h.name_en}</p>
-                  <p className="text-[10px] text-slate-500">{lang === "bn" ? h.name_en : h.name_bn}</p>
-                </td>
-                <td className="p-3 text-xs">{h.district_slug ?? "—"}</td>
-                <td className="p-3 text-xs">{h.upazila ?? "—"}</td>
-                <td className="p-3 text-xs uppercase">{h.hospital_type}</td>
-                <td className="p-3">
-                  <button
-                    type="button"
-                    onClick={() => toggle(h)}
-                    className={`text-xs px-2 py-1 rounded-md ${h.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}
-                  >
-                    {h.is_active ? "ON" : "OFF"}
-                  </button>
-                </td>
-                <td className="p-3 text-right">
-                  {!h.id.startsWith("seed:") && (
-                    <button type="button" onClick={() => remove(h.id)} className="text-rose-400 p-1">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </td>
+              <tr key={h.id} className={`border-t border-slate-800 ${editingHospitalId === h.id ? "bg-slate-900/80" : ""}`}>
+                {editingHospitalId === h.id ? (
+                  <>
+                    <td className="p-3 space-y-1">
+                      <input
+                        className={ainp}
+                        placeholder="Name EN"
+                        value={hospitalEditForm.name_en}
+                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, name_en: e.target.value })}
+                      />
+                      <input
+                        className={ainp}
+                        placeholder="Name BN"
+                        value={hospitalEditForm.name_bn}
+                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, name_bn: e.target.value })}
+                      />
+                      <input
+                        className={ainp}
+                        placeholder="slug"
+                        value={hospitalEditForm.slug}
+                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, slug: e.target.value })}
+                      />
+                    </td>
+                    <td className="p-3">
+                      <select
+                        className={ainp}
+                        value={hospitalEditForm.district_id}
+                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, district_id: e.target.value })}
+                      >
+                        <option value="">{lang === "bn" ? "জেলা…" : "District…"}</option>
+                        {districts.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name_en}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3">
+                      <input
+                        className={ainp}
+                        placeholder={lang === "bn" ? "উপজেলা" : "Upazila"}
+                        value={hospitalEditForm.upazila}
+                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, upazila: e.target.value })}
+                      />
+                    </td>
+                    <td className="p-3">
+                      <select
+                        className={ainp}
+                        value={hospitalEditForm.hospital_type}
+                        onChange={(e) =>
+                          setHospitalEditForm({
+                            ...hospitalEditForm,
+                            hospital_type: e.target.value as "government" | "private" | "clinic" | "diagnostic",
+                          })
+                        }
+                      >
+                        <option value="government">{t("government")}</option>
+                        <option value="private">{t("private")}</option>
+                        <option value="clinic">{t("clinic")}</option>
+                        <option value="diagnostic">{t("diagnostic")}</option>
+                      </select>
+                    </td>
+                    <td className="p-3" />
+                    <td className="p-3 text-right">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => saveHospitalEdit(h.id)}
+                          className="p-1.5 rounded-md bg-emerald-600/20 text-emerald-300"
+                        >
+                          <Save className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingHospitalId(null)}
+                          className="p-1.5 rounded-md bg-slate-800 text-slate-400"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="p-3">
+                      <p className="font-medium">{lang === "bn" ? h.name_bn : h.name_en}</p>
+                      <p className="text-[10px] text-slate-500">{lang === "bn" ? h.name_en : h.name_bn}</p>
+                    </td>
+                    <td className="p-3 text-xs">{h.district_slug ?? "—"}</td>
+                    <td className="p-3 text-xs">{h.upazila ?? "—"}</td>
+                    <td className="p-3 text-xs uppercase">{h.hospital_type}</td>
+                    <td className="p-3">
+                      <button
+                        type="button"
+                        onClick={() => toggle(h)}
+                        className={`text-xs px-2 py-1 rounded-md ${h.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}
+                      >
+                        {h.is_active ? "ON" : "OFF"}
+                      </button>
+                    </td>
+                    <td className="p-3 text-right">
+                      {!h.id.startsWith("seed:") && (
+                        <div className="flex justify-end gap-1">
+                          {can("hospitals.edit") && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingHospitalId(h.id);
+                                setHospitalEditForm({
+                                  name_bn: h.name_bn,
+                                  name_en: h.name_en,
+                                  slug: h.slug,
+                                  district_id: h.district_id ?? "",
+                                  upazila: h.upazila ?? "",
+                                  hospital_type:
+                                    h.hospital_type === "ngo"
+                                      ? "private"
+                                      : (h.hospital_type as "government" | "private" | "clinic" | "diagnostic"),
+                                });
+                              }}
+                              className="p-1 text-slate-400 hover:text-slate-200"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {can("hospitals.delete") && (
+                            <button type="button" onClick={() => remove(h.id)} className="text-rose-400 p-1">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>
@@ -2555,6 +2809,7 @@ function SettingsAdmin() {
     | "carousel"
     | "banner"
     | "landing"
+    | "seo"
     | "reasons"
     | "donations"
     | "menu"
@@ -2625,6 +2880,7 @@ function SettingsAdmin() {
     { id: "carousel" as const, bn: "ইমেজ ক্যারোজেল", en: "Image carousel" },
     { id: "banner" as const, bn: "ফুল ব্যানার", en: "Full banner" },
     { id: "landing" as const, bn: "ল্যান্ডিং / Frontpage", en: "Landing / Frontpage" },
+    { id: "seo" as const, bn: "SEO", en: "SEO" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
@@ -2659,6 +2915,7 @@ function SettingsAdmin() {
       {settingsTab === "carousel" && <FeedCarouselAdmin />}
       {settingsTab === "banner" && <FeedBannerAdmin />}
       {settingsTab === "landing" && <LandingAdmin />}
+      {settingsTab === "seo" && <SeoAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}

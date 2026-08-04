@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as OrgRouteImport } from './routes/org'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -27,6 +29,16 @@ import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$use
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgRoute = OrgRouteImport.update({
   id: '/org',
   path: '/org',
@@ -117,6 +129,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/org': typeof OrgRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/home': typeof AppHomeRoute
@@ -135,6 +149,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/org': typeof OrgRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/home': typeof AppHomeRoute
@@ -155,6 +171,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/org': typeof OrgRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/community': typeof AppCommunityRoute
   '/_app/home': typeof AppHomeRoute
@@ -175,6 +193,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/org'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/chat'
     | '/community'
     | '/home'
@@ -193,6 +213,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/org'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/chat'
     | '/community'
     | '/home'
@@ -212,6 +234,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/org'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/_app/chat'
     | '/_app/community'
     | '/_app/home'
@@ -232,10 +256,26 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   OrgRoute: typeof OrgRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org': {
       id: '/org'
       path: '/org'
@@ -415,6 +455,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   OrgRoute: OrgRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

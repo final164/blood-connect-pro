@@ -9,12 +9,18 @@ import {
   type LandingSettings,
 } from "@/lib/landing-settings";
 import {
+  DEFAULT_SEO_SETTINGS,
+  buildHead,
+  fetchSeoSettings,
+} from "@/lib/seo-settings";
+import {
   fetchLandingContentBundle,
   type LandingContentBundle,
 } from "@/lib/landing-content";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { renderLandingSection } from "@/components/landing/LandingSections";
+import { SeoHeadUpdater, SeoJsonLd } from "@/components/SeoHead";
 
 const EMPTY_CONTENT: LandingContentBundle = {
   stats: [],
@@ -29,12 +35,15 @@ const EMPTY_CONTENT: LandingContentBundle = {
 };
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: DEFAULT_LANDING_SETTINGS.seo.title_bn },
-      { name: "description", content: DEFAULT_LANDING_SETTINGS.seo.description_bn },
-    ],
-  }),
+  loader: async () => {
+    const seo = await fetchSeoSettings();
+    return { seo };
+  },
+  head: ({ loaderData }) => {
+    const seo = loaderData?.seo ?? DEFAULT_SEO_SETTINGS;
+    const { meta, links } = buildHead(seo, "bn");
+    return { meta, links };
+  },
   component: LandingPage,
 });
 
@@ -43,11 +52,19 @@ function LandingPage() {
   const { lang, setLang } = useI18n();
   const navigate = useNavigate();
   const [landingLang, setLandingLang] = useState<"bn" | "en">(lang);
+  const { seo: loaderSeo } = Route.useLoaderData();
 
   const settingsQ = useQuery({
     queryKey: ["landing-settings"],
     queryFn: () => fetchLandingSettings(),
     staleTime: 60_000,
+  });
+
+  const seoQ = useQuery({
+    queryKey: ["seo-settings"],
+    queryFn: () => fetchSeoSettings(),
+    staleTime: 60_000,
+    initialData: loaderSeo,
   });
 
   const contentQ = useQuery({
@@ -57,6 +74,7 @@ function LandingPage() {
   });
 
   const settings: LandingSettings = settingsQ.data ?? DEFAULT_LANDING_SETTINGS;
+  const seo = seoQ.data ?? DEFAULT_SEO_SETTINGS;
   const content = contentQ.data ?? EMPTY_CONTENT;
   const loggedIn = !loading && !!session && !isAnonymous;
 
@@ -77,12 +95,6 @@ function LandingPage() {
     }
   }, [settings.enabled, settingsQ.isLoading, loggedIn, navigate]);
 
-  const seoTitle = landingLang === "bn" ? settings.seo.title_bn : settings.seo.title_en;
-
-  useEffect(() => {
-    if (typeof document !== "undefined") document.title = seoTitle;
-  }, [seoTitle]);
-
   if (loading || loggedIn || settingsQ.isLoading || !settings.enabled) {
     return (
       <div className="min-h-dvh grid place-items-center bg-[#F7F3F0]">
@@ -93,6 +105,8 @@ function LandingPage() {
 
   return (
     <LandingShell settings={settings}>
+      <SeoHeadUpdater seo={seo} lang={landingLang} />
+      <SeoJsonLd seo={seo} lang={landingLang} />
       {settings.sections_enabled.nav && (
         <LandingNav
           settings={settings}

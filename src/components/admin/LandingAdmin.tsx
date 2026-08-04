@@ -882,33 +882,16 @@ export function LandingAdmin() {
 
       {tab === "seo" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
-          <div className="grid sm:grid-cols-2 gap-2">
-            {(
-              [
-                ["title_bn", "Title BN"],
-                ["title_en", "Title EN"],
-                ["description_bn", "Description BN"],
-                ["description_en", "Description EN"],
-              ] as const
-            ).map(([key, label]) => (
-              <Field key={key} label={label}>
-                <input
-                  className={ainp}
-                  value={cfg.seo[key]}
-                  onChange={(e) =>
-                    setCfg((p) => ({ ...p, seo: { ...p.seo, [key]: e.target.value } }))
-                  }
-                />
-              </Field>
-            ))}
-          </div>
-          <Field label="OG image URL">
-            <MediaUrlInput
-              value={cfg.seo.og_image_url}
-              onChange={(url) => setCfg((p) => ({ ...p, seo: { ...p.seo, og_image_url: url } }))}
-              lang={lang}
-            />
-          </Field>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            {lang === "bn"
+              ? "সাইট-wide SEO এখন Admin → Settings → SEO-তে পরিচালিত হয়। Title, description, OG image, robots, sitemap, verification — সব এক জায়গায়।"
+              : "Site-wide SEO is now managed under Admin → Settings → SEO. Title, description, OG image, robots, sitemap, and verification live there."}
+          </p>
+          <p className="text-[10px] text-slate-500">
+            {lang === "bn"
+              ? "Settings ট্যাবে SEO খুলুন — সম্পূর্ণ গাইড বাটন সহ।"
+              : "Open the SEO tab under Settings — includes the full SEO guide button."}
+          </p>
         </div>
       )}
     </div>
