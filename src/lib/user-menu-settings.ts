@@ -10,6 +10,7 @@ export type UserMenuItemId =
   | "organizations"
   | "profile"
   | "settings"
+  | "report"
   | "logout";
 
 export type UserMenuItem = {
@@ -43,7 +44,15 @@ const DEFAULT_ITEMS: UserMenuItem[] = [
   { id: "organizations", enabled: true, order: 6, icon: "Building2", label_bn: "অর্গানাইজেশন", label_en: "Organizations" },
   { id: "profile", enabled: true, order: 7, icon: "User", label_bn: "প্রোফাইল", label_en: "Profile" },
   { id: "settings", enabled: true, order: 8, icon: "Settings", label_bn: "সেটিংস", label_en: "Settings" },
-  { id: "logout", enabled: true, order: 9, icon: "LogOut", label_bn: "লগআউট", label_en: "Log out" },
+  {
+    id: "report",
+    enabled: true,
+    order: 9,
+    icon: "Flag",
+    label_bn: "রিপোর্ট / অভিযোগ",
+    label_en: "Report / complain",
+  },
+  { id: "logout", enabled: true, order: 10, icon: "LogOut", label_bn: "লগআউট", label_en: "Log out" },
 ];
 
 export const DEFAULT_USER_MENU_SETTINGS: UserMenuSettings = {
@@ -67,6 +76,7 @@ export const USER_MENU_ICON_OPTIONS = [
   "User",
   "Settings",
   "LogOut",
+  "Flag",
   "Heart",
   "Users",
   "Home",
@@ -174,6 +184,8 @@ export function menuItemHref(id: UserMenuItemId): string | null {
       return "/profile";
     case "settings":
       return "/settings";
+    case "report":
+      return "/settings?report=1";
     case "logout":
       return null;
     default:

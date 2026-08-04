@@ -66,6 +66,7 @@ import {
   Pencil,
   Moon,
   Sun,
+  Flag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { isAdminIdentity } from "@/lib/phone-auth";
@@ -88,6 +89,7 @@ import { LandingAdmin } from "@/components/admin/LandingAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
+import { ReportsAdmin } from "@/components/admin/ReportsAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -101,6 +103,7 @@ type Tab =
   | "overview"
   | "users"
   | "requests"
+  | "reports"
   | "districts"
   | "hospitals"
   | "cms"
@@ -171,6 +174,7 @@ function AdminPageInner() {
           "overview",
           "users",
           "requests",
+          "reports",
           "districts",
           "hospitals",
           "cms",
@@ -200,6 +204,12 @@ function AdminPageInner() {
     { id: "overview", label: t("overview"), icon: LayoutDashboard, module: "overview" },
     { id: "users", label: t("users"), icon: Users, module: "users" },
     { id: "requests", label: t("manageRequests"), icon: HeartPulse, module: "requests" },
+    {
+      id: "reports",
+      label: lang === "bn" ? "রিপোর্ট" : "Reports",
+      icon: Flag,
+      module: "reports",
+    },
     { id: "districts", label: t("district"), icon: MapPinned, module: "districts" },
     { id: "hospitals", label: t("hospitals"), icon: HospitalIcon, module: "hospitals" },
     { id: "cms", label: t("cms"), icon: Type, module: "cms" },
@@ -376,6 +386,7 @@ function AdminPageInner() {
             {tab === "overview" && can("overview.view") && <Overview />}
             {tab === "users" && can("users.view") && <UsersAdmin />}
             {tab === "requests" && can("requests.view") && <RequestsAdmin />}
+            {tab === "reports" && can("reports.view") && <ReportsAdmin />}
             {tab === "districts" && can("districts.view") && <DistrictsAdmin />}
             {tab === "hospitals" && can("hospitals.view") && <HospitalsAdmin />}
             {tab === "cms" && can("cms.view") && <CmsAdmin onSaved={reloadCms} />}

@@ -4,6 +4,7 @@ export type AdminModule =
   | "overview"
   | "users"
   | "requests"
+  | "reports"
   | "districts"
   | "hospitals"
   | "cms"
@@ -43,6 +44,9 @@ export const ADMIN_PERMISSION_CATALOG: PermissionDef[] = [
   { key: "requests.view", module: "requests", action: "view", label_en: "View requests", label_bn: "রিকোয়েস্ট দেখা", sort_order: 30 },
   { key: "requests.edit", module: "requests", action: "edit", label_en: "Edit request status", label_bn: "রিকোয়েস্ট স্ট্যাটাস", sort_order: 31 },
   { key: "requests.delete", module: "requests", action: "delete", label_en: "Delete requests", label_bn: "রিকোয়েস্ট ডিলিট", sort_order: 32 },
+  { key: "reports.view", module: "reports", action: "view", label_en: "View reports", label_bn: "রিপোর্ট দেখা", sort_order: 85 },
+  { key: "reports.edit", module: "reports", action: "edit", label_en: "Update report status", label_bn: "রিপোর্ট স্ট্যাটাস", sort_order: 86 },
+  { key: "reports.delete", module: "reports", action: "delete", label_en: "Delete reports", label_bn: "রিপোর্ট ডিলিট", sort_order: 87 },
   { key: "districts.view", module: "districts", action: "view", label_en: "View districts", label_bn: "জেলা দেখা", sort_order: 40 },
   { key: "districts.add", module: "districts", action: "add", label_en: "Add districts", label_bn: "জেলা যোগ", sort_order: 41 },
   { key: "districts.edit", module: "districts", action: "edit", label_en: "Edit districts", label_bn: "জেলা এডিট", sort_order: 42 },
@@ -81,6 +85,7 @@ export const ADMIN_MODULES: { id: AdminModule; label_en: string; label_bn: strin
   { id: "overview", label_en: "Overview", label_bn: "ওভারভিউ" },
   { id: "users", label_en: "Users", label_bn: "ইউজার" },
   { id: "requests", label_en: "Requests", label_bn: "রিকোয়েস্ট" },
+  { id: "reports", label_en: "Reports", label_bn: "রিপোর্ট" },
   { id: "districts", label_en: "Districts", label_bn: "জেলা" },
   { id: "hospitals", label_en: "Hospitals", label_bn: "হাসপাতাল" },
   { id: "cms", label_en: "CMS", label_bn: "CMS" },

@@ -70,7 +70,10 @@ function MenuIcon({ name, className }: { name: string; className?: string }) {
 
 function navigateToMenu(href: string, navigate: ReturnType<typeof useNavigate>) {
   if (href === "/profile") return void navigate({ to: "/profile" });
-  if (href === "/settings") return void navigate({ to: "/settings" });
+  if (href.startsWith("/settings")) {
+    const report = href.includes("report=1") || href.includes("report=true");
+    return void navigate({ to: "/settings", search: report ? { report: true } : {} });
+  }
   const view = href.replace("/me/", "");
   void navigate({ to: "/me/$view", params: { view } });
 }

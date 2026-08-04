@@ -5,25 +5,46 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { ProfileToggle as Toggle } from "@/components/profile/ProfileToggle";
 import { ChangePinSheet } from "@/components/settings/ChangePinSheet";
-import { ShieldCheck, Globe, Bell, LogOut, KeyRound, ChevronRight } from "lucide-react";
+import { ReportProblemSheet } from "@/components/settings/ReportProblemSheet";
+import { ShieldCheck, Globe, Bell, LogOut, KeyRound, ChevronRight, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { enableDeviceNotifications, disableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { hasWebPushConfigured } from "@/lib/push-config";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 
+type SettingsSearch = {
+  report?: boolean;
+};
+
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({ meta: [{ title: "Settings — BloodLink" }] }),
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    report:
+      search.report === true ||
+      search.report === "1" ||
+      search.report === "true",
+  }),
   component: SettingsPage,
 });
 
 function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { user, signOut } = useAuth();
+  const { report: openReportFromSearch } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [s, setS] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [dark, setDark] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [userPhone, setUserPhone] = useState("");
+
+  useEffect(() => {
+    if (openReportFromSearch) {
+      setReportOpen(true);
+      void navigate({ search: {}, replace: true });
+    }
+  }, [openReportFromSearch, navigate]);
 
   useEffect(() => {
     if (typeof document !== "undefined") setDark(document.documentElement.classList.contains("dark"));
@@ -152,6 +173,23 @@ function SettingsPage() {
           </p>
         </Section>
 
+        <Section
+          title={lang === "bn" ? "সাহায্য" : "Support"}
+          icon={<Flag className="h-4 w-4" />}
+        >
+          <button
+            type="button"
+            onClick={() => setReportOpen(true)}
+            className="w-full flex items-center justify-between rounded-xl border bg-card px-3 py-3 hover:bg-muted/50 transition"
+          >
+            <span className="flex items-center gap-2 text-sm">
+              <Flag className="h-4 w-4 text-primary" />
+              {lang === "bn" ? "রিপোর্ট / অভিযোগ জানান" : "Report / complain"}
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </Section>
+
         <button
           onClick={save}
           disabled={busy}
@@ -181,6 +219,8 @@ function SettingsPage() {
           t={t}
         />
       )}
+
+      <ReportProblemSheet open={reportOpen} onClose={() => setReportOpen(false)} />
     </div>
   );
 }
