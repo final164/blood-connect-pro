@@ -7,6 +7,7 @@ import {
   ADMIN_MODULES,
   ADMIN_PERMISSION_CATALOG,
   permissionsByModule,
+  syncAdminPermissionCatalog,
   type AdminRoleRow,
   type OverrideEffect,
   type PermissionKey,
@@ -88,7 +89,13 @@ export function AccessControlAdmin() {
   useEffect(() => {
     void loadRoles();
     void loadAssignments();
-  }, []);
+    if (canManage) void syncAdminPermissionCatalog(supabase).catch(() => {});
+  }, [canManage]);
+
+  async function ensureCatalogSynced() {
+    if (!canManage) return;
+    await syncAdminPermissionCatalog(supabase);
+  }
 
   useEffect(() => {
     if (selectedRoleId) void loadRolePerms(selectedRoleId);
@@ -165,6 +172,7 @@ export function AccessControlAdmin() {
     }
     const keys = [...rolePerms];
     if (keys.length) {
+      await ensureCatalogSynced();
       await supabase.from("admin_role_permissions").insert(
         keys.map((permission_key) => ({ role_id: data.id, permission_key })),
       );
@@ -224,6 +232,11 @@ export function AccessControlAdmin() {
         return next;
       });
     } else {
+      try {
+        await ensureCatalogSynced();
+      } catch (e) {
+        return toast.error((e as Error).message);
+      }
       const { error } = await supabase
         .from("admin_role_permissions")
         .insert({ role_id: selectedRoleId, permission_key: key });
@@ -238,6 +251,11 @@ export function AccessControlAdmin() {
     if (enable) {
       const missing = keys.filter((k) => !rolePerms.has(k));
       if (!missing.length) return;
+      try {
+        await ensureCatalogSynced();
+      } catch (e) {
+        return toast.error((e as Error).message);
+      }
       const { error } = await supabase
         .from("admin_role_permissions")
         .upsert(missing.map((permission_key) => ({ role_id: selectedRoleId, permission_key })));

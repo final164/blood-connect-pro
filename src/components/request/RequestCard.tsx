@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   MapPin,
+  MapPinned,
   Phone,
   Clock,
   Share2,
@@ -134,7 +135,12 @@ export function RequestCard({
 
   const distName = lang === "bn" ? r.district?.name_bn : r.district?.name_en;
   const upazilaName = r.area?.trim() || null;
-  const locationLabel = [r.hospital_name, upazilaName, distName || r.city].filter(Boolean).join(" · ");
+  const hospitalName = r.hospital_name?.trim() || "";
+  const placeParts = [hospitalName, upazilaName, distName || r.city].filter(Boolean);
+  const mapsQuery = placeParts.join(", ");
+  const mapsHref = mapsQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
+    : null;
   const isOwner = !!currentUserId && r.requester_id === currentUserId;
   const phone = r.contact_phone?.trim() || null;
   const waLink = r.whatsapp_phone?.trim() ? whatsappHref(r.whatsapp_phone.trim()) : null;
@@ -379,7 +385,32 @@ export function RequestCard({
         <div className="space-y-1.5 text-xs text-muted-foreground">
           <p className="flex items-start gap-1.5">
             <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <span>{locationLabel}</span>
+            <span className="min-w-0 leading-relaxed">
+              {hospitalName && (
+                <span className="inline-flex items-center gap-1 max-w-full align-middle">
+                  <span className="font-medium text-foreground/90 break-words">{hospitalName}</span>
+                  {mapsHref && (
+                    <a
+                      href={mapsHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={lang === "bn" ? "ম্যাপে দেখুন" : "Open in Maps"}
+                      aria-label={lang === "bn" ? "ম্যাপে দেখুন" : "Open in Maps"}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition"
+                    >
+                      <MapPinned className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </span>
+              )}
+              {(upazilaName || distName || r.city) && (
+                <span className={hospitalName ? "text-muted-foreground" : undefined}>
+                  {hospitalName ? " · " : ""}
+                  {[upazilaName, distName || r.city].filter(Boolean).join(" · ")}
+                </span>
+              )}
+            </span>
           </p>
           <p className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5 shrink-0" />

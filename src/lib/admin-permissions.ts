@@ -69,6 +69,22 @@ export const ADMIN_PERMISSION_CATALOG: PermissionDef[] = [
   { key: "community.import", module: "community", action: "import", label_en: "Bulk import donors", label_bn: "বাল্ক ইমপোর্ট", sort_order: 75 },
   { key: "community.donors_edit", module: "community", action: "donors_edit", label_en: "Edit donors", label_bn: "রক্তদাতা এডিট", sort_order: 76 },
   { key: "community.donors_delete", module: "community", action: "donors_delete", label_en: "Delete donors", label_bn: "রক্তদাতা ডিলিট", sort_order: 77 },
+  {
+    key: "community.roles_manage",
+    module: "community",
+    action: "roles_manage",
+    label_en: "Edit org roles & permissions",
+    label_bn: "অর্গ রোল ও পারমিশন এডিট",
+    sort_order: 78,
+  },
+  {
+    key: "community.members_manage",
+    module: "community",
+    action: "members_manage",
+    label_en: "Assign org members",
+    label_bn: "অর্গ মেম্বার অ্যাসাইন",
+    sort_order: 79,
+  },
   { key: "notifications.view", module: "notifications", action: "view", label_en: "View notifications", label_bn: "নোটিফিকেশন দেখা", sort_order: 80 },
   { key: "notifications.broadcast", module: "notifications", action: "broadcast", label_en: "Broadcast", label_bn: "ব্রডকাস্ট", sort_order: 81 },
   { key: "notifications.delete", module: "notifications", action: "delete", label_en: "Delete notifications", label_bn: "নোটিফিকেশন ডিলিট", sort_order: 82 },
@@ -123,4 +139,27 @@ export function permLabel(key: string, lang: "bn" | "en") {
   const hit = ADMIN_PERMISSION_CATALOG.find((p) => p.key === key);
   if (!hit) return key;
   return lang === "bn" ? hit.label_bn : hit.label_en;
+}
+
+/** Upsert catalog rows into admin_permissions (requires sync_admin_permission_catalog RPC). */
+export async function syncAdminPermissionCatalog(
+  supabase: {
+    rpc: (
+      fn: string,
+      args: { payload: unknown },
+    ) => PromiseLike<{ error: { message: string } | null }>;
+  },
+) {
+  const payload = ADMIN_PERMISSION_CATALOG.map((p) => ({
+    key: p.key,
+    module: p.module,
+    action: p.action,
+    label_en: p.label_en,
+    label_bn: p.label_bn,
+    sort_order: p.sort_order,
+  }));
+  const { error } = await supabase.rpc("sync_admin_permission_catalog", { payload });
+  if (error && !/sync_admin_permission_catalog/i.test(error.message)) {
+    throw new Error(error.message);
+  }
 }

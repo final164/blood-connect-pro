@@ -72,6 +72,7 @@ export async function createCommunityBloodRequest(params: {
   donorName: string;
   donorPhone: string;
   channel: CommunityContactChannel;
+  org_id?: string | null;
 }): Promise<{ id: string | null; error: Error | null }> {
   const channelTag =
     params.channel === "call" ? "call" : params.channel === "sms" ? "sms" : "whatsapp";
@@ -95,6 +96,7 @@ export async function createCommunityBloodRequest(params: {
     contact_phone: params.contact_phone,
   };
   if (params.hospital_id) payload.hospital_id = params.hospital_id;
+  if (params.org_id) payload.org_id = params.org_id;
 
   async function tryInsert(body: Record<string, unknown>) {
     return supabase.from("blood_requests").insert(body).select("id").single();
@@ -108,6 +110,10 @@ export async function createCommunityBloodRequest(params: {
   }
   if (error && /hospital_id/i.test(error.message)) {
     delete payload.hospital_id;
+    ({ data, error } = await tryInsert(payload));
+  }
+  if (error && /org_id/i.test(error.message)) {
+    delete payload.org_id;
     ({ data, error } = await tryInsert(payload));
   }
   if (error) return { id: null, error: new Error(error.message) };
@@ -330,6 +336,7 @@ export function CommunityContactGateSheet({
       donorName: donor.full_name,
       donorPhone: donor.phone,
       channel,
+      org_id: donor.org_id || null,
     });
     setBusy(false);
 

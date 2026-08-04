@@ -90,6 +90,8 @@ import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
 import { ReportsAdmin } from "@/components/admin/ReportsAdmin";
+import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
+import { OrgRolesManager } from "@/components/org/OrgRolesManager";
 import type { AdminModule } from "@/lib/admin-permissions";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -2210,6 +2212,17 @@ function CommunityAdmin() {
 
             {expandedOrgId === o.id && editingOrgId !== o.id && (
               <>
+                {can("community.roles_manage") && (
+                  <OrgRolesManager
+                    orgId={o.id}
+                    lang={lang}
+                    canManage={can("community.roles_manage")}
+                    variant="admin"
+                  />
+                )}
+                {can("community.members_manage") && (
+                  <OrgMembersAdmin orgId={o.id} lang={lang} canEdit={can("community.members_manage")} />
+                )}
                 <OrgContactSettingsPanel
                   orgId={o.id}
                   initial={o.donor_contact_settings}
@@ -2217,6 +2230,15 @@ function CommunityAdmin() {
                   onSaved={() => void load()}
                 />
                 <OrgDonorsPanel orgId={o.id} districts={districts} lang={lang} refreshKey={donorRefreshKey} />
+                <div className="rounded-xl border border-dashed border-slate-700 px-3 py-2">
+                  <Link
+                    to="/org"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-400 hover:text-rose-300"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {lang === "bn" ? "অর্গ প্যানেল খুলুন" : "Open org panel"}
+                  </Link>
+                </div>
               </>
             )}
           </li>

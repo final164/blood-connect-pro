@@ -8,6 +8,7 @@ export type UserMenuItemId =
   | "saved"
   | "donated"
   | "organizations"
+  | "org_panel"
   | "profile"
   | "settings"
   | "report"
@@ -42,17 +43,25 @@ const DEFAULT_ITEMS: UserMenuItem[] = [
   { id: "saved", enabled: true, order: 4, icon: "Bookmark", label_bn: "সেভ করা", label_en: "Saved" },
   { id: "donated", enabled: true, order: 5, icon: "Droplet", label_bn: "রক্ত দিয়েছি", label_en: "Donated" },
   { id: "organizations", enabled: true, order: 6, icon: "Building2", label_bn: "অর্গানাইজেশন", label_en: "Organizations" },
-  { id: "profile", enabled: true, order: 7, icon: "User", label_bn: "প্রোফাইল", label_en: "Profile" },
-  { id: "settings", enabled: true, order: 8, icon: "Settings", label_bn: "সেটিংস", label_en: "Settings" },
+  {
+    id: "org_panel",
+    enabled: true,
+    order: 7,
+    icon: "Users",
+    label_bn: "অর্গানাইজেশন প্যানেল",
+    label_en: "Organization panel",
+  },
+  { id: "profile", enabled: true, order: 8, icon: "User", label_bn: "প্রোফাইল", label_en: "Profile" },
+  { id: "settings", enabled: true, order: 9, icon: "Settings", label_bn: "সেটিংস", label_en: "Settings" },
   {
     id: "report",
     enabled: true,
-    order: 9,
+    order: 10,
     icon: "Flag",
     label_bn: "রিপোর্ট / অভিযোগ",
     label_en: "Report / complain",
   },
-  { id: "logout", enabled: true, order: 10, icon: "LogOut", label_bn: "লগআউট", label_en: "Log out" },
+  { id: "logout", enabled: true, order: 11, icon: "LogOut", label_bn: "লগআউট", label_en: "Log out" },
 ];
 
 export const DEFAULT_USER_MENU_SETTINGS: UserMenuSettings = {
@@ -180,6 +189,8 @@ export function menuItemHref(id: UserMenuItemId): string | null {
       return "/me/donated";
     case "organizations":
       return "/me/organizations";
+    case "org_panel":
+      return "/org";
     case "profile":
       return "/profile";
     case "settings":

@@ -70,6 +70,7 @@ function MenuIcon({ name, className }: { name: string; className?: string }) {
 
 function navigateToMenu(href: string, navigate: ReturnType<typeof useNavigate>) {
   if (href === "/profile") return void navigate({ to: "/profile" });
+  if (href === "/org") return void navigate({ to: "/org" });
   if (href.startsWith("/settings")) {
     const report = href.includes("report=1") || href.includes("report=true");
     return void navigate({ to: "/settings", search: report ? { report: true } : {} });
@@ -82,6 +83,7 @@ function itemActive(item: UserMenuItem, pathname: string): boolean {
   const href = menuItemHref(item.id);
   if (!href) return false;
   if (href === "/profile") return pathname === "/profile";
+  if (href === "/org") return pathname === "/org" || pathname.startsWith("/org/");
   if (href === "/settings") return pathname === "/settings";
   return pathname === href || pathname.startsWith(`${href}/`);
 }

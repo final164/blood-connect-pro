@@ -80,6 +80,8 @@ INSERT INTO public.admin_permissions (key, module, action, label_en, label_bn, s
   ('community.import', 'community', 'import', 'Bulk import donors', 'বাল্ক ইমপোর্ট', 75),
   ('community.donors_edit', 'community', 'donors_edit', 'Edit donors', 'রক্তদাতা এডিট', 76),
   ('community.donors_delete', 'community', 'donors_delete', 'Delete donors', 'রক্তদাতা ডিলিট', 77),
+  ('community.roles_manage', 'community', 'roles_manage', 'Edit org roles & permissions', 'অর্গ রোল ও পারমিশন এডিট', 78),
+  ('community.members_manage', 'community', 'members_manage', 'Assign org members', 'অর্গ মেম্বার অ্যাসাইন', 79),
   ('notifications.view', 'notifications', 'view', 'View notifications', 'নোটিফিকেশন দেখা', 80),
   ('notifications.broadcast', 'notifications', 'broadcast', 'Broadcast', 'ব্রডকাস্ট', 81),
   ('notifications.delete', 'notifications', 'delete', 'Delete notifications', 'নোটিফিকেশন ডিলিট', 82),

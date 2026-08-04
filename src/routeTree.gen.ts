@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OrgRouteImport } from './routes/org'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
@@ -26,6 +27,11 @@ import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$use
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
 
+const OrgRoute = OrgRouteImport.update({
+  id: '/org',
+  path: '/org',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/org': typeof OrgRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/home': typeof AppHomeRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/org': typeof OrgRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/home': typeof AppHomeRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/org': typeof OrgRoute
   '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/community': typeof AppCommunityRoute
   '/_app/home': typeof AppHomeRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/org'
     | '/chat'
     | '/community'
     | '/home'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/org'
     | '/chat'
     | '/community'
     | '/home'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/admin'
     | '/auth'
+    | '/org'
     | '/_app/chat'
     | '/_app/community'
     | '/_app/home'
@@ -219,10 +231,18 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  OrgRoute: typeof OrgRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/org': {
+      id: '/org'
+      path: '/org'
+      fullPath: '/org'
+      preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -394,6 +414,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  OrgRoute: OrgRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

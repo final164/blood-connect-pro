@@ -308,6 +308,7 @@ export function CommunitySendSmsSheet({
       donorName: donorSummary.slice(0, 180),
       donorPhone: picks[0]?.phone ?? "",
       channel: "sms",
+      org_id: picks.every((d) => d.org_id === picks[0]?.org_id) ? picks[0]?.org_id ?? null : null,
     });
     setBusy(false);
 
