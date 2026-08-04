@@ -73,6 +73,7 @@ const fallback: Record<string, { bn: string; en: string }> = {
   emptyRequests: { bn: "সক্রিয় রিকোয়েস্ট নেই", en: "No active requests" },
   emptyChat: { bn: "কোনো কনভারসেশন নেই", en: "No conversations" },
   typeMessage: { bn: "একটি বার্তা লিখুন…", en: "Type a message…" },
+  typing: { bn: "টাইপ করছে…", en: "Typing…" },
   deleteMessages: { bn: "ডিলিট", en: "Delete" },
   messagesSelected: { bn: "টি নির্বাচিত", en: "selected" },
   messagesDeleted: { bn: "বার্তা ডিলিট হয়েছে", en: "Message(s) deleted" },

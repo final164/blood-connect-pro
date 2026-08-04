@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -7,6 +8,10 @@ import { Avatar } from "@/components/Avatar";
 import { conversationSecret, encryptMessage, decryptMessage } from "@/lib/e2ee";
 import { ArrowLeft, Check, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { fetchProfileForViewer } from "@/lib/profile-lock";
+import { toast } from "sonner";
+
+const TYPING_IDLE_MS = 1800;
+const PEER_TYPING_HOLD_MS = 3200;
 
 type Msg = {
   id: string;
@@ -45,10 +50,16 @@ function Thread() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const longPressRef = useRef<number | null>(null);
   const longPressTriggeredRef = useRef(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const typingIdleRef = useRef<number | null>(null);
+  const peerTypingHoldRef = useRef<number | null>(null);
+  const lastTypingSentRef = useRef(false);
+  const lastTypingAtRef = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -101,9 +112,87 @@ function Thread() {
     };
   }, [user, peerId]);
 
+  const clearPeerTypingHold = useCallback(() => {
+    if (peerTypingHoldRef.current != null) {
+      window.clearTimeout(peerTypingHoldRef.current);
+      peerTypingHoldRef.current = null;
+    }
+  }, []);
+
+  const markPeerTyping = useCallback(
+    (isTyping: boolean) => {
+      clearPeerTypingHold();
+      if (!isTyping) {
+        setPeerTyping(false);
+        return;
+      }
+      setPeerTyping(true);
+      peerTypingHoldRef.current = window.setTimeout(() => {
+        setPeerTyping(false);
+        peerTypingHoldRef.current = null;
+      }, PEER_TYPING_HOLD_MS);
+    },
+    [clearPeerTypingHold],
+  );
+
+  const sendTyping = useCallback(
+    (isTyping: boolean) => {
+      if (!user || !channelRef.current) return;
+      if (!isTyping) {
+        if (!lastTypingSentRef.current) return;
+        lastTypingSentRef.current = false;
+        lastTypingAtRef.current = 0;
+        void channelRef.current.send({
+          type: "broadcast",
+          event: "typing",
+          payload: { userId: user.id, typing: false },
+        });
+        return;
+      }
+      const now = Date.now();
+      // Refresh peer indicator while user keeps typing (throttle ~1s)
+      if (lastTypingSentRef.current && now - lastTypingAtRef.current < 1000) return;
+      lastTypingSentRef.current = true;
+      lastTypingAtRef.current = now;
+      void channelRef.current.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { userId: user.id, typing: true },
+      });
+    },
+    [user],
+  );
+
+  const stopTyping = useCallback(() => {
+    if (typingIdleRef.current != null) {
+      window.clearTimeout(typingIdleRef.current);
+      typingIdleRef.current = null;
+    }
+    sendTyping(false);
+  }, [sendTyping]);
+
+  const onComposerChange = useCallback(
+    (value: string) => {
+      setText(value);
+      if (!value.trim()) {
+        stopTyping();
+        return;
+      }
+      sendTyping(true);
+      if (typingIdleRef.current != null) window.clearTimeout(typingIdleRef.current);
+      typingIdleRef.current = window.setTimeout(() => {
+        sendTyping(false);
+        typingIdleRef.current = null;
+      }, TYPING_IDLE_MS);
+    },
+    [sendTyping, stopTyping],
+  );
+
   useEffect(() => {
     if (!convId || !user) return;
     const secret = conversationSecret(user.id, peerId);
+    setPeerTyping(false);
+    lastTypingSentRef.current = false;
     async function load() {
       const { data } = await supabase
         .from("messages")
@@ -122,12 +211,13 @@ function Thread() {
     }
     load();
     const ch = supabase
-      .channel(`msg-${convId}`)
+      .channel(`msg-${convId}`, { config: { broadcast: { self: false } } })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
         async (payload) => {
           const m = payload.new as Msg;
+          if (m.sender_id === peerId) markPeerTyping(false);
           const plaintext = m.is_encrypted && m.iv ? await decryptMessage(m.ciphertext, m.iv, secret) : m.ciphertext;
           setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, { ...m, plaintext }]));
           requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }));
@@ -149,11 +239,20 @@ function Thread() {
           });
         },
       )
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        const p = payload as { userId?: string; typing?: boolean } | null;
+        if (!p || p.userId !== peerId) return;
+        markPeerTyping(Boolean(p.typing));
+      })
       .subscribe();
+    channelRef.current = ch;
     return () => {
+      stopTyping();
+      clearPeerTypingHold();
+      channelRef.current = null;
       supabase.removeChannel(ch);
     };
-  }, [convId, user, peerId]);
+  }, [convId, user, peerId, markPeerTyping, stopTyping, clearPeerTypingHold]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -230,6 +329,7 @@ function Thread() {
 
   async function send() {
     if (!text.trim() || !convId || !user || selectMode) return;
+    stopTyping();
     setSending(true);
     const secret = conversationSecret(user.id, peerId);
     const { ciphertext, iv } = await encryptMessage(text.trim(), secret);
@@ -298,13 +398,17 @@ function Thread() {
               <Avatar name={peer?.full_name as string} src={(peer?.avatar_url as string) ?? undefined} size={36} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{(peer?.full_name as string) ?? "User"}</p>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <ShieldCheck className="h-2.5 w-2.5" />
-                  {t("encrypted")}
-                  {peer?.blood_group && (
-                    <span className="ml-1 font-semibold text-primary">· {peer.blood_group as string}</span>
-                  )}
-                </p>
+                {peerTyping ? (
+                  <p className="text-[10px] text-primary font-medium animate-pulse">{t("typing")}</p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <ShieldCheck className="h-2.5 w-2.5" />
+                    {t("encrypted")}
+                    {peer?.blood_group && (
+                      <span className="ml-1 font-semibold text-primary">· {peer.blood_group as string}</span>
+                    )}
+                  </p>
+                )}
               </div>
             </Link>
           </div>
@@ -358,6 +462,13 @@ function Thread() {
             </div>
           );
         })}
+        {peerTyping && (
+          <div className="flex justify-start pt-1">
+            <div className="rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-xs text-muted-foreground animate-pulse">
+              {t("typing")}
+            </div>
+          </div>
+        )}
       </div>
 
       {!selectMode && (
@@ -375,12 +486,13 @@ function Thread() {
               rows={1}
               placeholder={t("typeMessage")}
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => onComposerChange(e.target.value)}
+              onBlur={() => stopTyping()}
               onKeyDown={(e) => {
                 // Enter = new line (grows). Ctrl/Cmd+Enter = send.
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
-                  send();
+                  void send();
                 }
               }}
             />
