@@ -20,6 +20,8 @@ export type MessagingSettings = {
   post_icons: PostIconSettings;
   /** Show “Send SMS” on community page */
   show_community_send_sms: boolean;
+  /** When true, Community “Save request” also inserts a feed blood_request */
+  community_save_posts_to_feed: boolean;
   /** Max donors selectable per bulk SMS */
   max_sms_donors: number;
 };
@@ -43,6 +45,7 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   share_sms_en: "{{blood_group}} blood needed — {{patient_name}}, {{location}}\n{{link}}",
   post_icons: { ...DEFAULT_POST_ICONS },
   show_community_send_sms: true,
+  community_save_posts_to_feed: true,
   max_sms_donors: 10,
 };
 
@@ -97,6 +100,10 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       typeof r.show_community_send_sms === "boolean"
         ? r.show_community_send_sms
         : DEFAULT_MESSAGING_SETTINGS.show_community_send_sms,
+    community_save_posts_to_feed:
+      typeof r.community_save_posts_to_feed === "boolean"
+        ? r.community_save_posts_to_feed
+        : DEFAULT_MESSAGING_SETTINGS.community_save_posts_to_feed,
     max_sms_donors:
       Number.isFinite(max) && max >= 1
         ? Math.min(100, Math.floor(max))

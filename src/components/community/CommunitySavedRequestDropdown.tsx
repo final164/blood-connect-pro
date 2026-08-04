@@ -3,10 +3,12 @@ import { ClipboardList, X, Minus, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
+import { getProfile } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
+import { createCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
 import {
   NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
@@ -22,6 +24,10 @@ import {
   fetchRequestFormOptions,
   type RequestFormOptions,
 } from "@/lib/request-form-options";
+import {
+  DEFAULT_MESSAGING_SETTINGS,
+  fetchMessagingSettings,
+} from "@/lib/messaging-settings";
 import {
   clearCommunityRequestDraft,
   communityRequestDraftFilled,
@@ -43,6 +49,8 @@ function emptyForm(blood: string = "O+") {
     needed_by: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
     urgency: "normal" as "normal" | "urgent" | "critical",
     notes: "",
+    contact_phone: "",
+    whatsapp_phone: "",
   };
 }
 
@@ -129,6 +137,10 @@ function CommunityRequestDraftSheet({
   const [customReason, setCustomReason] = useState("");
   const [setDateTime, setSetDateTime] = useState(true);
   const [form, setForm] = useState(emptyForm());
+  const [postOnSave, setPostOnSave] = useState(
+    DEFAULT_MESSAGING_SETTINGS.community_save_posts_to_feed,
+  );
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -147,6 +159,8 @@ function CommunityRequestDraftSheet({
         needed_by: existing.needed_by,
         urgency: existing.urgency,
         notes: existing.notes,
+        contact_phone: existing.contact_phone || "",
+        whatsapp_phone: existing.whatsapp_phone || "",
       });
     } else {
       setDistrict(defaultDistrict);
@@ -156,8 +170,21 @@ function CommunityRequestDraftSheet({
       setCustomReason("");
       setSetDateTime(true);
       setForm(emptyForm());
+      if (user?.id) {
+        void getProfile(user.id).then((p) => {
+          const phone = (p?.phone as string | null)?.trim() || "";
+          if (phone) {
+            setForm((f) => ({
+              ...f,
+              contact_phone: f.contact_phone || phone,
+              whatsapp_phone: f.whatsapp_phone || phone,
+            }));
+          }
+        });
+      }
     }
     void fetchRequestFormOptions().then(setOpts);
+    void fetchMessagingSettings().then((m) => setPostOnSave(m.community_save_posts_to_feed));
     void fetchNeedReasonCatalog().then((c: NeedReasonCatalog) => {
       setCategories(activeNeedReasons(c));
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
@@ -181,7 +208,7 @@ function CommunityRequestDraftSheet({
 
   const ph = (bn: string, en: string) => (lang === "bn" ? bn : en);
 
-  function save(e: React.FormEvent) {
+  async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!user?.id) {
       return toast.error(lang === "bn" ? "লগইন প্রয়োজন" : "Login required");
@@ -201,8 +228,14 @@ function CommunityRequestDraftSheet({
     if (req("patient_name") && !form.patient_name.trim()) {
       return toast.error(lang === "bn" ? "রোগীর নাম দিন" : "Enter patient name");
     }
+    if (req("contact_phone") && !form.contact_phone.trim()) {
+      return toast.error(lang === "bn" ? "যোগাযোগ নম্বর দিন" : "Enter contact number");
+    }
+    if (req("whatsapp") && !form.whatsapp_phone.trim()) {
+      return toast.error(lang === "bn" ? "WhatsApp নম্বর দিন" : "Enter WhatsApp number");
+    }
 
-    const saved = saveCommunityRequestDraft(user.id, {
+    const draftInput = {
       patient_name: form.patient_name.trim(),
       blood_group: form.blood_group,
       bags_needed: Math.max(1, form.bags_needed),
@@ -213,9 +246,78 @@ function CommunityRequestDraftSheet({
       reasonKey,
       customReason: customReason.trim(),
       upazila: upazila.trim(),
+      contact_phone: form.contact_phone.trim(),
+      whatsapp_phone: form.whatsapp_phone.trim(),
       district,
       hospital,
-    });
+    };
+
+    const saved = saveCommunityRequestDraft(user.id, draftInput);
+
+    if (postOnSave) {
+      const hospitalName = hospital
+        ? lang === "bn"
+          ? hospital.name_bn
+          : hospital.name_en
+        : lang === "bn"
+          ? "উল্লেখ নেই"
+          : "Not specified";
+      const reasonLabel = isCustomNeedReason(reasonKey)
+        ? customReason.trim()
+        : selectedCategory
+          ? pickLocalized(selectedCategory.label, reasonDisplayLang)
+          : customReason.trim();
+      const neededBy =
+        setDateTime && form.needed_by
+          ? new Date(form.needed_by).toISOString()
+          : form.urgency === "normal"
+            ? new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+            : new Date().toISOString();
+
+      setBusy(true);
+      const { error } = await createCommunityBloodRequest({
+        userId: user.id,
+        patient_name: form.patient_name.trim() || (lang === "bn" ? "রোগী" : "Patient"),
+        blood_group: form.blood_group,
+        bags_needed: Math.max(1, form.bags_needed),
+        hospital_name: hospitalName,
+        hospital_id:
+          hospital?.id && !hospital.id.startsWith("custom:") && !hospital.id.startsWith("seed:")
+            ? hospital.id
+            : null,
+        district_id: district?.id ?? null,
+        city: district ? (lang === "bn" ? district.name_bn : district.name_en) : "",
+        area: upazila.trim() || null,
+        needed_by: neededBy,
+        urgency: form.urgency,
+        notes: form.notes.trim() || null,
+        need_reason_key: reasonKey,
+        need_reason_label: reasonLabel,
+        contact_phone: form.contact_phone.trim() || null,
+        whatsapp_phone: form.whatsapp_phone.trim() || null,
+        channel: "saved",
+      });
+      setBusy(false);
+
+      if (error) {
+        toast.error(
+          lang === "bn"
+            ? `ড্রাফট সেভ হয়েছে, কিন্তু পোস্ট ব্যর্থ: ${error.message}`
+            : `Draft saved, but post failed: ${error.message}`,
+        );
+        onSaved(saved);
+        return;
+      }
+
+      toast.success(
+        lang === "bn"
+          ? "সেভ হয়েছে এবং ফিডে পোস্ট হয়েছে"
+          : "Saved and posted to the feed",
+      );
+      onSaved(saved);
+      return;
+    }
+
     toast.success(
       lang === "bn"
         ? "রিকোয়েস্ট সেভ হয়েছে — আইকনে ক্লিক করলে অটোফিল হবে"
@@ -248,9 +350,13 @@ function CommunityRequestDraftSheet({
               {lang === "bn" ? "Save request (ঐচ্ছিক)" : "Save request (optional)"}
             </h2>
             <p className="text-[11px] text-muted-foreground">
-              {lang === "bn"
-                ? "সব তথ্য পূরণ করে সেভ করুন — পরে আইকনে ক্লিক করলে অটোফিল হবে"
-                : "Fill all fields and save — icons will autofill later"}
+              {postOnSave
+                ? lang === "bn"
+                  ? "সেভ করলে ড্রাফট থাকবে এবং ফিডেও পোস্ট হবে"
+                  : "Saving keeps a draft and also posts to the feed"
+                : lang === "bn"
+                  ? "সব তথ্য পূরণ করে সেভ করুন — পরে আইকনে ক্লিক করলে অটোফিল হবে"
+                  : "Fill all fields and save — icons will autofill later"}
             </p>
           </div>
           <button
@@ -263,7 +369,7 @@ function CommunityRequestDraftSheet({
           </button>
         </div>
 
-        <form onSubmit={save} className="p-4 space-y-3 pb-8 overflow-y-auto min-h-0 flex-1">
+        <form onSubmit={(e) => void save(e)} className="p-4 space-y-3 pb-8 overflow-y-auto min-h-0 flex-1">
           <input
             className={field}
             placeholder={ph("রোগীর নাম", "Patient name")}
@@ -328,6 +434,31 @@ function CommunityRequestDraftSheet({
             districtSlug={district?.slug}
             required={req("hospital")}
             placeholder={ph("হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক…", "Hospital / clinic / diagnostic…")}
+          />
+
+          <input
+            className={field}
+            placeholder={
+              opts.contact_phone
+                ? ph("যোগাযোগ নম্বর (ঐচ্ছিক)", "Contact number (optional)")
+                : ph("যোগাযোগ নম্বর", "Contact number")
+            }
+            value={form.contact_phone}
+            onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+            required={req("contact_phone")}
+            inputMode="tel"
+          />
+          <input
+            className={field}
+            placeholder={
+              opts.whatsapp
+                ? ph("WhatsApp নম্বর (ঐচ্ছিক)", "WhatsApp number (optional)")
+                : ph("WhatsApp নম্বর", "WhatsApp number")
+            }
+            value={form.whatsapp_phone}
+            onChange={(e) => setForm({ ...form, whatsapp_phone: e.target.value })}
+            required={req("whatsapp")}
+            inputMode="tel"
           />
 
           <div className="grid grid-cols-3 gap-1.5">
@@ -478,9 +609,18 @@ function CommunityRequestDraftSheet({
             )}
             <button
               type="submit"
-              className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground"
+              disabled={busy}
+              className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {lang === "bn" ? "সেভ করুন" : "Save"}
+              {busy
+                ? "…"
+                : lang === "bn"
+                  ? postOnSave
+                    ? "সেভ ও পোস্ট"
+                    : "সেভ করুন"
+                  : postOnSave
+                    ? "Save & post"
+                    : "Save"}
             </button>
           </div>
         </form>

@@ -69,15 +69,22 @@ export async function createCommunityBloodRequest(params: {
   need_reason_key: string;
   need_reason_label: string;
   contact_phone: string | null;
-  donorName: string;
-  donorPhone: string;
-  channel: CommunityContactChannel;
+  whatsapp_phone?: string | null;
+  donorName?: string;
+  donorPhone?: string;
+  channel?: CommunityContactChannel | "saved";
   org_id?: string | null;
 }): Promise<{ id: string | null; error: Error | null }> {
-  const channelTag =
-    params.channel === "call" ? "call" : params.channel === "sms" ? "sms" : "whatsapp";
-  const metaNote = `[Community → ${channelTag}] ${params.donorName} · ${params.donorPhone}`;
-  const notes = [params.notes?.trim(), metaNote].filter(Boolean).join("\n");
+  const channel = params.channel ?? "saved";
+  let notes = params.notes?.trim() || "";
+  if (channel === "saved") {
+    const metaNote = "[Community → saved]";
+    notes = [notes, metaNote].filter(Boolean).join("\n");
+  } else if (params.donorName) {
+    const channelTag = channel === "call" ? "call" : channel === "sms" ? "sms" : "whatsapp";
+    const metaNote = `[Community → ${channelTag}] ${params.donorName} · ${params.donorPhone ?? ""}`;
+    notes = [notes, metaNote].filter(Boolean).join("\n");
+  }
 
   const payload: Record<string, unknown> = {
     patient_name: params.patient_name,
@@ -95,6 +102,7 @@ export async function createCommunityBloodRequest(params: {
     need_reason_label: params.need_reason_label,
     contact_phone: params.contact_phone,
   };
+  if (params.whatsapp_phone?.trim()) payload.whatsapp_phone = params.whatsapp_phone.trim();
   if (params.hospital_id) payload.hospital_id = params.hospital_id;
   if (params.org_id) payload.org_id = params.org_id;
 
@@ -114,6 +122,10 @@ export async function createCommunityBloodRequest(params: {
   }
   if (error && /org_id/i.test(error.message)) {
     delete payload.org_id;
+    ({ data, error } = await tryInsert(payload));
+  }
+  if (error && /whatsapp_phone/i.test(error.message)) {
+    delete payload.whatsapp_phone;
     ({ data, error } = await tryInsert(payload));
   }
   if (error) return { id: null, error: new Error(error.message) };
@@ -332,7 +344,11 @@ export function CommunityContactGateSheet({
       notes: form.notes.trim() || null,
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
-      contact_phone: myPhone,
+      contact_phone:
+        (user.id ? loadCommunityRequestDraft(user.id)?.contact_phone?.trim() : "") ||
+        myPhone,
+      whatsapp_phone:
+        (user.id ? loadCommunityRequestDraft(user.id)?.whatsapp_phone?.trim() : "") || null,
       donorName: donor.full_name,
       donorPhone: donor.phone,
       channel,
@@ -343,6 +359,7 @@ export function CommunityContactGateSheet({
     if (error) return toast.error(error.message);
 
     if (user.id) {
+      const prev = loadCommunityRequestDraft(user.id);
       const draft = saveCommunityRequestDraft(user.id, {
         patient_name: form.patient_name.trim(),
         blood_group: form.blood_group,
@@ -354,6 +371,8 @@ export function CommunityContactGateSheet({
         reasonKey,
         customReason: customReason.trim(),
         upazila: upazila.trim(),
+        contact_phone: prev?.contact_phone?.trim() || myPhone || "",
+        whatsapp_phone: prev?.whatsapp_phone?.trim() || "",
         district,
         hospital,
       });

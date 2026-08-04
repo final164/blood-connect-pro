@@ -75,6 +75,19 @@ export function MessagingSettingsAdmin() {
             onChange={(e) => setS({ ...s, show_community_send_sms: e.target.checked })}
           />
         </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "Save request সেভ হলে ফিডে পোস্ট হবে"
+              : "Post to feed when Save request is saved"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_save_posts_to_feed}
+            onChange={(e) => setS({ ...s, community_save_posts_to_feed: e.target.checked })}
+          />
+        </label>
         <div>
           <label className="text-[10px] text-slate-400 block mb-1">
             {lang === "bn"

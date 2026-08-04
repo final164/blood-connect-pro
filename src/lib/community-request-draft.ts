@@ -14,6 +14,8 @@ export type CommunityRequestDraft = {
   reasonKey: string;
   customReason: string;
   upazila: string;
+  contact_phone: string;
+  whatsapp_phone: string;
   district: District | null;
   hospital: Hospital | null;
   updatedAt: number;
@@ -66,6 +68,8 @@ function parseDraft(raw: unknown): CommunityRequestDraft | null {
     reasonKey: o.reasonKey,
     customReason: o.customReason,
     upazila: o.upazila,
+    contact_phone: typeof o.contact_phone === "string" ? o.contact_phone : "",
+    whatsapp_phone: typeof o.whatsapp_phone === "string" ? o.whatsapp_phone : "",
     district,
     hospital,
     updatedAt: o.updatedAt,

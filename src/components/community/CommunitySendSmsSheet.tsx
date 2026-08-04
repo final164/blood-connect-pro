@@ -304,7 +304,10 @@ export function CommunitySendSmsSheet({
       notes: form.notes.trim() || null,
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
-      contact_phone: myPhone,
+      contact_phone:
+        (user.id ? loadCommunityRequestDraft(user.id)?.contact_phone?.trim() : "") || myPhone,
+      whatsapp_phone:
+        (user.id ? loadCommunityRequestDraft(user.id)?.whatsapp_phone?.trim() : "") || null,
       donorName: donorSummary.slice(0, 180),
       donorPhone: picks[0]?.phone ?? "",
       channel: "sms",
@@ -314,6 +317,7 @@ export function CommunitySendSmsSheet({
 
     if (error) return toast.error(error.message);
 
+    const prev = loadCommunityRequestDraft(user.id);
     const draft = saveCommunityRequestDraft(user.id, {
       patient_name: form.patient_name.trim(),
       blood_group: form.blood_group,
@@ -325,6 +329,8 @@ export function CommunitySendSmsSheet({
       reasonKey,
       customReason: customReason.trim(),
       upazila: upazila.trim(),
+      contact_phone: prev?.contact_phone?.trim() || myPhone || "",
+      whatsapp_phone: prev?.whatsapp_phone?.trim() || "",
       district,
       hospital,
     });
