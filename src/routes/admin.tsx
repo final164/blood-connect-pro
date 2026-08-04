@@ -99,7 +99,9 @@ import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — BloodLink" }] }),
+  head: () => ({
+    meta: [{ title: "Admin — BloodLink" }, { name: "robots", content: "noindex, nofollow" }],
+  }),
   component: AdminPage,
 });
 
@@ -136,7 +138,8 @@ function AdminPageInner() {
 
   useEffect(() => {
     // Admin-only preference — default dark. Never touches user app `theme` / html.dark.
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem("admin-theme") : null;
+    const stored =
+      typeof window !== "undefined" ? window.localStorage.getItem("admin-theme") : null;
     const next = stored !== "light";
     setDark(next);
     if (typeof window !== "undefined" && !stored) {
@@ -228,7 +231,9 @@ function AdminPageInner() {
       module: "access",
     },
   ];
-  const tabs = allTabs.filter((item) => canModule(item.module) || (item.id === "access" && can("access.view")));
+  const tabs = allTabs.filter(
+    (item) => canModule(item.module) || (item.id === "access" && can("access.view")),
+  );
 
   return (
     <div
@@ -252,7 +257,9 @@ function AdminPageInner() {
             <Shield className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className={`text-sm font-bold truncate ${dark ? "text-slate-100" : "text-slate-900"}`}>
+            <p
+              className={`text-sm font-bold truncate ${dark ? "text-slate-100" : "text-slate-900"}`}
+            >
               {t("adminPanel")}
             </p>
             <p className={`text-[10px] truncate ${dark ? "text-slate-400" : "text-slate-500"}`}>
@@ -412,7 +419,11 @@ function GrantSelfAdmin({ onDone }: { onDone: () => Promise<void> }) {
     if (!user) return;
     void (async () => {
       await supabase.from("user_roles").upsert({ user_id: user.id, role: "admin" });
-      const { data: sa } = await supabase.from("admin_roles").select("id").eq("slug", "super-admin").maybeSingle();
+      const { data: sa } = await supabase
+        .from("admin_roles")
+        .select("id")
+        .eq("slug", "super-admin")
+        .maybeSingle();
       if (sa?.id) {
         await supabase.from("admin_user_roles").upsert({ user_id: user.id, role_id: sa.id });
       }
@@ -459,17 +470,37 @@ function Overview() {
         recipientRows,
       ] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_blocked", true),
-        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("is_available", true),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_blocked", true),
+        supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_available", true),
         supabase.from("blood_requests").select("id", { count: "exact", head: true }),
-        supabase.from("blood_requests").select("id", { count: "exact", head: true }).eq("status", "open"),
-        supabase.from("blood_requests").select("id", { count: "exact", head: true }).eq("status", "fulfilled"),
+        supabase
+          .from("blood_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "open"),
+        supabase
+          .from("blood_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "fulfilled"),
         supabase.from("community_orgs").select("id", { count: "exact", head: true }),
         supabase.from("districts").select("id", { count: "exact", head: true }),
         supabase.from("hospitals").select("id", { count: "exact", head: true }),
         supabase.from("upazilas").select("id", { count: "exact", head: true }),
-        supabase.from("request_donation_offers").select("donor_id").eq("status", "confirmed").limit(5000),
-        supabase.from("blood_requests").select("requester_id").eq("status", "fulfilled").limit(5000),
+        supabase
+          .from("request_donation_offers")
+          .select("donor_id")
+          .eq("status", "confirmed")
+          .limit(5000),
+        supabase
+          .from("blood_requests")
+          .select("requester_id")
+          .eq("status", "fulfilled")
+          .limit(5000),
       ]);
 
       if (cancelled) return;
@@ -519,9 +550,7 @@ function Overview() {
 
   return (
     <div className="space-y-3">
-      {loading && (
-        <p className="text-xs text-slate-500">{t("loading")}</p>
-      )}
+      {loading && <p className="text-xs text-slate-500">{t("loading")}</p>}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         {cards.map((c) => (
           <div key={c.label} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
@@ -554,7 +583,9 @@ function RequestsAdmin() {
     load();
     const ch = supabase
       .channel("admin-req")
-      .on("postgres_changes", { event: "*", schema: "public", table: "blood_requests" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "blood_requests" }, () =>
+        load(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -578,7 +609,10 @@ function RequestsAdmin() {
   return (
     <div className="space-y-2">
       {rows.map((r) => (
-        <div key={r.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 flex flex-wrap items-center gap-3 justify-between">
+        <div
+          key={r.id}
+          className="rounded-xl border border-slate-800 bg-slate-900 p-3 flex flex-wrap items-center gap-3 justify-between"
+        >
           <div className="min-w-0">
             <p className="font-medium text-sm">
               <span className="text-rose-400 font-bold mr-2">{r.blood_group}</span>
@@ -590,7 +624,8 @@ function RequestsAdmin() {
               )}
             </p>
             <p className="text-xs text-slate-400 truncate">
-              {r.hospital_name} · {[r.area, r.city].filter(Boolean).join(", ")} · {r.status} · {r.urgency}
+              {r.hospital_name} · {[r.area, r.city].filter(Boolean).join(", ")} · {r.status} ·{" "}
+              {r.urgency}
             </p>
             {(r.need_reason_label || r.contact_phone || r.notes) && (
               <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">
@@ -604,16 +639,31 @@ function RequestsAdmin() {
           <div className="flex items-center gap-1.5">
             {can("requests.edit") && (
               <>
-                <button type="button" onClick={() => setStatus(r.id, "fulfilled")} className="p-2 rounded-lg bg-emerald-500/15 text-emerald-300" title="Fulfilled">
+                <button
+                  type="button"
+                  onClick={() => setStatus(r.id, "fulfilled")}
+                  className="p-2 rounded-lg bg-emerald-500/15 text-emerald-300"
+                  title="Fulfilled"
+                >
                   <CheckCircle2 className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => setStatus(r.id, "cancelled")} className="p-2 rounded-lg bg-amber-500/15 text-amber-300" title="Cancel">
+                <button
+                  type="button"
+                  onClick={() => setStatus(r.id, "cancelled")}
+                  className="p-2 rounded-lg bg-amber-500/15 text-amber-300"
+                  title="Cancel"
+                >
                   <Ban className="h-4 w-4" />
                 </button>
               </>
             )}
             {can("requests.delete") && (
-              <button type="button" onClick={() => remove(r.id)} className="p-2 rounded-lg bg-rose-500/15 text-rose-300" title="Delete">
+              <button
+                type="button"
+                onClick={() => remove(r.id)}
+                className="p-2 rounded-lg bg-rose-500/15 text-rose-300"
+                title="Delete"
+              >
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
@@ -650,7 +700,9 @@ function DistrictsAdmin() {
     try {
       const offset = reset ? 0 : rowsRef.current.length;
       const { items, hasMore: more } = await fetchDistrictsAdminPage({ offset, limit: PAGE });
-      setRows((prev) => (reset ? items : [...prev, ...items.filter((d) => !prev.some((p) => p.id === d.id))]));
+      setRows((prev) =>
+        reset ? items : [...prev, ...items.filter((d) => !prev.some((p) => p.id === d.id))],
+      );
       setHasMore(more);
     } finally {
       setLoading(false);
@@ -670,7 +722,9 @@ function DistrictsAdmin() {
       .then(async () => {
         if (!can("districts.add")) return;
         try {
-          const { count } = await supabase.from("upazilas").select("id", { count: "exact", head: true });
+          const { count } = await supabase
+            .from("upazilas")
+            .select("id", { count: "exact", head: true });
           if ((count ?? 0) === 0) {
             const all = await fetchAllDistrictsAdmin();
             if (!all.length) return;
@@ -705,7 +759,8 @@ function DistrictsAdmin() {
   }
 
   async function toggle(d: District) {
-    if (!can("districts.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("districts.toggle"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("districts").update({ is_active: !d.is_active }).eq("id", d.id);
     setRows((prev) => prev.map((x) => (x.id === d.id ? { ...x, is_active: !d.is_active } : x)));
   }
@@ -738,7 +793,8 @@ function DistrictsAdmin() {
   }
 
   async function remove(id: string) {
-    if (!can("districts.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("districts.delete"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm("Delete?")) return;
     await supabase.from("districts").delete().eq("id", id);
     if (expandedDistrictId === id) setExpandedDistrictId(null);
@@ -806,10 +862,29 @@ function DistrictsAdmin() {
 
       {can("districts.add") && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-          <input className={ainp} placeholder="Name (BN)" value={form.name_bn} onChange={(e) => setForm({ ...form, name_bn: e.target.value })} />
-          <input className={ainp} placeholder="Name (EN)" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
-          <input className={ainp} placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
-          <button type="button" onClick={add} className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1">
+          <input
+            className={ainp}
+            placeholder="Name (BN)"
+            value={form.name_bn}
+            onChange={(e) => setForm({ ...form, name_bn: e.target.value })}
+          />
+          <input
+            className={ainp}
+            placeholder="Name (EN)"
+            value={form.name_en}
+            onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+          />
+          <input
+            className={ainp}
+            placeholder="slug"
+            value={form.slug}
+            onChange={(e) => setForm({ ...form, slug: e.target.value })}
+          />
+          <button
+            type="button"
+            onClick={add}
+            className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1"
+          >
             <Plus className="h-4 w-4" /> {t("save")}
           </button>
         </div>
@@ -835,11 +910,15 @@ function DistrictsAdmin() {
             )}
             {rows.map((d) => (
               <Fragment key={d.id}>
-                <tr className={`border-t border-slate-800 ${editingDistrictId === d.id ? "bg-slate-900/80" : ""}`}>
+                <tr
+                  className={`border-t border-slate-800 ${editingDistrictId === d.id ? "bg-slate-900/80" : ""}`}
+                >
                   <td className="p-3">
                     <button
                       type="button"
-                      onClick={() => setExpandedDistrictId(expandedDistrictId === d.id ? null : d.id)}
+                      onClick={() =>
+                        setExpandedDistrictId(expandedDistrictId === d.id ? null : d.id)
+                      }
                       className="p-1 rounded-md hover:bg-slate-800 text-slate-400"
                       title={lang === "bn" ? "উপজেলা দেখুন" : "Show upazilas"}
                       disabled={editingDistrictId === d.id}
@@ -855,14 +934,18 @@ function DistrictsAdmin() {
                         <input
                           className={ainp}
                           value={districtEditForm.name_bn}
-                          onChange={(e) => setDistrictEditForm({ ...districtEditForm, name_bn: e.target.value })}
+                          onChange={(e) =>
+                            setDistrictEditForm({ ...districtEditForm, name_bn: e.target.value })
+                          }
                         />
                       </td>
                       <td className="p-3">
                         <input
                           className={ainp}
                           value={districtEditForm.name_en}
-                          onChange={(e) => setDistrictEditForm({ ...districtEditForm, name_en: e.target.value })}
+                          onChange={(e) =>
+                            setDistrictEditForm({ ...districtEditForm, name_en: e.target.value })
+                          }
                         />
                       </td>
                       <td className="p-3">
@@ -870,7 +953,9 @@ function DistrictsAdmin() {
                           className={ainp}
                           placeholder="slug"
                           value={districtEditForm.slug}
-                          onChange={(e) => setDistrictEditForm({ ...districtEditForm, slug: e.target.value })}
+                          onChange={(e) =>
+                            setDistrictEditForm({ ...districtEditForm, slug: e.target.value })
+                          }
                         />
                       </td>
                       <td className="p-3 text-right">
@@ -898,7 +983,11 @@ function DistrictsAdmin() {
                       <td className="p-3">{d.name_en}</td>
                       <td className="p-3">
                         {can("districts.toggle") ? (
-                          <button type="button" onClick={() => toggle(d)} className={`text-xs font-semibold px-2 py-1 rounded-md ${d.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}>
+                          <button
+                            type="button"
+                            onClick={() => toggle(d)}
+                            className={`text-xs font-semibold px-2 py-1 rounded-md ${d.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800"}`}
+                          >
                             {d.is_active ? "ON" : "OFF"}
                           </button>
                         ) : (
@@ -912,7 +1001,11 @@ function DistrictsAdmin() {
                               type="button"
                               onClick={() => {
                                 setEditingDistrictId(d.id);
-                                setDistrictEditForm({ name_bn: d.name_bn, name_en: d.name_en, slug: d.slug });
+                                setDistrictEditForm({
+                                  name_bn: d.name_bn,
+                                  name_en: d.name_en,
+                                  slug: d.slug,
+                                });
                               }}
                               className="p-1 text-slate-400 hover:text-slate-200"
                             >
@@ -920,7 +1013,11 @@ function DistrictsAdmin() {
                             </button>
                           )}
                           {can("districts.delete") && (
-                            <button type="button" onClick={() => remove(d.id)} className="text-rose-400 p-1">
+                            <button
+                              type="button"
+                              onClick={() => remove(d.id)}
+                              className="text-rose-400 p-1"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
@@ -1078,7 +1175,9 @@ function HospitalsAdmin() {
       const chunk = 60;
       for (let i = 0; i < payload.length; i += chunk) {
         const slice = payload.slice(i, i + chunk);
-        const { error } = await supabase.from("hospitals").upsert(slice, { onConflict: "district_id,slug" });
+        const { error } = await supabase
+          .from("hospitals")
+          .upsert(slice, { onConflict: "district_id,slug" });
         if (error) {
           for (const row of slice) {
             await supabase.from("hospitals").insert(row);
@@ -1120,7 +1219,8 @@ function HospitalsAdmin() {
   }
 
   async function toggle(h: Hospital) {
-    if (!can("hospitals.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("hospitals.toggle"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (h.id.startsWith("seed:")) return;
     await supabase.from("hospitals").update({ is_active: !h.is_active }).eq("id", h.id);
     setRows((prev) => prev.map((x) => (x.id === h.id ? { ...x, is_active: !h.is_active } : x)));
@@ -1168,7 +1268,8 @@ function HospitalsAdmin() {
   }
 
   async function remove(id: string) {
-    if (!can("hospitals.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("hospitals.delete"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (id.startsWith("seed:")) return;
     if (!confirm("Delete hospital?")) return;
     await supabase.from("hospitals").delete().eq("id", id);
@@ -1184,15 +1285,23 @@ function HospitalsAdmin() {
               ? "DB টেবিল নেই — Typeahead এখন bundled catalog ব্যবহার করছে। Supabase SQL Editor-এ এই ফাইল রান করুন:"
               : "DB table missing — typeahead uses bundled catalog. Run in Supabase SQL Editor:"}
           </p>
-          <code className="block text-xs bg-black/30 p-2 rounded">supabase/migrations/20260728020000_hospitals_catalog.sql</code>
+          <code className="block text-xs bg-black/30 p-2 rounded">
+            supabase/migrations/20260728020000_hospitals_catalog.sql
+          </code>
           <p className="text-xs opacity-80">
-            Catalog size: {BANGLADESH_HOSPITALS.length} government + private hospitals across 64 districts.
+            Catalog size: {BANGLADESH_HOSPITALS.length} government + private hospitals across 64
+            districts.
           </p>
         </div>
       )}
 
       <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center sm:justify-between">
-        <input className={`${ainp} w-full sm:max-w-xs`} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input
+          className={`${ainp} w-full sm:max-w-xs`}
+          placeholder="Search…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
         <button
           type="button"
           disabled={seeding}
@@ -1204,7 +1313,11 @@ function HospitalsAdmin() {
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-        <select className={ainp} value={form.district_id} onChange={(e) => setForm({ ...form, district_id: e.target.value })}>
+        <select
+          className={ainp}
+          value={form.district_id}
+          onChange={(e) => setForm({ ...form, district_id: e.target.value })}
+        >
           <option value="">District…</option>
           {districts.map((d) => (
             <option key={d.id} value={d.id}>
@@ -1215,23 +1328,51 @@ function HospitalsAdmin() {
         <select
           className={ainp}
           value={form.hospital_type}
-          onChange={(e) => setForm({ ...form, hospital_type: e.target.value as "government" | "private" | "clinic" | "diagnostic" })}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              hospital_type: e.target.value as "government" | "private" | "clinic" | "diagnostic",
+            })
+          }
         >
           <option value="government">{t("government")}</option>
           <option value="private">{t("private")}</option>
           <option value="clinic">{t("clinic")}</option>
           <option value="diagnostic">{t("diagnostic")}</option>
         </select>
-        <input className={ainp} placeholder="slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
         <input
           className={ainp}
-          placeholder={lang === "bn" ? "উপজেলা (EN) যেমন: Kishoreganj Sadar" : "Upazila (EN) e.g. Kishoreganj Sadar"}
+          placeholder="slug"
+          value={form.slug}
+          onChange={(e) => setForm({ ...form, slug: e.target.value })}
+        />
+        <input
+          className={ainp}
+          placeholder={
+            lang === "bn"
+              ? "উপজেলা (EN) যেমন: Kishoreganj Sadar"
+              : "Upazila (EN) e.g. Kishoreganj Sadar"
+          }
           value={form.upazila}
           onChange={(e) => setForm({ ...form, upazila: e.target.value })}
         />
-        <input className={ainp} placeholder="Name EN" value={form.name_en} onChange={(e) => setForm({ ...form, name_en: e.target.value })} />
-        <input className={ainp} placeholder="Name BN" value={form.name_bn} onChange={(e) => setForm({ ...form, name_bn: e.target.value })} />
-        <button type="button" onClick={add} className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1">
+        <input
+          className={ainp}
+          placeholder="Name EN"
+          value={form.name_en}
+          onChange={(e) => setForm({ ...form, name_en: e.target.value })}
+        />
+        <input
+          className={ainp}
+          placeholder="Name BN"
+          value={form.name_bn}
+          onChange={(e) => setForm({ ...form, name_bn: e.target.value })}
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="rounded-lg bg-rose-600 text-white text-sm font-semibold flex items-center justify-center gap-1"
+        >
           <Plus className="h-4 w-4" /> {t("save")}
         </button>
       </div>
@@ -1270,7 +1411,10 @@ function HospitalsAdmin() {
               </tr>
             )}
             {rows.map((h) => (
-              <tr key={h.id} className={`border-t border-slate-800 ${editingHospitalId === h.id ? "bg-slate-900/80" : ""}`}>
+              <tr
+                key={h.id}
+                className={`border-t border-slate-800 ${editingHospitalId === h.id ? "bg-slate-900/80" : ""}`}
+              >
                 {editingHospitalId === h.id ? (
                   <>
                     <td className="p-3 space-y-1">
@@ -1278,26 +1422,34 @@ function HospitalsAdmin() {
                         className={ainp}
                         placeholder="Name EN"
                         value={hospitalEditForm.name_en}
-                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, name_en: e.target.value })}
+                        onChange={(e) =>
+                          setHospitalEditForm({ ...hospitalEditForm, name_en: e.target.value })
+                        }
                       />
                       <input
                         className={ainp}
                         placeholder="Name BN"
                         value={hospitalEditForm.name_bn}
-                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, name_bn: e.target.value })}
+                        onChange={(e) =>
+                          setHospitalEditForm({ ...hospitalEditForm, name_bn: e.target.value })
+                        }
                       />
                       <input
                         className={ainp}
                         placeholder="slug"
                         value={hospitalEditForm.slug}
-                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, slug: e.target.value })}
+                        onChange={(e) =>
+                          setHospitalEditForm({ ...hospitalEditForm, slug: e.target.value })
+                        }
                       />
                     </td>
                     <td className="p-3">
                       <select
                         className={ainp}
                         value={hospitalEditForm.district_id}
-                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, district_id: e.target.value })}
+                        onChange={(e) =>
+                          setHospitalEditForm({ ...hospitalEditForm, district_id: e.target.value })
+                        }
                       >
                         <option value="">{lang === "bn" ? "জেলা…" : "District…"}</option>
                         {districts.map((d) => (
@@ -1312,7 +1464,9 @@ function HospitalsAdmin() {
                         className={ainp}
                         placeholder={lang === "bn" ? "উপজেলা" : "Upazila"}
                         value={hospitalEditForm.upazila}
-                        onChange={(e) => setHospitalEditForm({ ...hospitalEditForm, upazila: e.target.value })}
+                        onChange={(e) =>
+                          setHospitalEditForm({ ...hospitalEditForm, upazila: e.target.value })
+                        }
                       />
                     </td>
                     <td className="p-3">
@@ -1322,7 +1476,11 @@ function HospitalsAdmin() {
                         onChange={(e) =>
                           setHospitalEditForm({
                             ...hospitalEditForm,
-                            hospital_type: e.target.value as "government" | "private" | "clinic" | "diagnostic",
+                            hospital_type: e.target.value as
+                              | "government"
+                              | "private"
+                              | "clinic"
+                              | "diagnostic",
                           })
                         }
                       >
@@ -1356,7 +1514,9 @@ function HospitalsAdmin() {
                   <>
                     <td className="p-3">
                       <p className="font-medium">{lang === "bn" ? h.name_bn : h.name_en}</p>
-                      <p className="text-[10px] text-slate-500">{lang === "bn" ? h.name_en : h.name_bn}</p>
+                      <p className="text-[10px] text-slate-500">
+                        {lang === "bn" ? h.name_en : h.name_bn}
+                      </p>
                     </td>
                     <td className="p-3 text-xs">{h.district_slug ?? "—"}</td>
                     <td className="p-3 text-xs">{h.upazila ?? "—"}</td>
@@ -1387,7 +1547,11 @@ function HospitalsAdmin() {
                                   hospital_type:
                                     h.hospital_type === "ngo"
                                       ? "private"
-                                      : (h.hospital_type as "government" | "private" | "clinic" | "diagnostic"),
+                                      : (h.hospital_type as
+                                          | "government"
+                                          | "private"
+                                          | "clinic"
+                                          | "diagnostic"),
                                 });
                               }}
                               className="p-1 text-slate-400 hover:text-slate-200"
@@ -1396,7 +1560,11 @@ function HospitalsAdmin() {
                             </button>
                           )}
                           {can("hospitals.delete") && (
-                            <button type="button" onClick={() => remove(h.id)} className="text-rose-400 p-1">
+                            <button
+                              type="button"
+                              onClick={() => remove(h.id)}
+                              className="text-rose-400 p-1"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
@@ -1423,7 +1591,9 @@ function HospitalsAdmin() {
 function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
-  const [rows, setRows] = useState<{ key: string; value_bn: string; value_en: string; category: string }[]>([]);
+  const [rows, setRows] = useState<
+    { key: string; value_bn: string; value_en: string; category: string }[]
+  >([]);
   const [q, setQ] = useState("");
 
   async function load() {
@@ -1470,7 +1640,11 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <button type="button" onClick={seed} className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700">
+        <button
+          type="button"
+          onClick={seed}
+          className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700"
+        >
           Seed / sync all UI keys
         </button>
       </div>
@@ -1478,7 +1652,10 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
         App copy is loaded from this table. Edit BN/EN — no hardcoded product text in the UI.
       </p>
       {filtered.map((r, i) => (
-        <div key={r.key} className="rounded-xl border border-slate-800 bg-slate-900 p-3 grid grid-cols-1 lg:grid-cols-[180px_1fr_1fr_auto] gap-2 items-start">
+        <div
+          key={r.key}
+          className="rounded-xl border border-slate-800 bg-slate-900 p-3 grid grid-cols-1 lg:grid-cols-[180px_1fr_1fr_auto] gap-2 items-start"
+        >
           <code className="text-xs font-mono text-rose-300/90 pt-2 break-all">{r.key}</code>
           <textarea
             className={ainp}
@@ -1502,7 +1679,11 @@ function CmsAdmin({ onSaved }: { onSaved: () => Promise<void> }) {
               setRows(next);
             }}
           />
-          <button type="button" onClick={() => save(rows.find((x) => x.key === r.key) ?? r)} className="rounded-lg bg-rose-600 p-2.5 text-white">
+          <button
+            type="button"
+            onClick={() => save(rows.find((x) => x.key === r.key) ?? r)}
+            className="rounded-lg bg-rose-600 p-2.5 text-white"
+          >
             <Save className="h-4 w-4" />
           </button>
         </div>
@@ -1568,12 +1749,30 @@ function OrgEditForm({
 
   return (
     <div className="space-y-2 border-t border-slate-800 pt-3 mt-1">
-      <p className="text-xs font-semibold text-rose-400">{lang === "bn" ? "সংস্থা সম্পাদনা" : "Edit organization"}</p>
+      <p className="text-xs font-semibold text-rose-400">
+        {lang === "bn" ? "সংস্থা সম্পাদনা" : "Edit organization"}
+      </p>
       <div className="grid md:grid-cols-2 gap-2">
-        <input className={ainp} placeholder={lang === "bn" ? "নাম *" : "Name *"} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-        <input className={ainp} placeholder={lang === "bn" ? "ফোন *" : "Phone *"} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+        <input
+          className={ainp}
+          placeholder={lang === "bn" ? "নাম *" : "Name *"}
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+        />
+        <input
+          className={ainp}
+          placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
+          value={draft.phone}
+          onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+        />
         {optionalFields.map((f) => (
-          <input key={f.key} className={ainp} placeholder={f.label} value={draft[f.key]} onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })} />
+          <input
+            key={f.key}
+            className={ainp}
+            placeholder={f.label}
+            value={draft[f.key]}
+            onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
+          />
         ))}
       </div>
       <div className="flex gap-2">
@@ -1588,7 +1787,11 @@ function OrgEditForm({
         >
           {busy ? "…" : t("save")}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-700 text-xs px-3 py-2 text-slate-400">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg border border-slate-700 text-xs px-3 py-2 text-slate-400"
+        >
           {lang === "bn" ? "বাতিল" : "Cancel"}
         </button>
       </div>
@@ -1618,11 +1821,7 @@ function OrgContactSettingsPanel({
     setSettings(normalizeDonorContactSettings(initial ?? DEFAULT_DONOR_CONTACT_SETTINGS));
   }, [orgId, initial]);
 
-  function setFlag(
-    donor: "male" | "female",
-    key: keyof GenderContactFlags,
-    value: boolean,
-  ) {
+  function setFlag(donor: "male" | "female", key: keyof GenderContactFlags, value: boolean) {
     setSettings((prev) => ({
       ...prev,
       [viewerTab]: {
@@ -1689,7 +1888,10 @@ function OrgContactSettingsPanel({
 
       <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-3">
         {(["male", "female"] as const).map((donor) => (
-          <div key={donor} className="rounded-lg border border-slate-800 bg-slate-900/80 p-2.5 space-y-1.5">
+          <div
+            key={donor}
+            className="rounded-lg border border-slate-800 bg-slate-900/80 p-2.5 space-y-1.5"
+          >
             <p className="text-[11px] font-medium text-slate-300">
               {donor === "male"
                 ? lang === "bn"
@@ -1788,7 +1990,8 @@ function OrgDonorsPanel({
   }
 
   async function saveEdit() {
-    if (!can("community.donors_edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("community.donors_edit"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!editingId || !editForm.full_name.trim() || !editForm.phone.trim()) {
       return toast.error(lang === "bn" ? "নাম ও ফোন বাধ্যতামূলক" : "Name and phone required");
     }
@@ -1819,7 +2022,8 @@ function OrgDonorsPanel({
   }
 
   async function removeDonor(id: string) {
-    if (!can("community.donors_delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("community.donors_delete"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm(lang === "bn" ? "এই রক্তদাতা ডিলিট করবেন?" : "Delete this donor?")) return;
     const { error } = await supabase.from("community_donors").delete().eq("id", id);
     if (error) toast.error(error.message);
@@ -1856,131 +2060,189 @@ function OrgDonorsPanel({
         <span>{lang === "bn" ? "রক্তদাতা তালিকা" : "Blood donors"}</span>
         <span className="text-[10px]">{donors.length}</span>
       </p>
-      {loading && <p className="text-xs text-slate-500 py-4 text-center">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>}
+      {loading && (
+        <p className="text-xs text-slate-500 py-4 text-center">
+          {lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}
+        </p>
+      )}
       {!loading && donors.length === 0 && (
-        <p className="text-xs text-slate-500 py-4 text-center">{lang === "bn" ? "কোনো রক্তদাতা নেই" : "No donors yet"}</p>
+        <p className="text-xs text-slate-500 py-4 text-center">
+          {lang === "bn" ? "কোনো রক্তদাতা নেই" : "No donors yet"}
+        </p>
       )}
       {!loading && donors.length > 0 && (
         <div className="rounded-lg border border-slate-800 admin-table-scroll">
-            <table className="w-full text-[11px]">
-              <thead className="bg-slate-950 text-slate-400">
-                <tr>
-                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "নাম" : "Name"}</th>
-                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ফোন" : "Phone"}</th>
-                  <th className="px-2 py-1.5">BG</th>
-                  <th className="px-2 py-1.5">{lang === "bn" ? "লিঙ্গ" : "Gender"}</th>
-                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "জেলা" : "District"}</th>
-                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "উপজেলা" : "Upazila"}</th>
-                  <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ঠিকানা" : "Address"}</th>
-                  <th className="px-2 py-1.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {donors.map((d) =>
-                  editingId === d.id ? (
-                    <tr key={d.id} className="border-t border-slate-800 bg-slate-950/80">
-                      <td colSpan={8} className="p-2">
-                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                          <input className={ainp} placeholder={lang === "bn" ? "নাম *" : "Name *"} value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
-                          <input className={ainp} placeholder={lang === "bn" ? "ফোন *" : "Phone *"} value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
-                          <select className={ainp} value={editForm.blood_group} onChange={(e) => setEditForm({ ...editForm, blood_group: e.target.value })}>
-                            <option value="">{lang === "bn" ? "রক্তের গ্রুপ" : "Blood group"}</option>
-                            {BLOOD_GROUPS.map((g) => (
-                              <option key={g} value={g}>{g}</option>
-                            ))}
-                          </select>
-                          <select
-                            className={ainp}
-                            value={editForm.gender}
+          <table className="w-full text-[11px]">
+            <thead className="bg-slate-950 text-slate-400">
+              <tr>
+                <th className="px-2 py-1.5 text-left">{lang === "bn" ? "নাম" : "Name"}</th>
+                <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ফোন" : "Phone"}</th>
+                <th className="px-2 py-1.5">BG</th>
+                <th className="px-2 py-1.5">{lang === "bn" ? "লিঙ্গ" : "Gender"}</th>
+                <th className="px-2 py-1.5 text-left">{lang === "bn" ? "জেলা" : "District"}</th>
+                <th className="px-2 py-1.5 text-left">{lang === "bn" ? "উপজেলা" : "Upazila"}</th>
+                <th className="px-2 py-1.5 text-left">{lang === "bn" ? "ঠিকানা" : "Address"}</th>
+                <th className="px-2 py-1.5" />
+              </tr>
+            </thead>
+            <tbody>
+              {donors.map((d) =>
+                editingId === d.id ? (
+                  <tr key={d.id} className="border-t border-slate-800 bg-slate-950/80">
+                    <td colSpan={8} className="p-2">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <input
+                          className={ainp}
+                          placeholder={lang === "bn" ? "নাম *" : "Name *"}
+                          value={editForm.full_name}
+                          onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                        />
+                        <input
+                          className={ainp}
+                          placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        />
+                        <select
+                          className={ainp}
+                          value={editForm.blood_group}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, blood_group: e.target.value })
+                          }
+                        >
+                          <option value="">{lang === "bn" ? "রক্তের গ্রুপ" : "Blood group"}</option>
+                          {BLOOD_GROUPS.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className={ainp}
+                          value={editForm.gender}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, gender: e.target.value as "" | DonorGender })
+                          }
+                        >
+                          <option value="">{lang === "bn" ? "লিঙ্গ" : "Gender"}</option>
+                          <option value="male">{lang === "bn" ? "পুরুষ" : "Male"}</option>
+                          <option value="female">{lang === "bn" ? "মহিলা" : "Female"}</option>
+                        </select>
+                        <select
+                          className={ainp}
+                          value={editForm.district_id}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, district_id: e.target.value, upazila: "" })
+                          }
+                        >
+                          <option value="">{lang === "bn" ? "জেলা" : "District"}</option>
+                          {districts.map((dist) => (
+                            <option key={dist.id} value={dist.id}>
+                              {lang === "bn" ? dist.name_bn : dist.name_en}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className={ainp}
+                          value={editForm.upazila}
+                          disabled={!editForm.district_id}
+                          onChange={(e) => setEditForm({ ...editForm, upazila: e.target.value })}
+                        >
+                          <option value="">{lang === "bn" ? "উপজেলা" : "Upazila"}</option>
+                          {upazilaOptions.map((u) => (
+                            <option key={u.en} value={u.en}>
+                              {lang === "bn" ? u.bn : u.en}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className={ainp}
+                          placeholder={lang === "bn" ? "ঠিকানা" : "Address"}
+                          value={editForm.address}
+                          onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                        />
+                        <label className="flex items-center gap-2 text-xs text-slate-400 px-1">
+                          <input
+                            type="checkbox"
+                            checked={editForm.is_active}
                             onChange={(e) =>
-                              setEditForm({ ...editForm, gender: e.target.value as "" | DonorGender })
+                              setEditForm({ ...editForm, is_active: e.target.checked })
                             }
-                          >
-                            <option value="">{lang === "bn" ? "লিঙ্গ" : "Gender"}</option>
-                            <option value="male">{lang === "bn" ? "পুরুষ" : "Male"}</option>
-                            <option value="female">{lang === "bn" ? "মহিলা" : "Female"}</option>
-                          </select>
-                          <select
-                            className={ainp}
-                            value={editForm.district_id}
-                            onChange={(e) => setEditForm({ ...editForm, district_id: e.target.value, upazila: "" })}
-                          >
-                            <option value="">{lang === "bn" ? "জেলা" : "District"}</option>
-                            {districts.map((dist) => (
-                              <option key={dist.id} value={dist.id}>
-                                {lang === "bn" ? dist.name_bn : dist.name_en}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            className={ainp}
-                            value={editForm.upazila}
-                            disabled={!editForm.district_id}
-                            onChange={(e) => setEditForm({ ...editForm, upazila: e.target.value })}
-                          >
-                            <option value="">{lang === "bn" ? "উপজেলা" : "Upazila"}</option>
-                            {upazilaOptions.map((u) => (
-                              <option key={u.en} value={u.en}>
-                                {lang === "bn" ? u.bn : u.en}
-                              </option>
-                            ))}
-                          </select>
-                          <input className={ainp} placeholder={lang === "bn" ? "ঠিকানা" : "Address"} value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
-                          <label className="flex items-center gap-2 text-xs text-slate-400 px-1">
-                            <input type="checkbox" checked={editForm.is_active} onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })} />
-                            {lang === "bn" ? "সক্রিয়" : "Active"}
-                          </label>
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <button type="button" disabled={busy} onClick={() => void saveEdit()} className="rounded-lg bg-emerald-600 text-white text-xs px-3 py-1.5 disabled:opacity-50">
-                            {busy ? "…" : lang === "bn" ? "সেভ" : "Save"}
-                          </button>
-                          <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-slate-700 text-xs px-3 py-1.5 text-slate-400">
-                            {lang === "bn" ? "বাতিল" : "Cancel"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    <tr key={d.id} className="border-t border-slate-800 hover:bg-slate-950/40">
-                      <td className="px-2 py-1.5 font-medium">{d.full_name}</td>
-                      <td className="px-2 py-1.5">{d.phone}</td>
-                      <td className="px-2 py-1.5 text-center">{d.blood_group || "—"}</td>
-                      <td className="px-2 py-1.5 text-center">
-                        {d.gender === "male"
+                          />
+                          {lang === "bn" ? "সক্রিয়" : "Active"}
+                        </label>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void saveEdit()}
+                          className="rounded-lg bg-emerald-600 text-white text-xs px-3 py-1.5 disabled:opacity-50"
+                        >
+                          {busy ? "…" : lang === "bn" ? "সেভ" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          className="rounded-lg border border-slate-700 text-xs px-3 py-1.5 text-slate-400"
+                        >
+                          {lang === "bn" ? "বাতিল" : "Cancel"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={d.id} className="border-t border-slate-800 hover:bg-slate-950/40">
+                    <td className="px-2 py-1.5 font-medium">{d.full_name}</td>
+                    <td className="px-2 py-1.5">{d.phone}</td>
+                    <td className="px-2 py-1.5 text-center">{d.blood_group || "—"}</td>
+                    <td className="px-2 py-1.5 text-center">
+                      {d.gender === "male"
+                        ? lang === "bn"
+                          ? "পুরুষ"
+                          : "Male"
+                        : d.gender === "female"
                           ? lang === "bn"
-                            ? "পুরুষ"
-                            : "Male"
-                          : d.gender === "female"
-                            ? lang === "bn"
-                              ? "মহিলা"
-                              : "Female"
-                            : "—"}
-                      </td>
-                      <td className="px-2 py-1.5">{lang === "bn" ? d.districts?.name_bn : d.districts?.name_en || "—"}</td>
-                      <td className="px-2 py-1.5">
-                        {upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang) || "—"}
-                      </td>
-                      <td className="px-2 py-1.5 max-w-[8rem] truncate" title={d.address ?? ""}>{d.address || "—"}</td>
-                      <td className="px-2 py-1.5">
-                        <div className="flex gap-1 justify-end">
-                          {can("community.donors_edit") && (
-                            <button type="button" onClick={() => startEdit(d)} className="text-slate-400 hover:text-white p-1">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {can("community.donors_delete") && (
-                            <button type="button" onClick={() => void removeDonor(d.id)} className="text-rose-400 p-1">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
+                            ? "মহিলা"
+                            : "Female"
+                          : "—"}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {lang === "bn" ? d.districts?.name_bn : d.districts?.name_en || "—"}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {upazilaDisplayName(d.upazila, d.districts?.slug ?? null, lang) || "—"}
+                    </td>
+                    <td className="px-2 py-1.5 max-w-[8rem] truncate" title={d.address ?? ""}>
+                      {d.address || "—"}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex gap-1 justify-end">
+                        {can("community.donors_edit") && (
+                          <button
+                            type="button"
+                            onClick={() => startEdit(d)}
+                            className="text-slate-400 hover:text-white p-1"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {can("community.donors_delete") && (
+                          <button
+                            type="button"
+                            onClick={() => void removeDonor(d.id)}
+                            className="text-rose-400 p-1"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -2040,7 +2302,15 @@ function CommunityAdmin() {
       description_bn: form.description_bn.trim() || null,
     });
     if (error) return toast.error(error.message);
-    setForm({ name: "", name_bn: "", phone: "", email: "", website: "", description: "", description_bn: "" });
+    setForm({
+      name: "",
+      name_bn: "",
+      phone: "",
+      email: "",
+      website: "",
+      description: "",
+      description_bn: "",
+    });
     toast.success(t("saved"));
     load();
   }
@@ -2076,13 +2346,15 @@ function CommunityAdmin() {
   }
 
   async function toggle(id: string, is_active: boolean) {
-    if (!can("community.toggle")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("community.toggle"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     await supabase.from("community_orgs").update({ is_active: !is_active }).eq("id", id);
     load();
   }
 
   async function remove(id: string) {
-    if (!can("community.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("community.delete"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("community_orgs").delete().eq("id", id);
     if (error) toast.error(error.message);
     else {
@@ -2130,7 +2402,8 @@ function CommunityAdmin() {
   }
 
   async function runImport() {
-    if (!can("community.import")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("community.import"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!importDistrict) {
       return toast.error(lang === "bn" ? "জেলা সিলেক্ট করুন" : "Select a district");
     }
@@ -2181,9 +2454,13 @@ function CommunityAdmin() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
-        <h3 className="text-sm font-semibold">{lang === "bn" ? "নতুন সংস্থা" : "Add organization"}</h3>
+        <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "নতুন সংস্থা" : "Add organization"}
+        </h3>
         <p className="text-[10px] text-slate-500">
-          {lang === "bn" ? "শুধু নাম ও ফোন বাধ্যতামূলক — বাকি সব ঐচ্ছিক" : "Only name & phone required — rest optional"}
+          {lang === "bn"
+            ? "শুধু নাম ও ফোন বাধ্যতামূলক — বাকি সব ঐচ্ছিক"
+            : "Only name & phone required — rest optional"}
         </p>
         <div className="grid md:grid-cols-2 gap-2">
           <input
@@ -2208,7 +2485,11 @@ function CommunityAdmin() {
             />
           ))}
         </div>
-        <button type="button" onClick={() => void add()} className="rounded-lg bg-rose-600 text-white text-sm font-semibold px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => void add()}
+          className="rounded-lg bg-rose-600 text-white text-sm font-semibold px-4 py-2.5"
+        >
           <Plus className="h-4 w-4 inline mr-1" />
           {t("save")}
         </button>
@@ -2225,19 +2506,33 @@ function CommunityAdmin() {
             : "Set District, Upazila & Gender first, then pick an organization and upload CSV / Excel / JSON. File columns: Name, Phone, blood_group, gender (male/female), Address (optional). Form gender is used when a row has no gender."}
         </p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <a href="/samples/community-donors-sample.csv" download className="text-rose-400 hover:underline flex items-center gap-1">
+          <a
+            href="/samples/community-donors-sample.csv"
+            download
+            className="text-rose-400 hover:underline flex items-center gap-1"
+          >
             <Download className="h-3 w-3" /> Sample CSV (10)
           </a>
-          <a href="/samples/community-donors-sample.xlsx" download className="text-rose-400 hover:underline flex items-center gap-1">
+          <a
+            href="/samples/community-donors-sample.xlsx"
+            download
+            className="text-rose-400 hover:underline flex items-center gap-1"
+          >
             <FileSpreadsheet className="h-3 w-3" /> Sample Excel (10)
           </a>
-          <a href="/samples/community-donors-sample.json" download className="text-rose-400 hover:underline flex items-center gap-1">
+          <a
+            href="/samples/community-donors-sample.json"
+            download
+            className="text-rose-400 hover:underline flex items-center gap-1"
+          >
             <FileSpreadsheet className="h-3 w-3" /> Sample JSON (10)
           </a>
         </div>
         <div className="grid sm:grid-cols-3 gap-2">
           <div className="space-y-1">
-            <label className="text-[10px] text-slate-400">{lang === "bn" ? "জেলা *" : "District *"}</label>
+            <label className="text-[10px] text-slate-400">
+              {lang === "bn" ? "জেলা *" : "District *"}
+            </label>
             <DistrictTypeahead
               value={importDistrict}
               onChange={(d) => {
@@ -2249,7 +2544,9 @@ function CommunityAdmin() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-slate-400">{lang === "bn" ? "উপজেলা" : "Upazila"}</label>
+            <label className="text-[10px] text-slate-400">
+              {lang === "bn" ? "উপজেলা" : "Upazila"}
+            </label>
             <UpazilaSelect
               district={importDistrict}
               value={importUpazila}
@@ -2258,7 +2555,9 @@ function CommunityAdmin() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-slate-400">{lang === "bn" ? "লিঙ্গ" : "Gender"}</label>
+            <label className="text-[10px] text-slate-400">
+              {lang === "bn" ? "লিঙ্গ" : "Gender"}
+            </label>
             <div className="grid grid-cols-2 gap-1.5">
               {(["male", "female"] as const).map((g) => (
                 <button
@@ -2289,7 +2588,9 @@ function CommunityAdmin() {
           </div>
         </div>
         <div className="space-y-2">
-          <label className="text-[10px] text-slate-400">{lang === "bn" ? "সংস্থা *" : "Organization *"}</label>
+          <label className="text-[10px] text-slate-400">
+            {lang === "bn" ? "সংস্থা *" : "Organization *"}
+          </label>
           <select
             className={ainp}
             value={showQuickAddOrg ? "__add__" : importOrgId}
@@ -2318,7 +2619,9 @@ function CommunityAdmin() {
           {showQuickAddOrg && (
             <div className="rounded-lg border border-rose-900/50 bg-slate-950/80 p-3 space-y-2">
               <p className="text-[10px] text-slate-400">
-                {lang === "bn" ? "ম্যানুয়ালি সংস্থা যোগ করুন (নাম ও ফোন বাধ্যতামূলক)" : "Add organization manually (name & phone required)"}
+                {lang === "bn"
+                  ? "ম্যানুয়ালি সংস্থা যোগ করুন (নাম ও ফোন বাধ্যতামূলক)"
+                  : "Add organization manually (name & phone required)"}
               </p>
               <div className="grid sm:grid-cols-2 gap-2">
                 <input
@@ -2390,7 +2693,9 @@ function CommunityAdmin() {
               </tbody>
             </table>
             {importPreview.length > 8 && (
-              <p className="text-[10px] text-slate-500 px-2 py-1">+{importPreview.length - 8} more…</p>
+              <p className="text-[10px] text-slate-500 px-2 py-1">
+                +{importPreview.length - 8} more…
+              </p>
             )}
           </div>
         )}
@@ -2438,13 +2743,24 @@ function CommunityAdmin() {
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => void toggle(o.id, o.is_active)} className="text-xs text-slate-300 px-2 py-1">
+                <button
+                  type="button"
+                  onClick={() => void toggle(o.id, o.is_active)}
+                  className="text-xs text-slate-300 px-2 py-1"
+                >
                   {o.is_active ? "ON" : "OFF"}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    if (!confirm(lang === "bn" ? "সংস্থা ও এর সব রক্তদাতা ডিলিট হবে। চালিয়ে যাবেন?" : "Delete org and all its donors?")) return;
+                    if (
+                      !confirm(
+                        lang === "bn"
+                          ? "সংস্থা ও এর সব রক্তদাতা ডিলিট হবে। চালিয়ে যাবেন?"
+                          : "Delete org and all its donors?",
+                      )
+                    )
+                      return;
                     void remove(o.id);
                   }}
                   className="text-rose-400 p-1.5"
@@ -2475,7 +2791,11 @@ function CommunityAdmin() {
                   />
                 )}
                 {can("community.members_manage") && (
-                  <OrgMembersAdmin orgId={o.id} lang={lang} canEdit={can("community.members_manage")} />
+                  <OrgMembersAdmin
+                    orgId={o.id}
+                    lang={lang}
+                    canEdit={can("community.members_manage")}
+                  />
                 )}
                 <OrgContactSettingsPanel
                   orgId={o.id}
@@ -2483,7 +2803,12 @@ function CommunityAdmin() {
                   lang={lang}
                   onSaved={() => void load()}
                 />
-                <OrgDonorsPanel orgId={o.id} districts={districts} lang={lang} refreshKey={donorRefreshKey} />
+                <OrgDonorsPanel
+                  orgId={o.id}
+                  districts={districts}
+                  lang={lang}
+                  refreshKey={donorRefreshKey}
+                />
                 <div className="rounded-xl border border-dashed border-slate-700 px-3 py-2">
                   <Link
                     to="/org"
@@ -2529,9 +2854,16 @@ function NotificationsAdmin() {
   }
 
   async function loadSettings() {
-    const { data } = await supabase.from("app_settings").select("notification_settings").eq("id", 1).maybeSingle();
+    const { data } = await supabase
+      .from("app_settings")
+      .select("notification_settings")
+      .eq("id", 1)
+      .maybeSingle();
     if (data?.notification_settings) {
-      setNs({ ...DEFAULT_NOTIFICATION_SETTINGS, ...(data.notification_settings as NotificationSettings) });
+      setNs({
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...(data.notification_settings as NotificationSettings),
+      });
     }
   }
 
@@ -2541,7 +2873,8 @@ function NotificationsAdmin() {
   }, []);
 
   async function saveSettings() {
-    if (!can("notifications.settings")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("notifications.settings"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     setNsBusy(true);
     const { error } = await supabase
       .from("app_settings")
@@ -2559,17 +2892,21 @@ function NotificationsAdmin() {
   }
 
   async function purgeNow() {
-    if (!can("notifications.purge")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("notifications.purge"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.rpc("purge_expired_notifications");
     if (error) toast.error(error.message);
     else {
-      toast.success(lang === "bn" ? "পুরানো নোটিফিকেশন মুছে ফেলা হয়েছে" : "Expired notifications purged");
+      toast.success(
+        lang === "bn" ? "পুরানো নোটিফিকেশন মুছে ফেলা হয়েছে" : "Expired notifications purged",
+      );
       load();
     }
   }
 
   async function broadcast() {
-    if (!can("notifications.broadcast")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("notifications.broadcast"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!title.trim() || !user) return;
     setBusy(true);
     const { data: profiles, error: pErr } = await supabase.from("profiles").select("id");
@@ -2600,16 +2937,21 @@ function NotificationsAdmin() {
   }
 
   async function remove(id: string) {
-    if (!can("notifications.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("notifications.delete"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("notifications").delete().eq("id", id);
     if (error) toast.error(error.message);
     else setRows((r) => r.filter((x) => x.id !== id));
   }
 
   async function clearAll() {
-    if (!can("notifications.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    if (!can("notifications.delete"))
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     if (!confirm(lang === "bn" ? "সব নোটিফিকেশন ডিলিট?" : "Delete all notifications?")) return;
-    const { error } = await supabase.from("notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
     if (error) toast.error(error.message);
     else {
       setRows([]);
@@ -2617,7 +2959,10 @@ function NotificationsAdmin() {
     }
   }
 
-  const settingLabels: Record<Exclude<keyof NotificationSettings, "web_push_hook_secret">, { bn: string; en: string }> = {
+  const settingLabels: Record<
+    Exclude<keyof NotificationSettings, "web_push_hook_secret">,
+    { bn: string; en: string }
+  > = {
     retention_days: { bn: "নোটিফিকেশন রাখার দিন", en: "Notification retention (days)" },
     enable_managed_button: { bn: "৩-ডট মেনু: ম্যানেজড/সম্পন্ন", en: "3-dot menu: mark managed" },
     enable_critical_droplet_animation: {
@@ -2628,9 +2973,15 @@ function NotificationsAdmin() {
     push_new_request: { bn: "নতুন রিকোয়েস্টে পুশ", en: "Push for new requests" },
     push_interactions: { bn: "লাইক/কমেন্ট/শেয়ারে পুশ", en: "Push for likes/comments/shares" },
     match_district_for_alerts: { bn: "জেলা মিলে অ্যালার্ট", en: "Alert by matching district" },
-    match_blood_group_for_alerts: { bn: "রক্তের গ্রুপ মিলে অ্যালার্ট", en: "Alert by matching blood group" },
+    match_blood_group_for_alerts: {
+      bn: "রক্তের গ্রুপ মিলে অ্যালার্ট",
+      en: "Alert by matching blood group",
+    },
     auto_feed_district: { bn: "ফিডে অটো জেলা ফিল্টার", en: "Auto district filter in feed" },
-    auto_feed_blood_group: { bn: "ফিডে অটো ব্লাড গ্রুপ ফিল্টার", en: "Auto blood group filter in feed" },
+    auto_feed_blood_group: {
+      bn: "ফিডে অটো ব্লাড গ্রুপ ফিল্টার",
+      en: "Auto blood group filter in feed",
+    },
   };
 
   function generateWebhookSecret() {
@@ -2657,12 +3008,19 @@ function NotificationsAdmin() {
               k !== "web_push_hook_secret" &&
               k !== "enable_critical_droplet_animation",
           ).map((key) => (
-            <label key={key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
-              <span className="text-slate-300">{lang === "bn" ? settingLabels[key].bn : settingLabels[key].en}</span>
+            <label
+              key={key}
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs"
+            >
+              <span className="text-slate-300">
+                {lang === "bn" ? settingLabels[key].bn : settingLabels[key].en}
+              </span>
               <input
                 type="checkbox"
                 checked={!!ns[key]}
-                onChange={(e) => setNsKey(key, e.target.checked as NotificationSettings[typeof key])}
+                onChange={(e) =>
+                  setNsKey(key, e.target.checked as NotificationSettings[typeof key])
+                }
                 className="h-4 w-4 accent-rose-500"
               />
             </label>
@@ -2786,7 +3144,11 @@ function NotificationsAdmin() {
                   {!n.is_read && <span className="ml-2 text-amber-400">unread</span>}
                 </p>
               </div>
-              <button type="button" onClick={() => void remove(n.id)} className="text-rose-400 shrink-0">
+              <button
+                type="button"
+                onClick={() => void remove(n.id)}
+                className="text-rose-400 shrink-0"
+              >
                 <Trash2 className="h-4 w-4" />
               </button>
             </li>
@@ -3017,9 +3379,14 @@ function ArchitectureAdmin() {
   const [md, setMd] = useState(ARCHITECTURE_MARKDOWN);
 
   useEffect(() => {
-    supabase.from("app_settings").select("architecture_md").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data?.architecture_md) setMd(data.architecture_md);
-    });
+    supabase
+      .from("app_settings")
+      .select("architecture_md")
+      .eq("id", 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.architecture_md) setMd(data.architecture_md);
+      });
   }, []);
 
   function downloadPdf() {
@@ -3043,7 +3410,11 @@ function ArchitectureAdmin() {
 
   return (
     <div className="space-y-3">
-      <button type="button" onClick={downloadPdf} className="inline-flex items-center gap-2 rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold">
+      <button
+        type="button"
+        onClick={downloadPdf}
+        className="inline-flex items-center gap-2 rounded-lg bg-rose-600 text-white px-4 py-2.5 text-sm font-semibold"
+      >
         <Download className="h-4 w-4" />
         PDF
       </button>

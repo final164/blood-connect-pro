@@ -24,9 +24,7 @@ function NotFoundComponent() {
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-sm text-center">
         <h1 className="text-6xl font-bold text-primary">404</h1>
-        <p className="mt-3 text-sm text-muted-foreground">
-          পেজটি পাওয়া যায়নি / Page not found
-        </p>
+        <p className="mt-3 text-sm text-muted-foreground">পেজটি পাওয়া যায়নি / Page not found</p>
         <Link
           to="/"
           className="mt-5 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
@@ -78,7 +76,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap",
+      },
       ...rootSeoHead.links,
     ],
   }),

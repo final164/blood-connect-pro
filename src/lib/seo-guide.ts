@@ -16,12 +16,12 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
   intro:
     "এই গাইড আপনাকে Admin → Settings → SEO থেকে সাইটের সার্চ ইঞ্জিন অপ্টিমাইজেশন সেটআপ করতে সাহায্য করবে। সঠিক SEO-তে Google/Bing-এ BloodLink খুঁজে পাওয়া সহজ হয় এবং Facebook/WhatsApp শেয়ারে সুন্দর প্রিভিউ দেখায়।",
   checklist: [
-    "Site URL সেট করুন (যেমন https://yourdomain.com)",
+    "Site URL নিশ্চিত করুন: https://blood.pgdiary.cloud",
     "Title ও Description BN/EN লিখুন — ৫৫–৬০ অক্ষরের title, ১৫০–১৬০ অক্ষরের description",
     "OG image আপলোড করুন (১২০০×৬৩০ px, JPG/PNG)",
     "Google Search Console-এ সাইট যোগ করুন ও verification code দিন",
-    "Sitemap submit করুন: yourdomain.com/sitemap.xml",
-    "robots.txt চেক করুন: yourdomain.com/robots.txt",
+    "Sitemap submit করুন: https://blood.pgdiary.cloud/sitemap.xml",
+    "robots.txt চেক করুন: https://blood.pgdiary.cloud/robots.txt",
     "Facebook/WhatsApp-এ লিংক শেয়ার করে OG preview দেখুন",
   ],
   sections: [
@@ -50,10 +50,7 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
         "OG title/description/image সোশ্যাল শেয়ার প্রিভিউ নিয়ন্ত্রণ করে।",
         "OG image খালি থাকলে /icon-512.png ব্যবহার হবে; তবে 1200×630 বANNER-style image ভালো ফল দেয়।",
       ],
-      bullets: [
-        "og:type সাধারণত website",
-        "Image URL absolute হলে ভালো (https://...)",
-      ],
+      bullets: ["og:type সাধারণত website", "Image URL absolute হলে ভালো (https://...)"],
     },
     {
       title: "৪. Twitter Card",
@@ -73,9 +70,13 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
     {
       title: "৬. Google Search Console",
       body: [
-        "https://search.google.com/search-console এ সাইট Property যোগ করুন।",
-        "HTML tag verification পদ্ধতি বেছে Google Site Verification ফিল্ডে meta content value দিন।",
-        "Sitemaps মেনুতে /sitemap.xml submit করুন।",
+        "https://search.google.com/search-console এ যান এবং Google account দিয়ে লগইন করুন।",
+        "‘Add property’ চাপুন এবং URL prefix হিসেবে https://blood.pgdiary.cloud দিন।",
+        'Verification methods থেকে ‘HTML tag’ বেছে নিন। Google আপনাকে এমন একটি meta tag দেবে: <meta name="google-site-verification" content="abc123..." />',
+        'ওই tag-এর শুধু content="..." এর ভেতরের value কপি করুন। যেমন abc123... অংশটুকু।',
+        "Admin → Settings → SEO → Google Site Verification field-এ ওই copied value paste করুন এবং Save চাপুন।",
+        "তারপর Search Console-এ ফিরে Verify চাপুন।",
+        "Verify সফল হলে বাঁদিকের Sitemaps মেনুতে গিয়ে https://blood.pgdiary.cloud/sitemap.xml submit করুন।",
       ],
     },
     {
@@ -126,12 +127,12 @@ export const SEO_GUIDE_EN: SeoGuideContent = {
   intro:
     "Use Admin → Settings → SEO to configure search and social previews. Good SEO helps people find BloodLink on Google/Bing and improves link shares on Facebook/WhatsApp.",
   checklist: [
-    "Set Site URL (e.g. https://yourdomain.com)",
+    "Confirm Site URL: https://blood.pgdiary.cloud",
     "Write BN/EN titles (~55–60 chars) and descriptions (~150–160 chars)",
     "Upload OG image (1200×630 px recommended)",
     "Add site in Google Search Console and paste verification code",
-    "Submit sitemap: yourdomain.com/sitemap.xml",
-    "Verify robots.txt: yourdomain.com/robots.txt",
+    "Submit sitemap: https://blood.pgdiary.cloud/sitemap.xml",
+    "Verify robots.txt: https://blood.pgdiary.cloud/robots.txt",
     "Share homepage link on Facebook/WhatsApp to preview OG card",
   ],
   sections: [
@@ -179,17 +180,18 @@ export const SEO_GUIDE_EN: SeoGuideContent = {
     {
       title: "6. Google Search Console",
       body: [
-        "Add your property at https://search.google.com/search-console",
-        "Choose HTML tag verification and paste the content value into Google Site Verification.",
-        "Submit /sitemap.xml under Sitemaps.",
+        "Open https://search.google.com/search-console and sign in with your Google account.",
+        "Click 'Add property' and use URL prefix: https://blood.pgdiary.cloud",
+        'Choose the \'HTML tag\' verification method. Google will show a tag like: <meta name="google-site-verification" content="abc123..." />',
+        'Copy only the value inside content="...". For example, copy abc123... only.',
+        "Paste that value into Admin → Settings → SEO → Google Site Verification and click Save.",
+        "Go back to Search Console and click Verify.",
+        "After verification, submit https://blood.pgdiary.cloud/sitemap.xml under the Sitemaps section.",
       ],
     },
     {
       title: "7. Bing Webmaster Tools",
-      body: [
-        "Verify at https://www.bing.com/webmasters",
-        "Submit the same sitemap URL.",
-      ],
+      body: ["Verify at https://www.bing.com/webmasters", "Submit the same sitemap URL."],
     },
     {
       title: "8. JSON-LD",

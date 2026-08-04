@@ -52,7 +52,12 @@ function ToggleRow({
   return (
     <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
       <span className="text-slate-300">{label}</span>
-      <input type="checkbox" className="h-4 w-4 accent-rose-500" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        className="h-4 w-4 accent-rose-500"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
     </label>
   );
 }
@@ -95,7 +100,9 @@ export function SeoAdmin() {
     if (!p) return;
     setS((prev) => ({
       ...prev,
-      sitemap_extra_paths: [...new Set([...prev.sitemap_extra_paths, p.startsWith("/") ? p : `/${p}`])],
+      sitemap_extra_paths: [
+        ...new Set([...prev.sitemap_extra_paths, p.startsWith("/") ? p : `/${p}`]),
+      ],
     }));
     setExtraPath("");
   }
@@ -114,6 +121,16 @@ export function SeoAdmin() {
 
   return (
     <div className="space-y-4 max-w-3xl">
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-100 space-y-1">
+        <p className="font-semibold">
+          {lang === "bn" ? "Production SEO preset ready" : "Production SEO preset ready"}
+        </p>
+        <p>
+          {lang === "bn"
+            ? "Default value-গুলো blood.pgdiary.cloud এর জন্য prefilled আছে। Search Console submit URL: https://blood.pgdiary.cloud/sitemap.xml"
+            : "Default values are prefilled for blood.pgdiary.cloud. Search Console sitemap URL: https://blood.pgdiary.cloud/sitemap.xml"}
+        </p>
+      </div>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -157,10 +174,18 @@ export function SeoAdmin() {
         </Field>
         <div className="grid sm:grid-cols-2 gap-2">
           <Field label="Title BN">
-            <input className={ainp} value={s.title_bn} onChange={(e) => setS({ ...s, title_bn: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.title_bn}
+              onChange={(e) => setS({ ...s, title_bn: e.target.value })}
+            />
           </Field>
           <Field label="Title EN">
-            <input className={ainp} value={s.title_en} onChange={(e) => setS({ ...s, title_en: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.title_en}
+              onChange={(e) => setS({ ...s, title_en: e.target.value })}
+            />
           </Field>
           <Field label={lang === "bn" ? "Title টেমপ্লেট" : "Title template"}>
             <input
@@ -212,10 +237,18 @@ export function SeoAdmin() {
       <Section title="Open Graph">
         <div className="grid sm:grid-cols-2 gap-2">
           <Field label="OG Title BN">
-            <input className={ainp} value={s.og_title_bn} onChange={(e) => setS({ ...s, og_title_bn: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.og_title_bn}
+              onChange={(e) => setS({ ...s, og_title_bn: e.target.value })}
+            />
           </Field>
           <Field label="OG Title EN">
-            <input className={ainp} value={s.og_title_en} onChange={(e) => setS({ ...s, og_title_en: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.og_title_en}
+              onChange={(e) => setS({ ...s, og_title_en: e.target.value })}
+            />
           </Field>
           <Field label="OG Description BN">
             <textarea
@@ -240,7 +273,11 @@ export function SeoAdmin() {
             />
           </Field>
           <Field label="OG Type">
-            <input className={ainp} value={s.og_type} onChange={(e) => setS({ ...s, og_type: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.og_type}
+              onChange={(e) => setS({ ...s, og_type: e.target.value })}
+            />
           </Field>
         </div>
       </Section>
@@ -267,7 +304,11 @@ export function SeoAdmin() {
             />
           </Field>
           <Field label="Twitter Title">
-            <input className={ainp} value={s.twitter_title} onChange={(e) => setS({ ...s, twitter_title: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.twitter_title}
+              onChange={(e) => setS({ ...s, twitter_title: e.target.value })}
+            />
           </Field>
           <Field label="Twitter Description">
             <textarea
@@ -294,10 +335,18 @@ export function SeoAdmin() {
         </div>
         <div className="grid sm:grid-cols-2 gap-2">
           <Field label="Hreflang BN path">
-            <input className={ainp} value={s.hreflang_bn} onChange={(e) => setS({ ...s, hreflang_bn: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.hreflang_bn}
+              onChange={(e) => setS({ ...s, hreflang_bn: e.target.value })}
+            />
           </Field>
           <Field label="Hreflang EN path">
-            <input className={ainp} value={s.hreflang_en} onChange={(e) => setS({ ...s, hreflang_en: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.hreflang_en}
+              onChange={(e) => setS({ ...s, hreflang_en: e.target.value })}
+            />
           </Field>
         </div>
       </Section>
@@ -329,13 +378,25 @@ export function SeoAdmin() {
         />
         <div className="grid sm:grid-cols-2 gap-2">
           <Field label={lang === "bn" ? "সংস্থার নাম" : "Organization name"}>
-            <input className={ainp} value={s.org_name} onChange={(e) => setS({ ...s, org_name: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.org_name}
+              onChange={(e) => setS({ ...s, org_name: e.target.value })}
+            />
           </Field>
           <Field label={lang === "bn" ? "ফোন" : "Phone"}>
-            <input className={ainp} value={s.org_phone} onChange={(e) => setS({ ...s, org_phone: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.org_phone}
+              onChange={(e) => setS({ ...s, org_phone: e.target.value })}
+            />
           </Field>
           <Field label="Logo URL">
-            <input className={ainp} value={s.org_logo_url} onChange={(e) => setS({ ...s, org_logo_url: e.target.value })} />
+            <input
+              className={ainp}
+              value={s.org_logo_url}
+              onChange={(e) => setS({ ...s, org_logo_url: e.target.value })}
+            />
           </Field>
         </div>
         <Field label={lang === "bn" ? "Social profiles (sameAs)" : "Social profiles (sameAs)"}>
@@ -346,17 +407,26 @@ export function SeoAdmin() {
               value={sameAsInput}
               onChange={(e) => setSameAsInput(e.target.value)}
             />
-            <button type="button" onClick={addSameAs} className="shrink-0 rounded-lg bg-slate-800 px-2.5 text-slate-200">
+            <button
+              type="button"
+              onClick={addSameAs}
+              className="shrink-0 rounded-lg bg-slate-800 px-2.5 text-slate-200"
+            >
               <Plus className="h-4 w-4" />
             </button>
           </div>
           <ul className="mt-2 space-y-1">
             {s.org_same_as.map((url) => (
-              <li key={url} className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 px-2 py-1 text-xs">
+              <li
+                key={url}
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 px-2 py-1 text-xs"
+              >
                 <span className="truncate text-slate-300">{url}</span>
                 <button
                   type="button"
-                  onClick={() => setS({ ...s, org_same_as: s.org_same_as.filter((x) => x !== url) })}
+                  onClick={() =>
+                    setS({ ...s, org_same_as: s.org_same_as.filter((x) => x !== url) })
+                  }
                   className="text-rose-400"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -386,7 +456,11 @@ export function SeoAdmin() {
               value={extraPath}
               onChange={(e) => setExtraPath(e.target.value)}
             />
-            <button type="button" onClick={addExtraPath} className="shrink-0 rounded-lg bg-slate-800 px-2.5 text-slate-200">
+            <button
+              type="button"
+              onClick={addExtraPath}
+              className="shrink-0 rounded-lg bg-slate-800 px-2.5 text-slate-200"
+            >
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -400,7 +474,10 @@ export function SeoAdmin() {
                 <button
                   type="button"
                   onClick={() =>
-                    setS({ ...s, sitemap_extra_paths: s.sitemap_extra_paths.filter((x) => x !== p) })
+                    setS({
+                      ...s,
+                      sitemap_extra_paths: s.sitemap_extra_paths.filter((x) => x !== p),
+                    })
                   }
                   className="text-rose-400"
                 >

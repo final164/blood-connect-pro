@@ -3,13 +3,17 @@ import {
   absoluteUrl,
   buildHead,
   buildJsonLd,
+  buildLandingJsonLd,
+  type SeoFaqEntry,
   type SeoSettings,
 } from "@/lib/seo-settings";
 
 function upsertMeta(nameOrProperty: string, content: string, isProperty = false) {
   if (typeof document === "undefined" || !content) return;
   const attr = isProperty ? "property" : "name";
-  let el = document.head.querySelector(`meta[${attr}="${nameOrProperty}"]`) as HTMLMetaElement | null;
+  let el = document.head.querySelector(
+    `meta[${attr}="${nameOrProperty}"]`,
+  ) as HTMLMetaElement | null;
   if (!el) {
     el = document.createElement("meta");
     el.setAttribute(attr, nameOrProperty);
@@ -47,13 +51,23 @@ function upsertJsonLd(id: string, data: Record<string, unknown> | null) {
   if (!existing) document.head.appendChild(el);
 }
 
-export function SeoHeadUpdater({
-  seo,
-  lang,
-}: {
-  seo: SeoSettings;
-  lang: "bn" | "en";
-}) {
+function syncJsonLdScripts(prefix: string, entries: Array<Record<string, unknown>>) {
+  if (typeof document === "undefined") return;
+  const existing = Array.from(
+    document.head.querySelectorAll(`script[data-seo-prefix="${prefix}"]`),
+  );
+  existing.forEach((el) => el.remove());
+  entries.forEach((entry, index) => {
+    const el = document.createElement("script");
+    el.id = `${prefix}-${index}`;
+    el.type = "application/ld+json";
+    el.dataset.seoPrefix = prefix;
+    el.textContent = JSON.stringify(entry);
+    document.head.appendChild(el);
+  });
+}
+
+export function SeoHeadUpdater({ seo, lang }: { seo: SeoSettings; lang: "bn" | "en" }) {
   useEffect(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const { meta, links } = buildHead(seo, lang, origin);
@@ -79,13 +93,7 @@ export function SeoHeadUpdater({
   return null;
 }
 
-export function SeoJsonLd({
-  seo,
-  lang,
-}: {
-  seo: SeoSettings;
-  lang: "bn" | "en";
-}) {
+export function SeoJsonLd({ seo, lang }: { seo: SeoSettings; lang: "bn" | "en" }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const data = buildJsonLd(seo, lang, origin);
   if (!data) return null;
@@ -95,6 +103,42 @@ export function SeoJsonLd({
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
+  );
+}
+
+export function LandingSeoJsonLd({
+  seo,
+  lang,
+  faqs,
+}: {
+  seo: SeoSettings;
+  lang: "bn" | "en";
+  faqs: SeoFaqEntry[];
+}) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const entries = buildLandingJsonLd(seo, lang, origin, faqs);
+
+  useEffect(() => {
+    syncJsonLdScripts("bloodlink-landing-jsonld", entries);
+    return () => {
+      if (typeof document === "undefined") return;
+      Array.from(
+        document.head.querySelectorAll(`script[data-seo-prefix="bloodlink-landing-jsonld"]`),
+      ).forEach((el) => el.remove());
+    };
+  }, [entries]);
+
+  return (
+    <>
+      {entries.map((entry, index) => (
+        <script
+          key={index}
+          id={`bloodlink-landing-jsonld-ssr-${index}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(entry) }}
+        />
+      ))}
+    </>
   );
 }
 

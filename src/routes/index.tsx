@@ -8,19 +8,12 @@ import {
   fetchLandingSettings,
   type LandingSettings,
 } from "@/lib/landing-settings";
-import {
-  DEFAULT_SEO_SETTINGS,
-  buildHead,
-  fetchSeoSettings,
-} from "@/lib/seo-settings";
-import {
-  fetchLandingContentBundle,
-  type LandingContentBundle,
-} from "@/lib/landing-content";
+import { DEFAULT_SEO_SETTINGS, buildHead, fetchSeoSettings } from "@/lib/seo-settings";
+import { fetchLandingContentBundle, type LandingContentBundle } from "@/lib/landing-content";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { renderLandingSection } from "@/components/landing/LandingSections";
-import { SeoHeadUpdater, SeoJsonLd } from "@/components/SeoHead";
+import { LandingSeoJsonLd, SeoHeadUpdater } from "@/components/SeoHead";
 
 const EMPTY_CONTENT: LandingContentBundle = {
   stats: [],
@@ -76,6 +69,10 @@ function LandingPage() {
   const settings: LandingSettings = settingsQ.data ?? DEFAULT_LANDING_SETTINGS;
   const seo = seoQ.data ?? DEFAULT_SEO_SETTINGS;
   const content = contentQ.data ?? EMPTY_CONTENT;
+  const faqSchemaItems = content.faqs.map((item) => ({
+    question: landingLang === "bn" ? item.question_bn : item.question_en,
+    answer: landingLang === "bn" ? item.answer_bn : item.answer_en,
+  }));
   const loggedIn = !loading && !!session && !isAnonymous;
 
   useEffect(() => {
@@ -106,7 +103,7 @@ function LandingPage() {
   return (
     <LandingShell settings={settings}>
       <SeoHeadUpdater seo={seo} lang={landingLang} />
-      <SeoJsonLd seo={seo} lang={landingLang} />
+      <LandingSeoJsonLd seo={seo} lang={landingLang} faqs={faqSchemaItems} />
       {settings.sections_enabled.nav && (
         <LandingNav
           settings={settings}

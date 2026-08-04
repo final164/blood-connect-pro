@@ -37,41 +37,41 @@ export type SeoSettings = {
 };
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
-  site_url: "",
-  title_bn: "BloodLink — রক্তদানে জীবন বাঁচান",
-  title_en: "BloodLink — Save lives with blood donation",
+  site_url: "https://blood.pgdiary.cloud",
+  title_bn: "BloodLink — রক্তদাতা খুঁজুন, রক্তদান করুন, জীবন বাঁচান",
+  title_en: "BloodLink — Find blood donors and save lives in Bangladesh",
   title_template: "%s — BloodLink",
   description_bn:
-    "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট। বাংলাদেশ জুড়ে রক্তদানে সাহায্য করুন।",
+    "BloodLink বাংলাদেশজুড়ে রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক। রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট দিন, হাসপাতাল ও জেলা অনুযায়ী রক্তদান সহায়তা পান।",
   description_en:
-    "Realtime blood donor network — find donors, post urgent blood requests, and chat securely. Help save lives across Bangladesh.",
+    "BloodLink is a Bangladesh-wide realtime blood donor network. Find blood donors, post urgent blood requests, and connect by district and hospital to save lives faster.",
   keywords_bn:
-    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, BloodLink, রক্তের গ্রুপ, হাসপাতাল",
+    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, BloodLink, রক্তের গ্রুপ, হাসপাতাল, জেলা ভিত্তিক রক্তদাতা, রক্ত খুঁজুন",
   keywords_en:
-    "blood donation, blood donor, Bangladesh, urgent blood, BloodLink, blood group, hospital, plasma",
-  og_title_bn: "BloodLink — রক্তদানে জীবন বাঁচান",
-  og_title_en: "BloodLink — Save lives with blood donation",
+    "blood donation, blood donor, Bangladesh, urgent blood, BloodLink, blood group, hospital, district donor, find blood donor",
+  og_title_bn: "BloodLink — রক্তদাতা খুঁজুন, রক্তদান করুন",
+  og_title_en: "BloodLink — Find blood donors in Bangladesh",
   og_description_bn:
     "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট।",
   og_description_en:
     "Realtime blood donor social network with E2EE chat and live map across Bangladesh.",
-  og_image_url: "/icon-512.png",
+  og_image_url: "https://blood.pgdiary.cloud/icon-512.png",
   og_type: "website",
   twitter_card: "summary_large_image",
-  twitter_title: "BloodLink — Save lives with blood donation",
+  twitter_title: "BloodLink — Find blood donors and save lives in Bangladesh",
   twitter_description:
-    "Find blood donors, post urgent requests, and connect securely across Bangladesh.",
-  twitter_image_url: "/icon-512.png",
+    "Find blood donors, post urgent requests, and get district and hospital based blood support across Bangladesh.",
+  twitter_image_url: "https://blood.pgdiary.cloud/icon-512.png",
   robots_index: true,
   robots_follow: true,
-  canonical_url: "",
+  canonical_url: "/",
   hreflang_bn: "/",
   hreflang_en: "/?lang=en",
   google_site_verification: "",
   bing_site_verification: "",
   json_ld_enabled: true,
   org_name: "BloodLink",
-  org_logo_url: "/icon-512.png",
+  org_logo_url: "https://blood.pgdiary.cloud/icon-512.png",
   org_phone: "",
   org_same_as: [],
   robots_txt: "",
@@ -169,11 +169,10 @@ export async function saveSeoSettings(settings: SeoSettings): Promise<void> {
     .select("landing_settings")
     .eq("id", 1)
     .maybeSingle();
-  const landingRaw = (existing as { landing_settings?: Record<string, unknown> } | null)?.landing_settings;
+  const landingRaw = (existing as { landing_settings?: Record<string, unknown> } | null)
+    ?.landing_settings;
   const landingMerged =
-    landingRaw && typeof landingRaw === "object"
-      ? { ...landingRaw, seo: landingSeo }
-      : undefined;
+    landingRaw && typeof landingRaw === "object" ? { ...landingRaw, seo: landingSeo } : undefined;
 
   const payload: Record<string, unknown> = {
     id: 1,
@@ -263,16 +262,28 @@ export function buildHead(
     ? absoluteUrl(seo.canonical_url, seo, origin)
     : absoluteUrl("/", seo, origin);
   const siteUrl = resolveSiteUrl(seo, origin);
+  const locale = lang === "bn" ? "bn_BD" : "en_BD";
+  const alternateLocale = lang === "bn" ? "en_BD" : "bn_BD";
+  const language = lang === "bn" ? "bn-BD" : "en-BD";
 
   const meta: HeadMetaTag[] = [
     { title },
     { name: "description", content: description },
     { name: "keywords", content: keywords },
+    { name: "author", content: seo.org_name || "BloodLink" },
+    { name: "publisher", content: seo.org_name || "BloodLink" },
+    { name: "language", content: language },
+    { name: "geo.region", content: "BD" },
+    { name: "geo.placename", content: "Bangladesh" },
+    { name: "ICBM", content: "23.685, 90.3563" },
     { name: "robots", content: robotsContent(seo) },
     { property: "og:title", content: ogTitle },
     { property: "og:description", content: ogDescription },
     { property: "og:type", content: seo.og_type || "website" },
+    { property: "og:locale", content: locale },
+    { property: "og:locale:alternate", content: alternateLocale },
     { property: "og:image", content: ogImage },
+    { property: "og:image:alt", content: ogTitle },
     { name: "twitter:card", content: seo.twitter_card },
     {
       name: "twitter:title",
@@ -302,10 +313,18 @@ export function buildHead(
   const links: HeadLinkTag[] = [];
   if (canonical) links.push({ rel: "canonical", href: canonical });
   if (siteUrl && seo.hreflang_bn) {
-    links.push({ rel: "alternate", href: absoluteUrl(seo.hreflang_bn, seo, origin), hrefLang: "bn" });
+    links.push({
+      rel: "alternate",
+      href: absoluteUrl(seo.hreflang_bn, seo, origin),
+      hrefLang: "bn",
+    });
   }
   if (siteUrl && seo.hreflang_en) {
-    links.push({ rel: "alternate", href: absoluteUrl(seo.hreflang_en, seo, origin), hrefLang: "en" });
+    links.push({
+      rel: "alternate",
+      href: absoluteUrl(seo.hreflang_en, seo, origin),
+      hrefLang: "en",
+    });
   }
 
   return { meta, links };
@@ -340,6 +359,62 @@ export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin =
     },
     knowsAbout: ["Blood donation", "Emergency blood requests", "Blood donor network"],
   };
+}
+
+export type SeoFaqEntry = {
+  question: string;
+  answer: string;
+};
+
+export function buildLandingJsonLd(
+  seo: SeoSettings,
+  lang: "bn" | "en" = "bn",
+  origin = "",
+  faqs: SeoFaqEntry[] = [],
+) {
+  const siteUrl = resolveSiteUrl(seo, origin);
+  const pageUrl = absoluteUrl("/", seo, origin);
+  const org = buildJsonLd(seo, lang, origin);
+  const website = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: seo.org_name || "BloodLink",
+    url: siteUrl || pageUrl,
+    inLanguage: lang === "bn" ? "bn-BD" : "en-BD",
+    description: seoDescriptionForLang(seo, lang),
+  };
+  const webpage = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: seoTitleForLang(seo, lang),
+    url: pageUrl,
+    description: seoDescriptionForLang(seo, lang),
+    inLanguage: lang === "bn" ? "bn-BD" : "en-BD",
+    isPartOf: siteUrl
+      ? {
+          "@type": "WebSite",
+          name: seo.org_name || "BloodLink",
+          url: siteUrl,
+        }
+      : undefined,
+    about: ["Blood donation", "Blood donor network", "Emergency blood requests", "Bangladesh"],
+  };
+  const items = [org, website, webpage].filter(Boolean);
+  if (faqs.length) {
+    items.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqs.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    });
+  }
+  return items;
 }
 
 export function defaultRobotsTxt(seo: SeoSettings, origin = ""): string {

@@ -2,11 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import {
-  isValidPhone,
-  isValidPin,
-  normalizePhone,
-} from "@/lib/phone-auth";
+import { isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
 import {
   authErrorMessage,
   loginAsDefaultAdmin,
@@ -17,7 +13,9 @@ import { toast } from "sonner";
 import { Droplet, Loader2, Shield } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in — BloodLink" }] }),
+  head: () => ({
+    meta: [{ title: "Sign in — BloodLink" }, { name: "robots", content: "noindex, nofollow" }],
+  }),
   component: AuthPage,
 });
 
@@ -46,7 +44,9 @@ function AuthPage() {
       const normalized = normalizePhone(phone);
       if (!isValidPhone(normalized)) {
         toast.error(
-          lang === "bn" ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)",
+          lang === "bn"
+            ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)"
+            : "Enter a valid mobile number (01XXXXXXXXX)",
         );
         return;
       }
@@ -90,7 +90,8 @@ function AuthPage() {
     } catch (err) {
       const raw = (err as Error)?.message || String(err);
       toast.error(authErrorMessage(raw, lang));
-      if (raw === "ACCOUNT_EXISTS_WRONG_PIN" || /ACCOUNT_EXISTS_WRONG_PIN/.test(raw)) setMode("login");
+      if (raw === "ACCOUNT_EXISTS_WRONG_PIN" || /ACCOUNT_EXISTS_WRONG_PIN/.test(raw))
+        setMode("login");
     } finally {
       setBusy(false);
     }
@@ -150,12 +151,7 @@ function AuthPage() {
               {mode === "signup" && (
                 <Field label={t("fullName")} value={name} onChange={setName} required />
               )}
-              <PhoneField
-                label={t("phone")}
-                value={phone}
-                onChange={setPhone}
-                lang={lang}
-              />
+              <PhoneField label={t("phone")} value={phone} onChange={setPhone} lang={lang} />
               <PinField
                 label={lang === "bn" ? "৪ সংখ্যার PIN" : "4-digit PIN"}
                 value={pin}
@@ -262,7 +258,16 @@ function PhoneField({
             e.ctrlKey ||
             e.metaKey ||
             e.altKey ||
-            ["Backspace", "Delete", "Tab", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
+            [
+              "Backspace",
+              "Delete",
+              "Tab",
+              "Enter",
+              "ArrowLeft",
+              "ArrowRight",
+              "Home",
+              "End",
+            ].includes(e.key)
           ) {
             return;
           }
@@ -344,7 +349,11 @@ function PinField({
         placeholder="••••"
         onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
         required
-        autoComplete={label.includes("Confirm") || label.includes("নিশ্চিত") ? "new-password" : "current-password"}
+        autoComplete={
+          label.includes("Confirm") || label.includes("নিশ্চিত")
+            ? "new-password"
+            : "current-password"
+        }
       />
     </div>
   );
