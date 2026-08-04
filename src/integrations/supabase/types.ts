@@ -104,6 +104,7 @@ export type Database = {
           needed_by: string
           notes: string | null
           patient_name: string
+          image_url: string | null
           requester_id: string
           status: Database["public"]["Enums"]["request_status"]
           updated_at: string
@@ -127,6 +128,7 @@ export type Database = {
           needed_by: string
           notes?: string | null
           patient_name: string
+          image_url?: string | null
           requester_id: string
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
@@ -150,6 +152,7 @@ export type Database = {
           needed_by?: string
           notes?: string | null
           patient_name?: string
+          image_url?: string | null
           requester_id?: string
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string

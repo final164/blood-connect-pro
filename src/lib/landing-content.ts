@@ -261,16 +261,21 @@ export async function fetchLandingContentBundle(): Promise<LandingContentBundle>
 }
 
 export async function uploadLandingImage(file: File): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${PREFIX}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
-    contentType: file.type || "image/jpeg",
+  const { uploadAppImage } = await import("@/lib/google-drive");
+  const result = await uploadAppImage(file, "media", async (f) => {
+    const ext = f.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${PREFIX}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, f, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: f.type || "image/jpeg",
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    return { url: data.publicUrl, error: null };
   });
-  if (error) throw error;
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  if (!result.url) throw result.error ?? new Error("Upload failed");
+  return result.url;
 }
 
 /** Admin list helpers */

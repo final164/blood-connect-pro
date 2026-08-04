@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { MessageSquare, X, ChevronRight, ChevronLeft, Minus, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 import { BLOOD_GROUPS } from "@/lib/format";
+import { getProfile } from "@/lib/api";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
@@ -19,6 +21,7 @@ import {
   fetchMessagingSettings,
   type MessagingSettings,
 } from "@/lib/messaging-settings";
+import { createCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
 import {
   NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
@@ -34,6 +37,12 @@ import {
   fetchRequestFormOptions,
   type RequestFormOptions,
 } from "@/lib/request-form-options";
+import {
+  communityRequestDraftFilled,
+  loadCommunityRequestDraft,
+  saveCommunityRequestDraft,
+  type CommunityRequestDraft,
+} from "@/lib/community-request-draft";
 import { toast } from "sonner";
 
 function orgSettings(d: CommunityDonorRow): DonorContactSettings {
@@ -73,6 +82,7 @@ export function CommunitySendSmsSheet({
   defaultDistrict,
   defaultUpazila,
   viewerGender,
+  onDraftSaved,
 }: {
   open: boolean;
   onClose: () => void;
@@ -80,9 +90,12 @@ export function CommunitySendSmsSheet({
   defaultDistrict: District | null;
   defaultUpazila: string;
   viewerGender?: string | null;
+  onDraftSaved?: (draft: CommunityRequestDraft) => void;
 }) {
   const { t, lang } = useI18n();
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
+  const [busy, setBusy] = useState(false);
   const [opts, setOpts] = useState<RequestFormOptions>(DEFAULT_REQUEST_FORM_OPTIONS);
   const [district, setDistrict] = useState<District | null>(defaultDistrict);
   const [upazila, setUpazila] = useState(defaultUpazila);
@@ -92,6 +105,7 @@ export function CommunitySendSmsSheet({
   const [reasonKey, setReasonKey] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [setDateTime, setSetDateTime] = useState(true);
+  const [myPhone, setMyPhone] = useState<string | null>(null);
   const [form, setForm] = useState({
     patient_name: "",
     blood_group: "O+" as (typeof BLOOD_GROUPS)[number],
@@ -106,20 +120,39 @@ export function CommunitySendSmsSheet({
   useEffect(() => {
     if (!open) return;
     setStep(1);
-    setDistrict(defaultDistrict);
-    setUpazila(defaultUpazila);
-    setHospital(null);
-    setReasonKey("");
-    setCustomReason("");
-    setSetDateTime(true);
-    setForm({
-      patient_name: "",
-      blood_group: "O+",
-      bags_needed: 1,
-      needed_by: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
-      urgency: "normal",
-      notes: "",
-    });
+    setBusy(false);
+    const saved = user?.id ? loadCommunityRequestDraft(user.id) : null;
+    if (saved && communityRequestDraftFilled(saved)) {
+      setDistrict(saved.district ?? defaultDistrict);
+      setUpazila(saved.upazila || defaultUpazila);
+      setHospital(saved.hospital);
+      setReasonKey(saved.reasonKey);
+      setCustomReason(saved.customReason);
+      setSetDateTime(saved.setDateTime);
+      setForm({
+        patient_name: saved.patient_name,
+        blood_group: (saved.blood_group as (typeof BLOOD_GROUPS)[number]) || "O+",
+        bags_needed: saved.bags_needed,
+        needed_by: saved.needed_by,
+        urgency: saved.urgency,
+        notes: saved.notes,
+      });
+    } else {
+      setDistrict(defaultDistrict);
+      setUpazila(defaultUpazila);
+      setHospital(null);
+      setReasonKey("");
+      setCustomReason("");
+      setSetDateTime(true);
+      setForm({
+        patient_name: "",
+        blood_group: "O+",
+        bags_needed: 1,
+        needed_by: new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16),
+        urgency: "normal",
+        notes: "",
+      });
+    }
     setSelected(new Set());
     void fetchMessagingSettings().then(setMsgSettings);
     void fetchRequestFormOptions().then(setOpts);
@@ -127,7 +160,10 @@ export function CommunitySendSmsSheet({
       setCategories(activeNeedReasons(c));
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
     });
-  }, [open, defaultDistrict, defaultUpazila, lang]);
+    if (user?.id) {
+      void getProfile(user.id).then((p) => setMyPhone((p?.phone as string | null) ?? null));
+    }
+  }, [open, defaultDistrict, defaultUpazila, lang, user?.id]);
 
   const isCustomHospital = !!hospital?.id.startsWith("custom:");
   const selectedCategory = useMemo(
@@ -183,9 +219,10 @@ export function CommunitySendSmsSheet({
     setStep(2);
   }
 
-  function buildBody(): string {
+  function buildBody(requestId?: string | null): string {
     const tpl = lang === "bn" ? msgSettings.community_sms_bn : msgSettings.community_sms_en;
-    const link = typeof window !== "undefined" ? window.location.origin : "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const link = requestId ? `${origin}/home?requestId=${requestId}` : origin;
     const distName = district ? (lang === "bn" ? district.name_bn : district.name_en) : "";
     const hospitalName = hospital
       ? lang === "bn"
@@ -212,7 +249,10 @@ export function CommunitySendSmsSheet({
     });
   }
 
-  function send() {
+  async function send() {
+    if (!user) {
+      return toast.error(lang === "bn" ? "লগইন প্রয়োজন" : "Login required");
+    }
     const picks = smsEligible.filter((d) => selected.has(d.id));
     if (!picks.length) {
       return toast.error(lang === "bn" ? "কমপক্ষে একজন সিলেক্ট করুন" : "Select at least one donor");
@@ -224,11 +264,81 @@ export function CommunitySendSmsSheet({
           : `You can select at most ${maxDonors} donor(s)`,
       );
     }
+
+    const hospitalName = hospital
+      ? lang === "bn"
+        ? hospital.name_bn
+        : hospital.name_en
+      : lang === "bn"
+        ? "উল্লেখ নেই"
+        : "Not specified";
+    const reasonLabel = isCustomNeedReason(reasonKey)
+      ? customReason.trim()
+      : selectedCategory
+        ? pickLocalized(selectedCategory.label, reasonDisplayLang)
+        : customReason.trim();
+    const neededBy =
+      setDateTime && form.needed_by
+        ? new Date(form.needed_by).toISOString()
+        : form.urgency === "normal"
+          ? new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+          : new Date().toISOString();
+
+    setBusy(true);
+    const donorSummary = picks.map((d) => `${d.full_name} (${d.phone})`).join(", ");
+    const { id, error } = await createCommunityBloodRequest({
+      userId: user.id,
+      patient_name: form.patient_name.trim() || (lang === "bn" ? "রোগী" : "Patient"),
+      blood_group: form.blood_group,
+      bags_needed: Math.max(1, form.bags_needed),
+      hospital_name: hospitalName,
+      hospital_id:
+        hospital?.id && !hospital.id.startsWith("custom:") && !hospital.id.startsWith("seed:")
+          ? hospital.id
+          : null,
+      district_id: district?.id ?? null,
+      city: district ? (lang === "bn" ? district.name_bn : district.name_en) : "",
+      area: upazila.trim() || null,
+      needed_by: neededBy,
+      urgency: form.urgency,
+      notes: form.notes.trim() || null,
+      need_reason_key: reasonKey,
+      need_reason_label: reasonLabel,
+      contact_phone: myPhone,
+      donorName: donorSummary.slice(0, 180),
+      donorPhone: picks[0]?.phone ?? "",
+      channel: "sms",
+    });
+    setBusy(false);
+
+    if (error) return toast.error(error.message);
+
+    const draft = saveCommunityRequestDraft(user.id, {
+      patient_name: form.patient_name.trim(),
+      blood_group: form.blood_group,
+      bags_needed: Math.max(1, form.bags_needed),
+      needed_by: form.needed_by,
+      urgency: form.urgency,
+      notes: form.notes.trim(),
+      setDateTime,
+      reasonKey,
+      customReason: customReason.trim(),
+      upazila: upazila.trim(),
+      district,
+      hospital,
+    });
+    onDraftSaved?.(draft);
+
     const href = buildSmsHref(
       picks.map((d) => d.phone),
-      buildBody(),
+      buildBody(id),
     );
     if (!href) return toast.error(lang === "bn" ? "ফোন নম্বর নেই" : "No phone numbers");
+    toast.success(
+      lang === "bn"
+        ? "রিকোয়েস্ট সেভ হয়েছে — SMS খুলছে"
+        : "Request saved — opening SMS",
+    );
     window.location.href = href;
     onClose();
   }
@@ -585,11 +695,15 @@ export function CommunitySendSmsSheet({
             </ul>
             <button
               type="button"
-              onClick={send}
-              disabled={!selected.size}
+              onClick={() => void send()}
+              disabled={!selected.size || busy}
               className="w-full rounded-xl bg-primary text-primary-foreground text-sm font-semibold py-3 disabled:opacity-50"
             >
-              {lang === "bn" ? "SMS পাঠান" : "Open SMS"}
+              {busy
+                ? t("saving")
+                : lang === "bn"
+                  ? "রিকোয়েস্ট সেভ করে SMS খুলুন"
+                  : "Save request & open SMS"}
             </button>
           </div>
         )}

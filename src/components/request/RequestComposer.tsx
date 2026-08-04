@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ImagePlus, Minus, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -24,6 +24,8 @@ import {
   type NeedReasonCatalog,
   type NeedReasonCategory,
 } from "@/lib/need-reason-catalog";
+import { uploadAppImage, fetchGoogleDriveSettings, canPasteImageUrl, canUploadImageFile, normalizePastedImageUrl, type GoogleDriveSettings, DEFAULT_GOOGLE_DRIVE_SETTINGS } from "@/lib/google-drive";
+import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { toast } from "sonner";
 
 export function RequestComposer({
@@ -49,6 +51,11 @@ export function RequestComposer({
   const [reasonKey, setReasonKey] = useState("");
   const [customReason, setCustomReason] = useState("");
   const [setDateTime, setSetDateTime] = useState(true);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageLinkDraft, setImageLinkDraft] = useState("");
+  const [imageBusy, setImageBusy] = useState(false);
+  const [driveCfg, setDriveCfg] = useState<GoogleDriveSettings>(DEFAULT_GOOGLE_DRIVE_SETTINGS);
+  const imageRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     patient_name: "",
     blood_group: "O+" as (typeof BLOOD_GROUPS)[number],
@@ -83,6 +90,7 @@ export function RequestComposer({
       setCategories(activeNeedReasons(c));
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
     });
+    fetchGoogleDriveSettings().then(setDriveCfg);
   }, [lang]);
 
   const isCustomHospital = !!hospital?.id.startsWith("custom:");
@@ -105,6 +113,65 @@ export function RequestComposer({
 
   function applySuggestion(text: string) {
     setForm((prev) => ({ ...prev, notes: text }));
+  }
+
+  async function onPickImage(file: File | undefined) {
+    if (!file) return;
+    if (!driveCfg.allow_post_image || !canUploadImageFile(driveCfg)) {
+      return toast.error(lang === "bn" ? "ফাইল আপলোড বন্ধ আছে" : "File upload is disabled");
+    }
+    if (!file.type.startsWith("image/")) {
+      return toast.error(lang === "bn" ? "শুধু ইমেজ ফাইল" : "Images only");
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return toast.error(lang === "bn" ? "সর্বোচ্চ ৮ MB" : "Max 8 MB");
+    }
+    setImageBusy(true);
+    try {
+      const result = await uploadAppImage(file, "request", async (f) => {
+        const ext = (f.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `requests/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from("feed-carousel").upload(path, f, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: f.type || "image/jpeg",
+        });
+        if (error) return { url: null, error: new Error(error.message) };
+        const { data } = supabase.storage.from("feed-carousel").getPublicUrl(path);
+        return { url: data.publicUrl, error: null };
+      });
+      if (!result.url) throw result.error ?? new Error("Upload failed");
+      setImageUrl(resolveCarouselImageUrl(result.url));
+      setImageLinkDraft("");
+      toast.success(
+        lang === "bn"
+          ? result.via === "drive"
+            ? "Drive-এ আপলোড হয়েছে"
+            : "ইমেজ আপলোড হয়েছে"
+          : result.via === "drive"
+            ? "Uploaded to Drive"
+            : "Image uploaded",
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setImageBusy(false);
+      if (imageRef.current) imageRef.current.value = "";
+    }
+  }
+
+  function applyImageLink() {
+    if (!driveCfg.allow_post_image || !canPasteImageUrl(driveCfg)) return;
+    const raw = imageLinkDraft.trim();
+    if (!raw) {
+      return toast.error(lang === "bn" ? "Drive/ইমেজ লিংক দিন" : "Enter a Drive/image link");
+    }
+    const url = normalizePastedImageUrl(raw);
+    if (!url) {
+      return toast.error(lang === "bn" ? "সঠিক লিংক দিন" : "Enter a valid link");
+    }
+    setImageUrl(url);
+    toast.success(lang === "bn" ? "ইমেজ লিংক যোগ হয়েছে" : "Image link added");
   }
 
   function resolveNeededByIso() {
@@ -182,6 +249,7 @@ export function RequestComposer({
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
     };
+    if (imageUrl) payload.image_url = imageUrl;
     if (hospital?.id && !hospital.id.startsWith("custom:") && !hospital.id.startsWith("seed:")) {
       payload.hospital_id = hospital.id;
     }
@@ -200,6 +268,17 @@ export function RequestComposer({
       delete payload.whatsapp_phone;
       ({ data: created, error } = await tryInsert(payload));
     }
+    if (error && /image_url/i.test(error.message)) {
+      delete payload.image_url;
+      ({ data: created, error } = await tryInsert(payload));
+      if (!error) {
+        toast.message(
+          lang === "bn"
+            ? "পোস্ট হয়েছে — ইমেজ কলাম নেই, scripts/google-drive-media.sql চালান"
+            : "Posted without image — run scripts/google-drive-media.sql",
+        );
+      }
+    }
     setBusy(false);
     if (error) return toast.error(error.message);
     const newId = (created as { id?: string } | null)?.id;
@@ -210,6 +289,8 @@ export function RequestComposer({
     setReasonKey("");
     setCustomReason("");
     setSetDateTime(true);
+    setImageUrl(null);
+    setImageLinkDraft("");
     setForm({
       patient_name: "",
       blood_group: "O+",
@@ -511,9 +592,82 @@ export function RequestComposer({
         required={req("notes")}
       />
 
+      {driveCfg.allow_post_image && (
+        <div className="space-y-2">
+          <input
+            ref={imageRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => void onPickImage(e.target.files?.[0])}
+          />
+          {imageUrl ? (
+            <div className="relative overflow-hidden rounded-xl border">
+              <img src={imageUrl} alt="" className="max-h-48 w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => {
+                  setImageUrl(null);
+                  setImageLinkDraft("");
+                }}
+                className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/55 text-white grid place-items-center"
+                aria-label={t("cancel")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              {canPasteImageUrl(driveCfg) && (
+                <div className="flex gap-2">
+                  <input
+                    className={field}
+                    value={imageLinkDraft}
+                    onChange={(e) => setImageLinkDraft(e.target.value)}
+                    placeholder={ph(
+                      "Google Drive / ইমেজ লিংক পেস্ট করুন",
+                      "Paste Google Drive / image link",
+                    )}
+                  />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={applyImageLink}
+                    className="shrink-0 rounded-xl border px-3 text-xs font-semibold"
+                  >
+                    {lang === "bn" ? "যোগ" : "Add"}
+                  </button>
+                </div>
+              )}
+              {canUploadImageFile(driveCfg) && (
+                <button
+                  type="button"
+                  disabled={imageBusy || busy}
+                  onClick={() => imageRef.current?.click()}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/30 py-3 text-xs font-medium text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  {imageBusy
+                    ? lang === "bn"
+                      ? "আপলোড হচ্ছে…"
+                      : "Uploading…"
+                    : lang === "bn"
+                      ? canPasteImageUrl(driveCfg)
+                        ? "অথবা ফাইল আপলোড করুন"
+                        : "ইমেজ আপলোড করুন (ঐচ্ছিক)"
+                      : canPasteImageUrl(driveCfg)
+                        ? "Or upload a file"
+                        : "Upload image (optional)"}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || imageBusy}
         className="w-full rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 shadow-lg shadow-primary/25 hover:brightness-105 transition"
       >
         {busy ? t("saving") : t("postToFeed")}

@@ -7,6 +7,8 @@ import type { District } from "@/lib/api";
 import { ageFromDateOfBirth, dateOfBirthFromAge } from "@/lib/onboarding";
 import { fetchProfileLockSettings, setProfileLocked } from "@/lib/profile-lock";
 import type { ProfileLockSettings } from "@/lib/profile-lock";
+import { uploadAppImage, fetchGoogleDriveSettings, canPasteImageUrl, canUploadImageFile, normalizePastedImageUrl, type GoogleDriveSettings, DEFAULT_GOOGLE_DRIVE_SETTINGS } from "@/lib/google-drive";
+import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { ProfileFacebookLayout } from "@/components/profile/ProfileFacebookLayout";
 import { ProfileEditSheet } from "@/components/profile/ProfileEditSheet";
 import { Settings as SettingsIcon, Shield } from "lucide-react";
@@ -31,10 +33,13 @@ function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [lockBusy, setLockBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [driveCfg, setDriveCfg] = useState<GoogleDriveSettings>(DEFAULT_GOOGLE_DRIVE_SETTINGS);
 
   useEffect(() => {
     if (!user) return;
     fetchProfileLockSettings().then(setLockSettings);
+    fetchGoogleDriveSettings().then(setDriveCfg);
     supabase
       .from("profiles")
       .select("*")
@@ -73,6 +78,74 @@ function ProfilePage() {
             ? "প্রোফাইল আনলক করা হয়েছে"
             : "Profile unlocked",
       );
+    }
+  }
+
+  async function onAvatarUpload(file: File) {
+    if (!user) return;
+    if (!driveCfg.allow_profile_image || !canUploadImageFile(driveCfg)) {
+      return toast.error(lang === "bn" ? "ফাইল আপলোড বন্ধ আছে" : "File upload is disabled");
+    }
+    if (!file.type.startsWith("image/")) {
+      return toast.error(lang === "bn" ? "শুধু ইমেজ ফাইল" : "Images only");
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return toast.error(lang === "bn" ? "সর্বোচ্চ ৮ MB" : "Max 8 MB");
+    }
+    setAvatarBusy(true);
+    try {
+      const result = await uploadAppImage(file, "avatar", async (f) => {
+        const ext = (f.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `avatars/${user.id}-${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from("feed-carousel").upload(path, f, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: f.type || "image/jpeg",
+        });
+        if (error) return { url: null, error: new Error(error.message) };
+        const { data } = supabase.storage.from("feed-carousel").getPublicUrl(path);
+        return { url: data.publicUrl, error: null };
+      });
+      if (!result.url) throw result.error ?? new Error("Upload failed");
+      const url = resolveCarouselImageUrl(result.url);
+      const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+      if (error) throw error;
+      setProfile((p) => (p ? { ...p, avatar_url: url } : p));
+      toast.success(
+        lang === "bn"
+          ? result.via === "drive"
+            ? "প্রোফাইল ছবি Drive-এ সেভ হয়েছে"
+            : "প্রোফাইল ছবি আপডেট হয়েছে"
+          : result.via === "drive"
+            ? "Avatar saved to Drive"
+            : "Profile photo updated",
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function onAvatarUrl(raw: string) {
+    if (!user) return;
+    if (!driveCfg.allow_profile_image || !canPasteImageUrl(driveCfg)) {
+      return toast.error(lang === "bn" ? "লিংক দিয়ে ছবি বন্ধ আছে" : "Image via link is disabled");
+    }
+    const url = normalizePastedImageUrl(raw);
+    if (!url) {
+      return toast.error(lang === "bn" ? "সঠিক লিংক দিন" : "Enter a valid link");
+    }
+    setAvatarBusy(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+      if (error) throw error;
+      setProfile((p) => (p ? { ...p, avatar_url: url } : p));
+      toast.success(lang === "bn" ? "প্রোফাইল ছবি আপডেট হয়েছে" : "Profile photo updated");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAvatarBusy(false);
     }
   }
 
@@ -169,6 +242,17 @@ function ProfilePage() {
           lockSettings={lockSettings}
           onLockToggle={() => void toggleLock()}
           onEdit={() => setEditOpen(true)}
+          onAvatarUpload={
+            driveCfg.allow_profile_image && canUploadImageFile(driveCfg)
+              ? (f) => void onAvatarUpload(f)
+              : undefined
+          }
+          onAvatarUrl={
+            driveCfg.allow_profile_image && canPasteImageUrl(driveCfg)
+              ? (u) => void onAvatarUrl(u)
+              : undefined
+          }
+          avatarBusy={avatarBusy}
           lockBusy={lockBusy}
         />
       </div>

@@ -242,16 +242,20 @@ export async function uploadFeedBannerImage(file: File): Promise<{
   url: string | null;
   error: Error | null;
 }> {
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const path = `banner/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext || "jpg"}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    cacheControl: "3600",
-    upsert: false,
-    contentType: file.type || undefined,
+  const { uploadAppImage } = await import("@/lib/google-drive");
+  const result = await uploadAppImage(file, "media", async (f) => {
+    const ext = (f.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const path = `banner/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext || "jpg"}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, f, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: f.type || undefined,
+    });
+    if (error) return { url: null, error: new Error(error.message) };
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    return { url: data.publicUrl, error: null };
   });
-  if (error) return { url: null, error: new Error(error.message) };
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return { url: data.publicUrl, error: null };
+  return { url: result.url, error: result.error };
 }
 
 export async function fetchFeedBannerBundle(force = false) {

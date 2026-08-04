@@ -46,6 +46,7 @@ import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { DonationPanel } from "@/components/request/DonationPanel";
 import { CommentsSheet } from "@/components/request/CommentsSheet";
+import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
 import { toggleSave } from "@/lib/request-saves";
 import { toast } from "sonner";
 
@@ -66,6 +67,7 @@ export type FeedRequest = {
   notes: string | null;
   need_reason_key?: string | null;
   need_reason_label?: string | null;
+  image_url?: string | null;
   donation_completion_open?: boolean | null;
   status: string;
   created_at: string;
@@ -362,6 +364,17 @@ export function RequestCard({
             )}
           </div>
         </div>
+
+        {r.image_url && (
+          <div className="overflow-hidden rounded-xl border border-border/60 -mx-0.5">
+            <CarouselRemoteImage
+              src={r.image_url}
+              className="aspect-[4/3] w-full"
+              maxWidth={900}
+              loading="lazy"
+            />
+          </div>
+        )}
 
         <div className="space-y-1.5 text-xs text-muted-foreground">
           <p className="flex items-start gap-1.5">

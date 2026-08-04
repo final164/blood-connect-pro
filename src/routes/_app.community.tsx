@@ -3,6 +3,15 @@ import { fetchCommunityOrgs, getProfile, type CommunityOrg, type District } from
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { CommunitySendSmsSheet } from "@/components/community/CommunitySendSmsSheet";
+import {
+  CommunityContactGateSheet,
+  type CommunityContactChannel,
+} from "@/components/community/CommunityContactGateSheet";
+import { CommunitySavedRequestDropdown } from "@/components/community/CommunitySavedRequestDropdown";
+import {
+  loadCommunityRequestDraft,
+  type CommunityRequestDraft,
+} from "@/lib/community-request-draft";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
@@ -17,7 +26,6 @@ import {
   type MessagingSettings,
 } from "@/lib/messaging-settings";
 import { queryKeys } from "@/lib/query-client";
-import { whatsappHref } from "@/lib/request-form-options";
 import { Phone, Users, Building2, X, MessageSquare } from "lucide-react";
 import { MessengerIcon, ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -53,6 +61,26 @@ function CommunityPage() {
   const [upazila, setUpazila] = useState("");
   const [bloodGroup, setBloodGroup] = useState("ALL");
   const [smsOpen, setSmsOpen] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<CommunityRequestDraft | null>(null);
+  const [contactGate, setContactGate] = useState<{
+    donor: CommunityDonorRow;
+    channel: CommunityContactChannel;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setSavedDraft(null);
+      return;
+    }
+    setSavedDraft(loadCommunityRequestDraft(user.id));
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== user.id) return;
+      setSavedDraft(loadCommunityRequestDraft(user.id));
+    };
+    window.addEventListener("community-request-draft-changed", onChange);
+    return () => window.removeEventListener("community-request-draft-changed", onChange);
+  }, [user?.id]);
 
   const msgQuery = useQuery({
     queryKey: ["messaging-settings"],
@@ -236,6 +264,13 @@ function CommunityPage() {
             {lang === "bn" ? "Send SMS (ঐচ্ছিক)" : "Send SMS (optional)"}
           </button>
         )}
+
+        <CommunitySavedRequestDropdown
+          defaultDistrict={district}
+          defaultUpazila={upazila}
+          draft={savedDraft}
+          onDraftChange={setSavedDraft}
+        />
       </AutoHideHeader>
 
       <ul className="p-3 space-y-2 pb-2">
@@ -253,7 +288,13 @@ function CommunityPage() {
           </li>
         )}
         {donors.map((d) => (
-          <DonorCard key={d.id} donor={d} lang={lang} viewerGender={viewerGender} />
+          <DonorCard
+            key={d.id}
+            donor={d}
+            lang={lang}
+            viewerGender={viewerGender}
+            onContact={(channel) => setContactGate({ donor: d, channel })}
+          />
         ))}
       </ul>
       <InfiniteSentinel
@@ -270,6 +311,16 @@ function CommunityPage() {
         defaultDistrict={district}
         defaultUpazila={upazila}
         viewerGender={viewerGender}
+        onDraftSaved={setSavedDraft}
+      />
+
+      <CommunityContactGateSheet
+        open={!!contactGate}
+        onClose={() => setContactGate(null)}
+        donor={contactGate?.donor ?? null}
+        channel={contactGate?.channel ?? null}
+        defaultDistrict={district}
+        onDraftSaved={setSavedDraft}
       />
     </div>
   );
@@ -279,10 +330,12 @@ function DonorCard({
   donor: d,
   lang,
   viewerGender,
+  onContact,
 }: {
   donor: CommunityDonorRow;
   lang: "bn" | "en";
   viewerGender: string | null;
+  onContact: (channel: CommunityContactChannel) => void;
 }) {
   const orgName = lang === "bn" ? d.community_orgs?.name_bn || d.community_orgs?.name : d.community_orgs?.name;
   const distName = lang === "bn" ? d.districts?.name_bn : d.districts?.name_en;
@@ -297,7 +350,6 @@ function DonorCard({
   const showCall = flags.call && !!phone;
   const showSms = flags.sms && !!phone;
   const showChat = flags.chat && !!phone;
-  const wa = phone ? whatsappHref(phone) : null;
 
   return (
     <li className="rounded-2xl border bg-card px-3 py-3 flex items-start gap-3 shadow-sm">
@@ -326,34 +378,35 @@ function DonorCard({
         )}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
-        {showChat && wa && (
-          <a
-            href={wa}
-            target="_blank"
-            rel="noreferrer"
-            title={lang === "bn" ? "চ্যাট (WhatsApp)" : "Chat (WhatsApp)"}
+        {showChat && (
+          <button
+            type="button"
+            onClick={() => onContact("whatsapp")}
+            title={lang === "bn" ? "WhatsApp (আগে রিকোয়েস্ট)" : "WhatsApp (request first)"}
             className="h-10 w-10 rounded-2xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 grid place-items-center hover:opacity-90 transition"
           >
             <MessengerIcon className="h-4 w-4" />
-          </a>
+          </button>
         )}
         {showSms && (
-          <a
-            href={`sms:${phone.replace(/[^\d+]/g, "")}`}
-            title="SMS"
+          <button
+            type="button"
+            onClick={() => onContact("sms")}
+            title={lang === "bn" ? "SMS (আগে রিকোয়েস্ট)" : "SMS (request first)"}
             className="h-10 w-10 rounded-2xl bg-muted text-foreground grid place-items-center hover:opacity-90 transition"
           >
             <MessageSquare className="h-4 w-4" />
-          </a>
+          </button>
         )}
         {showCall && (
-          <a
-            href={`tel:${phone.replace(/\s/g, "")}`}
-            title={lang === "bn" ? "কল করুন" : "Call"}
+          <button
+            type="button"
+            onClick={() => onContact("call")}
+            title={lang === "bn" ? "কল (আগে রিকোয়েস্ট)" : "Call (request first)"}
             className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25 hover:opacity-90 transition"
           >
             <Phone className="h-4 w-4" />
-          </a>
+          </button>
         )}
       </div>
     </li>

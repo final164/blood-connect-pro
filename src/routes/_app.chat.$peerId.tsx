@@ -159,7 +159,7 @@ function Thread() {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [text]);
 
   function clearLongPress() {
@@ -371,13 +371,14 @@ function Thread() {
           >
             <textarea
               ref={textareaRef}
-              className="flex-1 resize-none rounded-2xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 max-h-24 leading-snug"
+              className="flex-1 resize-none rounded-2xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 max-h-40 leading-snug"
               rows={1}
               placeholder={t("typeMessage")}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                // Enter = new line (grows). Ctrl/Cmd+Enter = send.
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
                   send();
                 }

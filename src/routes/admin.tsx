@@ -86,6 +86,7 @@ import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import { LandingAdmin } from "@/components/admin/LandingAdmin";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
+import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
 import type { AdminModule } from "@/lib/admin-permissions";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
@@ -526,7 +527,9 @@ function RequestsAdmin() {
   async function load() {
     const { data } = await supabase
       .from("blood_requests")
-      .select("id, patient_name, blood_group, hospital_name, status, urgency, created_at, city")
+      .select(
+        "id, patient_name, blood_group, hospital_name, status, urgency, created_at, city, area, notes, contact_phone, need_reason_label",
+      )
       .order("created_at", { ascending: false })
       .limit(150);
     setRows(data ?? []);
@@ -565,9 +568,22 @@ function RequestsAdmin() {
             <p className="font-medium text-sm">
               <span className="text-rose-400 font-bold mr-2">{r.blood_group}</span>
               {r.patient_name}
+              {typeof r.notes === "string" && r.notes.includes("[Community") && (
+                <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300">
+                  Community
+                </span>
+              )}
             </p>
             <p className="text-xs text-slate-400 truncate">
-              {r.hospital_name} · {r.city} · {r.status} · {r.urgency}
+              {r.hospital_name} · {[r.area, r.city].filter(Boolean).join(", ")} · {r.status} · {r.urgency}
+            </p>
+            {(r.need_reason_label || r.contact_phone || r.notes) && (
+              <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">
+                {[r.need_reason_label, r.contact_phone, r.notes].filter(Boolean).join(" · ")}
+              </p>
+            )}
+            <p className="text-[10px] text-slate-600 mt-0.5">
+              {r.created_at ? new Date(r.created_at).toLocaleString() : ""}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -2512,6 +2528,7 @@ function SettingsAdmin() {
     | "form"
     | "profilelock"
     | "messaging"
+    | "drive"
     | "app"
   >("urgency");
   const [s, setS] = useState<any>({
@@ -2581,6 +2598,7 @@ function SettingsAdmin() {
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
     { id: "profilelock" as const, bn: "প্রোফাইল লক", en: "Profile lock" },
     { id: "messaging" as const, bn: "SMS ও আইকন", en: "SMS & icons" },
+    { id: "drive" as const, bn: "Google Drive", en: "Google Drive" },
     { id: "app" as const, bn: "অ্যাপ", en: "App" },
   ];
 
@@ -2613,6 +2631,7 @@ function SettingsAdmin() {
       {settingsTab === "menu" && <UserMenuAdmin />}
       {settingsTab === "profilelock" && <ProfileLockAdmin />}
       {settingsTab === "messaging" && <MessagingSettingsAdmin />}
+      {settingsTab === "drive" && <GoogleDriveAdmin />}
 
       {settingsTab === "form" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">

@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Lock,
   Pencil,
+  Link2,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import type { ProfileLockField, ProfileLockSettings } from "@/lib/profile-lock";
@@ -36,6 +37,9 @@ export function ProfileFacebookLayout({
   lockSettings,
   onLockToggle,
   onEdit,
+  onAvatarUpload,
+  onAvatarUrl,
+  avatarBusy,
   lockBusy,
   headerExtra,
 }: {
@@ -46,6 +50,9 @@ export function ProfileFacebookLayout({
   lockSettings?: ProfileLockSettings;
   onLockToggle?: () => void;
   onEdit?: () => void;
+  onAvatarUpload?: (file: File) => void;
+  onAvatarUrl?: (url: string) => void;
+  avatarBusy?: boolean;
   lockBusy?: boolean;
   headerExtra?: React.ReactNode;
 }) {
@@ -61,8 +68,51 @@ export function ProfileFacebookLayout({
       <div className="relative">
         <div className="h-36 sm:h-40 bg-gradient-to-br from-sky-400/40 via-primary/25 to-rose-300/30" />
         <div className="absolute -bottom-10 left-4">
-          <div className="ring-4 ring-background rounded-full shadow-lg">
+          <div className="relative ring-4 ring-background rounded-full shadow-lg">
             <Avatar name={profile.full_name} src={profile.avatar_url ?? undefined} size={88} />
+            {isOwnProfile && (onAvatarUpload || onAvatarUrl) && (
+              <div className="absolute bottom-0.5 right-0.5 flex flex-col gap-1">
+                {onAvatarUpload && (
+                  <label
+                    className={`h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-md grid place-items-center cursor-pointer ${
+                      avatarBusy ? "opacity-60 pointer-events-none" : "hover:brightness-110"
+                    }`}
+                    title={lang === "bn" ? "ছবি আপলোড" : "Upload photo"}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={avatarBusy}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f) onAvatarUpload(f);
+                      }}
+                    />
+                  </label>
+                )}
+                {onAvatarUrl && (
+                  <button
+                    type="button"
+                    disabled={avatarBusy}
+                    title={lang === "bn" ? "Drive/লিংক পেস্ট" : "Paste Drive/link"}
+                    className="h-8 w-8 rounded-full bg-foreground text-background shadow-md grid place-items-center disabled:opacity-60"
+                    onClick={() => {
+                      const v = window.prompt(
+                        lang === "bn"
+                          ? "Google Drive বা ইমেজ লিংক পেস্ট করুন"
+                          : "Paste Google Drive or image link",
+                      );
+                      if (v?.trim()) onAvatarUrl(v.trim());
+                    }}
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
