@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
+import { ChatUnreadProvider } from "@/lib/chat-unread-context";
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/api";
@@ -109,13 +110,15 @@ function AppLayout() {
 
   return (
     <NotificationsProvider>
-      <AppShell
-        t={t}
-        locationPath={location.pathname}
-        isAdmin={isAdmin}
-        online={online}
-        onboarding={onOnboarding}
-      />
+      <ChatUnreadProvider>
+        <AppShell
+          t={t}
+          locationPath={location.pathname}
+          isAdmin={isAdmin}
+          online={online}
+          onboarding={onOnboarding}
+        />
+      </ChatUnreadProvider>
     </NotificationsProvider>
   );
 }

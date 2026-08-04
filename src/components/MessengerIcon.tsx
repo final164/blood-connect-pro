@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
+import { useChatUnreadOptional } from "@/lib/chat-unread-context";
 
 /** Instagram / Messenger-style bubble + lightning */
 export function MessengerIcon({ className }: { className?: string }) {
@@ -21,16 +22,19 @@ export function MessengerIcon({ className }: { className?: string }) {
 
 /** Header chat control — outline Messenger icon + optional red unread badge */
 export function ChatHeaderButton({
-  badge = 0,
+  badge,
   className = "",
   size = "md",
 }: {
+  /** Override unread count; otherwise uses live chat unread context. */
   badge?: number;
   className?: string;
   size?: "md" | "lg";
 }) {
   const { t } = useI18n();
-  const showBadge = badge > 0;
+  const chatUnread = useChatUnreadOptional();
+  const count = badge ?? chatUnread?.unread ?? 0;
+  const showBadge = count > 0;
   const tap = size === "lg" ? "h-10 w-10" : "h-8 w-8";
   const icon = size === "lg" ? "h-5 w-5" : "h-[18px] w-[18px]";
 
@@ -38,13 +42,13 @@ export function ChatHeaderButton({
     <Link
       to="/chat"
       title={t("chat")}
-      aria-label={showBadge ? `${t("chat")} (${badge})` : t("chat")}
+      aria-label={showBadge ? `${t("chat")} (${count})` : t("chat")}
       className={`relative ${tap} rounded-xl text-foreground hover:bg-muted grid place-items-center transition ${className}`}
     >
       <MessengerIcon className={icon} />
       {showBadge && (
         <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-[#FF3040] text-white text-[9px] font-bold leading-none grid place-items-center ring-2 ring-background">
-          {badge > 9 ? "9+" : badge}
+          {count > 9 ? "9+" : count}
         </span>
       )}
     </Link>

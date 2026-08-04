@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
+import { useChatUnread } from "@/lib/chat-unread-context";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 
 type Convo = {
@@ -72,6 +73,7 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { byConversation } = useChatUnread();
   const [convos, setConvos] = useState<Convo[]>([]);
 
   function goBack() {
@@ -140,6 +142,7 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
         {convos.map((c) => {
           const peerId = c.peer?.id ?? "";
           const active = activePeerId === peerId;
+          const unreadCount = byConversation[c.id] ?? 0;
           return (
             <li key={c.id}>
               <Link
@@ -152,7 +155,11 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
                 <Avatar name={c.peer?.full_name} src={c.peer?.avatar_url ?? undefined} size={44} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="font-semibold text-sm truncate">{c.peer?.full_name ?? "User"}</p>
+                    <p
+                      className={`text-sm truncate ${unreadCount > 0 ? "font-bold" : "font-semibold"}`}
+                    >
+                      {c.peer?.full_name ?? "User"}
+                    </p>
                     {c.peer?.blood_group && (
                       <span className="text-[10px] font-semibold bg-primary/10 text-primary px-1.5 rounded">
                         {c.peer.blood_group}
@@ -163,9 +170,18 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
                     <ShieldCheck className="h-3 w-3" /> {t("encrypted")}
                   </p>
                 </div>
-                <span className="text-[10px] text-muted-foreground shrink-0">
-                  {timeAgo(c.last_message_at, lang)}
-                </span>
+                <div className="shrink-0 flex flex-col items-end gap-1">
+                  <span
+                    className={`text-[10px] ${unreadCount > 0 ? "text-primary font-semibold" : "text-muted-foreground"}`}
+                  >
+                    {timeAgo(c.last_message_at, lang)}
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#FF3040] text-white text-[10px] font-bold leading-none grid place-items-center">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </div>
               </Link>
             </li>
           );

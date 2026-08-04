@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { conversationSecret, encryptMessage, decryptMessage } from "@/lib/e2ee";
 import { ArrowLeft, Check, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { fetchProfileForViewer } from "@/lib/profile-lock";
+import { useChatUnread } from "@/lib/chat-unread-context";
 import { toast } from "sonner";
 
 const TYPING_IDLE_MS = 1800;
@@ -42,6 +43,7 @@ function Thread() {
   const { fromRequestId } = Route.useSearch();
   const { user } = useAuth();
   const { t, lang } = useI18n();
+  const { markConversationRead } = useChatUnread();
   const [peer, setPeer] = useState<any>(null);
   const [convId, setConvId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -207,6 +209,7 @@ function Thread() {
         })),
       );
       setMsgs(decrypted);
+      void markConversationRead(convId!);
       requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9 }));
     }
     load();
@@ -218,6 +221,7 @@ function Thread() {
         async (payload) => {
           const m = payload.new as Msg;
           if (m.sender_id === peerId) markPeerTyping(false);
+          if (m.recipient_id === user.id) void markConversationRead(convId!);
           const plaintext = m.is_encrypted && m.iv ? await decryptMessage(m.ciphertext, m.iv, secret) : m.ciphertext;
           setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, { ...m, plaintext }]));
           requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }));
@@ -252,7 +256,7 @@ function Thread() {
       channelRef.current = null;
       supabase.removeChannel(ch);
     };
-  }, [convId, user, peerId, markPeerTyping, stopTyping, clearPeerTypingHold]);
+  }, [convId, user, peerId, markPeerTyping, stopTyping, clearPeerTypingHold, markConversationRead]);
 
   useEffect(() => {
     const el = textareaRef.current;
