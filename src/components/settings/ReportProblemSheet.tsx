@@ -87,7 +87,7 @@ export function ReportProblemSheet({
         aria-label="Close"
         onClick={onClose}
       />
-      <div className="fixed inset-x-0 top-0 z-10 mx-auto w-full sm:max-w-lg max-h-[92dvh] flex flex-col overflow-hidden rounded-b-2xl border border-t-0 bg-background shadow-xl animate-top-sheet-down safe-top">
+      <div className="fixed inset-x-0 top-0 z-10 mx-auto w-full sm:max-w-lg md:max-w-2xl max-h-[92dvh] flex flex-col overflow-hidden rounded-b-2xl border border-t-0 bg-background shadow-xl animate-top-sheet-down safe-top">
         <div className="flex items-center justify-between gap-2 border-b px-4 py-3 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Flag className="h-4 w-4 text-primary shrink-0" />

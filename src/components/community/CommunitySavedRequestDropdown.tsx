@@ -8,7 +8,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
-import { createCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
+import { ensureCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
 import {
   NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
@@ -248,11 +248,10 @@ function CommunityRequestDraftSheet({
       upazila: upazila.trim(),
       contact_phone: form.contact_phone.trim(),
       whatsapp_phone: form.whatsapp_phone.trim(),
+      feed_request_id: draft?.feed_request_id ?? null,
       district,
       hospital,
     };
-
-    const saved = saveCommunityRequestDraft(user.id, draftInput);
 
     if (postOnSave) {
       const hospitalName = hospital
@@ -275,7 +274,7 @@ function CommunityRequestDraftSheet({
             : new Date().toISOString();
 
       setBusy(true);
-      const { error } = await createCommunityBloodRequest({
+      const { id, created, error } = await ensureCommunityBloodRequest({
         userId: user.id,
         patient_name: form.patient_name.trim() || (lang === "bn" ? "রোগী" : "Patient"),
         blood_group: form.blood_group,
@@ -296,10 +295,12 @@ function CommunityRequestDraftSheet({
         contact_phone: form.contact_phone.trim() || null,
         whatsapp_phone: form.whatsapp_phone.trim() || null,
         channel: "saved",
+        existingRequestId: draft?.feed_request_id,
       });
       setBusy(false);
 
       if (error) {
+        const saved = saveCommunityRequestDraft(user.id, draftInput);
         toast.error(
           lang === "bn"
             ? `ড্রাফট সেভ হয়েছে, কিন্তু পোস্ট ব্যর্থ: ${error.message}`
@@ -309,15 +310,24 @@ function CommunityRequestDraftSheet({
         return;
       }
 
+      const saved = saveCommunityRequestDraft(user.id, {
+        ...draftInput,
+        feed_request_id: id || draft?.feed_request_id || null,
+      });
       toast.success(
-        lang === "bn"
-          ? "সেভ হয়েছে এবং ফিডে পোস্ট হয়েছে"
-          : "Saved and posted to the feed",
+        created
+          ? lang === "bn"
+            ? "সেভ হয়েছে এবং ফিডে পোস্ট হয়েছে"
+            : "Saved and posted to the feed"
+          : lang === "bn"
+            ? "ড্রাফট আপডেট হয়েছে — আগের পোস্টই আছে (ডুপ্লিকেট নয়)"
+            : "Draft updated — same feed post kept (no duplicate)",
       );
       onSaved(saved);
       return;
     }
 
+    const saved = saveCommunityRequestDraft(user.id, draftInput);
     toast.success(
       lang === "bn"
         ? "রিকোয়েস্ট সেভ হয়েছে — আইকনে ক্লিক করলে অটোফিল হবে"
@@ -343,7 +353,7 @@ function CommunityRequestDraftSheet({
         aria-label="Close"
         onClick={onClose}
       />
-      <div className="fixed inset-x-0 top-0 z-10 mx-auto w-full sm:max-w-lg max-h-[92dvh] flex flex-col overflow-hidden rounded-b-2xl border border-t-0 bg-background shadow-xl animate-top-sheet-down safe-top">
+      <div className="fixed inset-x-0 top-0 z-10 mx-auto w-full sm:max-w-lg md:max-w-2xl max-h-[92dvh] flex flex-col overflow-hidden rounded-b-2xl border border-t-0 bg-background shadow-xl animate-top-sheet-down safe-top">
         <div className="flex items-center justify-between gap-2 border-b bg-background px-4 py-3 shrink-0">
           <div className="min-w-0">
             <h2 className="text-sm font-bold truncate">

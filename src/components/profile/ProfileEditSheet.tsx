@@ -44,7 +44,7 @@ export function ProfileEditSheet({
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center">
       <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close" />
-      <div className="relative bg-background rounded-t-2xl sm:rounded-2xl sm:mx-auto sm:max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl safe-bottom">
+      <div className="relative bg-background rounded-t-2xl sm:rounded-2xl sm:mx-auto sm:max-w-lg md:max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl safe-bottom">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 backdrop-blur px-4 py-3">
           <h3 className="font-bold">{lang === "bn" ? "প্রোফাইল সম্পাদনা" : "Edit profile"}</h3>
           <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-muted">
@@ -140,8 +140,29 @@ export function ProfileEditSheet({
           <ProfileToggle
             label={lang === "bn" ? "দানের জন্য উপলব্ধ" : "Available to donate"}
             checked={!!profile.is_available}
-            onChange={(v) => setProfile({ ...profile, is_available: v })}
+            onChange={(v) => {
+              if (
+                !v &&
+                profile.unavailable_until &&
+                new Date(String(profile.unavailable_until)).getTime() > Date.now()
+              ) {
+                // keep cooldown fields when manually turning off
+              }
+              if (v) {
+                setProfile({ ...profile, is_available: true, unavailable_until: null });
+              } else {
+                setProfile({ ...profile, is_available: false });
+              }
+            }}
           />
+          {!!profile.unavailable_until &&
+            new Date(String(profile.unavailable_until)).getTime() > Date.now() && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 -mt-1">
+                {lang === "bn"
+                  ? `৩ মাসের cooldown — ${new Date(String(profile.unavailable_until)).toLocaleDateString("bn-BD")} পর আবার available হবে`
+                  : `3-month cooldown — available again after ${new Date(String(profile.unavailable_until)).toLocaleDateString()}`}
+              </p>
+            )}
           <button
             type="button"
             onClick={onSave}

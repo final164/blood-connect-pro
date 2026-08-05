@@ -49,6 +49,7 @@ import { DonationPanel } from "@/components/request/DonationPanel";
 import { CommentsSheet } from "@/components/request/CommentsSheet";
 import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
 import { toggleSave } from "@/lib/request-saves";
+import { stripCommunityMetaFromNotes } from "@/lib/community-request-contacts";
 import { toast } from "sonner";
 
 export type FeedRequest = {
@@ -138,6 +139,7 @@ export function RequestCard({
   const hospitalName = r.hospital_name?.trim() || "";
   const placeParts = [hospitalName, upazilaName, distName || r.city].filter(Boolean);
   const mapsQuery = placeParts.join(", ");
+  const locationLabel = placeParts.join(" · ");
   const mapsHref = mapsQuery
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
     : null;
@@ -208,7 +210,8 @@ export function RequestCard({
   }
 
   async function share() {
-    const link = typeof window !== "undefined" ? window.location.origin : "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = origin ? `${origin}/home?requestId=${encodeURIComponent(r.id)}` : "";
     const tpl = lang === "bn" ? messaging.share_sms_bn : messaging.share_sms_en;
     const text = applySmsTemplate(tpl, {
       blood_group: r.blood_group,
@@ -221,27 +224,51 @@ export function RequestCard({
       urgency: r.urgency,
       contact: phone,
       notes: r.notes,
-      link,
+      link: url,
     });
-    const url = link;
+    const payload = text.includes(url) || !url ? text : `${text}\n${url}`.trim();
+
     if (user && r.requester_id !== user.id) {
-      await supabase
+      void supabase
         .from("request_shares")
         .upsert(
           { request_id: r.id, user_id: user.id },
           { onConflict: "request_id,user_id", ignoreDuplicates: true },
-        );
+        )
+        .then(({ error }) => {
+          if (!error) onChanged?.();
+        });
     }
+
     try {
-      if (navigator.share) await navigator.share({ title: "BloodLink", text, url });
-      else {
-        await navigator.clipboard.writeText(url ? `${text}\n${url}` : text);
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        try {
+          // Text-only avoids ShareData validation errors on some browsers when URL is also in text
+          await navigator.share({ title: "BloodLink", text: payload });
+          return;
+        } catch (err) {
+          if ((err as Error)?.name === "AbortError") return;
+          // Fall through to clipboard / WhatsApp
+        }
+      }
+
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(payload);
         toast.success(
           lang === "bn" ? "শেয়ার টেক্সট কপি হয়েছে" : "Share text copied",
         );
+        return;
       }
+
+      const wa = `https://wa.me/?text=${encodeURIComponent(payload)}`;
+      window.open(wa, "_blank", "noopener,noreferrer");
     } catch {
-      /* cancelled */
+      try {
+        const wa = `https://wa.me/?text=${encodeURIComponent(payload)}`;
+        window.open(wa, "_blank", "noopener,noreferrer");
+      } catch {
+        toast.error(lang === "bn" ? "শেয়ার করা যায়নি" : "Could not share");
+      }
     }
   }
 
@@ -421,11 +448,15 @@ export function RequestCard({
           </p>
         </div>
 
-        {r.notes && (
-          <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">
-            {r.notes}
-          </p>
-        )}
+        {(() => {
+          const cleanNotes = stripCommunityMetaFromNotes(r.notes);
+          if (!cleanNotes) return null;
+          return (
+            <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">
+              {cleanNotes}
+            </p>
+          );
+        })()}
 
         <DonationPanel
           requestId={r.id}
@@ -517,7 +548,7 @@ export function RequestCard({
           {messaging.post_icons.share && (
             <button
               type="button"
-              onClick={share}
+              onClick={() => void share()}
               className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
             >
               <Share2 className="h-4 w-4 shrink-0" />

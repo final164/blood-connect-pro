@@ -39,6 +39,7 @@ import {
   saveCommunityRequestDraft,
   type CommunityRequestDraft,
 } from "@/lib/community-request-draft";
+import { logCommunityContact } from "@/lib/community-request-contacts";
 import { toast } from "sonner";
 
 export type CommunityContactChannel = "call" | "sms" | "whatsapp";
@@ -52,7 +53,9 @@ function channelLabel(ch: CommunityContactChannel, lang: "bn" | "en") {
   return "WhatsApp";
 }
 
-/** Create a feed/admin-visible blood request from community contact flow. */
+/** Create a feed/admin-visible blood request from community contact flow.
+ *  Donor contact meta is NOT written into notes — logged in community_request_contacts.
+ */
 export async function createCommunityBloodRequest(params: {
   userId: string;
   patient_name: string;
@@ -75,16 +78,7 @@ export async function createCommunityBloodRequest(params: {
   channel?: CommunityContactChannel | "saved";
   org_id?: string | null;
 }): Promise<{ id: string | null; error: Error | null }> {
-  const channel = params.channel ?? "saved";
-  let notes = params.notes?.trim() || "";
-  if (channel === "saved") {
-    const metaNote = "[Community → saved]";
-    notes = [notes, metaNote].filter(Boolean).join("\n");
-  } else if (params.donorName) {
-    const channelTag = channel === "call" ? "call" : channel === "sms" ? "sms" : "whatsapp";
-    const metaNote = `[Community → ${channelTag}] ${params.donorName} · ${params.donorPhone ?? ""}`;
-    notes = [notes, metaNote].filter(Boolean).join("\n");
-  }
+  const notes = params.notes?.trim() || null;
 
   const payload: Record<string, unknown> = {
     patient_name: params.patient_name,
@@ -101,6 +95,7 @@ export async function createCommunityBloodRequest(params: {
     need_reason_key: params.need_reason_key,
     need_reason_label: params.need_reason_label,
     contact_phone: params.contact_phone,
+    from_community: true,
   };
   if (params.whatsapp_phone?.trim()) payload.whatsapp_phone = params.whatsapp_phone.trim();
   if (params.hospital_id) payload.hospital_id = params.hospital_id;
@@ -111,6 +106,10 @@ export async function createCommunityBloodRequest(params: {
   }
 
   let { data, error } = await tryInsert(payload);
+  if (error && /from_community/i.test(error.message)) {
+    delete payload.from_community;
+    ({ data, error } = await tryInsert(payload));
+  }
   if (error && /need_reason_/i.test(error.message)) {
     delete payload.need_reason_key;
     delete payload.need_reason_label;
@@ -130,6 +129,63 @@ export async function createCommunityBloodRequest(params: {
   }
   if (error) return { id: null, error: new Error(error.message) };
   return { id: (data as { id?: string } | null)?.id ?? null, error: null };
+}
+
+/**
+ * Create a feed post once per saved draft. If `existingRequestId` still exists, reuse it
+ * so phone/WhatsApp/SMS to more donors does not spam the feed.
+ */
+export async function ensureCommunityBloodRequest(
+  params: Parameters<typeof createCommunityBloodRequest>[0] & {
+    existingRequestId?: string | null;
+  },
+): Promise<{ id: string | null; created: boolean; error: Error | null }> {
+  const existingId = params.existingRequestId?.trim() || null;
+  if (existingId) {
+    const { data } = await supabase
+      .from("blood_requests")
+      .select("id")
+      .eq("id", existingId)
+      .maybeSingle();
+    if (data?.id) return { id: data.id, created: false, error: null };
+  }
+  const { id, error } = await createCommunityBloodRequest(params);
+  return { id, created: Boolean(id), error };
+}
+
+/** SMS / WhatsApp body from a saved community draft + feed request link. */
+export function buildCommunityDraftMessageBody(opts: {
+  draft: CommunityRequestDraft;
+  template: string;
+  lang: "bn" | "en";
+  requestId: string | null;
+}): string {
+  const { draft, template, lang, requestId } = opts;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const link = requestId ? `${origin}/home?requestId=${requestId}` : origin;
+  const distName = draft.district
+    ? lang === "bn"
+      ? draft.district.name_bn
+      : draft.district.name_en
+    : "";
+  const hospitalName = draft.hospital
+    ? lang === "bn"
+      ? draft.hospital.name_bn
+      : draft.hospital.name_en
+    : "";
+  return applySmsTemplate(template, {
+    blood_group: draft.blood_group,
+    patient_name: draft.patient_name.trim(),
+    hospital: hospitalName,
+    upazila: draft.upazila.trim(),
+    district: distName,
+    bags: draft.bags_needed,
+    urgency: draft.urgency,
+    notes: draft.notes.trim(),
+    reason: draft.customReason.trim() || draft.reasonKey,
+    link,
+    location: [hospitalName, draft.upazila.trim(), distName].filter(Boolean).join(" · "),
+  });
 }
 
 export function openCommunityContactChannel(
@@ -326,7 +382,8 @@ export function CommunityContactGateSheet({
         : customReason.trim();
 
     setBusy(true);
-    const { id, error } = await createCommunityBloodRequest({
+    const prev = user.id ? loadCommunityRequestDraft(user.id) : null;
+    const { id, created, error } = await ensureCommunityBloodRequest({
       userId: user.id,
       patient_name: form.patient_name.trim() || (lang === "bn" ? "রোগী" : "Patient"),
       blood_group: form.blood_group,
@@ -344,22 +401,31 @@ export function CommunityContactGateSheet({
       notes: form.notes.trim() || null,
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
-      contact_phone:
-        (user.id ? loadCommunityRequestDraft(user.id)?.contact_phone?.trim() : "") ||
-        myPhone,
-      whatsapp_phone:
-        (user.id ? loadCommunityRequestDraft(user.id)?.whatsapp_phone?.trim() : "") || null,
+      contact_phone: prev?.contact_phone?.trim() || myPhone,
+      whatsapp_phone: prev?.whatsapp_phone?.trim() || null,
       donorName: donor.full_name,
       donorPhone: donor.phone,
       channel,
       org_id: donor.org_id || null,
+      existingRequestId: prev?.feed_request_id,
     });
     setBusy(false);
 
     if (error) return toast.error(error.message);
 
+    if (id && channel !== "saved") {
+      void logCommunityContact({
+        requestId: id,
+        contactedBy: user.id,
+        channel,
+        donorName: donor.full_name,
+        donorPhone: donor.phone,
+        communityDonorId: donor.id,
+        orgId: donor.org_id || null,
+      });
+    }
+
     if (user.id) {
-      const prev = loadCommunityRequestDraft(user.id);
       const draft = saveCommunityRequestDraft(user.id, {
         patient_name: form.patient_name.trim(),
         blood_group: form.blood_group,
@@ -373,6 +439,7 @@ export function CommunityContactGateSheet({
         upazila: upazila.trim(),
         contact_phone: prev?.contact_phone?.trim() || myPhone || "",
         whatsapp_phone: prev?.whatsapp_phone?.trim() || "",
+        feed_request_id: id || prev?.feed_request_id || null,
         district,
         hospital,
       });
@@ -380,9 +447,13 @@ export function CommunityContactGateSheet({
     }
 
     toast.success(
-      lang === "bn"
-        ? "রিকোয়েস্ট তৈরি হয়েছে — এখন যোগাযোগ খুলছে"
-        : "Request created — opening contact",
+      created
+        ? lang === "bn"
+          ? "রিকোয়েস্ট তৈরি হয়েছে — এখন যোগাযোগ খুলছে"
+          : "Request created — opening contact"
+        : lang === "bn"
+          ? "একই রিকোয়েস্ট দিয়ে যোগাযোগ খুলছে"
+          : "Opening contact with the same request",
     );
 
     const body = buildBody(id);
@@ -394,7 +465,7 @@ export function CommunityContactGateSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 p-0 sm:p-4">
-      <div className="w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border bg-background shadow-xl">
+      <div className="w-full sm:max-w-lg md:max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border bg-background shadow-xl">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
           <div className="min-w-0">
             <h2 className="text-sm font-bold truncate">

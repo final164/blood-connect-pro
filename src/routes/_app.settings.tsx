@@ -106,7 +106,7 @@ function SettingsPage() {
   if (!s) return <div className="p-6 text-sm text-muted-foreground">{t("loading")}</div>;
 
   return (
-    <div className="w-full md:max-w-2xl">
+    <div className="w-full">
       <AutoHideHeader className="z-30 glass border-b safe-top">
         <div className="px-4 py-3">
           <h1 className="text-base font-bold">{t("settings")}</h1>

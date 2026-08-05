@@ -15,6 +15,7 @@ import { Settings as SettingsIcon, Shield } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { restoreExpiredDonorAvailability } from "@/lib/community-request-contacts";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -40,24 +41,26 @@ function ProfilePage() {
     if (!user) return;
     fetchProfileLockSettings().then(setLockSettings);
     fetchGoogleDriveSettings().then(setDriveCfg);
-    supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(async ({ data }) => {
-        setProfile(data ?? {});
-        setUpazila((data?.area as string) ?? "");
-        setAge(ageFromDateOfBirth(data?.date_of_birth as string));
-        if (data?.district_id) {
-          const { data: d } = await supabase
-            .from("districts")
-            .select("id,name_bn,name_en,slug,is_active,sort_order")
-            .eq("id", data.district_id)
-            .maybeSingle();
-          if (d) setDistrict(d as District);
-        }
-      });
+    void restoreExpiredDonorAvailability().finally(() => {
+      void supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(async ({ data }) => {
+          setProfile(data ?? {});
+          setUpazila((data?.area as string) ?? "");
+          setAge(ageFromDateOfBirth(data?.date_of_birth as string));
+          if (data?.district_id) {
+            const { data: d } = await supabase
+              .from("districts")
+              .select("id,name_bn,name_en,slug,is_active,sort_order")
+              .eq("id", data.district_id)
+              .maybeSingle();
+            if (d) setDistrict(d as District);
+          }
+        });
+    });
   }, [user]);
 
   async function toggleLock() {
@@ -169,6 +172,7 @@ function ProfilePage() {
         area: upazila.trim() || null,
         date_of_birth: ageNum != null ? dateOfBirthFromAge(ageNum) : null,
         is_available: !!profile.is_available,
+        unavailable_until: profile.is_available ? null : profile.unavailable_until || null,
         last_donation_date: profile.last_donation_date || null,
       })
       .eq("id", user.id);
@@ -220,7 +224,7 @@ function ProfilePage() {
         </div>
       </AutoHideHeader>
 
-      <div className="md:max-w-lg md:mx-auto">
+      <div className="w-full">
         <ProfileFacebookLayout
           profile={{
             full_name: profile.full_name as string,

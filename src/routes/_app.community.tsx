@@ -5,13 +5,17 @@ import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { CommunitySendSmsSheet } from "@/components/community/CommunitySendSmsSheet";
 import {
   CommunityContactGateSheet,
+  buildCommunityDraftMessageBody,
+  openCommunityContactChannel,
   type CommunityContactChannel,
 } from "@/components/community/CommunityContactGateSheet";
 import { CommunitySavedRequestDropdown } from "@/components/community/CommunitySavedRequestDropdown";
 import {
+  communityRequestDraftFilled,
   loadCommunityRequestDraft,
   type CommunityRequestDraft,
 } from "@/lib/community-request-draft";
+import { logCommunityContact } from "@/lib/community-request-contacts";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { fetchCommunityDonors, type CommunityDonorRow } from "@/lib/community-donor-import";
@@ -88,6 +92,39 @@ function CommunityPage() {
     staleTime: 120_000,
   });
   const msgSettings = msgQuery.data ?? DEFAULT_MESSAGING_SETTINGS;
+
+  const contactDonor = useCallback(
+    (donor: CommunityDonorRow, channel: CommunityContactChannel) => {
+      const draft = savedDraft ?? (user?.id ? loadCommunityRequestDraft(user.id) : null);
+      if (
+        draft &&
+        communityRequestDraftFilled(draft) &&
+        draft.feed_request_id &&
+        user?.id
+      ) {
+        const tpl = lang === "bn" ? msgSettings.community_sms_bn : msgSettings.community_sms_en;
+        const body = buildCommunityDraftMessageBody({
+          draft,
+          template: tpl,
+          lang,
+          requestId: draft.feed_request_id,
+        });
+        void logCommunityContact({
+          requestId: draft.feed_request_id,
+          contactedBy: user.id,
+          channel,
+          donorName: donor.full_name,
+          donorPhone: donor.phone,
+          communityDonorId: donor.id,
+          orgId: donor.org_id || null,
+        });
+        openCommunityContactChannel(channel, donor.phone, body);
+        return;
+      }
+      setContactGate({ donor, channel });
+    },
+    [savedDraft, user?.id, lang, msgSettings.community_sms_bn, msgSettings.community_sms_en],
+  );
 
   const genderQuery = useQuery({
     queryKey: ["viewer-gender", user?.id],
@@ -293,7 +330,7 @@ function CommunityPage() {
             donor={d}
             lang={lang}
             viewerGender={viewerGender}
-            onContact={(channel) => setContactGate({ donor: d, channel })}
+            onContact={(channel) => contactDonor(d, channel)}
           />
         ))}
       </ul>

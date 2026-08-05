@@ -127,6 +127,37 @@
     -webkit-backdrop-filter: saturate(160%) blur(14px);
     background-color: color-mix(in oklch, var(--color-background) 78%, transparent);
   }
+  /* Phone column on mobile; tablet-like readable column on md+ / desktop */
+  .app-shell {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 32rem; /* ~phone / max-w-lg */
+  }
+  @media (min-width: 768px) {
+    .app-shell {
+      max-width: 42rem; /* ~tablet portrait / max-w-2xl */
+    }
+  }
+  @media (min-width: 1024px) {
+    .app-shell {
+      max-width: 48rem; /* comfortable desktop tablet-width / max-w-3xl */
+    }
+  }
+  .app-shell-wide {
+    width: 100%;
+    margin-inline: auto;
+    max-width: 32rem;
+  }
+  @media (min-width: 768px) {
+    .app-shell-wide {
+      max-width: 48rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .app-shell-wide {
+      max-width: 56rem; /* max-w-4xl — chat / map areas */
+    }
+  }
   @keyframes blood-droplet-bounce {
     0%, 100% { transform: translateY(0) scale(1); opacity: 1; }
     50% { transform: translateY(-7px) scale(1.08); opacity: 0.92; }

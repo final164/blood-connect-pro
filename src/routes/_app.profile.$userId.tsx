@@ -106,7 +106,7 @@ function PublicProfilePage() {
         </div>
       </AutoHideHeader>
 
-      <div className="md:max-w-lg md:mx-auto">
+      <div className="w-full">
         <ProfileFacebookLayout
           profile={{
             full_name: profile.full_name as string,

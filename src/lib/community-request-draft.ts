@@ -16,6 +16,8 @@ export type CommunityRequestDraft = {
   upazila: string;
   contact_phone: string;
   whatsapp_phone: string;
+  /** Feed post id once created — reuse so contacting more donors does not duplicate posts. */
+  feed_request_id: string | null;
   district: District | null;
   hospital: Hospital | null;
   updatedAt: number;
@@ -70,6 +72,10 @@ function parseDraft(raw: unknown): CommunityRequestDraft | null {
     upazila: o.upazila,
     contact_phone: typeof o.contact_phone === "string" ? o.contact_phone : "",
     whatsapp_phone: typeof o.whatsapp_phone === "string" ? o.whatsapp_phone : "",
+    feed_request_id:
+      typeof o.feed_request_id === "string" && o.feed_request_id.trim()
+        ? o.feed_request_id.trim()
+        : null,
     district,
     hospital,
     updatedAt: o.updatedAt,
@@ -95,6 +101,7 @@ export function saveCommunityRequestDraft(
     version: 1,
     ...input,
     bags_needed: Math.max(1, input.bags_needed),
+    feed_request_id: input.feed_request_id?.trim() || null,
     updatedAt: Date.now(),
   };
   if (typeof window !== "undefined") {

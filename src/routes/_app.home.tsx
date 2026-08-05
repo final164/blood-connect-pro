@@ -70,6 +70,9 @@ function FeedPage() {
   const [bannerSlides, setBannerSlides] = useState<FeedBannerSlide[]>([]);
   const rtTimer = useRef<number | null>(null);
   const hydratedKey = useRef<string | null>(null);
+  const scrolledToHighlight = useRef<string | null>(null);
+  const fetchingMoreRef = useRef(false);
+  const pendingRtRefresh = useRef(false);
 
   const qKey = queryKeys.feed(filter, district?.id, user?.id);
   const idbKey = feedIdbKey(district?.id, filter);
@@ -187,7 +190,10 @@ function FeedPage() {
 
   const loadMoreSafe = useCallback(() => {
     if (!hasMore || isFetchingNextPage || isPending) return;
-    void fetchNextPage();
+    fetchingMoreRef.current = true;
+    void fetchNextPage().finally(() => {
+      fetchingMoreRef.current = false;
+    });
   }, [hasMore, isFetchingNextPage, isPending, fetchNextPage]);
 
   const sentinelRef = useInfiniteScroll(loadMoreSafe, {
@@ -198,11 +204,26 @@ function FeedPage() {
   // Default: all posts via personalized ranking (no hard filter).
   // District / blood chips only apply when the user sets them manually.
   useEffect(() => {
+    const runReload = () => {
+      void queryClient.invalidateQueries({ queryKey: ["feed"] });
+    };
     const scheduleReload = () => {
+      // Don't yank scroll position while loading more pages, or while user is deep in the feed.
+      const scrolledDown =
+        typeof window !== "undefined" && window.scrollY > 280;
+      if (fetchingMoreRef.current || isFetchingNextPage || scrolledDown) {
+        pendingRtRefresh.current = true;
+        return;
+      }
       if (rtTimer.current) window.clearTimeout(rtTimer.current);
-      rtTimer.current = window.setTimeout(() => {
-        void queryClient.invalidateQueries({ queryKey: ["feed"] });
-      }, 800);
+      rtTimer.current = window.setTimeout(runReload, 800);
+    };
+    const onScrollIdleRefresh = () => {
+      if (!pendingRtRefresh.current) return;
+      if (typeof window !== "undefined" && window.scrollY > 120) return;
+      if (fetchingMoreRef.current || isFetchingNextPage) return;
+      pendingRtRefresh.current = false;
+      runReload();
     };
     const ch = supabase
       .channel("feed-requests")
@@ -210,11 +231,13 @@ function FeedPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "request_likes" }, scheduleReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "request_comments" }, scheduleReload)
       .subscribe();
+    window.addEventListener("scroll", onScrollIdleRefresh, { passive: true });
     return () => {
       if (rtTimer.current) window.clearTimeout(rtTimer.current);
+      window.removeEventListener("scroll", onScrollIdleRefresh);
       supabase.removeChannel(ch);
     };
-  }, [queryClient]);
+  }, [queryClient, isFetchingNextPage]);
 
   useEffect(() => {
     if (isError && items.length === 0) {
@@ -222,30 +245,55 @@ function FeedPage() {
     }
   }, [isError, feedError, items.length]);
 
+  // Scroll to a deep-linked post once — never again on every load-more (items.length).
   useEffect(() => {
-    let targetId = requestId;
+    let targetId = requestId ?? undefined;
+    let fromSession = false;
     if (!targetId) {
       try {
-        targetId = sessionStorage.getItem("feedReturnRequestId") ?? undefined;
-        if (targetId) sessionStorage.removeItem("feedReturnRequestId");
+        const stored = sessionStorage.getItem("feedReturnRequestId");
+        if (stored) {
+          targetId = stored;
+          fromSession = true;
+        }
       } catch {
         targetId = undefined;
       }
     }
     if (!targetId) return;
+    if (scrolledToHighlight.current === targetId) return;
+
+    const el = document.getElementById(`request-${targetId}`);
+    if (!el) return; // wait until the post is in the loaded pages
+
+    scrolledToHighlight.current = targetId;
+    if (fromSession) {
+      try {
+        sessionStorage.removeItem("feedReturnRequestId");
+      } catch {
+        /* ignore */
+      }
+    }
+
     setHighlightId(targetId);
-    const id = targetId;
-    const scroll = () => {
-      const el = document.getElementById(`request-${id}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    };
-    const t1 = window.setTimeout(scroll, 300);
-    const t2 = window.setTimeout(() => setHighlightId(null), 4000);
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const tHighlight = window.setTimeout(() => setHighlightId(null), 4000);
+
+    if (requestId) {
+      void navigate({
+        to: "/home",
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          requestId: undefined,
+        }),
+        replace: true,
+      });
+    }
+
     return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
+      window.clearTimeout(tHighlight);
     };
-  }, [requestId, items.length]);
+  }, [requestId, items, navigate]);
 
   return (
     <div className="w-full">

@@ -341,11 +341,11 @@ function AppShell({
           }`}
         >
           {isChatSection ? (
-            <div className="flex-1 flex flex-col min-h-0 md:px-4 md:py-4 lg:px-6">
+            <div className="flex-1 flex flex-col min-h-0 app-shell-wide md:px-4 md:py-4 lg:px-6">
               <Outlet />
             </div>
           ) : (
-            <div className="w-full max-w-lg mx-auto">
+            <div className="app-shell">
               <Outlet />
             </div>
           )}
@@ -354,7 +354,7 @@ function AppShell({
         {/* Mobile: bottom nav */}
         {!isChatThread && (
           <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-xl safe-bottom">
-            <div className="mx-auto max-w-lg grid grid-cols-5 px-0.5 pt-1">
+            <div className="app-shell grid grid-cols-5 px-0.5 pt-1">
               {tabs.map((tab) => renderTab(tab, "bottom"))}
             </div>
           </nav>

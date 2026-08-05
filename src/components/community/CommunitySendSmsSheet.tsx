@@ -21,7 +21,7 @@ import {
   fetchMessagingSettings,
   type MessagingSettings,
 } from "@/lib/messaging-settings";
-import { createCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
+import { ensureCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
 import {
   NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
@@ -43,6 +43,7 @@ import {
   saveCommunityRequestDraft,
   type CommunityRequestDraft,
 } from "@/lib/community-request-draft";
+import { logCommunityContactsBulk } from "@/lib/community-request-contacts";
 import { toast } from "sonner";
 
 function orgSettings(d: CommunityDonorRow): DonorContactSettings {
@@ -286,7 +287,8 @@ export function CommunitySendSmsSheet({
 
     setBusy(true);
     const donorSummary = picks.map((d) => `${d.full_name} (${d.phone})`).join(", ");
-    const { id, error } = await createCommunityBloodRequest({
+    const prev = loadCommunityRequestDraft(user.id);
+    const { id, created, error } = await ensureCommunityBloodRequest({
       userId: user.id,
       patient_name: form.patient_name.trim() || (lang === "bn" ? "রোগী" : "Patient"),
       blood_group: form.blood_group,
@@ -304,20 +306,30 @@ export function CommunitySendSmsSheet({
       notes: form.notes.trim() || null,
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
-      contact_phone:
-        (user.id ? loadCommunityRequestDraft(user.id)?.contact_phone?.trim() : "") || myPhone,
-      whatsapp_phone:
-        (user.id ? loadCommunityRequestDraft(user.id)?.whatsapp_phone?.trim() : "") || null,
+      contact_phone: prev?.contact_phone?.trim() || myPhone,
+      whatsapp_phone: prev?.whatsapp_phone?.trim() || null,
       donorName: donorSummary.slice(0, 180),
       donorPhone: picks[0]?.phone ?? "",
       channel: "sms",
-      org_id: picks.every((d) => d.org_id === picks[0]?.org_id) ? picks[0]?.org_id ?? null : null,
+      org_id: picks.every((d) => d.org_id === picks[0]?.org_id) ? (picks[0]?.org_id ?? null) : null,
+      existingRequestId: prev?.feed_request_id,
     });
     setBusy(false);
 
     if (error) return toast.error(error.message);
 
-    const prev = loadCommunityRequestDraft(user.id);
+    if (id) {
+      void logCommunityContactsBulk(
+        {
+          requestId: id,
+          contactedBy: user.id,
+          channel: "sms",
+          orgId: picks.every((d) => d.org_id === picks[0]?.org_id) ? picks[0]?.org_id ?? null : null,
+        },
+        picks,
+      );
+    }
+
     const draft = saveCommunityRequestDraft(user.id, {
       patient_name: form.patient_name.trim(),
       blood_group: form.blood_group,
@@ -331,6 +343,7 @@ export function CommunitySendSmsSheet({
       upazila: upazila.trim(),
       contact_phone: prev?.contact_phone?.trim() || myPhone || "",
       whatsapp_phone: prev?.whatsapp_phone?.trim() || "",
+      feed_request_id: id || prev?.feed_request_id || null,
       district,
       hospital,
     });
@@ -342,9 +355,13 @@ export function CommunitySendSmsSheet({
     );
     if (!href) return toast.error(lang === "bn" ? "ফোন নম্বর নেই" : "No phone numbers");
     toast.success(
-      lang === "bn"
-        ? "রিকোয়েস্ট সেভ হয়েছে — SMS খুলছে"
-        : "Request saved — opening SMS",
+      created
+        ? lang === "bn"
+          ? "রিকোয়েস্ট সেভ হয়েছে — SMS খুলছে"
+          : "Request saved — opening SMS"
+        : lang === "bn"
+          ? "একই রিকোয়েস্ট দিয়ে SMS খুলছে"
+          : "Opening SMS with the same request",
     );
     window.location.href = href;
     onClose();
@@ -391,7 +408,7 @@ export function CommunitySendSmsSheet({
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center">
       <button type="button" className="absolute inset-0 bg-black/50" aria-label="Close" onClick={onClose} />
-      <div className="relative z-10 w-full sm:max-w-lg max-h-[92vh] overflow-auto rounded-t-2xl sm:rounded-2xl border bg-card shadow-xl">
+      <div className="relative z-10 w-full sm:max-w-lg md:max-w-2xl max-h-[92vh] overflow-auto rounded-t-2xl sm:rounded-2xl border bg-card shadow-xl">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-card/95 px-4 py-3 backdrop-blur">
           <div className="flex items-center gap-2 min-w-0">
             <MessageSquare className="h-4 w-4 text-primary shrink-0" />

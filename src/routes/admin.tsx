@@ -68,8 +68,18 @@ import {
   Moon,
   Sun,
   Flag,
+  Database,
+  FileCode2,
+  ChartPie,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  exportRequestsCsv,
+  exportRequestsExcel,
+  exportRequestsSummaryExcel,
+  exportRequestsSql,
+  loadRequestsExportBundle,
+} from "@/lib/request-export";
 import { isAdminIdentity } from "@/lib/phone-auth";
 import { AdminAccessProvider, useAdminAccess } from "@/lib/admin-access-context";
 import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
@@ -88,6 +98,7 @@ import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import { LandingAdmin } from "@/components/admin/LandingAdmin";
 import { SeoAdmin } from "@/components/admin/SeoAdmin";
+import { RequestContactsExpandable } from "@/components/request/RequestContactsExpandable";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
@@ -567,16 +578,35 @@ function RequestsAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
   const [rows, setRows] = useState<any[]>([]);
+  const [contactsByReq, setContactsByReq] = useState<
+    Record<string, import("@/lib/community-request-contacts").CommunityRequestContact[]>
+  >({});
+  const [exporting, setExporting] = useState<"sql" | "excel" | "csv" | "summary" | null>(null);
 
   async function load() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("blood_requests")
       .select(
-        "id, patient_name, blood_group, hospital_name, status, urgency, created_at, city, area, notes, contact_phone, need_reason_label",
+        "id, patient_name, blood_group, hospital_name, status, urgency, created_at, city, area, notes, contact_phone, whatsapp_phone, need_reason_label, bags_needed, from_community",
       )
       .order("created_at", { ascending: false })
       .limit(150);
+    if (error && /from_community|whatsapp_phone/i.test(error.message)) {
+      const fb = await supabase
+        .from("blood_requests")
+        .select(
+          "id, patient_name, blood_group, hospital_name, status, urgency, created_at, city, area, notes, contact_phone, need_reason_label, bags_needed",
+        )
+        .order("created_at", { ascending: false })
+        .limit(150);
+      setRows(fb.data ?? []);
+      const { fetchContactsForRequests } = await import("@/lib/community-request-contacts");
+      setContactsByReq(await fetchContactsForRequests((fb.data ?? []).map((r) => r.id)));
+      return;
+    }
     setRows(data ?? []);
+    const { fetchContactsForRequests } = await import("@/lib/community-request-contacts");
+    setContactsByReq(await fetchContactsForRequests((data ?? []).map((r: { id: string }) => r.id)));
   }
 
   useEffect(() => {
@@ -606,37 +636,171 @@ function RequestsAdmin() {
     load();
   }
 
+  async function runExport(kind: "sql" | "excel" | "csv" | "summary") {
+    if (!can("requests.view")) {
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    }
+    setExporting(kind);
+    try {
+      const { requests, contactsByReq: bundleContacts, error } = await loadRequestsExportBundle(5000);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      if (!requests.length) {
+        toast.message(lang === "bn" ? "এক্সপোর্ট করার মতো ডেটা নেই" : "Nothing to export");
+        return;
+      }
+      if (kind === "csv") {
+        const { filename, contactsFilename, count } = exportRequestsCsv(
+          requests,
+          bundleContacts,
+          lang,
+        );
+        toast.success(
+          lang === "bn"
+            ? `${count}টি রিকোয়েস্ট CSV ডাউনলোড হয়েছে${contactsFilename ? " (+ কন্টাক্ট ফাইল)" : ""}`
+            : `Downloaded ${count} requests as CSV${contactsFilename ? " (+ contacts file)" : ""}`,
+          { description: contactsFilename ? `${filename} · ${contactsFilename}` : filename },
+        );
+      } else if (kind === "excel") {
+        const { filename, count } = await exportRequestsExcel(requests, bundleContacts, lang);
+        toast.success(
+          lang === "bn"
+            ? `${count}টি রিকোয়েস্ট Excel ডাউনলোড হয়েছে`
+            : `Downloaded ${count} requests as Excel`,
+          { description: filename },
+        );
+      } else if (kind === "summary") {
+        const { filename, count } = await exportRequestsSummaryExcel(
+          requests,
+          bundleContacts,
+          lang,
+        );
+        toast.success(
+          lang === "bn"
+            ? `সারাংশ Excel ডাউনলোড হয়েছে (${count}টি রিকোয়েস্ট)`
+            : `Downloaded summary Excel (${count} requests)`,
+          { description: filename },
+        );
+      } else {
+        const { filename, count } = exportRequestsSql(requests, bundleContacts, lang);
+        toast.success(
+          lang === "bn"
+            ? `${count}টি রিকোয়েস্ট SQL ডাউনলোড হয়েছে`
+            : `Downloaded ${count} requests as SQL`,
+          { description: filename },
+        );
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-100">
+            {lang === "bn" ? "রিকোয়েস্ট এক্সপোর্ট" : "Export requests"}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {lang === "bn"
+              ? "প্রতিটি পোস্টের সব ফিল্ড (নোট, ফোন, ছবি, লোকেশন…) · বাংলা হেডার · UTF-8 · সর্বশেষ ৫০০০"
+              : "Every post field (notes, phones, image, location…) · Bangla headers · UTF-8 · latest 5000"}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={!!exporting}
+            onClick={() => void runExport("sql")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50 transition"
+            title={lang === "bn" ? "PostgreSQL INSERT স্ক্রিপ্ট" : "PostgreSQL INSERT script"}
+          >
+            <Database className="h-3.5 w-3.5 text-sky-300" />
+            {exporting === "sql"
+              ? lang === "bn"
+                ? "প্রস্তুত…"
+                : "Preparing…"
+              : lang === "bn"
+                ? "Export SQL"
+                : "Export SQL"}
+          </button>
+          <button
+            type="button"
+            disabled={!!exporting}
+            onClick={() => void runExport("excel")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-50 transition"
+            title={
+              lang === "bn"
+                ? "সম্পূর্ণ ডেটা: Requests + Contacts + Summary"
+                : "Full data: Requests + Contacts + Summary"
+            }
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            {exporting === "excel"
+              ? lang === "bn"
+                ? "প্রস্তুত…"
+                : "Preparing…"
+              : "Export Excel"}
+          </button>
+          <button
+            type="button"
+            disabled={!!exporting}
+            onClick={() => void runExport("summary")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs font-semibold text-violet-200 hover:bg-violet-500/20 disabled:opacity-50 transition"
+            title={
+              lang === "bn"
+                ? "শুধু সারাংশ কাউন্ট (স্ট্যাটাস, গ্রুপ, শহর…)"
+                : "Summary counts only (status, group, city…)"
+            }
+          >
+            <ChartPie className="h-3.5 w-3.5" />
+            {exporting === "summary"
+              ? lang === "bn"
+                ? "প্রস্তুত…"
+                : "Preparing…"
+              : "Export Summary_Excel"}
+          </button>
+          <button
+            type="button"
+            disabled={!!exporting}
+            onClick={() => void runExport("csv")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-50 transition"
+            title={
+              lang === "bn"
+                ? "UTF-8 BOM — Excel-এ বাংলা ঠিকমতো খোলে"
+                : "UTF-8 BOM — Bangla opens correctly in Excel"
+            }
+          >
+            <FileCode2 className="h-3.5 w-3.5" />
+            {exporting === "csv"
+              ? lang === "bn"
+                ? "প্রস্তুত…"
+                : "Preparing…"
+              : "Export CSV"}
+          </button>
+        </div>
+      </div>
+      <p className="text-[11px] text-slate-500 mb-1">
+        {lang === "bn"
+          ? "ড্রপডাউনে ক্লিক করে সম্পূর্ণ পোস্ট ও কন্টাক্ট করা ডোনার দেখুন।"
+          : "Expand a row for full post details and contacted donors."}
+      </p>
       {rows.map((r) => (
-        <div
-          key={r.id}
-          className="rounded-xl border border-slate-800 bg-slate-900 p-3 flex flex-wrap items-center gap-3 justify-between"
-        >
-          <div className="min-w-0">
-            <p className="font-medium text-sm">
-              <span className="text-rose-400 font-bold mr-2">{r.blood_group}</span>
-              {r.patient_name}
-              {typeof r.notes === "string" && r.notes.includes("[Community") && (
-                <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300">
-                  Community
-                </span>
-              )}
-            </p>
-            <p className="text-xs text-slate-400 truncate">
-              {r.hospital_name} · {[r.area, r.city].filter(Boolean).join(", ")} · {r.status} ·{" "}
-              {r.urgency}
-            </p>
-            {(r.need_reason_label || r.contact_phone || r.notes) && (
-              <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-2">
-                {[r.need_reason_label, r.contact_phone, r.notes].filter(Boolean).join(" · ")}
-              </p>
-            )}
-            <p className="text-[10px] text-slate-600 mt-0.5">
-              {r.created_at ? new Date(r.created_at).toLocaleString() : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
+        <div key={r.id} className="space-y-1">
+          <RequestContactsExpandable
+            request={r}
+            contacts={contactsByReq[r.id] ?? []}
+            lang={lang}
+            variant="admin"
+            canAssign={can("requests.edit")}
+            onAssigned={() => void load()}
+          />
+          <div className="flex items-center gap-1.5 px-1">
             {can("requests.edit") && (
               <>
                 <button
