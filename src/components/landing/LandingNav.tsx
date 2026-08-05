@@ -13,7 +13,7 @@ export function LandingNav({
 }) {
   const nav = settings.nav;
   return (
-    <header className="sticky top-0 z-40 landing-glass border-b border-black/5">
+    <header className="sticky top-0 z-40 border-b border-black/5 bg-[color:var(--landing-glass)] supports-[backdrop-filter]:backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-5xl md:max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <a href="#top" className="flex items-center gap-2 min-w-0">
           {nav.logo_url ? (
@@ -21,6 +21,9 @@ export function LandingNav({
               src={nav.logo_url}
               alt=""
               className="h-9 w-9 rounded-xl object-cover ring-1 ring-black/5"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/icon-192.png";
+              }}
             />
           ) : (
             <span

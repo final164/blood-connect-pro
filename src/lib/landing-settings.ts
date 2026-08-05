@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
-import { LANDING_MEDIA } from "@/lib/landing-media";
+import { LANDING_MEDIA, optimizeLandingImageUrl } from "@/lib/landing-media";
 
 export type LandingTheme = "life_crimson" | "night_clinic";
 
@@ -290,10 +290,18 @@ function str(v: unknown, fallback: string) {
   return typeof v === "string" && v.trim() ? v.trim() : fallback;
 }
 
-/** Prefer stored URL; fall back to curated default when empty. */
-function mediaUrl(v: unknown, fallback: string) {
+/** Prefer stored URL; fall back to curated default when empty. Always downsize remote CDN images. */
+const BROKEN_REMOTE =
+  /photo-1576091160550-2173dba07efd|photo-1551190822-a9333d79a5c3|photo-1530026186672-2cd00ffc50ce/i;
+
+function mediaUrl(v: unknown, fallback: string, size?: { w?: number; q?: number; h?: number }) {
   const raw = typeof v === "string" ? v.trim() : "";
-  return resolveCarouselImageUrl(raw || fallback);
+  // Known-dead Unsplash IDs → use local curated asset
+  if (raw && BROKEN_REMOTE.test(raw)) {
+    return fallback.startsWith("/") ? fallback : optimizeLandingImageUrl(fallback, size);
+  }
+  const resolved = resolveCarouselImageUrl(raw || fallback);
+  return optimizeLandingImageUrl(resolved, size ?? { w: 1200, q: 65 });
 }
 
 export function normalizeLandingSettings(raw: unknown): LandingSettings {
@@ -393,10 +401,10 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       title_en: str(seoRaw.title_en, d.seo.title_en),
       description_bn: str(seoRaw.description_bn, d.seo.description_bn),
       description_en: str(seoRaw.description_en, d.seo.description_en),
-      og_image_url: mediaUrl(seoRaw.og_image_url, d.seo.og_image_url),
+      og_image_url: mediaUrl(seoRaw.og_image_url, d.seo.og_image_url, { w: 1200, h: 630, q: 70 }),
     },
     nav: {
-      logo_url: mediaUrl(navRaw.logo_url, d.nav.logo_url),
+      logo_url: mediaUrl(navRaw.logo_url, d.nav.logo_url, { w: 128, q: 80 }),
       show_lang_toggle: navRaw.show_lang_toggle !== false,
       cta_login_bn: str(navRaw.cta_login_bn, d.nav.cta_login_bn),
       cta_login_en: str(navRaw.cta_login_en, d.nav.cta_login_en),
@@ -417,7 +425,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       cta_secondary_bn: str(heroRaw.cta_secondary_bn, d.hero.cta_secondary_bn),
       cta_secondary_en: str(heroRaw.cta_secondary_en, d.hero.cta_secondary_en),
       cta_secondary_href: str(heroRaw.cta_secondary_href, d.hero.cta_secondary_href),
-      background_url: mediaUrl(heroRaw.background_url, d.hero.background_url),
+      background_url: mediaUrl(heroRaw.background_url, d.hero.background_url, { w: 1400, q: 68 }),
       background_video_url: str(heroRaw.background_video_url, ""),
     },
     community: {
@@ -425,7 +433,10 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       title_en: str(communityRaw.title_en, d.community.title_en),
       body_bn: str(communityRaw.body_bn, d.community.body_bn),
       body_en: str(communityRaw.body_en, d.community.body_en),
-      background_url: mediaUrl(communityRaw.background_url, d.community.background_url),
+      background_url: mediaUrl(communityRaw.background_url, d.community.background_url, {
+        w: 1100,
+        q: 58,
+      }),
       pull_orgs: communityRaw.pull_orgs !== false,
       cta_bn: str(communityRaw.cta_bn, d.community.cta_bn),
       cta_en: str(communityRaw.cta_en, d.community.cta_en),
@@ -436,7 +447,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       title_en: str(ctaRaw.title_en, d.cta_band.title_en),
       body_bn: str(ctaRaw.body_bn, d.cta_band.body_bn),
       body_en: str(ctaRaw.body_en, d.cta_band.body_en),
-      background_url: mediaUrl(ctaRaw.background_url, d.cta_band.background_url),
+      background_url: mediaUrl(ctaRaw.background_url, d.cta_band.background_url, { w: 1100, q: 58 }),
       primary_bn: str(ctaRaw.primary_bn, d.cta_band.primary_bn),
       primary_en: str(ctaRaw.primary_en, d.cta_band.primary_en),
       primary_href: str(ctaRaw.primary_href, d.cta_band.primary_href),

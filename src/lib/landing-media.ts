@@ -1,45 +1,62 @@
 /**
- * Curated default media for the public landing page.
- * High-quality Unsplash photos (CDN) — replace anytime from Admin → Landing.
+ * Landing media — prefer local `/landing/*` assets (reliable in BD, no CDN 404s).
+ * Remote URLs are still downsized when admins paste Unsplash links.
+ */
+
+export function optimizeLandingImageUrl(
+  url: string | null | undefined,
+  opts: { w?: number; q?: number; h?: number } = {},
+): string {
+  const raw = (url ?? "").trim();
+  if (!raw) return "";
+  // Local / relative assets — never rewrite
+  if (raw.startsWith("/") || raw.startsWith("data:") || !/^https?:\/\//i.test(raw)) {
+    return raw;
+  }
+  const w = opts.w ?? 960;
+  const q = opts.q ?? 65;
+  const h = opts.h;
+
+  try {
+    if (/images\.unsplash\.com/i.test(raw)) {
+      const u = new URL(raw);
+      u.searchParams.set("auto", "format");
+      u.searchParams.set("fit", "crop");
+      u.searchParams.set("w", String(w));
+      if (h) u.searchParams.set("h", String(h));
+      u.searchParams.set("q", String(q));
+      u.searchParams.delete("ixlib");
+      return u.toString();
+    }
+  } catch {
+    /* keep original */
+  }
+  return raw;
+}
+
+/**
+ * Local blood-donation themed photos (shipped in public/landing).
+ * Theme: donation process, hospital/clinic, volunteers — suitable for BD audiences.
  */
 export const LANDING_MEDIA = {
-  logo: "/icon-512.png",
-  og: "https://images.unsplash.com/photo-1615461066159-fea0960485d5?auto=format&fit=crop&w=1200&h=630&q=80",
-  hero: "https://images.unsplash.com/photo-1615461066159-fea0960485d5?auto=format&fit=crop&w=1920&q=80",
-  communityBg:
-    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=1920&q=80",
-  ctaBg:
-    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1920&q=80",
-  how: [
-    "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1576091160550-2173dba07efd?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?auto=format&fit=crop&w=800&q=80",
-  ],
-  carousel: [
-    "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&w=1600&q=80",
-    "https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=1600&q=80",
-    "https://images.unsplash.com/photo-1551190822-a9333d79a5c3?auto=format&fit=crop&w=1600&q=80",
-  ],
-  stories: [
-    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1600&q=80",
-    "https://images.unsplash.com/photo-1582750433449-648ed127bb54?auto=format&fit=crop&w=1600&q=80",
-  ],
-  campaigns: [
-    "https://images.unsplash.com/photo-1615461066841-6116e61058f4?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1530026186672-2cd00ffc50ce?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1576091160550-2173dba07efd?auto=format&fit=crop&w=900&q=80",
-  ],
+  logo: "/icon-192.png",
+  og: "/landing/hero.jpg",
+  hero: "/landing/hero.jpg",
+  communityBg: "/landing/volunteer.jpg",
+  ctaBg: "/landing/clinic.jpg",
+  how: ["/landing/lab.jpg", "/landing/hospital.jpg", "/landing/care-team.jpg"] as const,
+  carousel: ["/landing/bags.jpg", "/landing/hospital.jpg", "/landing/arm-donate.jpg"] as const,
+  stories: ["/landing/nurse.jpg", "/landing/care-team.jpg"] as const,
+  campaigns: ["/landing/arm-donate.jpg", "/landing/hands.jpg", "/landing/clinic.jpg"] as const,
   gallery: [
-    "https://images.unsplash.com/photo-1615461066159-fea0960485d5?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=900&q=80",
-    "https://images.unsplash.com/photo-1551190822-a9333d79a5c3?auto=format&fit=crop&w=900&q=80",
-  ],
-  communityCards: [
-    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=800&q=80",
-  ],
+    "/landing/hero.jpg",
+    "/landing/arm-donate.jpg",
+    "/landing/bags.jpg",
+    "/landing/volunteer.jpg",
+    "/landing/hospital.jpg",
+    "/landing/nurse.jpg",
+  ] as const,
+  communityCards: ["/landing/community.jpg", "/landing/hands.jpg", "/landing/ward.jpg"] as const,
+  /** Used when an image fails to load */
+  fallback: "/landing/hero.jpg",
 } as const;

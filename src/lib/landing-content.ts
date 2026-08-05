@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
-import { LANDING_MEDIA } from "@/lib/landing-media";
+import { LANDING_MEDIA, optimizeLandingImageUrl } from "@/lib/landing-media";
 
 const BUCKET = "feed-carousel";
 const PREFIX = "landing";
@@ -295,10 +295,22 @@ export const DEFAULT_LANDING_CONTENT: Omit<
   gallery: LANDING_MEDIA.gallery.map((url, i) => ({
     id: `seed-gallery-${i + 1}`,
     image_url: url,
-    caption_bn:
-      i % 2 === 0 ? "রক্তদান ক্যাম্প" : i % 3 === 0 ? "স্বেচ্ছাসেবী দল" : "হাসপাতাল পার্টনারশিপ",
-    caption_en:
-      i % 2 === 0 ? "Donation camp" : i % 3 === 0 ? "Volunteer team" : "Hospital partnership",
+    caption_bn: [
+      "রক্তদান — জীবন বাঁচানোর সহজ পথ",
+      "বাংলাদেশের স্বেচ্ছাসেবী রক্তদান",
+      "নিরাপদ সংগ্রহ ও সংরক্ষণ",
+      "কমিউনিটি ক্যাম্প ও সচেতনতা",
+      "হাসপাতাল ও ডোনার নেটওয়ার্ক",
+      "প্রতিটি ব্যাগ একটি আশা",
+    ][i] ?? "রক্তদান ক্যাম্প",
+    caption_en: [
+      "Blood donation — a simple way to save lives",
+      "Volunteer donation across Bangladesh",
+      "Safe collection and storage",
+      "Community camps and awareness",
+      "Hospitals and donor networks",
+      "Every bag is hope",
+    ][i] ?? "Donation camp",
     sort_order: i,
     is_active: true,
   })),
@@ -383,6 +395,15 @@ export const DEFAULT_LANDING_CONTENT: Omit<
   ],
 };
 
+function fixBrokenMedia(url: string | null | undefined, local: string): string {
+  const u = (url ?? "").trim();
+  if (!u) return local;
+  if (/photo-1576091160550-2173dba07efd|photo-1551190822-a9333d79a5c3|photo-1530026186672-2cd00ffc50ce/i.test(u)) {
+    return local;
+  }
+  return u;
+}
+
 function withContentDefaults(
   bundle: LandingContentBundle,
 ): LandingContentBundle {
@@ -394,37 +415,58 @@ function withContentDefaults(
     }
     return s;
   });
-  const cards = (bundle.cards.length ? bundle.cards : d.cards).map((c, i) => ({
-    ...c,
-    image_url: c.image_url || LANDING_MEDIA.how[i % LANDING_MEDIA.how.length] || null,
-    link_url: c.link_url || "/auth",
+  const cards = (bundle.cards.length ? bundle.cards : d.cards).map((c, i) => {
+    const local = LANDING_MEDIA.how[i % LANDING_MEDIA.how.length];
+    return {
+      ...c,
+      image_url: fixBrokenMedia(c.image_url, local),
+      link_url: c.link_url || "/auth",
+    };
+  });
+  const carousel = (bundle.carousel.length ? bundle.carousel : d.carousel).map((s, i) => {
+    const local = LANDING_MEDIA.carousel[i % LANDING_MEDIA.carousel.length];
+    return {
+      ...s,
+      image_url: fixBrokenMedia(s.image_url, local),
+      link_url: s.link_url || "/auth",
+    };
+  });
+  const stories = (bundle.stories.length ? bundle.stories : d.stories).map((s, i) => {
+    const local = LANDING_MEDIA.stories[i % LANDING_MEDIA.stories.length];
+    return {
+      ...s,
+      image_url: fixBrokenMedia(s.image_url, local),
+      link_url: s.link_url || "/auth",
+    };
+  });
+  const campaigns = (bundle.campaigns.length ? bundle.campaigns : d.campaigns).map((c, i) => {
+    const local = LANDING_MEDIA.campaigns[i % LANDING_MEDIA.campaigns.length];
+    return {
+      ...c,
+      cover_url: fixBrokenMedia(c.cover_url, local),
+      cta_href: c.cta_href || "/auth",
+    };
+  });
+  const galleryRaw = bundle.gallery.length ? bundle.gallery : d.gallery;
+  const gallery = galleryRaw.slice(0, 8).map((g, i) => ({
+    ...g,
+    image_url: fixBrokenMedia(
+      g.image_url,
+      LANDING_MEDIA.gallery[i % LANDING_MEDIA.gallery.length],
+    ),
   }));
-  const carousel = (bundle.carousel.length ? bundle.carousel : d.carousel).map((s, i) => ({
-    ...s,
-    image_url: s.image_url || LANDING_MEDIA.carousel[i % LANDING_MEDIA.carousel.length],
-    link_url: s.link_url || "/auth",
-  }));
-  const stories = (bundle.stories.length ? bundle.stories : d.stories).map((s, i) => ({
-    ...s,
-    image_url: s.image_url || LANDING_MEDIA.stories[i % LANDING_MEDIA.stories.length],
-    link_url: s.link_url || "/auth",
-  }));
-  const campaigns = (bundle.campaigns.length ? bundle.campaigns : d.campaigns).map((c, i) => ({
-    ...c,
-    cover_url: c.cover_url || LANDING_MEDIA.campaigns[i % LANDING_MEDIA.campaigns.length] || null,
-    cta_href: c.cta_href || "/auth",
-  }));
-  const gallery = bundle.gallery.length ? bundle.gallery : d.gallery;
   const faqs = bundle.faqs.length ? bundle.faqs : d.faqs;
   const communityCards = (bundle.communityCards.length
     ? bundle.communityCards
     : d.communityCards
-  ).map((c, i) => ({
-    ...c,
-    image_url:
-      c.image_url || LANDING_MEDIA.communityCards[i % LANDING_MEDIA.communityCards.length] || null,
-    link_url: c.link_url || "/auth",
-  }));
+  ).map((c, i) => {
+    const local = LANDING_MEDIA.communityCards[i % LANDING_MEDIA.communityCards.length];
+    return {
+      ...c,
+      image_url: fixBrokenMedia(c.image_url, local),
+      link_url: c.link_url || "/auth",
+    };
+  });
 
   return {
     stats,
@@ -485,7 +527,9 @@ function mapCard(row: Record<string, unknown>): LandingCard {
     body_bn: String(row.body_bn ?? ""),
     body_en: String(row.body_en ?? ""),
     icon_key: String(row.icon_key ?? "heart"),
-    image_url: typeof row.image_url === "string" && row.image_url ? resolveCarouselImageUrl(row.image_url) : null,
+    image_url: typeof row.image_url === "string" && row.image_url
+      ? optimizeLandingImageUrl(resolveCarouselImageUrl(row.image_url), { w: 640, q: 62 })
+      : null,
     link_url: typeof row.link_url === "string" && row.link_url ? row.link_url : null,
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
@@ -496,7 +540,10 @@ function mapSlide(row: Record<string, unknown>): LandingSlide {
   return {
     id: String(row.id),
     kind: row.kind === "stories" ? "stories" : "main",
-    image_url: resolveCarouselImageUrl(String(row.image_url ?? "")),
+    image_url: optimizeLandingImageUrl(resolveCarouselImageUrl(String(row.image_url ?? "")), {
+      w: 1100,
+      q: 65,
+    }),
     title_bn: String(row.title_bn ?? ""),
     title_en: String(row.title_en ?? ""),
     body_bn: String(row.body_bn ?? ""),
@@ -515,7 +562,9 @@ function mapCampaign(row: Record<string, unknown>): LandingCampaign {
     body_bn: String(row.body_bn ?? ""),
     body_en: String(row.body_en ?? ""),
     cover_url:
-      typeof row.cover_url === "string" && row.cover_url ? resolveCarouselImageUrl(row.cover_url) : null,
+      typeof row.cover_url === "string" && row.cover_url
+        ? optimizeLandingImageUrl(resolveCarouselImageUrl(row.cover_url), { w: 640, q: 62 })
+        : null,
     starts_on: typeof row.starts_on === "string" ? row.starts_on : null,
     ends_on: typeof row.ends_on === "string" ? row.ends_on : null,
     cta_bn: String(row.cta_bn ?? ""),
@@ -529,7 +578,10 @@ function mapCampaign(row: Record<string, unknown>): LandingCampaign {
 function mapGallery(row: Record<string, unknown>): LandingGalleryItem {
   return {
     id: String(row.id),
-    image_url: resolveCarouselImageUrl(String(row.image_url ?? "")),
+    image_url: optimizeLandingImageUrl(resolveCarouselImageUrl(String(row.image_url ?? "")), {
+      w: 560,
+      q: 60,
+    }),
     caption_bn: String(row.caption_bn ?? ""),
     caption_en: String(row.caption_en ?? ""),
     sort_order: Number(row.sort_order) || 0,
@@ -557,7 +609,9 @@ function mapCommunityCard(row: Record<string, unknown>): LandingCommunityCard {
     body_bn: String(row.body_bn ?? ""),
     body_en: String(row.body_en ?? ""),
     image_url:
-      typeof row.image_url === "string" && row.image_url ? resolveCarouselImageUrl(row.image_url) : null,
+      typeof row.image_url === "string" && row.image_url
+        ? optimizeLandingImageUrl(resolveCarouselImageUrl(row.image_url), { w: 480, q: 60 })
+        : null,
     link_url: typeof row.link_url === "string" && row.link_url ? row.link_url : null,
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
@@ -565,40 +619,18 @@ function mapCommunityCard(row: Record<string, unknown>): LandingCommunityCard {
 }
 
 export async function fetchLandingContentBundle(): Promise<LandingContentBundle> {
-  const [stats, cards, slides, campaigns, gallery, faqs, communityCards, reqCount, donorCount] =
-    await Promise.all([
-      selectActive("landing_stats", mapStat),
-      selectActive("landing_cards", mapCard),
-      selectActive("landing_carousel_slides", mapSlide),
-      selectActive("landing_campaigns", mapCampaign),
-      selectActive("landing_gallery", mapGallery),
-      selectActive("landing_faqs", mapFaq),
-      selectActive("landing_community_cards", mapCommunityCard),
-      (async () => {
-        try {
-          const r = await supabase
-            .from("blood_requests")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "open");
-          return typeof r.count === "number" ? r.count : null;
-        } catch {
-          return null;
-        }
-      })(),
-      (async () => {
-        try {
-          const r = await supabase
-            .from("profiles")
-            .select("id", { count: "exact", head: true })
-            .eq("is_donor", true);
-          return typeof r.count === "number" ? r.count : null;
-        } catch {
-          return null;
-        }
-      })(),
-    ]);
+  // Content tables first (critical). Live counts are secondary — don't block paint.
+  const [stats, cards, slides, campaigns, gallery, faqs, communityCards] = await Promise.all([
+    selectActive("landing_stats", mapStat),
+    selectActive("landing_cards", mapCard),
+    selectActive("landing_carousel_slides", mapSlide),
+    selectActive("landing_campaigns", mapCampaign),
+    selectActive("landing_gallery", mapGallery),
+    selectActive("landing_faqs", mapFaq),
+    selectActive("landing_community_cards", mapCommunityCard),
+  ]);
 
-  return withContentDefaults({
+  const bundle = withContentDefaults({
     stats,
     cards,
     carousel: slides.filter((s: LandingSlide) => s.kind === "main"),
@@ -607,9 +639,41 @@ export async function fetchLandingContentBundle(): Promise<LandingContentBundle>
     gallery,
     faqs,
     communityCards,
+    liveRequestCount: null,
+    liveDonorCount: null,
+  });
+
+  // Fire-and-await counts after content is ready (still same request cycle, but after heavier work)
+  const [reqCount, donorCount] = await Promise.all([
+    (async () => {
+      try {
+        const r = await supabase
+          .from("blood_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "open");
+        return typeof r.count === "number" ? r.count : null;
+      } catch {
+        return null;
+      }
+    })(),
+    (async () => {
+      try {
+        const r = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_donor", true);
+        return typeof r.count === "number" ? r.count : null;
+      } catch {
+        return null;
+      }
+    })(),
+  ]);
+
+  return {
+    ...bundle,
     liveRequestCount: reqCount,
     liveDonorCount: donorCount,
-  });
+  };
 }
 
 export async function uploadLandingImage(file: File): Promise<string> {

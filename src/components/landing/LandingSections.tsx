@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Building2,
@@ -22,6 +22,8 @@ import type {
   LandingSlide,
   LandingStat,
 } from "@/lib/landing-content";
+import { LandingImg } from "@/components/landing/LandingImg";
+import { LANDING_MEDIA } from "@/lib/landing-media";
 
 const ICONS: Record<string, typeof Droplet> = {
   droplet: Droplet,
@@ -86,8 +88,11 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   const h = settings.hero;
   const bg = h.background_url;
   return (
-    <section id="top" className="relative min-h-[min(92dvh,820px)] flex flex-col justify-end overflow-hidden">
-      <div className="absolute inset-0 landing-hero-bg">
+    <section
+      id="top"
+      className="relative min-h-[min(88dvh,760px)] flex flex-col justify-end overflow-hidden"
+    >
+      <div className="absolute inset-0">
         {h.background_video_url ? (
           <video
             className="h-full w-full object-cover"
@@ -95,15 +100,20 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             muted
             loop
             playsInline
+            preload="metadata"
             poster={bg || undefined}
             src={h.background_video_url}
           />
         ) : bg ? (
-          <img
+          <LandingImg
             src={bg}
+            fallbackSrc={LANDING_MEDIA.hero}
             alt=""
-            className="h-full w-full object-cover scale-105"
+            className="h-full w-full object-cover"
             fetchPriority="high"
+            decoding="async"
+            width={1400}
+            height={900}
           />
         ) : (
           <div
@@ -160,7 +170,7 @@ export function LandingStats({
 }) {
   if (!stats.length) return null;
   return (
-    <section className={`${shell} py-10`}>
+    <section className={`landing-section ${shell} py-10`}>
       <div className="grid grid-cols-3 gap-3 sm:gap-6">
         {stats.map((s) => {
           const Icon = ICONS[s.icon_key] ?? Droplet;
@@ -194,7 +204,7 @@ export function LandingHowItWorks({ cards, lang }: { cards: LandingCard[]; lang:
   const list = cards.filter((c) => c.kind === "how");
   if (!list.length) return null;
   return (
-    <section id="how" className={`${shell} py-12`}>
+    <section id="how" className={`landing-section ${shell} py-12`}>
       <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "কীভাবে কাজ করে" : "How it works"}
       </h2>
@@ -204,11 +214,15 @@ export function LandingHowItWorks({ cards, lang }: { cards: LandingCard[]; lang:
           const inner = (
             <>
               {c.image_url ? (
-                <img
+                <LandingImg
                   src={c.image_url}
+                  fallbackSrc={LANDING_MEDIA.how[idx % LANDING_MEDIA.how.length]}
                   alt=""
                   className="h-36 w-full object-cover rounded-xl mb-3"
                   loading="lazy"
+                  decoding="async"
+                  width={560}
+                  height={224}
                 />
               ) : (
                 <span
@@ -254,91 +268,124 @@ function SlideCarousel({
   id?: string;
 }) {
   const [i, setI] = useState(0);
+  const rootRef = useRef<HTMLElement | null>(null);
+  const visibleRef = useRef(true);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = !!entry?.isIntersecting;
+      },
+      { rootMargin: "80px", threshold: 0.15 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   useEffect(() => {
     if (slides.length < 2) return;
-    const t = window.setInterval(() => setI((x) => (x + 1) % slides.length), 4500);
+    const t = window.setInterval(() => {
+      if (!visibleRef.current) return; // pause off-screen — stops jank while scrolling
+      if (document.hidden) return;
+      setI((x) => (x + 1) % slides.length);
+    }, 6500);
     return () => window.clearInterval(t);
   }, [slides.length]);
+
   if (!slides.length) return null;
   const s = slides[i] ?? slides[0];
-  const body = (
-    <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-black/5 shadow-lg shadow-black/10">
-      <div className="aspect-[16/9] relative">
-        {s.link_url ? (
-          <LandingHref href={s.link_url} className="absolute inset-0 block">
-            {s.image_url ? (
-              <img
-                key={s.id}
-                src={s.image_url}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
-              />
-            ) : (
-              <div
-                className="absolute inset-0"
-                style={{ background: "var(--landing-primary)", opacity: 0.3 }}
-              />
-            )}
-          </LandingHref>
-        ) : s.image_url ? (
-          <img
-            key={s.id}
-            src={s.image_url}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
-          />
-        ) : (
-          <div className="absolute inset-0" style={{ background: "var(--landing-primary)", opacity: 0.3 }} />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none" />
-        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7 text-white pointer-events-none">
-          <p className="font-semibold text-sm sm:text-lg">{pick(lang, s.title_bn, s.title_en)}</p>
-          {(s.body_bn || s.body_en) && (
-            <p className="mt-1 text-xs sm:text-sm text-white/85 line-clamp-2">
-              {pick(lang, s.body_bn, s.body_en)}
-            </p>
-          )}
-        </div>
-      </div>
-      {slides.length > 1 && (
-        <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 pointer-events-none">
-          <button
-            type="button"
-            aria-label="Previous"
-            className="pointer-events-auto h-9 w-9 rounded-full bg-black/45 text-white grid place-items-center"
-            onClick={() => setI((x) => (x - 1 + slides.length) % slides.length)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Next"
-            className="pointer-events-auto h-9 w-9 rounded-full bg-black/45 text-white grid place-items-center"
-            onClick={() => setI((x) => (x + 1) % slides.length)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-      {slides.length > 1 && (
-        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-          {slides.map((slide, idx) => (
-            <button
-              key={slide.id}
-              type="button"
-              aria-label={`Slide ${idx + 1}`}
-              className={`h-1.5 rounded-full transition-all ${idx === i ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
-              onClick={() => setI(idx)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const next = slides[(i + 1) % slides.length];
 
   return (
-    <section id={id} className={`${shell} py-10`}>
-      {body}
+    <section id={id} ref={rootRef} className={`landing-section ${shell} py-10`}>
+      <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-black/5 shadow-md shadow-black/5">
+        <div className="aspect-[16/9] relative bg-black/10">
+          {s.link_url ? (
+            <LandingHref href={s.link_url} className="absolute inset-0 block">
+              {s.image_url ? (
+                <LandingImg
+                  key={s.id}
+                  src={s.image_url}
+                  fallbackSrc={LANDING_MEDIA.carousel[0]}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                  decoding="async"
+                  loading="lazy"
+                  width={1100}
+                  height={620}
+                />
+              ) : (
+                <div
+                  className="absolute inset-0"
+                  style={{ background: "var(--landing-primary)", opacity: 0.3 }}
+                />
+              )}
+            </LandingHref>
+          ) : s.image_url ? (
+            <LandingImg
+              key={s.id}
+              src={s.image_url}
+              fallbackSrc={LANDING_MEDIA.carousel[0]}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              decoding="async"
+              loading="lazy"
+              width={1100}
+              height={620}
+            />
+          ) : (
+            <div className="absolute inset-0" style={{ background: "var(--landing-primary)", opacity: 0.3 }} />
+          )}
+          {/* Prefetch next slide quietly */}
+          {next?.image_url && next.id !== s.id && (
+            <img src={next.image_url} alt="" className="hidden" aria-hidden decoding="async" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7 text-white pointer-events-none">
+            <p className="font-semibold text-sm sm:text-lg">{pick(lang, s.title_bn, s.title_en)}</p>
+            {(s.body_bn || s.body_en) && (
+              <p className="mt-1 text-xs sm:text-sm text-white/85 line-clamp-2">
+                {pick(lang, s.body_bn, s.body_en)}
+              </p>
+            )}
+          </div>
+        </div>
+        {slides.length > 1 && (
+          <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 pointer-events-none">
+            <button
+              type="button"
+              aria-label="Previous"
+              className="pointer-events-auto h-9 w-9 rounded-full bg-black/45 text-white grid place-items-center"
+              onClick={() => setI((x) => (x - 1 + slides.length) % slides.length)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Next"
+              className="pointer-events-auto h-9 w-9 rounded-full bg-black/45 text-white grid place-items-center"
+              onClick={() => setI((x) => (x + 1) % slides.length)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {slides.length > 1 && (
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+            {slides.map((slide, idx) => (
+              <button
+                key={slide.id}
+                type="button"
+                aria-label={`Slide ${idx + 1}`}
+                className={`h-1.5 rounded-full transition-all ${idx === i ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
+                onClick={() => setI(idx)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -370,7 +417,7 @@ export function LandingCampaigns({
 }) {
   if (!campaigns.length) return null;
   return (
-    <section id="campaigns" className={`${shell} py-12`}>
+    <section id="campaigns" className={`landing-section ${shell} py-12`}>
       <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "ক্যাম্পেইন" : "Campaigns"}
       </h2>
@@ -381,7 +428,16 @@ export function LandingCampaigns({
             className="min-w-[260px] max-w-[300px] shrink-0 rounded-2xl border border-black/5 overflow-hidden bg-white/55 shadow-sm shadow-black/5"
           >
             {c.cover_url ? (
-              <img src={c.cover_url} alt="" className="h-40 w-full object-cover" loading="lazy" />
+              <LandingImg
+                src={c.cover_url}
+                fallbackSrc={LANDING_MEDIA.campaigns[0]}
+                alt=""
+                className="h-40 w-full object-cover"
+                loading="lazy"
+                decoding="async"
+                width={640}
+                height={160}
+              />
             ) : (
               <div className="h-40 w-full" style={{ background: "var(--landing-primary)", opacity: 0.25 }} />
             )}
@@ -418,23 +474,31 @@ export function LandingCommunity({
 }) {
   const c = settings.community;
   return (
-    <section
-      id="community"
-      className="relative py-14 px-4 overflow-hidden"
-      style={
-        c.background_url
-          ? {
-              backgroundImage: `linear-gradient(to bottom, rgba(10,6,6,0.55), rgba(10,6,6,0.7)), url(${c.background_url})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }
-          : {
-              background: `linear-gradient(135deg, color-mix(in srgb, var(--landing-primary) 18%, var(--landing-bg)), var(--landing-bg))`,
-            }
-      }
-    >
-      <div className="mx-auto w-full max-w-5xl md:max-w-6xl">
-        <div className="landing-glass rounded-3xl border border-white/25 p-6 sm:p-8 text-[color:var(--landing-fg)] shadow-xl shadow-black/10">
+    <section id="community" className="landing-section relative py-14 px-4 overflow-hidden">
+      {c.background_url ? (
+        <>
+          <LandingImg
+            src={c.background_url}
+            fallbackSrc={LANDING_MEDIA.communityBg}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            width={1100}
+            height={700}
+          />
+          <div className="absolute inset-0 bg-black/60" />
+        </>
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(135deg, color-mix(in srgb, var(--landing-primary) 18%, var(--landing-bg)), var(--landing-bg))`,
+          }}
+        />
+      )}
+      <div className="relative mx-auto w-full max-w-5xl md:max-w-6xl">
+        <div className="landing-glass rounded-3xl border border-white/25 p-6 sm:p-8 text-[color:var(--landing-fg)] shadow-lg shadow-black/10">
           <h2 className="text-xl md:text-2xl font-bold landing-brand">{pick(lang, c.title_bn, c.title_en)}</h2>
           <p className="mt-2 text-sm max-w-2xl leading-relaxed" style={{ color: "var(--landing-muted)" }}>
             {pick(lang, c.body_bn, c.body_en)}
@@ -445,11 +509,15 @@ export function LandingCommunity({
                 const body = (
                   <>
                     {card.image_url && (
-                      <img
+                      <LandingImg
                         src={card.image_url}
+                        fallbackSrc={LANDING_MEDIA.communityCards[0]}
                         alt=""
                         className="h-28 w-full object-cover rounded-xl mb-2.5"
                         loading="lazy"
+                        decoding="async"
+                        width={480}
+                        height={180}
                       />
                     )}
                     <p className="text-sm font-semibold">{pick(lang, card.title_bn, card.title_en)}</p>
@@ -488,7 +556,7 @@ export function LandingCommunity({
 export function LandingGallery({ items, lang }: { items: LandingGalleryItem[]; lang: "bn" | "en" }) {
   if (!items.length) return null;
   return (
-    <section id="gallery" className={`${shell} py-12`}>
+    <section id="gallery" className={`landing-section ${shell} py-12`}>
       <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "গ্যালারি" : "Gallery"}
       </h2>
@@ -498,7 +566,16 @@ export function LandingGallery({ items, lang }: { items: LandingGalleryItem[]; l
             key={g.id}
             className="break-inside-avoid rounded-2xl overflow-hidden border border-black/5 bg-white/40 shadow-sm shadow-black/5"
           >
-            <img src={g.image_url} alt="" className="w-full object-cover" loading="lazy" />
+            <LandingImg
+              src={g.image_url}
+              fallbackSrc={LANDING_MEDIA.gallery[0]}
+              alt=""
+              className="w-full object-cover"
+              loading="lazy"
+              decoding="async"
+              width={560}
+              height={400}
+            />
             {(g.caption_bn || g.caption_en) && (
               <figcaption className="px-2.5 py-2 text-[10px]" style={{ color: "var(--landing-muted)" }}>
                 {pick(lang, g.caption_bn, g.caption_en)}
@@ -515,7 +592,7 @@ export function LandingFaq({ faqs, lang }: { faqs: LandingFaq[]; lang: "bn" | "e
   const [open, setOpen] = useState<string | null>(faqs[0]?.id ?? null);
   if (!faqs.length) return null;
   return (
-    <section id="faq" className={`${shell} py-12`}>
+    <section id="faq" className={`landing-section ${shell} py-12`}>
       <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "প্রশ্নোত্তর" : "FAQ"}
       </h2>
@@ -553,19 +630,28 @@ export function LandingFaq({ faqs, lang }: { faqs: LandingFaq[]; lang: "bn" | "e
 export function LandingCtaBand({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const c = settings.cta_band;
   return (
-    <section
-      className="relative py-16 px-4"
-      style={
-        c.background_url
-          ? {
-              backgroundImage: `linear-gradient(to bottom, rgba(10,6,6,0.55), rgba(10,6,6,0.65)), url(${c.background_url})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }
-          : { background: "color-mix(in srgb, var(--landing-primary) 12%, var(--landing-bg))" }
-      }
-    >
-      <div className="mx-auto max-w-3xl text-center landing-glass rounded-3xl border border-white/25 px-6 py-10 shadow-xl shadow-black/10">
+    <section className="landing-section relative py-16 px-4 overflow-hidden">
+      {c.background_url ? (
+        <>
+          <LandingImg
+            src={c.background_url}
+            fallbackSrc={LANDING_MEDIA.ctaBg}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            width={1100}
+            height={600}
+          />
+          <div className="absolute inset-0 bg-black/55" />
+        </>
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{ background: "color-mix(in srgb, var(--landing-primary) 12%, var(--landing-bg))" }}
+        />
+      )}
+      <div className="relative mx-auto max-w-3xl text-center landing-glass rounded-3xl border border-white/25 px-6 py-10 shadow-lg shadow-black/10">
         <h2 className="text-xl sm:text-2xl font-bold landing-brand">{pick(lang, c.title_bn, c.title_en)}</h2>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--landing-muted)" }}>
           {pick(lang, c.body_bn, c.body_en)}

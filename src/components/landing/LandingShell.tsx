@@ -28,22 +28,23 @@ export function LandingShell({
         }
         .landing-glass {
           background: var(--landing-glass);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          /* Lighter blur — full 16px blur was a major scroll/FPS cost */
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+        .landing-section {
+          content-visibility: auto;
+          contain-intrinsic-size: auto 480px;
         }
         .landing-fade-up {
-          animation: landingFadeUp 0.7s ease-out both;
+          animation: landingFadeUp 0.45s ease-out both;
         }
         @keyframes landingFadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: none; }
         }
-        .landing-hero-bg {
-          animation: landingHeroIn 1.1s ease-out both;
-        }
-        @keyframes landingHeroIn {
-          from { opacity: 0.4; transform: scale(1.04); }
-          to { opacity: 1; transform: scale(1); }
+        @media (prefers-reduced-motion: reduce) {
+          .landing-fade-up { animation: none; }
         }
       `}</style>
       {children}

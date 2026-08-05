@@ -9,21 +9,14 @@ import {
   type LandingSettings,
 } from "@/lib/landing-settings";
 import { DEFAULT_SEO_SETTINGS, buildHead, fetchSeoSettings } from "@/lib/seo-settings";
-import { fetchLandingContentBundle, type LandingContentBundle } from "@/lib/landing-content";
+import { fetchLandingContentBundle, DEFAULT_LANDING_CONTENT, type LandingContentBundle } from "@/lib/landing-content";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { renderLandingSection } from "@/components/landing/LandingSections";
 import { LandingSeoJsonLd, SeoHeadUpdater } from "@/components/SeoHead";
 
-const EMPTY_CONTENT: LandingContentBundle = {
-  stats: [],
-  cards: [],
-  carousel: [],
-  stories: [],
-  campaigns: [],
-  gallery: [],
-  faqs: [],
-  communityCards: [],
+const PLACEHOLDER_CONTENT: LandingContentBundle = {
+  ...DEFAULT_LANDING_CONTENT,
   liveRequestCount: null,
   liveDonorCount: null,
 };
@@ -52,6 +45,7 @@ function LandingPage() {
     queryKey: ["landing-settings"],
     queryFn: () => fetchLandingSettings(),
     staleTime: 60_000,
+    placeholderData: DEFAULT_LANDING_SETTINGS,
   });
 
   const seoQ = useQuery({
@@ -65,11 +59,12 @@ function LandingPage() {
     queryKey: ["landing-content"],
     queryFn: () => fetchLandingContentBundle(),
     staleTime: 60_000,
+    placeholderData: PLACEHOLDER_CONTENT,
   });
 
   const settings: LandingSettings = settingsQ.data ?? DEFAULT_LANDING_SETTINGS;
   const seo = seoQ.data ?? DEFAULT_SEO_SETTINGS;
-  const content = contentQ.data ?? EMPTY_CONTENT;
+  const content = contentQ.data ?? PLACEHOLDER_CONTENT;
   const faqSchemaItems = content.faqs.map((item) => ({
     question: landingLang === "bn" ? item.question_bn : item.question_en,
     answer: landingLang === "bn" ? item.answer_bn : item.answer_en,
@@ -93,12 +88,24 @@ function LandingPage() {
     }
   }, [settings.enabled, settingsQ.isLoading, loggedIn, navigate]);
 
-  if (loading || loggedIn || settingsQ.isLoading || !settings.enabled) {
+  if (loading || loggedIn) {
     return (
       <div className="min-h-dvh grid place-items-center bg-[#F7F3F0]">
         <div className="h-8 w-8 rounded-full border-2 border-[#C1121F] border-t-transparent animate-spin" />
       </div>
     );
+  }
+
+  if (settingsQ.isFetched && settings.enabled === false) {
+    return (
+      <div className="min-h-dvh grid place-items-center bg-[#F7F3F0]">
+        <div className="h-8 w-8 rounded-full border-2 border-[#C1121F] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!settings.enabled) {
+    return null;
   }
 
   return (
