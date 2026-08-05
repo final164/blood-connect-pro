@@ -25,6 +25,7 @@ const EMPTY_CONTENT: LandingContentBundle = {
   faqs: [],
   communityCards: [],
   liveRequestCount: null,
+  liveDonorCount: null,
 };
 
 export const Route = createFileRoute("/")({

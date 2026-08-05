@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
+import { LANDING_MEDIA } from "@/lib/landing-media";
 
 export type LandingTheme = "life_crimson" | "night_clinic";
 
@@ -153,12 +154,14 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
   seo: {
     title_bn: "BloodLink — রক্তদানে জীবন বাঁচান",
     title_en: "BloodLink — Save lives with blood donation",
-    description_bn: "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান।",
-    description_en: "Realtime blood donor network — find donors, post requests.",
-    og_image_url: "",
+    description_bn:
+      "বাংলাদেশের রিয়েলটাইম রক্তদাতা নেটওয়ার্ক। জরুরি রিকোয়েস্ট দেখুন, কাছের ডোনার খুঁজুন, এক ক্লিকে সাহায্য করুন।",
+    description_en:
+      "Bangladesh’s realtime blood donor network. See urgent requests, find nearby donors, and help in one tap.",
+    og_image_url: LANDING_MEDIA.og,
   },
   nav: {
-    logo_url: "",
+    logo_url: LANDING_MEDIA.logo,
     show_lang_toggle: true,
     cta_login_bn: "লগইন",
     cta_login_en: "Log in",
@@ -167,6 +170,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     links: [
       { id: "how", label_bn: "কীভাবে কাজ করে", label_en: "How it works", href: "#how" },
       { id: "campaigns", label_bn: "ক্যাম্পেইন", label_en: "Campaigns", href: "#campaigns" },
+      { id: "community", label_bn: "কমিউনিটি", label_en: "Community", href: "#community" },
+      { id: "gallery", label_bn: "গ্যালারি", label_en: "Gallery", href: "#gallery" },
       { id: "faq", label_bn: "প্রশ্নোত্তর", label_en: "FAQ", href: "#faq" },
     ],
   },
@@ -175,56 +180,95 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     brand_en: "BloodLink",
     headline_bn: "রক্তদান করুন, জীবন বাঁচান",
     headline_en: "Donate blood. Save lives.",
-    sub_bn: "আপনার এলাকার জরুরি রক্তের চাহিদা দেখুন এবং এক ক্লিকে সাহায্য করুন।",
-    sub_en: "See urgent blood needs near you and help with one tap.",
-    cta_primary_bn: "শুরু করুন",
-    cta_primary_en: "Get started",
+    sub_bn:
+      "আপনার এলাকার জরুরি রক্তের চাহিদা দেখুন, যাচাইকৃত ডোনারদের সাথে যোগাযোগ করুন — এক অ্যাপেই সব।",
+    sub_en:
+      "See urgent blood needs near you, reach verified donors, and help — all in one app.",
+    cta_primary_bn: "বিনামূল্যে শুরু করুন",
+    cta_primary_en: "Get started free",
     cta_primary_href: "/auth",
-    cta_secondary_bn: "লগইন",
-    cta_secondary_en: "Log in",
-    cta_secondary_href: "/auth",
-    background_url: "",
+    cta_secondary_bn: "কীভাবে কাজ করে",
+    cta_secondary_en: "How it works",
+    cta_secondary_href: "#how",
+    background_url: LANDING_MEDIA.hero,
     background_video_url: "",
   },
   community: {
-    title_bn: "আমাদের কমিউনিটি",
-    title_en: "Our community",
-    body_bn: "জেলাভিত্তিক সংস্থা ও স্বেচ্ছাসেবী রক্তদাতারা একসাথে কাজ করে।",
-    body_en: "District organizations and volunteer donors working together.",
-    background_url: "",
+    title_bn: "একসাথে গড়া রক্তদানের কমিউনিটি",
+    title_en: "A community built to give",
+    body_bn:
+      "জেলাভিত্তিক সংস্থা, হাসপাতাল পার্টনার ও স্বেচ্ছাসেবী রক্তদাতারা এক প্ল্যাটফর্মে — যখন দরকার, তখন সাড়া।",
+    body_en:
+      "District orgs, hospital partners, and volunteer donors on one platform — ready when it matters.",
+    background_url: LANDING_MEDIA.communityBg,
     pull_orgs: true,
-    cta_bn: "রক্তদাতা খুঁজুন",
-    cta_en: "Find donors",
+    cta_bn: "অ্যাকাউন্ট খুলুন",
+    cta_en: "Create account",
     cta_href: "/auth",
   },
   cta_band: {
     title_bn: "আজই একজনের জীবন বদলান",
     title_en: "Change a life today",
-    body_bn: "অ্যাকাউন্ট খুলুন এবং আপনার এলাকার রিকোয়েস্ট দেখুন।",
-    body_en: "Create an account and see requests in your area.",
-    background_url: "",
-    primary_bn: "সাইন আপ",
-    primary_en: "Sign up",
+    body_bn: "নিবন্ধন করুন, প্রোফাইল সম্পন্ন করুন, এবং আপনার এলাকার জরুরি রিকোয়েস্ট দেখুন।",
+    body_en: "Sign up, complete your profile, and see urgent requests in your area.",
+    background_url: LANDING_MEDIA.ctaBg,
+    primary_bn: "সাইন আপ করুন",
+    primary_en: "Sign up now",
     primary_href: "/auth",
-    secondary_bn: "আরও জানুন",
-    secondary_en: "Learn more",
+    secondary_bn: "কীভাবে কাজ করে",
+    secondary_en: "How it works",
     secondary_href: "#how",
   },
   footer: {
-    copyright_bn: "© BloodLink. সবাইকে রক্তদানের অধিকার।",
-    copyright_en: "© BloodLink. Blood donation for everyone.",
-    hotline: "",
+    copyright_bn: "© BloodLink. রক্তদান — সবার অধিকার, সবার দায়িত্ব।",
+    copyright_en: "© BloodLink. Blood donation — a right and a responsibility.",
+    hotline: "16263",
     columns: [
       {
-        title_bn: "লিংক",
-        title_en: "Links",
+        title_bn: "প্ল্যাটফর্ম",
+        title_en: "Platform",
         links: [
           { label_bn: "লগইন", label_en: "Log in", href: "/auth" },
+          { label_bn: "সাইন আপ", label_en: "Sign up", href: "/auth" },
+          { label_bn: "কীভাবে কাজ করে", label_en: "How it works", href: "#how" },
+        ],
+      },
+      {
+        title_bn: "সম্পদ",
+        title_en: "Resources",
+        links: [
+          { label_bn: "ক্যাম্পেইন", label_en: "Campaigns", href: "#campaigns" },
+          { label_bn: "গ্যালারি", label_en: "Gallery", href: "#gallery" },
           { label_bn: "প্রশ্নোত্তর", label_en: "FAQ", href: "#faq" },
         ],
       },
+      {
+        title_bn: "যোগাযোগ",
+        title_en: "Contact",
+        links: [
+          { label_bn: "জরুরি হটলাইন", label_en: "Emergency hotline", href: "tel:16263" },
+          { label_bn: "কমিউনিটি", label_en: "Community", href: "#community" },
+          { label_bn: "উপরে যান", label_en: "Back to top", href: "#top" },
+        ],
+      },
     ],
-    social: [],
+    social: [
+      {
+        label_bn: "ফেসবুক",
+        label_en: "Facebook",
+        href: "https://www.facebook.com/",
+      },
+      {
+        label_bn: "ইউটিউব",
+        label_en: "YouTube",
+        href: "https://www.youtube.com/",
+      },
+      {
+        label_bn: "হোয়াটসঅ্যাপ",
+        label_en: "WhatsApp",
+        href: "https://wa.me/",
+      },
+    ],
   },
   section_order: [...LANDING_SECTION_IDS],
   sections_enabled: Object.fromEntries(LANDING_SECTION_IDS.map((id) => [id, true])) as Record<
@@ -244,6 +288,12 @@ export function invalidateLandingSettingsCache() {
 
 function str(v: unknown, fallback: string) {
   return typeof v === "string" && v.trim() ? v.trim() : fallback;
+}
+
+/** Prefer stored URL; fall back to curated default when empty. */
+function mediaUrl(v: unknown, fallback: string) {
+  const raw = typeof v === "string" ? v.trim() : "";
+  return resolveCarouselImageUrl(raw || fallback);
 }
 
 export function normalizeLandingSettings(raw: unknown): LandingSettings {
@@ -270,20 +320,6 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
   const ctaRaw = (r.cta_band && typeof r.cta_band === "object" ? r.cta_band : {}) as Record<string, unknown>;
   const footerRaw = (r.footer && typeof r.footer === "object" ? r.footer : {}) as Record<string, unknown>;
 
-  const links = Array.isArray(navRaw.links)
-    ? navRaw.links
-        .map((l, i) => {
-          const x = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
-          return {
-            id: str(x.id, `link-${i}`),
-            label_bn: str(x.label_bn, ""),
-            label_en: str(x.label_en, ""),
-            href: str(x.href, "#"),
-          };
-        })
-        .filter((l) => l.label_bn || l.label_en)
-    : d.nav.links;
-
   const enabledRaw =
     r.sections_enabled && typeof r.sections_enabled === "object"
       ? (r.sections_enabled as Record<string, unknown>)
@@ -299,26 +335,54 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
     if (!section_order.includes(id)) section_order.push(id);
   }
 
-  const footerCols = Array.isArray(footerRaw.columns)
-    ? footerRaw.columns.map((c) => {
-        const col = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
-        const colLinks = Array.isArray(col.links)
-          ? col.links.map((l) => {
-              const x = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
-              return {
-                label_bn: str(x.label_bn, ""),
-                label_en: str(x.label_en, ""),
-                href: str(x.href, "#"),
-              };
-            })
-          : [];
-        return {
-          title_bn: str(col.title_bn, ""),
-          title_en: str(col.title_en, ""),
-          links: colLinks,
-        };
-      })
-    : d.footer.columns;
+  const footerCols =
+    Array.isArray(footerRaw.columns) && footerRaw.columns.length > 0
+      ? footerRaw.columns.map((c) => {
+          const col = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+          const colLinks = Array.isArray(col.links)
+            ? col.links.map((l) => {
+                const x = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
+                return {
+                  label_bn: str(x.label_bn, ""),
+                  label_en: str(x.label_en, ""),
+                  href: str(x.href, "#"),
+                };
+              })
+            : [];
+          return {
+            title_bn: str(col.title_bn, ""),
+            title_en: str(col.title_en, ""),
+            links: colLinks,
+          };
+        })
+      : d.footer.columns;
+
+  const social =
+    Array.isArray(footerRaw.social) && footerRaw.social.length > 0
+      ? footerRaw.social.map((l) => {
+          const x = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
+          return {
+            label_bn: str(x.label_bn, ""),
+            label_en: str(x.label_en, ""),
+            href: str(x.href, "#"),
+          };
+        })
+      : d.footer.social;
+
+  const navLinks =
+    Array.isArray(navRaw.links) && navRaw.links.length > 0
+      ? navRaw.links
+          .map((l, i) => {
+            const x = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
+            return {
+              id: str(x.id, `link-${i}`),
+              label_bn: str(x.label_bn, ""),
+              label_en: str(x.label_en, ""),
+              href: str(x.href, "#"),
+            };
+          })
+          .filter((l) => l.label_bn || l.label_en)
+      : d.nav.links;
 
   return {
     enabled: r.enabled !== false,
@@ -329,16 +393,16 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       title_en: str(seoRaw.title_en, d.seo.title_en),
       description_bn: str(seoRaw.description_bn, d.seo.description_bn),
       description_en: str(seoRaw.description_en, d.seo.description_en),
-      og_image_url: str(seoRaw.og_image_url, ""),
+      og_image_url: mediaUrl(seoRaw.og_image_url, d.seo.og_image_url),
     },
     nav: {
-      logo_url: str(navRaw.logo_url, ""),
+      logo_url: mediaUrl(navRaw.logo_url, d.nav.logo_url),
       show_lang_toggle: navRaw.show_lang_toggle !== false,
       cta_login_bn: str(navRaw.cta_login_bn, d.nav.cta_login_bn),
       cta_login_en: str(navRaw.cta_login_en, d.nav.cta_login_en),
       cta_signup_bn: str(navRaw.cta_signup_bn, d.nav.cta_signup_bn),
       cta_signup_en: str(navRaw.cta_signup_en, d.nav.cta_signup_en),
-      links,
+      links: navLinks,
     },
     hero: {
       brand_bn: str(heroRaw.brand_bn, d.hero.brand_bn),
@@ -353,7 +417,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       cta_secondary_bn: str(heroRaw.cta_secondary_bn, d.hero.cta_secondary_bn),
       cta_secondary_en: str(heroRaw.cta_secondary_en, d.hero.cta_secondary_en),
       cta_secondary_href: str(heroRaw.cta_secondary_href, d.hero.cta_secondary_href),
-      background_url: resolveCarouselImageUrl(str(heroRaw.background_url, "")),
+      background_url: mediaUrl(heroRaw.background_url, d.hero.background_url),
       background_video_url: str(heroRaw.background_video_url, ""),
     },
     community: {
@@ -361,7 +425,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       title_en: str(communityRaw.title_en, d.community.title_en),
       body_bn: str(communityRaw.body_bn, d.community.body_bn),
       body_en: str(communityRaw.body_en, d.community.body_en),
-      background_url: resolveCarouselImageUrl(str(communityRaw.background_url, "")),
+      background_url: mediaUrl(communityRaw.background_url, d.community.background_url),
       pull_orgs: communityRaw.pull_orgs !== false,
       cta_bn: str(communityRaw.cta_bn, d.community.cta_bn),
       cta_en: str(communityRaw.cta_en, d.community.cta_en),
@@ -372,7 +436,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       title_en: str(ctaRaw.title_en, d.cta_band.title_en),
       body_bn: str(ctaRaw.body_bn, d.cta_band.body_bn),
       body_en: str(ctaRaw.body_en, d.cta_band.body_en),
-      background_url: resolveCarouselImageUrl(str(ctaRaw.background_url, "")),
+      background_url: mediaUrl(ctaRaw.background_url, d.cta_band.background_url),
       primary_bn: str(ctaRaw.primary_bn, d.cta_band.primary_bn),
       primary_en: str(ctaRaw.primary_en, d.cta_band.primary_en),
       primary_href: str(ctaRaw.primary_href, d.cta_band.primary_href),
@@ -383,18 +447,9 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
     footer: {
       copyright_bn: str(footerRaw.copyright_bn, d.footer.copyright_bn),
       copyright_en: str(footerRaw.copyright_en, d.footer.copyright_en),
-      hotline: str(footerRaw.hotline, ""),
+      hotline: str(footerRaw.hotline, d.footer.hotline),
       columns: footerCols,
-      social: Array.isArray(footerRaw.social)
-        ? footerRaw.social.map((l) => {
-            const x = (l && typeof l === "object" ? l : {}) as Record<string, unknown>;
-            return {
-              label_bn: str(x.label_bn, ""),
-              label_en: str(x.label_en, ""),
-              href: str(x.href, "#"),
-            };
-          })
-        : [],
+      social,
     },
     section_order,
     sections_enabled,

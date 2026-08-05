@@ -14,10 +14,14 @@ export function LandingNav({
   const nav = settings.nav;
   return (
     <header className="sticky top-0 z-40 landing-glass border-b border-black/5">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+      <div className="mx-auto flex w-full max-w-5xl md:max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <a href="#top" className="flex items-center gap-2 min-w-0">
           {nav.logo_url ? (
-            <img src={nav.logo_url} alt="" className="h-9 w-9 rounded-xl object-cover" />
+            <img
+              src={nav.logo_url}
+              alt=""
+              className="h-9 w-9 rounded-xl object-cover ring-1 ring-black/5"
+            />
           ) : (
             <span
               className="h-9 w-9 rounded-xl grid place-items-center text-white shadow-md"
@@ -30,9 +34,12 @@ export function LandingNav({
             {lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
           </span>
         </a>
-        <nav className="hidden sm:flex items-center gap-4 text-xs font-medium" style={{ color: "var(--landing-muted)" }}>
+        <nav
+          className="hidden md:flex items-center gap-4 text-xs font-medium"
+          style={{ color: "var(--landing-muted)" }}
+        >
           {nav.links.map((l) => (
-            <a key={l.id} href={l.href} className="hover:opacity-100 opacity-80 transition">
+            <a key={l.id} href={l.href} className="hover:opacity-100 opacity-80 transition whitespace-nowrap">
               {lang === "bn" ? l.label_bn : l.label_en}
             </a>
           ))}

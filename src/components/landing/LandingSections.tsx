@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Building2,
@@ -36,6 +36,52 @@ function pick(lang: "bn" | "en", bn: string, en: string) {
   return lang === "bn" ? bn : en;
 }
 
+/** CMS href: hash, external, tel/mailto, or in-app path. */
+function LandingHref({
+  href,
+  className,
+  style,
+  children,
+}: {
+  href: string;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  const h = (href || "/auth").trim() || "/auth";
+  const external = /^https?:\/\//i.test(h);
+  const special = h.startsWith("#") || h.startsWith("tel:") || h.startsWith("mailto:") || external;
+
+  if (special) {
+    return (
+      <a
+        href={h}
+        className={className}
+        style={style}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  if (h === "/auth" || h.startsWith("/auth")) {
+    return (
+      <Link to="/auth" className={className} style={style}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <a href={h} className={className} style={style}>
+      {children}
+    </a>
+  );
+}
+
+const shell = "mx-auto w-full max-w-5xl md:max-w-6xl px-4 sm:px-5";
+
 export function LandingHero({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const h = settings.hero;
   const bg = h.background_url;
@@ -53,7 +99,12 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             src={h.background_video_url}
           />
         ) : bg ? (
-          <img src={bg} alt="" className="h-full w-full object-cover" />
+          <img
+            src={bg}
+            alt=""
+            className="h-full w-full object-cover scale-105"
+            fetchPriority="high"
+          />
         ) : (
           <div
             className="h-full w-full"
@@ -63,33 +114,33 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/25" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-5xl px-5 pb-14 pt-28 landing-fade-up">
-        <p className="landing-brand text-3xl sm:text-5xl font-bold text-white tracking-tight mb-3">
+      <div className={`relative z-10 ${shell} pb-14 pt-28 landing-fade-up`}>
+        <p className="landing-brand text-3xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight mb-3">
           {pick(lang, h.brand_bn, h.brand_en)}
         </p>
-        <h1 className="text-xl sm:text-2xl font-semibold text-white/95 max-w-xl leading-snug">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white/95 max-w-2xl leading-snug">
           {pick(lang, h.headline_bn, h.headline_en)}
         </h1>
-        <p className="mt-3 text-sm sm:text-base text-white/75 max-w-lg leading-relaxed">
+        <p className="mt-3 text-sm sm:text-base text-white/75 max-w-xl leading-relaxed">
           {pick(lang, h.sub_bn, h.sub_en)}
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
-          <Link
-            to="/auth"
+          <LandingHref
+            href={h.cta_primary_href}
             className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30"
             style={{ background: "var(--landing-primary)" }}
           >
             {pick(lang, h.cta_primary_bn, h.cta_primary_en)}
-          </Link>
-          <Link
-            to="/auth"
+          </LandingHref>
+          <LandingHref
+            href={h.cta_secondary_href}
             className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10 backdrop-blur"
           >
             {pick(lang, h.cta_secondary_bn, h.cta_secondary_en)}
-          </Link>
+          </LandingHref>
         </div>
       </div>
     </section>
@@ -100,26 +151,35 @@ export function LandingStats({
   stats,
   lang,
   liveRequestCount,
+  liveDonorCount,
 }: {
   stats: LandingStat[];
   lang: "bn" | "en";
   liveRequestCount: number | null;
+  liveDonorCount: number | null;
 }) {
   if (!stats.length) return null;
   return (
-    <section className="mx-auto max-w-5xl px-4 py-10">
-      <div className="grid grid-cols-3 gap-3">
+    <section className={`${shell} py-10`}>
+      <div className="grid grid-cols-3 gap-3 sm:gap-6">
         {stats.map((s) => {
           const Icon = ICONS[s.icon_key] ?? Droplet;
-          const value =
-            s.source === "live_requests" && liveRequestCount != null
-              ? String(liveRequestCount)
-              : s.value_text;
+          let value = s.value_text;
+          if (s.source === "live_requests" && liveRequestCount != null) value = String(liveRequestCount);
+          if (s.source === "live_donors" && liveDonorCount != null) {
+            value =
+              liveDonorCount >= 1000
+                ? `${(liveDonorCount / 1000).toFixed(liveDonorCount >= 10000 ? 0 : 1).replace(/\.0$/, "")}k+`
+                : `${liveDonorCount}+`;
+          }
           return (
-            <div key={s.id} className="text-center py-2">
+            <div
+              key={s.id}
+              className="text-center py-3 rounded-2xl border border-black/5 bg-white/40 backdrop-blur-sm"
+            >
               <Icon className="h-5 w-5 mx-auto mb-2" style={{ color: "var(--landing-primary)" }} />
               <p className="text-lg sm:text-2xl font-bold tabular-nums">{value}</p>
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--landing-muted)" }}>
+              <p className="text-[11px] mt-0.5 px-1" style={{ color: "var(--landing-muted)" }}>
                 {pick(lang, s.label_bn, s.label_en)}
               </p>
             </div>
@@ -134,17 +194,22 @@ export function LandingHowItWorks({ cards, lang }: { cards: LandingCard[]; lang:
   const list = cards.filter((c) => c.kind === "how");
   if (!list.length) return null;
   return (
-    <section id="how" className="mx-auto max-w-5xl px-4 py-12">
-      <h2 className="text-xl font-bold mb-6 landing-brand">
+    <section id="how" className={`${shell} py-12`}>
+      <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "কীভাবে কাজ করে" : "How it works"}
       </h2>
       <ul className="grid sm:grid-cols-3 gap-4">
-        {list.map((c) => {
+        {list.map((c, idx) => {
           const Icon = ICONS[c.icon_key] ?? Heart;
-          return (
-            <li key={c.id} className="rounded-2xl border border-black/5 bg-white/40 dark:bg-white/5 p-4">
+          const inner = (
+            <>
               {c.image_url ? (
-                <img src={c.image_url} alt="" className="h-28 w-full object-cover rounded-xl mb-3" />
+                <img
+                  src={c.image_url}
+                  alt=""
+                  className="h-36 w-full object-cover rounded-xl mb-3"
+                  loading="lazy"
+                />
               ) : (
                 <span
                   className="h-10 w-10 rounded-xl grid place-items-center text-white mb-3"
@@ -153,10 +218,24 @@ export function LandingHowItWorks({ cards, lang }: { cards: LandingCard[]; lang:
                   <Icon className="h-5 w-5" />
                 </span>
               )}
+              <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--landing-primary)" }}>
+                {lang === "bn" ? `ধাপ ${idx + 1}` : `Step ${idx + 1}`}
+              </p>
               <p className="font-semibold text-sm">{pick(lang, c.title_bn, c.title_en)}</p>
               <p className="mt-1.5 text-xs leading-relaxed" style={{ color: "var(--landing-muted)" }}>
                 {pick(lang, c.body_bn, c.body_en)}
               </p>
+            </>
+          );
+          return (
+            <li key={c.id} className="rounded-2xl border border-black/5 bg-white/50 overflow-hidden p-3 sm:p-4 shadow-sm shadow-black/5">
+              {c.link_url ? (
+                <LandingHref href={c.link_url} className="block h-full hover:opacity-95 transition">
+                  {inner}
+                </LandingHref>
+              ) : (
+                inner
+              )}
             </li>
           );
         })}
@@ -182,47 +261,84 @@ function SlideCarousel({
   }, [slides.length]);
   if (!slides.length) return null;
   const s = slides[i] ?? slides[0];
-  return (
-    <section id={id} className="mx-auto max-w-5xl px-4 py-10">
-      <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-black/5">
-        <div className="aspect-[16/9] relative">
-          {s.image_url ? (
-            <img
-              key={s.id}
-              src={s.image_url}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
-            />
-          ) : (
-            <div className="absolute inset-0" style={{ background: "var(--landing-primary)", opacity: 0.3 }} />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-            <p className="font-semibold text-sm sm:text-base">{pick(lang, s.title_bn, s.title_en)}</p>
-            {(s.body_bn || s.body_en) && (
-              <p className="mt-1 text-xs text-white/80 line-clamp-2">{pick(lang, s.body_bn, s.body_en)}</p>
+  const body = (
+    <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-black/5 shadow-lg shadow-black/10">
+      <div className="aspect-[16/9] relative">
+        {s.link_url ? (
+          <LandingHref href={s.link_url} className="absolute inset-0 block">
+            {s.image_url ? (
+              <img
+                key={s.id}
+                src={s.image_url}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+              />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{ background: "var(--landing-primary)", opacity: 0.3 }}
+              />
             )}
-          </div>
-        </div>
-        {slides.length > 1 && (
-          <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 pointer-events-none">
-            <button
-              type="button"
-              className="pointer-events-auto h-9 w-9 rounded-full bg-black/40 text-white grid place-items-center"
-              onClick={() => setI((x) => (x - 1 + slides.length) % slides.length)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="pointer-events-auto h-9 w-9 rounded-full bg-black/40 text-white grid place-items-center"
-              onClick={() => setI((x) => (x + 1) % slides.length)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          </LandingHref>
+        ) : s.image_url ? (
+          <img
+            key={s.id}
+            src={s.image_url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+          />
+        ) : (
+          <div className="absolute inset-0" style={{ background: "var(--landing-primary)", opacity: 0.3 }} />
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-7 text-white pointer-events-none">
+          <p className="font-semibold text-sm sm:text-lg">{pick(lang, s.title_bn, s.title_en)}</p>
+          {(s.body_bn || s.body_en) && (
+            <p className="mt-1 text-xs sm:text-sm text-white/85 line-clamp-2">
+              {pick(lang, s.body_bn, s.body_en)}
+            </p>
+          )}
+        </div>
       </div>
+      {slides.length > 1 && (
+        <div className="absolute inset-y-0 left-0 right-0 flex items-center justify-between px-2 pointer-events-none">
+          <button
+            type="button"
+            aria-label="Previous"
+            className="pointer-events-auto h-9 w-9 rounded-full bg-black/45 text-white grid place-items-center"
+            onClick={() => setI((x) => (x - 1 + slides.length) % slides.length)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Next"
+            className="pointer-events-auto h-9 w-9 rounded-full bg-black/45 text-white grid place-items-center"
+            onClick={() => setI((x) => (x + 1) % slides.length)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {slides.length > 1 && (
+        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
+          {slides.map((slide, idx) => (
+            <button
+              key={slide.id}
+              type="button"
+              aria-label={`Slide ${idx + 1}`}
+              className={`h-1.5 rounded-full transition-all ${idx === i ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
+              onClick={() => setI(idx)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <section id={id} className={`${shell} py-10`}>
+      {body}
     </section>
   );
 }
@@ -234,9 +350,9 @@ export function LandingMainCarousel({ slides, lang }: { slides: LandingSlide[]; 
 export function LandingStories({ slides, lang }: { slides: LandingSlide[]; lang: "bn" | "en" }) {
   if (!slides.length) return null;
   return (
-    <div>
-      <div className="mx-auto max-w-5xl px-4 pt-4">
-        <h2 className="text-xl font-bold landing-brand">
+    <div id="stories">
+      <div className={`${shell} pt-4`}>
+        <h2 className="text-xl md:text-2xl font-bold landing-brand">
           {lang === "bn" ? "গল্প ও অভিজ্ঞতা" : "Stories"}
         </h2>
       </div>
@@ -254,34 +370,34 @@ export function LandingCampaigns({
 }) {
   if (!campaigns.length) return null;
   return (
-    <section id="campaigns" className="mx-auto max-w-5xl px-4 py-12">
-      <h2 className="text-xl font-bold mb-6 landing-brand">
+    <section id="campaigns" className={`${shell} py-12`}>
+      <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "ক্যাম্পেইন" : "Campaigns"}
       </h2>
       <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
         {campaigns.map((c) => (
           <article
             key={c.id}
-            className="min-w-[260px] max-w-[280px] shrink-0 rounded-2xl border border-black/5 overflow-hidden bg-white/50"
+            className="min-w-[260px] max-w-[300px] shrink-0 rounded-2xl border border-black/5 overflow-hidden bg-white/55 shadow-sm shadow-black/5"
           >
             {c.cover_url ? (
-              <img src={c.cover_url} alt="" className="h-36 w-full object-cover" />
+              <img src={c.cover_url} alt="" className="h-40 w-full object-cover" loading="lazy" />
             ) : (
-              <div className="h-36 w-full" style={{ background: "var(--landing-primary)", opacity: 0.25 }} />
+              <div className="h-40 w-full" style={{ background: "var(--landing-primary)", opacity: 0.25 }} />
             )}
             <div className="p-4">
               <p className="font-semibold text-sm">{pick(lang, c.title_bn, c.title_en)}</p>
-              <p className="mt-1 text-xs line-clamp-3" style={{ color: "var(--landing-muted)" }}>
+              <p className="mt-1 text-xs line-clamp-3 leading-relaxed" style={{ color: "var(--landing-muted)" }}>
                 {pick(lang, c.body_bn, c.body_en)}
               </p>
               {c.cta_href && (
-                <Link
-                  to="/auth"
+                <LandingHref
+                  href={c.cta_href}
                   className="mt-3 inline-flex text-xs font-semibold"
                   style={{ color: "var(--landing-primary)" }}
                 >
                   {pick(lang, c.cta_bn, c.cta_en) || (lang === "bn" ? "দেখুন" : "View")} →
-                </Link>
+                </LandingHref>
               )}
             </div>
           </article>
@@ -303,11 +419,12 @@ export function LandingCommunity({
   const c = settings.community;
   return (
     <section
+      id="community"
       className="relative py-14 px-4 overflow-hidden"
       style={
         c.background_url
           ? {
-              backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${c.background_url})`,
+              backgroundImage: `linear-gradient(to bottom, rgba(10,6,6,0.55), rgba(10,6,6,0.7)), url(${c.background_url})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }
@@ -316,31 +433,52 @@ export function LandingCommunity({
             }
       }
     >
-      <div className="mx-auto max-w-5xl">
-        <div className="landing-glass rounded-3xl border border-white/20 p-6 sm:p-8 text-[color:var(--landing-fg)]">
-          <h2 className="text-xl font-bold landing-brand">{pick(lang, c.title_bn, c.title_en)}</h2>
-          <p className="mt-2 text-sm max-w-2xl" style={{ color: "var(--landing-muted)" }}>
+      <div className="mx-auto w-full max-w-5xl md:max-w-6xl">
+        <div className="landing-glass rounded-3xl border border-white/25 p-6 sm:p-8 text-[color:var(--landing-fg)] shadow-xl shadow-black/10">
+          <h2 className="text-xl md:text-2xl font-bold landing-brand">{pick(lang, c.title_bn, c.title_en)}</h2>
+          <p className="mt-2 text-sm max-w-2xl leading-relaxed" style={{ color: "var(--landing-muted)" }}>
             {pick(lang, c.body_bn, c.body_en)}
           </p>
           {cards.length > 0 && (
             <ul className="mt-6 grid sm:grid-cols-3 gap-3">
-              {cards.map((card) => (
-                <li key={card.id} className="rounded-2xl border border-black/5 bg-white/50 p-3">
-                  <p className="text-sm font-semibold">{pick(lang, card.title_bn, card.title_en)}</p>
-                  <p className="mt-1 text-[11px]" style={{ color: "var(--landing-muted)" }}>
-                    {pick(lang, card.body_bn, card.body_en)}
-                  </p>
-                </li>
-              ))}
+              {cards.map((card) => {
+                const body = (
+                  <>
+                    {card.image_url && (
+                      <img
+                        src={card.image_url}
+                        alt=""
+                        className="h-28 w-full object-cover rounded-xl mb-2.5"
+                        loading="lazy"
+                      />
+                    )}
+                    <p className="text-sm font-semibold">{pick(lang, card.title_bn, card.title_en)}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--landing-muted)" }}>
+                      {pick(lang, card.body_bn, card.body_en)}
+                    </p>
+                  </>
+                );
+                return (
+                  <li key={card.id} className="rounded-2xl border border-black/5 bg-white/60 p-3 overflow-hidden">
+                    {card.link_url ? (
+                      <LandingHref href={card.link_url} className="block hover:opacity-95">
+                        {body}
+                      </LandingHref>
+                    ) : (
+                      body
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
-          <Link
-            to="/auth"
+          <LandingHref
+            href={c.cta_href}
             className="mt-6 inline-flex rounded-2xl px-4 py-2.5 text-xs font-semibold text-white"
             style={{ background: "var(--landing-primary)" }}
           >
             {pick(lang, c.cta_bn, c.cta_en)}
-          </Link>
+          </LandingHref>
         </div>
       </div>
     </section>
@@ -350,13 +488,16 @@ export function LandingCommunity({
 export function LandingGallery({ items, lang }: { items: LandingGalleryItem[]; lang: "bn" | "en" }) {
   if (!items.length) return null;
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12">
-      <h2 className="text-xl font-bold mb-6 landing-brand">
+    <section id="gallery" className={`${shell} py-12`}>
+      <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "গ্যালারি" : "Gallery"}
       </h2>
       <div className="columns-2 sm:columns-3 gap-3 space-y-3">
         {items.map((g) => (
-          <figure key={g.id} className="break-inside-avoid rounded-2xl overflow-hidden border border-black/5">
+          <figure
+            key={g.id}
+            className="break-inside-avoid rounded-2xl overflow-hidden border border-black/5 bg-white/40 shadow-sm shadow-black/5"
+          >
             <img src={g.image_url} alt="" className="w-full object-cover" loading="lazy" />
             {(g.caption_bn || g.caption_en) && (
               <figcaption className="px-2.5 py-2 text-[10px]" style={{ color: "var(--landing-muted)" }}>
@@ -374,15 +515,15 @@ export function LandingFaq({ faqs, lang }: { faqs: LandingFaq[]; lang: "bn" | "e
   const [open, setOpen] = useState<string | null>(faqs[0]?.id ?? null);
   if (!faqs.length) return null;
   return (
-    <section id="faq" className="mx-auto max-w-5xl px-4 py-12">
-      <h2 className="text-xl font-bold mb-6 landing-brand">
+    <section id="faq" className={`${shell} py-12`}>
+      <h2 className="text-xl md:text-2xl font-bold mb-6 landing-brand">
         {lang === "bn" ? "প্রশ্নোত্তর" : "FAQ"}
       </h2>
       <ul className="space-y-2">
         {faqs.map((f) => {
           const isOpen = open === f.id;
           return (
-            <li key={f.id} className="rounded-2xl border border-black/5 overflow-hidden bg-white/40">
+            <li key={f.id} className="rounded-2xl border border-black/5 overflow-hidden bg-white/50 shadow-sm shadow-black/5">
               <button
                 type="button"
                 className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-semibold"
@@ -417,32 +558,32 @@ export function LandingCtaBand({ settings, lang }: { settings: LandingSettings; 
       style={
         c.background_url
           ? {
-              backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.6)), url(${c.background_url})`,
+              backgroundImage: `linear-gradient(to bottom, rgba(10,6,6,0.55), rgba(10,6,6,0.65)), url(${c.background_url})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }
           : { background: "color-mix(in srgb, var(--landing-primary) 12%, var(--landing-bg))" }
       }
     >
-      <div className="mx-auto max-w-3xl text-center landing-glass rounded-3xl border border-white/20 px-6 py-10">
+      <div className="mx-auto max-w-3xl text-center landing-glass rounded-3xl border border-white/25 px-6 py-10 shadow-xl shadow-black/10">
         <h2 className="text-xl sm:text-2xl font-bold landing-brand">{pick(lang, c.title_bn, c.title_en)}</h2>
-        <p className="mt-2 text-sm" style={{ color: "var(--landing-muted)" }}>
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--landing-muted)" }}>
           {pick(lang, c.body_bn, c.body_en)}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link
-            to="/auth"
+          <LandingHref
+            href={c.primary_href}
             className="rounded-2xl px-5 py-3 text-sm font-semibold text-white"
             style={{ background: "var(--landing-primary)" }}
           >
             {pick(lang, c.primary_bn, c.primary_en)}
-          </Link>
-          <a
+          </LandingHref>
+          <LandingHref
             href={c.secondary_href || "#how"}
-            className="rounded-2xl px-5 py-3 text-sm font-semibold border border-black/10"
+            className="rounded-2xl px-5 py-3 text-sm font-semibold border border-black/10 bg-white/40"
           >
             {pick(lang, c.secondary_bn, c.secondary_en)}
-          </a>
+          </LandingHref>
         </div>
       </div>
     </section>
@@ -453,16 +594,34 @@ export function LandingFooter({ settings, lang }: { settings: LandingSettings; l
   const f = settings.footer;
   return (
     <footer className="border-t border-black/5 px-4 py-10" style={{ color: "var(--landing-muted)" }}>
-      <div className="mx-auto max-w-5xl grid sm:grid-cols-3 gap-8 text-sm">
+      <div className="mx-auto w-full max-w-5xl md:max-w-6xl grid sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">
         <div>
           <p className="font-semibold text-[color:var(--landing-fg)] landing-brand">
             {pick(lang, settings.hero.brand_bn, settings.hero.brand_en)}
           </p>
           <p className="mt-2 text-xs leading-relaxed">{pick(lang, f.copyright_bn, f.copyright_en)}</p>
           {f.hotline && (
-            <a href={`tel:${f.hotline}`} className="mt-3 inline-block text-xs font-semibold" style={{ color: "var(--landing-primary)" }}>
-              {f.hotline}
+            <a
+              href={`tel:${f.hotline.replace(/\s/g, "")}`}
+              className="mt-3 inline-block text-xs font-semibold"
+              style={{ color: "var(--landing-primary)" }}
+            >
+              {lang === "bn" ? "হটলাইন" : "Hotline"}: {f.hotline}
             </a>
+          )}
+          {f.social.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {f.social.map((s, i) => (
+                <li key={i}>
+                  <LandingHref
+                    href={s.href}
+                    className="inline-flex rounded-lg border border-black/10 px-2.5 py-1 text-[10px] font-semibold hover:bg-black/5"
+                  >
+                    {pick(lang, s.label_bn, s.label_en)}
+                  </LandingHref>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
         {f.columns.map((col, idx) => (
@@ -473,7 +632,9 @@ export function LandingFooter({ settings, lang }: { settings: LandingSettings; l
             <ul className="mt-2 space-y-1.5 text-xs">
               {col.links.map((l, i) => (
                 <li key={i}>
-                  <a href={l.href}>{pick(lang, l.label_bn, l.label_en)}</a>
+                  <LandingHref href={l.href} className="hover:opacity-100 opacity-80 transition">
+                    {pick(lang, l.label_bn, l.label_en)}
+                  </LandingHref>
                 </li>
               ))}
             </ul>
@@ -504,6 +665,7 @@ export function renderLandingSection(
           stats={content.stats}
           lang={lang}
           liveRequestCount={content.liveRequestCount}
+          liveDonorCount={content.liveDonorCount}
         />
       );
     case "how_it_works":
@@ -530,7 +692,7 @@ export function renderLandingSection(
     case "footer":
       return <LandingFooter key={id} settings={settings} lang={lang} />;
     case "nav":
-      return null; // rendered separately sticky
+      return null;
     default:
       return null;
   }
