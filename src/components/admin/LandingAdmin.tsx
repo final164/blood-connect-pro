@@ -14,6 +14,7 @@ import { useAdminAccess } from "@/lib/admin-access-context";
 import {
   DEFAULT_LANDING_SETTINGS,
   DEFAULT_HERO_SLIDESHOW,
+  DEFAULT_HERO_YOUTUBE,
   THEME_PRESETS,
   fetchLandingSettings,
   invalidateLandingSettingsCache,
@@ -34,6 +35,7 @@ import {
   type LandingStat,
 } from "@/lib/landing-content";
 import { isGoogleDriveUrl, resolveCarouselImageUrl } from "@/lib/feed-carousel";
+import { parseYoutubeId } from "@/lib/youtube";
 
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40";
@@ -603,74 +605,103 @@ export function LandingAdmin() {
             ))}
           </div>
 
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+            <p className="text-xs font-semibold text-slate-200">
+              {lang === "bn" ? "স্লাইড টাইমিং" : "Slide timing"}
+            </p>
+            <p className="text-[10px] text-slate-500">
+              {lang === "bn"
+                ? "কত সেকেন্ড পর ইমেজ বদলাবে এবং fade কতক্ষণ চলবে — Save করলে ফ্রন্টপেজে লাগবে।"
+                : "How long each image stays and how long the fade lasts — applies on the frontpage after Save."}
+            </p>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <Field
+                label={
+                  lang === "bn"
+                    ? "বদলানোর ইন্টারভাল (সেকেন্ড) — ডিফল্ট ৫.৫"
+                    : "Change interval (seconds) — default 5.5"
+                }
+              >
+                <input
+                  type="number"
+                  min={2.5}
+                  max={30}
+                  step={0.5}
+                  className={ainp}
+                  value={(cfg.hero.slideshow?.interval_ms ?? DEFAULT_HERO_SLIDESHOW.interval_ms) / 1000}
+                  onChange={(e) => {
+                    const sec = Number(e.target.value);
+                    if (!Number.isFinite(sec)) return;
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        slideshow: {
+                          ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                          interval_ms: Math.min(30000, Math.max(2500, Math.round(sec * 1000))),
+                        },
+                      },
+                    }));
+                  }}
+                />
+              </Field>
+              <Field
+                label={
+                  lang === "bn"
+                    ? "Fade সময় (সেকেন্ড) — ডিফল্ট ০.৯"
+                    : "Fade duration (seconds) — default 0.9"
+                }
+              >
+                <input
+                  type="number"
+                  min={0.4}
+                  max={4}
+                  step={0.1}
+                  className={ainp}
+                  value={(cfg.hero.slideshow?.transition_ms ?? DEFAULT_HERO_SLIDESHOW.transition_ms) / 1000}
+                  onChange={(e) => {
+                    const sec = Number(e.target.value);
+                    if (!Number.isFinite(sec)) return;
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        slideshow: {
+                          ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                          transition_ms: Math.min(4000, Math.max(400, Math.round(sec * 1000))),
+                        },
+                      },
+                    }));
+                  }}
+                />
+              </Field>
+            </div>
+            <ToggleRow
+              title={lang === "bn" ? "স্লাইডশো চালু" : "Slideshow enabled"}
+              hint={
+                lang === "bn"
+                  ? "বন্ধ করলে শুধু প্রথম ইমেজ দেখাবে"
+                  : "Off = show only the first image"
+              }
+              checked={cfg.hero.slideshow?.enabled ?? DEFAULT_HERO_SLIDESHOW.enabled}
+              onChange={(v) =>
+                setCfg((p) => ({
+                  ...p,
+                  hero: {
+                    ...p.hero,
+                    slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), enabled: v },
+                  },
+                }))
+              }
+            />
+          </div>
+
           <details className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
             <summary className="cursor-pointer text-xs font-semibold text-slate-200 select-none">
               {lang === "bn" ? "অ্যাডভান্স স্লাইডশো অপশন" : "Advanced slideshow options"}
             </summary>
             <div className="mt-3 space-y-3">
-              <ToggleRow
-                title={lang === "bn" ? "স্লাইডশো চালু" : "Slideshow enabled"}
-                hint={
-                  lang === "bn"
-                    ? "২+ ইমেজ থাকলে স্বয়ংক্রিয় রোটেশন"
-                    : "Auto-rotate when 2+ images are set"
-                }
-                checked={cfg.hero.slideshow?.enabled ?? DEFAULT_HERO_SLIDESHOW.enabled}
-                onChange={(v) =>
-                  setCfg((p) => ({
-                    ...p,
-                    hero: {
-                      ...p.hero,
-                      slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), enabled: v },
-                    },
-                  }))
-                }
-              />
               <div className="grid sm:grid-cols-2 gap-2">
-                <Field label={lang === "bn" ? "ইন্টারভাল (সেকেন্ড)" : "Interval (seconds)"}>
-                  <input
-                    type="number"
-                    min={2.5}
-                    max={30}
-                    step={0.5}
-                    className={ainp}
-                    value={(cfg.hero.slideshow?.interval_ms ?? DEFAULT_HERO_SLIDESHOW.interval_ms) / 1000}
-                    onChange={(e) =>
-                      setCfg((p) => ({
-                        ...p,
-                        hero: {
-                          ...p.hero,
-                          slideshow: {
-                            ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
-                            interval_ms: Math.min(30000, Math.max(2500, Number(e.target.value) * 1000)),
-                          },
-                        },
-                      }))
-                    }
-                  />
-                </Field>
-                <Field label={lang === "bn" ? "ট্রানজিশন (সেকেন্ড)" : "Transition (seconds)"}>
-                  <input
-                    type="number"
-                    min={0.4}
-                    max={4}
-                    step={0.1}
-                    className={ainp}
-                    value={(cfg.hero.slideshow?.transition_ms ?? DEFAULT_HERO_SLIDESHOW.transition_ms) / 1000}
-                    onChange={(e) =>
-                      setCfg((p) => ({
-                        ...p,
-                        hero: {
-                          ...p.hero,
-                          slideshow: {
-                            ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
-                            transition_ms: Math.min(4000, Math.max(400, Number(e.target.value) * 1000)),
-                          },
-                        },
-                      }))
-                    }
-                  />
-                </Field>
                 <Field label={lang === "bn" ? "ট্রানজিশন স্টাইল" : "Transition style"}>
                   <select
                     className={ainp}
@@ -688,7 +719,9 @@ export function LandingAdmin() {
                       }))
                     }
                   >
-                    <option value="crossfade">{lang === "bn" ? "ক্রসফেড (স্মুথ)" : "Crossfade (smooth)"}</option>
+                    <option value="crossfade">
+                      {lang === "bn" ? "ক্রসফেড (স্মুথ)" : "Crossfade (smooth)"}
+                    </option>
                     <option value="fade">{lang === "bn" ? "ফেড" : "Fade"}</option>
                     <option value="slide">{lang === "bn" ? "স্লাইড" : "Slide"}</option>
                   </select>
@@ -719,8 +752,8 @@ export function LandingAdmin() {
                 title={lang === "bn" ? "Ken Burns (জুম)" : "Ken Burns (zoom)"}
                 hint={
                   lang === "bn"
-                    ? "সূক্ষ্ম জুম — বেশি ইমেজে ল্যাগ হতে পারে"
-                    : "Subtle zoom — may cost FPS on slow devices"
+                    ? "সূক্ষ্ম জুম — মোবাইলে ল্যাগ হতে পারে"
+                    : "Subtle zoom — may cost FPS on mobile"
                 }
                 checked={cfg.hero.slideshow?.ken_burns ?? DEFAULT_HERO_SLIDESHOW.ken_burns}
                 onChange={(v) =>
@@ -741,7 +774,10 @@ export function LandingAdmin() {
                     ...p,
                     hero: {
                       ...p.hero,
-                      slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), pause_on_hover: v },
+                      slideshow: {
+                        ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                        pause_on_hover: v,
+                      },
                     },
                   }))
                 }
@@ -762,7 +798,184 @@ export function LandingAdmin() {
             </div>
           </details>
 
-          <Field label={lang === "bn" ? "ব্যাকগ্রাউন্ড ভিডিও URL (ঐচ্ছিক)" : "Background video URL (optional)"}>
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+            <p className="text-xs font-semibold text-slate-200">
+              {lang === "bn" ? "YouTube ভিডিও (হিরো)" : "YouTube video (hero)"}
+            </p>
+            <p className="text-[10px] text-slate-500">
+              {lang === "bn"
+                ? "পেজেই প্লে হবে — YouTube-এ রিডাইরেক্ট হবে না। প্লে বাটনে ক্লিক করলে autoplay।"
+                : "Plays on-site — no redirect to YouTube. Click play to autoplay."}
+            </p>
+            <ToggleRow
+              title={lang === "bn" ? "YouTube সেকশন চালু" : "Show YouTube section"}
+              checked={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).enabled}
+              onChange={(v) =>
+                setCfg((p) => ({
+                  ...p,
+                  hero: {
+                    ...p.hero,
+                    youtube: { ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE), enabled: v },
+                  },
+                }))
+              }
+            />
+            <Field label={lang === "bn" ? "YouTube লিংক / Video ID" : "YouTube link / Video ID"}>
+              <input
+                className={ainp}
+                value={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).url}
+                placeholder="https://www.youtube.com/watch?v=… or youtu.be/…"
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      youtube: { ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE), url: e.target.value },
+                    },
+                  }))
+                }
+              />
+              {(() => {
+                const id = parseYoutubeId((cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).url);
+                return (
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {id
+                      ? lang === "bn"
+                        ? `ভিডিও ID: ${id} — হিরোতে দেখাবে`
+                        : `Video ID: ${id} — will show in hero`
+                      : lang === "bn"
+                        ? "লিংক পেস্ট করুন — খালি থাকলে ভিডিও লুকাবে"
+                        : "Paste a link — empty hides the player"}
+                  </p>
+                );
+              })()}
+            </Field>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <Field label="Title BN">
+                <input
+                  className={ainp}
+                  value={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).title_bn}
+                  onChange={(e) =>
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        youtube: {
+                          ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE),
+                          title_bn: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="Title EN">
+                <input
+                  className={ainp}
+                  value={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).title_en}
+                  onChange={(e) =>
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        youtube: {
+                          ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE),
+                          title_en: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="Body BN">
+                <input
+                  className={ainp}
+                  value={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).body_bn}
+                  onChange={(e) =>
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        youtube: {
+                          ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE),
+                          body_bn: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="Body EN">
+                <input
+                  className={ainp}
+                  value={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).body_en}
+                  onChange={(e) =>
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        youtube: {
+                          ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE),
+                          body_en: e.target.value,
+                        },
+                      },
+                    }))
+                  }
+                />
+              </Field>
+            </div>
+            <Field
+              label={
+                lang === "bn" ? "কাস্টম পোস্টার URL (ঐচ্ছিক)" : "Custom poster URL (optional)"
+              }
+            >
+              <MediaUrlInput
+                value={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).poster_url}
+                onChange={(url) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      youtube: { ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE), poster_url: url },
+                    },
+                  }))
+                }
+                lang={lang}
+              />
+              <p className="mt-1 text-[10px] text-slate-500">
+                {lang === "bn"
+                  ? "খালি = YouTube থাম্বনেইল"
+                  : "Empty = YouTube thumbnail"}
+              </p>
+            </Field>
+            <ToggleRow
+              title={lang === "bn" ? "ক্লিকে autoplay" : "Autoplay on click"}
+              hint={
+                lang === "bn"
+                  ? "প্লে চাপলে ভিডিও সাথে সাথে চালু হবে"
+                  : "Starts playback immediately after play is tapped"
+              }
+              checked={(cfg.hero.youtube ?? DEFAULT_HERO_YOUTUBE).autoplay_on_click}
+              onChange={(v) =>
+                setCfg((p) => ({
+                  ...p,
+                  hero: {
+                    ...p.hero,
+                    youtube: {
+                      ...(p.hero.youtube ?? DEFAULT_HERO_YOUTUBE),
+                      autoplay_on_click: v,
+                    },
+                  },
+                }))
+              }
+            />
+          </div>
+
+          <Field
+            label={
+              lang === "bn" ? "ব্যাকগ্রাউন্ড ভিডিও URL (ঐচ্ছিক)" : "Background video URL (optional)"
+            }
+          >
             <input
               className={ainp}
               value={cfg.hero.background_video_url}
@@ -773,8 +986,8 @@ export function LandingAdmin() {
             />
             <p className="mt-1 text-[10px] text-slate-500">
               {lang === "bn"
-                ? "ভিডিও সেট করলে স্লাইডশো বন্ধ থাকবে"
-                : "Video overrides the image slideshow when set"}
+                ? "ফুল-স্ক্রিন ব্যাকগ্রাউন্ড ভিডিও — সেট করলে স্লাইডশো বন্ধ থাকবে (YouTube প্লেয়ার আলাদা)"
+                : "Full-bleed background file — overrides slideshow (YouTube player is separate)"}
             </p>
           </Field>
         </div>

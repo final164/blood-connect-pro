@@ -45,36 +45,15 @@ export function LandingShell({
         }
         @media (prefers-reduced-motion: reduce) {
           .landing-fade-up { animation: none; }
-          .hero-slide-ken-burns,
-          .hero-slide-ken-burns-static { animation: none !important; }
-          .hero-slide-fade-in,
-          .hero-slide-fade-out,
-          .hero-slide-slide-in,
-          .hero-slide-slide-out { transition: none !important; }
+          .hero-bg-layer { transition: none !important; }
         }
-        .hero-slide-layer {
-          will-change: opacity, transform;
+        /* Hero slideshow — opacity-only GPU fade (no transform/scale = no lag) */
+        .hero-bg-layer {
           backface-visibility: hidden;
           transform: translateZ(0);
-        }
-        .hero-slide-fade {
-          transition: opacity var(--hero-transition-ms, 1400ms) ease-in-out;
-        }
-        .hero-slide-fade-in { opacity: 1; z-index: 2; }
-        .hero-slide-fade-out { opacity: 0; z-index: 1; }
-        .hero-slide-slide {
-          transition: transform var(--hero-transition-ms, 1400ms) cubic-bezier(0.4, 0, 0.2, 1),
-            opacity var(--hero-transition-ms, 1400ms) ease-in-out;
-        }
-        .hero-slide-slide-in { opacity: 1; transform: translateX(0); z-index: 2; }
-        .hero-slide-slide-out { opacity: 0; transform: translateX(-4%); z-index: 1; }
-        .hero-slide-ken-burns img,
-        .hero-slide-ken-burns-static {
-          animation: heroKenBurns var(--hero-interval-ms, 6000ms) ease-out forwards;
-        }
-        @keyframes heroKenBurns {
-          from { transform: scale(1); }
-          to { transform: scale(1.05); }
+          transition: opacity var(--hero-transition-ms, 900ms) ease-in-out;
+          pointer-events: none;
+          user-select: none;
         }
       `}</style>
       {children}

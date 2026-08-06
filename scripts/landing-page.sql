@@ -52,15 +52,25 @@ SET landing_settings = '{
     "background_images": ["/landing/hero.jpg", "/landing/arm-donate.jpg", "/landing/bags.jpg"],
     "slideshow": {
       "enabled": true,
-      "interval_ms": 6000,
-      "transition_ms": 1400,
+      "interval_ms": 5500,
+      "transition_ms": 900,
       "transition": "crossfade",
       "ken_burns": false,
-      "overlay_opacity": 80,
-      "pause_on_hover": true,
-      "show_dots": false
+      "overlay_opacity": 75,
+      "pause_on_hover": false,
+      "show_dots": true
     },
-    "background_video_url": ""
+    "background_video_url": "",
+    "youtube": {
+      "enabled": true,
+      "url": "https://www.youtube.com/watch?v=hjyZX-LIacM",
+      "title_bn": "রক্তদানের গল্প দেখুন",
+      "title_en": "Watch our donation story",
+      "body_bn": "ক্লিক করুন — YouTube-এ না গিয়েই ভিডিও চলবে।",
+      "body_en": "Click to play — watch without leaving this page.",
+      "poster_url": "",
+      "autoplay_on_click": true
+    }
   },
   "community": {
     "title_bn": "আমাদের কমিউনিটি",

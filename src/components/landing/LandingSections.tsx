@@ -12,7 +12,7 @@ import {
   User,
 } from "lucide-react";
 import type { LandingSettings } from "@/lib/landing-settings";
-import { DEFAULT_HERO_SLIDESHOW } from "@/lib/landing-settings";
+import { DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE } from "@/lib/landing-settings";
 import type {
   LandingCampaign,
   LandingCard,
@@ -24,8 +24,13 @@ import type {
   LandingStat,
 } from "@/lib/landing-content";
 import { LandingImg } from "@/components/landing/LandingImg";
-import { HeroBackgroundSlideshow } from "@/components/landing/HeroBackgroundSlideshow";
+import {
+  HeroBackgroundSlideshow,
+  ensureHeroSlides,
+} from "@/components/landing/HeroBackgroundSlideshow";
+import { LandingYoutubePlayer } from "@/components/landing/LandingYoutubePlayer";
 import { LANDING_MEDIA } from "@/lib/landing-media";
+import { parseYoutubeId } from "@/lib/youtube";
 
 const ICONS: Record<string, typeof Droplet> = {
   droplet: Droplet,
@@ -88,18 +93,22 @@ const shell = "mx-auto w-full max-w-5xl md:max-w-6xl px-4 sm:px-5";
 
 export function LandingHero({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const h = settings.hero;
-  const slides =
-    h.background_images?.filter(Boolean).length > 0
-      ? h.background_images.filter(Boolean)
-      : h.background_url
-        ? [h.background_url]
-        : [...LANDING_MEDIA.heroSlides];
-  const overlay = h.slideshow?.overlay_opacity ?? 80;
+  const slides = ensureHeroSlides(h.background_images, h.background_url);
+  const overlay = h.slideshow?.overlay_opacity ?? DEFAULT_HERO_SLIDESHOW.overlay_opacity;
+  const slideshow = {
+    ...DEFAULT_HERO_SLIDESHOW,
+    ...(h.slideshow ?? {}),
+    enabled: h.slideshow?.enabled !== false,
+    ken_burns: false, // force off — scale animation causes jank on mobile
+  };
+  const yt = { ...DEFAULT_HERO_YOUTUBE, ...(h.youtube ?? {}) };
+  if (!yt.url?.trim()) yt.url = DEFAULT_HERO_YOUTUBE.url;
+  const showYoutube = yt.enabled !== false && !!parseYoutubeId(yt.url);
 
   return (
     <section
       id="top"
-      className="relative min-h-[min(88dvh,760px)] flex flex-col justify-end overflow-hidden"
+      className="relative min-h-[min(88dvh,820px)] flex flex-col justify-end overflow-x-hidden"
     >
       <div className="absolute inset-0">
         {h.background_video_url ? (
@@ -113,50 +122,57 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             poster={slides[0] || undefined}
             src={h.background_video_url}
           />
-        ) : slides.length ? (
+        ) : (
           <HeroBackgroundSlideshow
             images={slides}
-            slideshow={h.slideshow ?? DEFAULT_HERO_SLIDESHOW}
+            slideshow={slideshow}
             overlayOpacity={overlay}
           />
-        ) : (
-          <div
-            className="h-full w-full"
-            style={{
-              background: `radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--landing-primary) 35%, transparent), transparent 55%),
-                linear-gradient(165deg, #1a0a0a 0%, color-mix(in srgb, var(--landing-primary) 55%, #1a0a0a) 45%, #0c0707 100%)`,
-            }}
-          />
         )}
-        {!h.background_video_url && slides.length <= 1 && (
+        {h.background_video_url && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/25" />
         )}
       </div>
 
-      <div className={`relative z-10 ${shell} pb-14 pt-28 landing-fade-up`}>
-        <p className="landing-brand text-3xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight mb-3">
-          {pick(lang, h.brand_bn, h.brand_en)}
-        </p>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white/95 max-w-2xl leading-snug">
-          {pick(lang, h.headline_bn, h.headline_en)}
-        </h1>
-        <p className="mt-3 text-sm sm:text-base text-white/75 max-w-xl leading-relaxed">
-          {pick(lang, h.sub_bn, h.sub_en)}
-        </p>
-        <div className="mt-7 flex flex-wrap gap-3">
-          <LandingHref
-            href={h.cta_primary_href}
-            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30"
-            style={{ background: "var(--landing-primary)" }}
-          >
-            {pick(lang, h.cta_primary_bn, h.cta_primary_en)}
-          </LandingHref>
-          <LandingHref
-            href={h.cta_secondary_href}
-            className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10 backdrop-blur"
-          >
-            {pick(lang, h.cta_secondary_bn, h.cta_secondary_en)}
-          </LandingHref>
+      <div className={`relative z-10 ${shell} pb-12 pt-28 landing-fade-up`}>
+        <div
+          className={
+            showYoutube
+              ? "grid gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-10 lg:items-end"
+              : undefined
+          }
+        >
+          <div className="min-w-0">
+            <p className="landing-brand text-3xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight mb-3">
+              {pick(lang, h.brand_bn, h.brand_en)}
+            </p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white/95 max-w-2xl leading-snug">
+              {pick(lang, h.headline_bn, h.headline_en)}
+            </h1>
+            <p className="mt-3 text-sm sm:text-base text-white/75 max-w-xl leading-relaxed">
+              {pick(lang, h.sub_bn, h.sub_en)}
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <LandingHref
+                href={h.cta_primary_href}
+                className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30"
+                style={{ background: "var(--landing-primary)" }}
+              >
+                {pick(lang, h.cta_primary_bn, h.cta_primary_en)}
+              </LandingHref>
+              <LandingHref
+                href={h.cta_secondary_href}
+                className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10"
+              >
+                {pick(lang, h.cta_secondary_bn, h.cta_secondary_en)}
+              </LandingHref>
+            </div>
+          </div>
+          {showYoutube && (
+            <div className="min-w-0 w-full">
+              <LandingYoutubePlayer youtube={yt} lang={lang} variant="hero" />
+            </div>
+          )}
         </div>
       </div>
     </section>

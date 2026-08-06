@@ -45,6 +45,20 @@ export type LandingHeroSlideshow = {
   show_dots: boolean;
 };
 
+export type LandingHeroYoutube = {
+  enabled: boolean;
+  /** Full YouTube URL or 11-char video id */
+  url: string;
+  title_bn: string;
+  title_en: string;
+  body_bn: string;
+  body_en: string;
+  /** Optional custom poster; empty = YouTube thumbnail */
+  poster_url: string;
+  /** Load iframe & autoplay on play click (stays on-site) */
+  autoplay_on_click: boolean;
+};
+
 export type LandingHero = {
   brand_bn: string;
   brand_en: string;
@@ -64,17 +78,30 @@ export type LandingHero = {
   background_images: string[];
   slideshow: LandingHeroSlideshow;
   background_video_url: string;
+  youtube: LandingHeroYoutube;
 };
 
 export const DEFAULT_HERO_SLIDESHOW: LandingHeroSlideshow = {
   enabled: true,
-  interval_ms: 6000,
-  transition_ms: 1400,
+  interval_ms: 5500,
+  transition_ms: 900,
   transition: "crossfade",
   ken_burns: false,
-  overlay_opacity: 80,
-  pause_on_hover: true,
-  show_dots: false,
+  overlay_opacity: 75,
+  pause_on_hover: false,
+  show_dots: true,
+};
+
+export const DEFAULT_HERO_YOUTUBE: LandingHeroYoutube = {
+  enabled: true,
+  /** WHO World Blood Donor Day — replace anytime from Settings → Hero */
+  url: "https://www.youtube.com/watch?v=hjyZX-LIacM",
+  title_bn: "রক্তদানের গল্প দেখুন",
+  title_en: "Watch our donation story",
+  body_bn: "ক্লিক করুন — YouTube-এ না গিয়েই ভিডিও চলবে।",
+  body_en: "Click to play — watch without leaving this page.",
+  poster_url: "",
+  autoplay_on_click: true,
 };
 
 export type LandingCommunityBlock = {
@@ -222,6 +249,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     background_images: [...LANDING_MEDIA.heroSlides],
     slideshow: { ...DEFAULT_HERO_SLIDESHOW },
     background_video_url: "",
+    youtube: { ...DEFAULT_HERO_YOUTUBE },
   },
   community: {
     title_bn: "একসাথে গড়া রক্তদানের কমিউনিটি",
@@ -342,17 +370,52 @@ function num(v: unknown, fallback: number, min: number, max: number) {
 
 function normalizeHeroImages(heroRaw: Record<string, unknown>, d: LandingSettings): string[] {
   const size = { w: 1400, q: 68 };
+  const defaults = [...d.hero.background_images];
   const fromArray = Array.isArray(heroRaw.background_images)
     ? heroRaw.background_images
         .map((x) => (typeof x === "string" ? x.trim() : ""))
         .filter(Boolean)
         .map((url, i) =>
-          mediaUrl(url, d.hero.background_images[i] ?? LANDING_MEDIA.heroSlides[i % LANDING_MEDIA.heroSlides.length], size),
+          mediaUrl(
+            url,
+            defaults[i] ?? LANDING_MEDIA.heroSlides[i % LANDING_MEDIA.heroSlides.length],
+            size,
+          ),
         )
     : [];
-  if (fromArray.length) return fromArray;
+  // 2+ admin images → use as-is
+  if (fromArray.length >= 2) return fromArray;
+  // 1 admin image → pad with local defaults so slideshow always works
+  if (fromArray.length === 1) {
+    const extras = defaults.filter((u) => u !== fromArray[0]);
+    return [fromArray[0], ...extras].slice(0, Math.max(3, extras.length + 1));
+  }
+  // No background_images in DB (legacy) → prefer full default trio over single legacy URL
+  if (!Array.isArray(heroRaw.background_images)) {
+    return defaults;
+  }
   const legacy = mediaUrl(heroRaw.background_url, d.hero.background_url, size);
-  return legacy ? [legacy] : [...d.hero.background_images];
+  if (legacy) {
+    const extras = defaults.filter((u) => u !== legacy);
+    return [legacy, ...extras].slice(0, 3);
+  }
+  return defaults;
+}
+
+function normalizeHeroYoutube(raw: unknown, d: LandingHeroYoutube): LandingHeroYoutube {
+  const y = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  // Empty / missing URL → curated default so the hero player is visible out of the box
+  const urlRaw = typeof y.url === "string" ? y.url.trim() : "";
+  return {
+    enabled: y.enabled !== false,
+    url: urlRaw || d.url,
+    title_bn: str(y.title_bn, d.title_bn),
+    title_en: str(y.title_en, d.title_en),
+    body_bn: typeof y.body_bn === "string" ? y.body_bn : d.body_bn,
+    body_en: typeof y.body_en === "string" ? y.body_en : d.body_en,
+    poster_url: typeof y.poster_url === "string" ? y.poster_url.trim() : d.poster_url,
+    autoplay_on_click: y.autoplay_on_click !== false,
+  };
 }
 
 function normalizeHeroSlideshow(raw: unknown, d: LandingHeroSlideshow): LandingHeroSlideshow {
@@ -501,6 +564,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
         background_images,
         slideshow,
         background_video_url: str(heroRaw.background_video_url, ""),
+        youtube: normalizeHeroYoutube(heroRaw.youtube, d.hero.youtube),
       };
     })(),
     community: {
