@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetSta
 import {
   ArrowDown,
   ArrowUp,
-  ExternalLink,
+  Globe,
   Plus,
   Save,
   Trash2,
@@ -276,11 +276,15 @@ export function LandingAdmin() {
         <a
           href="/"
           target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-900"
+          rel="noopener noreferrer"
+          title={lang === "bn" ? "ল্যান্ডিং পেজ দেখুন" : "View landing page"}
+          aria-label={lang === "bn" ? "ল্যান্ডিং পেজ দেখুন" : "View landing page"}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-rose-600 hover:border-rose-600 hover:text-white transition"
         >
-          <ExternalLink className="h-3.5 w-3.5" />
-          {lang === "bn" ? "ফ্রন্টপেজ খুলুন" : "Open frontpage"}
+          <Globe className="h-4 w-4" />
+          <span className="hidden sm:inline">
+            {lang === "bn" ? "ল্যান্ডিং পেজ" : "Landing page"}
+          </span>
         </a>
       </div>
 

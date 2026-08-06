@@ -71,6 +71,7 @@ import {
   Database,
   FileCode2,
   ChartPie,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -291,6 +292,17 @@ function AdminPageInner() {
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <div className="flex sm:hidden items-center gap-1">
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title={lang === "bn" ? "ল্যান্ডিং পেজ" : "Landing page"}
+                className={`h-8 w-8 rounded-md grid place-items-center ${
+                  dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                <Globe className="h-4 w-4" />
+              </a>
               <Link
                 to="/home"
                 className={`text-[10px] px-2 py-1 rounded-md ${
@@ -349,6 +361,17 @@ function AdminPageInner() {
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {dark ? (lang === "bn" ? "লাইট মোড" : "Light mode") : t("darkMode")}
           </button>
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+              dark ? "text-slate-400 hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Globe className="h-4 w-4" />
+            {lang === "bn" ? "ল্যান্ডিং পেজ" : "Landing page"}
+          </a>
           <Link
             to="/home"
             className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
@@ -3419,22 +3442,36 @@ function SettingsAdmin() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <nav className="flex gap-1 overflow-x-auto no-scrollbar rounded-xl border border-slate-800 bg-slate-950 p-1">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setSettingsTab(item.id)}
-            className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${
-              settingsTab === item.id
-                ? "bg-rose-600 text-white shadow"
-                : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-            }`}
+      <div className="flex items-center gap-2">
+        <nav className="flex flex-1 min-w-0 gap-1 overflow-x-auto no-scrollbar rounded-xl border border-slate-800 bg-slate-950 p-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSettingsTab(item.id)}
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                settingsTab === item.id
+                  ? "bg-rose-600 text-white shadow"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+              }`}
+            >
+              {lang === "bn" ? item.bn : item.en}
+            </button>
+          ))}
+        </nav>
+        {settingsTab === "landing" && (
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title={lang === "bn" ? "ল্যান্ডিং পেজ দেখুন" : "View landing page"}
+            aria-label={lang === "bn" ? "ল্যান্ডিং পেজ দেখুন" : "View landing page"}
+            className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-rose-600 hover:border-rose-600 hover:text-white transition"
           >
-            {lang === "bn" ? item.bn : item.en}
-          </button>
-        ))}
-      </nav>
+            <Globe className="h-4 w-4" />
+          </a>
+        )}
+      </div>
 
       {settingsTab === "urgency" && <UrgencyAnimationAdmin />}
       {settingsTab === "feed" && <FeedRankingAdmin />}
