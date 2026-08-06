@@ -13,6 +13,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
 import {
   DEFAULT_LANDING_SETTINGS,
+  DEFAULT_HERO_SLIDESHOW,
   THEME_PRESETS,
   fetchLandingSettings,
   invalidateLandingSettingsCache,
@@ -450,7 +451,7 @@ export function LandingAdmin() {
       )}
 
       {tab === "hero" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-4">
           <div className="grid sm:grid-cols-2 gap-2">
             {(
               [
@@ -477,21 +478,300 @@ export function LandingAdmin() {
               </Field>
             ))}
           </div>
-          <Field label="Background image URL / Drive">
-            <MediaUrlInput
-              value={cfg.hero.background_url}
-              onChange={(url) => setCfg((p) => ({ ...p, hero: { ...p.hero, background_url: url } }))}
-              lang={lang}
-            />
-          </Field>
-          <Field label="Background video URL (optional)">
+
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-200">
+                {lang === "bn" ? "হিরো ব্যাকগ্রাউন্ড ইমেজ" : "Hero background images"}
+              </p>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[10px] font-semibold text-slate-200"
+                onClick={() =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      background_images: [...p.hero.background_images, ""],
+                    },
+                  }))
+                }
+              >
+                <Plus className="h-3 w-3" />
+                {lang === "bn" ? "ইমেজ যোগ" : "Add image"}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-500">
+              {lang === "bn"
+                ? "Google Drive লিংক পেস্ট করুন বা আপলোড করুন। একাধিক ইমেজ smooth স্লাইড হবে।"
+                : "Paste Google Drive links or upload. Multiple images rotate with a smooth transition."}
+            </p>
+            {(cfg.hero.background_images.length ? cfg.hero.background_images : [""]).map((url, idx) => (
+              <div key={idx} className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1">
+                  <span className="text-[10px] text-slate-500">
+                    {lang === "bn" ? `স্লাইড ${idx + 1}` : `Slide ${idx + 1}`}
+                  </span>
+                  <MediaUrlInput
+                    value={url}
+                    onChange={(next) =>
+                      setCfg((p) => {
+                        const imgs = [...(p.hero.background_images.length ? p.hero.background_images : [""])];
+                        imgs[idx] = next;
+                        const filtered = imgs.filter(Boolean);
+                        return {
+                          ...p,
+                          hero: {
+                            ...p.hero,
+                            background_images: imgs,
+                            background_url: filtered[0] ?? p.hero.background_url,
+                          },
+                        };
+                      })
+                    }
+                    lang={lang}
+                  />
+                </div>
+                <div className="flex flex-col gap-1 pt-5">
+                  <button
+                    type="button"
+                    className="p-1 text-slate-400 disabled:opacity-30"
+                    disabled={idx === 0}
+                    onClick={() =>
+                      setCfg((p) => {
+                        const imgs = [...p.hero.background_images];
+                        [imgs[idx - 1], imgs[idx]] = [imgs[idx], imgs[idx - 1]];
+                        return {
+                          ...p,
+                          hero: {
+                            ...p.hero,
+                            background_images: imgs,
+                            background_url: imgs.find(Boolean) ?? p.hero.background_url,
+                          },
+                        };
+                      })
+                    }
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 text-slate-400 disabled:opacity-30"
+                    disabled={idx >= cfg.hero.background_images.length - 1}
+                    onClick={() =>
+                      setCfg((p) => {
+                        const imgs = [...p.hero.background_images];
+                        [imgs[idx + 1], imgs[idx]] = [imgs[idx], imgs[idx + 1]];
+                        return {
+                          ...p,
+                          hero: {
+                            ...p.hero,
+                            background_images: imgs,
+                            background_url: imgs.find(Boolean) ?? p.hero.background_url,
+                          },
+                        };
+                      })
+                    }
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 text-rose-400"
+                    onClick={() =>
+                      setCfg((p) => {
+                        const imgs = p.hero.background_images.filter((_, i) => i !== idx);
+                        return {
+                          ...p,
+                          hero: {
+                            ...p.hero,
+                            background_images: imgs.length ? imgs : [...DEFAULT_LANDING_SETTINGS.hero.background_images],
+                            background_url: imgs.find(Boolean) ?? DEFAULT_LANDING_SETTINGS.hero.background_url,
+                          },
+                        };
+                      })
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <details className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-200 select-none">
+              {lang === "bn" ? "অ্যাডভান্স স্লাইডশো অপশন" : "Advanced slideshow options"}
+            </summary>
+            <div className="mt-3 space-y-3">
+              <ToggleRow
+                title={lang === "bn" ? "স্লাইডশো চালু" : "Slideshow enabled"}
+                hint={
+                  lang === "bn"
+                    ? "২+ ইমেজ থাকলে স্বয়ংক্রিয় রোটেশন"
+                    : "Auto-rotate when 2+ images are set"
+                }
+                checked={cfg.hero.slideshow?.enabled ?? DEFAULT_HERO_SLIDESHOW.enabled}
+                onChange={(v) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), enabled: v },
+                    },
+                  }))
+                }
+              />
+              <div className="grid sm:grid-cols-2 gap-2">
+                <Field label={lang === "bn" ? "ইন্টারভাল (সেকেন্ড)" : "Interval (seconds)"}>
+                  <input
+                    type="number"
+                    min={2.5}
+                    max={30}
+                    step={0.5}
+                    className={ainp}
+                    value={(cfg.hero.slideshow?.interval_ms ?? DEFAULT_HERO_SLIDESHOW.interval_ms) / 1000}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        hero: {
+                          ...p.hero,
+                          slideshow: {
+                            ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                            interval_ms: Math.min(30000, Math.max(2500, Number(e.target.value) * 1000)),
+                          },
+                        },
+                      }))
+                    }
+                  />
+                </Field>
+                <Field label={lang === "bn" ? "ট্রানজিশন (সেকেন্ড)" : "Transition (seconds)"}>
+                  <input
+                    type="number"
+                    min={0.4}
+                    max={4}
+                    step={0.1}
+                    className={ainp}
+                    value={(cfg.hero.slideshow?.transition_ms ?? DEFAULT_HERO_SLIDESHOW.transition_ms) / 1000}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        hero: {
+                          ...p.hero,
+                          slideshow: {
+                            ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                            transition_ms: Math.min(4000, Math.max(400, Number(e.target.value) * 1000)),
+                          },
+                        },
+                      }))
+                    }
+                  />
+                </Field>
+                <Field label={lang === "bn" ? "ট্রানজিশন স্টাইল" : "Transition style"}>
+                  <select
+                    className={ainp}
+                    value={cfg.hero.slideshow?.transition ?? DEFAULT_HERO_SLIDESHOW.transition}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        hero: {
+                          ...p.hero,
+                          slideshow: {
+                            ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                            transition: e.target.value as "fade" | "crossfade" | "slide",
+                          },
+                        },
+                      }))
+                    }
+                  >
+                    <option value="crossfade">{lang === "bn" ? "ক্রসফেড (স্মুথ)" : "Crossfade (smooth)"}</option>
+                    <option value="fade">{lang === "bn" ? "ফেড" : "Fade"}</option>
+                    <option value="slide">{lang === "bn" ? "স্লাইড" : "Slide"}</option>
+                  </select>
+                </Field>
+                <Field label={lang === "bn" ? "ওভারলে (%)" : "Overlay darkness (%)"}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className={ainp}
+                    value={cfg.hero.slideshow?.overlay_opacity ?? DEFAULT_HERO_SLIDESHOW.overlay_opacity}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        hero: {
+                          ...p.hero,
+                          slideshow: {
+                            ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW),
+                            overlay_opacity: Math.min(100, Math.max(0, Number(e.target.value))),
+                          },
+                        },
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+              <ToggleRow
+                title={lang === "bn" ? "Ken Burns (জুম)" : "Ken Burns (zoom)"}
+                hint={
+                  lang === "bn"
+                    ? "সূক্ষ্ম জুম — বেশি ইমেজে ল্যাগ হতে পারে"
+                    : "Subtle zoom — may cost FPS on slow devices"
+                }
+                checked={cfg.hero.slideshow?.ken_burns ?? DEFAULT_HERO_SLIDESHOW.ken_burns}
+                onChange={(v) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), ken_burns: v },
+                    },
+                  }))
+                }
+              />
+              <ToggleRow
+                title={lang === "bn" ? "হোভারে পজ" : "Pause on hover"}
+                checked={cfg.hero.slideshow?.pause_on_hover ?? DEFAULT_HERO_SLIDESHOW.pause_on_hover}
+                onChange={(v) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), pause_on_hover: v },
+                    },
+                  }))
+                }
+              />
+              <ToggleRow
+                title={lang === "bn" ? "ডট ইন্ডিকেটর" : "Dot indicators"}
+                checked={cfg.hero.slideshow?.show_dots ?? DEFAULT_HERO_SLIDESHOW.show_dots}
+                onChange={(v) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      slideshow: { ...(p.hero.slideshow ?? DEFAULT_HERO_SLIDESHOW), show_dots: v },
+                    },
+                  }))
+                }
+              />
+            </div>
+          </details>
+
+          <Field label={lang === "bn" ? "ব্যাকগ্রাউন্ড ভিডিও URL (ঐচ্ছিক)" : "Background video URL (optional)"}>
             <input
               className={ainp}
               value={cfg.hero.background_video_url}
+              placeholder="https://…"
               onChange={(e) =>
                 setCfg((p) => ({ ...p, hero: { ...p.hero, background_video_url: e.target.value } }))
               }
             />
+            <p className="mt-1 text-[10px] text-slate-500">
+              {lang === "bn"
+                ? "ভিডিও সেট করলে স্লাইডশো বন্ধ থাকবে"
+                : "Video overrides the image slideshow when set"}
+            </p>
           </Field>
         </div>
       )}

@@ -12,6 +12,7 @@ import {
   User,
 } from "lucide-react";
 import type { LandingSettings } from "@/lib/landing-settings";
+import { DEFAULT_HERO_SLIDESHOW } from "@/lib/landing-settings";
 import type {
   LandingCampaign,
   LandingCard,
@@ -23,6 +24,7 @@ import type {
   LandingStat,
 } from "@/lib/landing-content";
 import { LandingImg } from "@/components/landing/LandingImg";
+import { HeroBackgroundSlideshow } from "@/components/landing/HeroBackgroundSlideshow";
 import { LANDING_MEDIA } from "@/lib/landing-media";
 
 const ICONS: Record<string, typeof Droplet> = {
@@ -86,7 +88,14 @@ const shell = "mx-auto w-full max-w-5xl md:max-w-6xl px-4 sm:px-5";
 
 export function LandingHero({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const h = settings.hero;
-  const bg = h.background_url;
+  const slides =
+    h.background_images?.filter(Boolean).length > 0
+      ? h.background_images.filter(Boolean)
+      : h.background_url
+        ? [h.background_url]
+        : [...LANDING_MEDIA.heroSlides];
+  const overlay = h.slideshow?.overlay_opacity ?? 80;
+
   return (
     <section
       id="top"
@@ -101,19 +110,14 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             loop
             playsInline
             preload="metadata"
-            poster={bg || undefined}
+            poster={slides[0] || undefined}
             src={h.background_video_url}
           />
-        ) : bg ? (
-          <LandingImg
-            src={bg}
-            fallbackSrc={LANDING_MEDIA.hero}
-            alt=""
-            className="h-full w-full object-cover"
-            fetchPriority="high"
-            decoding="async"
-            width={1400}
-            height={900}
+        ) : slides.length ? (
+          <HeroBackgroundSlideshow
+            images={slides}
+            slideshow={h.slideshow ?? DEFAULT_HERO_SLIDESHOW}
+            overlayOpacity={overlay}
           />
         ) : (
           <div
@@ -124,7 +128,9 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/25" />
+        {!h.background_video_url && slides.length <= 1 && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/25" />
+        )}
       </div>
 
       <div className={`relative z-10 ${shell} pb-14 pt-28 landing-fade-up`}>

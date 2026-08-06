@@ -42,6 +42,8 @@ export const LANDING_MEDIA = {
   logo: "/icon-192.png",
   og: "/landing/hero.jpg",
   hero: "/landing/hero.jpg",
+  /** Default hero slideshow (local, fast) */
+  heroSlides: ["/landing/hero.jpg", "/landing/arm-donate.jpg", "/landing/bags.jpg"] as const,
   communityBg: "/landing/volunteer.jpg",
   ctaBg: "/landing/clinic.jpg",
   how: ["/landing/lab.jpg", "/landing/hospital.jpg", "/landing/care-team.jpg"] as const,

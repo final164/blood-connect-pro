@@ -32,6 +32,19 @@ export type LandingColors = {
   glass: string;
 };
 
+export type LandingHeroTransition = "fade" | "crossfade" | "slide";
+
+export type LandingHeroSlideshow = {
+  enabled: boolean;
+  interval_ms: number;
+  transition_ms: number;
+  transition: LandingHeroTransition;
+  ken_burns: boolean;
+  overlay_opacity: number;
+  pause_on_hover: boolean;
+  show_dots: boolean;
+};
+
 export type LandingHero = {
   brand_bn: string;
   brand_en: string;
@@ -45,8 +58,23 @@ export type LandingHero = {
   cta_secondary_bn: string;
   cta_secondary_en: string;
   cta_secondary_href: string;
+  /** Legacy single image — kept in sync with first slide */
   background_url: string;
+  /** Hero slideshow images (Drive link, upload, or /landing/*) */
+  background_images: string[];
+  slideshow: LandingHeroSlideshow;
   background_video_url: string;
+};
+
+export const DEFAULT_HERO_SLIDESHOW: LandingHeroSlideshow = {
+  enabled: true,
+  interval_ms: 6000,
+  transition_ms: 1400,
+  transition: "crossfade",
+  ken_burns: false,
+  overlay_opacity: 80,
+  pause_on_hover: true,
+  show_dots: false,
 };
 
 export type LandingCommunityBlock = {
@@ -191,6 +219,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     cta_secondary_en: "How it works",
     cta_secondary_href: "#how",
     background_url: LANDING_MEDIA.hero,
+    background_images: [...LANDING_MEDIA.heroSlides],
+    slideshow: { ...DEFAULT_HERO_SLIDESHOW },
     background_video_url: "",
   },
   community: {
@@ -304,6 +334,45 @@ function mediaUrl(v: unknown, fallback: string, size?: { w?: number; q?: number;
   return optimizeLandingImageUrl(resolved, size ?? { w: 1200, q: 65 });
 }
 
+function num(v: unknown, fallback: number, min: number, max: number) {
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function normalizeHeroImages(heroRaw: Record<string, unknown>, d: LandingSettings): string[] {
+  const size = { w: 1400, q: 68 };
+  const fromArray = Array.isArray(heroRaw.background_images)
+    ? heroRaw.background_images
+        .map((x) => (typeof x === "string" ? x.trim() : ""))
+        .filter(Boolean)
+        .map((url, i) =>
+          mediaUrl(url, d.hero.background_images[i] ?? LANDING_MEDIA.heroSlides[i % LANDING_MEDIA.heroSlides.length], size),
+        )
+    : [];
+  if (fromArray.length) return fromArray;
+  const legacy = mediaUrl(heroRaw.background_url, d.hero.background_url, size);
+  return legacy ? [legacy] : [...d.hero.background_images];
+}
+
+function normalizeHeroSlideshow(raw: unknown, d: LandingHeroSlideshow): LandingHeroSlideshow {
+  const s = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const transition =
+    s.transition === "fade" || s.transition === "crossfade" || s.transition === "slide"
+      ? s.transition
+      : d.transition;
+  return {
+    enabled: s.enabled !== false,
+    interval_ms: num(s.interval_ms, d.interval_ms, 2500, 30000),
+    transition_ms: num(s.transition_ms, d.transition_ms, 400, 4000),
+    transition,
+    ken_burns: s.ken_burns === true,
+    overlay_opacity: num(s.overlay_opacity, d.overlay_opacity, 0, 100),
+    pause_on_hover: s.pause_on_hover !== false,
+    show_dots: s.show_dots === true,
+  };
+}
+
 export function normalizeLandingSettings(raw: unknown): LandingSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_LANDING_SETTINGS;
@@ -412,22 +481,28 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       cta_signup_en: str(navRaw.cta_signup_en, d.nav.cta_signup_en),
       links: navLinks,
     },
-    hero: {
-      brand_bn: str(heroRaw.brand_bn, d.hero.brand_bn),
-      brand_en: str(heroRaw.brand_en, d.hero.brand_en),
-      headline_bn: str(heroRaw.headline_bn, d.hero.headline_bn),
-      headline_en: str(heroRaw.headline_en, d.hero.headline_en),
-      sub_bn: str(heroRaw.sub_bn, d.hero.sub_bn),
-      sub_en: str(heroRaw.sub_en, d.hero.sub_en),
-      cta_primary_bn: str(heroRaw.cta_primary_bn, d.hero.cta_primary_bn),
-      cta_primary_en: str(heroRaw.cta_primary_en, d.hero.cta_primary_en),
-      cta_primary_href: str(heroRaw.cta_primary_href, d.hero.cta_primary_href),
-      cta_secondary_bn: str(heroRaw.cta_secondary_bn, d.hero.cta_secondary_bn),
-      cta_secondary_en: str(heroRaw.cta_secondary_en, d.hero.cta_secondary_en),
-      cta_secondary_href: str(heroRaw.cta_secondary_href, d.hero.cta_secondary_href),
-      background_url: mediaUrl(heroRaw.background_url, d.hero.background_url, { w: 1400, q: 68 }),
-      background_video_url: str(heroRaw.background_video_url, ""),
-    },
+    hero: (() => {
+      const background_images = normalizeHeroImages(heroRaw, d);
+      const slideshow = normalizeHeroSlideshow(heroRaw.slideshow, d.hero.slideshow);
+      return {
+        brand_bn: str(heroRaw.brand_bn, d.hero.brand_bn),
+        brand_en: str(heroRaw.brand_en, d.hero.brand_en),
+        headline_bn: str(heroRaw.headline_bn, d.hero.headline_bn),
+        headline_en: str(heroRaw.headline_en, d.hero.headline_en),
+        sub_bn: str(heroRaw.sub_bn, d.hero.sub_bn),
+        sub_en: str(heroRaw.sub_en, d.hero.sub_en),
+        cta_primary_bn: str(heroRaw.cta_primary_bn, d.hero.cta_primary_bn),
+        cta_primary_en: str(heroRaw.cta_primary_en, d.hero.cta_primary_en),
+        cta_primary_href: str(heroRaw.cta_primary_href, d.hero.cta_primary_href),
+        cta_secondary_bn: str(heroRaw.cta_secondary_bn, d.hero.cta_secondary_bn),
+        cta_secondary_en: str(heroRaw.cta_secondary_en, d.hero.cta_secondary_en),
+        cta_secondary_href: str(heroRaw.cta_secondary_href, d.hero.cta_secondary_href),
+        background_url: background_images[0] ?? mediaUrl(heroRaw.background_url, d.hero.background_url, { w: 1400, q: 68 }),
+        background_images,
+        slideshow,
+        background_video_url: str(heroRaw.background_video_url, ""),
+      };
+    })(),
     community: {
       title_bn: str(communityRaw.title_bn, d.community.title_bn),
       title_en: str(communityRaw.title_en, d.community.title_en),

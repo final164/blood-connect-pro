@@ -48,7 +48,18 @@ SET landing_settings = '{
     "cta_secondary_bn": "লগইন",
     "cta_secondary_en": "Log in",
     "cta_secondary_href": "/auth",
-    "background_url": "",
+    "background_url": "/landing/hero.jpg",
+    "background_images": ["/landing/hero.jpg", "/landing/arm-donate.jpg", "/landing/bags.jpg"],
+    "slideshow": {
+      "enabled": true,
+      "interval_ms": 6000,
+      "transition_ms": 1400,
+      "transition": "crossfade",
+      "ken_burns": false,
+      "overlay_opacity": 80,
+      "pause_on_hover": true,
+      "show_dots": false
+    },
     "background_video_url": ""
   },
   "community": {
