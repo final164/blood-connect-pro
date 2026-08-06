@@ -60,15 +60,23 @@ export function CommunitySavedRequestDropdown({
   defaultUpazila,
   draft,
   onDraftChange,
+  emptyLabelBn,
+  emptyLabelEn,
 }: {
   defaultDistrict: District | null;
   defaultUpazila?: string;
   draft: CommunityRequestDraft | null;
   onDraftChange: (d: CommunityRequestDraft | null) => void;
+  emptyLabelBn?: string;
+  emptyLabelEn?: string;
 }) {
   const { lang } = useI18n();
   const [sheetOpen, setSheetOpen] = useState(false);
   const filled = communityRequestDraftFilled(draft);
+  const emptyLabel =
+    lang === "bn"
+      ? emptyLabelBn || "Save request (ঐচ্ছিক)"
+      : emptyLabelEn || "Save request (optional)";
 
   return (
     <>
@@ -80,12 +88,8 @@ export function CommunitySavedRequestDropdown({
         <ClipboardList className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">
           {filled && draft
-            ? lang === "bn"
-              ? `Save request · ${communityRequestDraftSummary(draft, lang)}`
-              : `Save request · ${communityRequestDraftSummary(draft, lang)}`
-            : lang === "bn"
-              ? "Save request (ঐচ্ছিক)"
-              : "Save request (optional)"}
+            ? `${lang === "bn" ? "Save request" : "Save request"} · ${communityRequestDraftSummary(draft, lang)}`
+            : emptyLabel}
         </span>
       </button>
 

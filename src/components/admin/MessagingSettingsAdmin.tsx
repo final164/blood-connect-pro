@@ -62,8 +62,14 @@ export function MessagingSettingsAdmin() {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold">
-          {lang === "bn" ? "কমিউনিটি Send SMS" : "Community Send SMS"}
+          {lang === "bn" ? "কমিউনিটি পেজ বাটন" : "Community page buttons"}
         </h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          {lang === "bn"
+            ? "Send SMS ও Save request বাটন চালু/বন্ধ এবং লেবেল নিয়ন্ত্রণ।"
+            : "Show/hide Send SMS & Save request, and edit their labels."}
+        </p>
+
         <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
           <span className="text-slate-300">
             {lang === "bn" ? "Send SMS বাটন দেখাবে" : "Show Send SMS button"}
@@ -75,6 +81,59 @@ export function MessagingSettingsAdmin() {
             onChange={(e) => setS({ ...s, show_community_send_sms: e.target.checked })}
           />
         </label>
+        {s.show_community_send_sms && (
+          <div className="grid sm:grid-cols-2 gap-2 pl-1">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Send SMS · BN</label>
+              <input
+                className={ainp}
+                value={s.community_send_sms_label_bn}
+                onChange={(e) => setS({ ...s, community_send_sms_label_bn: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Send SMS · EN</label>
+              <input
+                className={ainp}
+                value={s.community_send_sms_label_en}
+                onChange={(e) => setS({ ...s, community_send_sms_label_en: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300">
+            {lang === "bn" ? "Save request বাটন দেখাবে" : "Show Save request button"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500"
+            checked={s.show_community_save_request}
+            onChange={(e) => setS({ ...s, show_community_save_request: e.target.checked })}
+          />
+        </label>
+        {s.show_community_save_request && (
+          <div className="grid sm:grid-cols-2 gap-2 pl-1">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Save request · BN</label>
+              <input
+                className={ainp}
+                value={s.community_save_request_label_bn}
+                onChange={(e) => setS({ ...s, community_save_request_label_bn: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Save request · EN</label>
+              <input
+                className={ainp}
+                value={s.community_save_request_label_en}
+                onChange={(e) => setS({ ...s, community_save_request_label_en: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+
         <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
           <span className="text-slate-300 leading-snug">
             {lang === "bn"

@@ -37,6 +37,7 @@ export type Database = {
           updated_at: string
           urgency_animation: Json
           user_menu_settings: Json
+          bottom_nav_settings: Json
         }
         Insert: {
           about_bn?: string | null
@@ -60,6 +61,7 @@ export type Database = {
           updated_at?: string
           urgency_animation?: Json
           user_menu_settings?: Json
+          bottom_nav_settings?: Json
         }
         Update: {
           about_bn?: string | null
@@ -83,6 +85,7 @@ export type Database = {
           updated_at?: string
           urgency_animation?: Json
           user_menu_settings?: Json
+          bottom_nav_settings?: Json
         }
         Relationships: []
       }

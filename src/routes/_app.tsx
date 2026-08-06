@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
@@ -10,6 +10,12 @@ import { getProfile } from "@/lib/api";
 import { isProfileComplete } from "@/lib/onboarding";
 import { UserMenuSidebar } from "@/components/menu/UserMenuNav";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import {
+  DEFAULT_BOTTOM_NAV_SETTINGS,
+  fetchBottomNavSettings,
+  type BottomNavItemId,
+  type BottomNavSettings,
+} from "@/lib/bottom-nav-settings";
 import { Home, Users, User, WifiOff, Droplet, Shield, Bell, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
@@ -137,6 +143,7 @@ function AppShell({
   onboarding: boolean;
 }) {
   const { unread } = useNotifications();
+  const { lang } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const isChatThread = /^\/chat\/[^/]+$/.test(locationPath);
@@ -144,6 +151,11 @@ function AppShell({
   const composeOpen =
     (locationPath === "/home" || locationPath === "/") &&
     !!(location.search as { compose?: boolean | string }).compose;
+  const [navCfg, setNavCfg] = useState<BottomNavSettings>(DEFAULT_BOTTOM_NAV_SETTINGS);
+
+  useEffect(() => {
+    void fetchBottomNavSettings().then(setNavCfg);
+  }, []);
 
   function openComposer() {
     if (composeOpen) {
@@ -160,26 +172,72 @@ function AppShell({
   }
 
   type NavTab =
-    | { id: string; kind: "link"; to: "/home"; label: string; icon: typeof Home; badge?: number }
-    | { id: string; kind: "link"; to: "/community"; label: string; icon: typeof Users; badge?: number }
-    | { id: string; kind: "link"; to: "/notifications"; label: string; icon: typeof Bell; badge?: number }
-    | { id: string; kind: "link"; to: "/profile"; label: string; icon: typeof User; badge?: number }
-    | { id: string; kind: "compose"; label: string; icon: typeof Plus };
+    | { id: BottomNavItemId; kind: "link"; to: "/home"; label: string; icon: typeof Home; badge?: number }
+    | { id: BottomNavItemId; kind: "link"; to: "/community"; label: string; icon: typeof Users; badge?: number }
+    | {
+        id: BottomNavItemId;
+        kind: "link";
+        to: "/notifications";
+        label: string;
+        icon: typeof Bell;
+        badge?: number;
+      }
+    | { id: BottomNavItemId; kind: "link"; to: "/profile"; label: string; icon: typeof User; badge?: number }
+    | { id: BottomNavItemId; kind: "compose"; label: string; icon: typeof Plus };
 
-  const tabs: NavTab[] = [
-    { id: "feed", kind: "link", to: "/home", label: t("feed"), icon: Home },
-    { id: "community", kind: "link", to: "/community", label: t("community"), icon: Users },
-    { id: "compose", kind: "compose", label: t("createRequest"), icon: Plus },
-    {
-      id: "notifications",
-      kind: "link",
-      to: "/notifications",
-      label: t("notifications"),
-      icon: Bell,
-      badge: unread,
-    },
-    { id: "profile", kind: "link", to: "/profile", label: t("profile"), icon: User },
-  ];
+  const allTabs: NavTab[] = useMemo(() => {
+    const label = (id: BottomNavItemId, fallback: string) => {
+      const row = navCfg.items.find((i) => i.id === id);
+      if (!row) return fallback;
+      return lang === "bn" ? row.label_bn || fallback : row.label_en || fallback;
+    };
+    return [
+      { id: "feed", kind: "link", to: "/home", label: label("feed", t("feed")), icon: Home },
+      {
+        id: "community",
+        kind: "link",
+        to: "/community",
+        label: label("community", t("community")),
+        icon: Users,
+      },
+      { id: "post", kind: "compose", label: label("post", t("createRequest")), icon: Plus },
+      {
+        id: "alert",
+        kind: "link",
+        to: "/notifications",
+        label: label("alert", t("notifications")),
+        icon: Bell,
+        badge: unread,
+      },
+      {
+        id: "profile",
+        kind: "link",
+        to: "/profile",
+        label: label("profile", t("profile")),
+        icon: User,
+      },
+    ];
+  }, [lang, navCfg.items, t, unread]);
+
+  const enabledOrder = useMemo(() => {
+    return [...navCfg.items]
+      .filter((i) => i.enabled)
+      .sort((a, b) => a.order - b.order)
+      .map((i) => i.id);
+  }, [navCfg.items]);
+
+  const tabs = useMemo(() => {
+    const byId = new Map(allTabs.map((tab) => [tab.id, tab]));
+    const list = enabledOrder.map((id) => byId.get(id)).filter(Boolean) as NavTab[];
+    return list.length ? list : allTabs;
+  }, [allTabs, enabledOrder]);
+
+  const gridColsClass =
+    tabs.length <= 3
+      ? "grid-cols-3"
+      : tabs.length === 4
+        ? "grid-cols-4"
+        : "grid-cols-5";
 
   function renderTab(tab: NavTab, layout: "top" | "bottom") {
     const Icon = tab.icon;
@@ -354,7 +412,7 @@ function AppShell({
         {/* Mobile: bottom nav */}
         {!isChatThread && (
           <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-xl safe-bottom">
-            <div className="app-shell grid grid-cols-5 px-0.5 pt-1">
+            <div className={`app-shell grid ${gridColsClass} px-0.5 pt-1`}>
               {tabs.map((tab) => renderTab(tab, "bottom"))}
             </div>
           </nav>

@@ -280,16 +280,21 @@ function CommunityPage() {
           ))}
         </div>
 
-        <DistrictTypeahead
-          value={district}
-          onChange={(d) => {
-            setDistrict(d);
-            setUpazila("");
-          }}
-          placeholder={lang === "bn" ? "জেলা খুঁজুন…" : "Search district…"}
-        />
-
-        <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
+        <div className="grid grid-cols-2 gap-1.5 min-w-0">
+          <div className="min-w-0">
+            <DistrictTypeahead
+              value={district}
+              onChange={(d) => {
+                setDistrict(d);
+                setUpazila("");
+              }}
+              placeholder={lang === "bn" ? "জেলা খুঁজুন…" : "Search district…"}
+            />
+          </div>
+          <div className="min-w-0">
+            <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
+          </div>
+        </div>
 
         {msgSettings.show_community_send_sms && (
           <button
@@ -298,16 +303,22 @@ function CommunityPage() {
             className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 transition"
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            {lang === "bn" ? "Send SMS (ঐচ্ছিক)" : "Send SMS (optional)"}
+            {lang === "bn"
+              ? msgSettings.community_send_sms_label_bn
+              : msgSettings.community_send_sms_label_en}
           </button>
         )}
 
-        <CommunitySavedRequestDropdown
-          defaultDistrict={district}
-          defaultUpazila={upazila}
-          draft={savedDraft}
-          onDraftChange={setSavedDraft}
-        />
+        {msgSettings.show_community_save_request && (
+          <CommunitySavedRequestDropdown
+            defaultDistrict={district}
+            defaultUpazila={upazila}
+            draft={savedDraft}
+            onDraftChange={setSavedDraft}
+            emptyLabelBn={msgSettings.community_save_request_label_bn}
+            emptyLabelEn={msgSettings.community_save_request_label_en}
+          />
+        )}
       </AutoHideHeader>
 
       <ul className="p-3 space-y-2 pb-2">

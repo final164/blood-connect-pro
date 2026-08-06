@@ -20,6 +20,13 @@ export type MessagingSettings = {
   post_icons: PostIconSettings;
   /** Show “Send SMS” on community page */
   show_community_send_sms: boolean;
+  /** Show “Save request” on community page */
+  show_community_save_request: boolean;
+  /** Button labels (community page) */
+  community_send_sms_label_bn: string;
+  community_send_sms_label_en: string;
+  community_save_request_label_bn: string;
+  community_save_request_label_en: string;
   /** When true, Community “Save request” also inserts a feed blood_request */
   community_save_posts_to_feed: boolean;
   /** Max donors selectable per bulk SMS */
@@ -45,6 +52,11 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   share_sms_en: "{{blood_group}} blood needed — {{patient_name}}, {{location}}\n{{link}}",
   post_icons: { ...DEFAULT_POST_ICONS },
   show_community_send_sms: true,
+  show_community_save_request: true,
+  community_send_sms_label_bn: "Send SMS (ঐচ্ছিক)",
+  community_send_sms_label_en: "Send SMS (optional)",
+  community_save_request_label_bn: "Save request (ঐচ্ছিক)",
+  community_save_request_label_en: "Save request (optional)",
   community_save_posts_to_feed: true,
   max_sms_donors: 10,
 };
@@ -100,6 +112,26 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       typeof r.show_community_send_sms === "boolean"
         ? r.show_community_send_sms
         : DEFAULT_MESSAGING_SETTINGS.show_community_send_sms,
+    show_community_save_request:
+      typeof r.show_community_save_request === "boolean"
+        ? r.show_community_save_request
+        : DEFAULT_MESSAGING_SETTINGS.show_community_save_request,
+    community_send_sms_label_bn: strLabel(
+      r.community_send_sms_label_bn,
+      DEFAULT_MESSAGING_SETTINGS.community_send_sms_label_bn,
+    ),
+    community_send_sms_label_en: strLabel(
+      r.community_send_sms_label_en,
+      DEFAULT_MESSAGING_SETTINGS.community_send_sms_label_en,
+    ),
+    community_save_request_label_bn: strLabel(
+      r.community_save_request_label_bn,
+      DEFAULT_MESSAGING_SETTINGS.community_save_request_label_bn,
+    ),
+    community_save_request_label_en: strLabel(
+      r.community_save_request_label_en,
+      DEFAULT_MESSAGING_SETTINGS.community_save_request_label_en,
+    ),
     community_save_posts_to_feed:
       typeof r.community_save_posts_to_feed === "boolean"
         ? r.community_save_posts_to_feed
@@ -109,6 +141,10 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
         ? Math.min(100, Math.floor(max))
         : DEFAULT_MESSAGING_SETTINGS.max_sms_donors,
   };
+}
+
+function strLabel(v: unknown, fallback: string) {
+  return typeof v === "string" && v.trim() ? v.trim() : fallback;
 }
 
 let cached: MessagingSettings | null = null;

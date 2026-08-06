@@ -95,6 +95,7 @@ import {
   type GenderContactFlags,
 } from "@/lib/community-contact-settings";
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
+import { BottomNavAdmin } from "@/components/admin/BottomNavAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import { LandingAdmin } from "@/components/admin/LandingAdmin";
@@ -3362,6 +3363,7 @@ function SettingsAdmin() {
     | "reasons"
     | "donations"
     | "menu"
+    | "nav"
     | "form"
     | "profilelock"
     | "messaging"
@@ -3433,6 +3435,7 @@ function SettingsAdmin() {
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
+    { id: "nav" as const, bn: "অ্যাপ ন্যাভ", en: "App nav" },
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
     { id: "profilelock" as const, bn: "প্রোফাইল লক", en: "Profile lock" },
     { id: "messaging" as const, bn: "SMS ও আইকন", en: "SMS & icons" },
@@ -3482,6 +3485,7 @@ function SettingsAdmin() {
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}
+      {settingsTab === "nav" && <BottomNavAdmin />}
       {settingsTab === "profilelock" && <ProfileLockAdmin />}
       {settingsTab === "messaging" && <MessagingSettingsAdmin />}
       {settingsTab === "drive" && <GoogleDriveAdmin />}

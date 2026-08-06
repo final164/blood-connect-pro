@@ -46,3 +46,5 @@ export function youtubeEmbedSrc(videoId: string, opts: { autoplay?: boolean } = 
   }
   return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
+
+
