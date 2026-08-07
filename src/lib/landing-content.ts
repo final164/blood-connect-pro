@@ -619,7 +619,19 @@ function mapCommunityCard(row: Record<string, unknown>): LandingCommunityCard {
 }
 
 export async function fetchLandingContentBundle(): Promise<LandingContentBundle> {
-  // Content tables first (critical). Live counts are secondary — don't block paint.
+  const [bundle, counts] = await Promise.all([
+    fetchLandingContentOnly(),
+    fetchLandingLiveCounts(),
+  ]);
+  return {
+    ...bundle,
+    liveRequestCount: counts.liveRequestCount,
+    liveDonorCount: counts.liveDonorCount,
+  };
+}
+
+/** Content tables only — faster first settle; counts load separately. */
+export async function fetchLandingContentOnly(): Promise<LandingContentBundle> {
   const [stats, cards, slides, campaigns, gallery, faqs, communityCards] = await Promise.all([
     selectActive("landing_stats", mapStat),
     selectActive("landing_cards", mapCard),
@@ -630,7 +642,7 @@ export async function fetchLandingContentBundle(): Promise<LandingContentBundle>
     selectActive("landing_community_cards", mapCommunityCard),
   ]);
 
-  const bundle = withContentDefaults({
+  return withContentDefaults({
     stats,
     cards,
     carousel: slides.filter((s: LandingSlide) => s.kind === "main"),
@@ -642,8 +654,12 @@ export async function fetchLandingContentBundle(): Promise<LandingContentBundle>
     liveRequestCount: null,
     liveDonorCount: null,
   });
+}
 
-  // Fire-and-await counts after content is ready (still same request cycle, but after heavier work)
+export async function fetchLandingLiveCounts(): Promise<{
+  liveRequestCount: number | null;
+  liveDonorCount: number | null;
+}> {
   const [reqCount, donorCount] = await Promise.all([
     (async () => {
       try {
@@ -668,12 +684,7 @@ export async function fetchLandingContentBundle(): Promise<LandingContentBundle>
       }
     })(),
   ]);
-
-  return {
-    ...bundle,
-    liveRequestCount: reqCount,
-    liveDonorCount: donorCount,
-  };
+  return { liveRequestCount: reqCount, liveDonorCount: donorCount };
 }
 
 export async function uploadLandingImage(file: File): Promise<string> {

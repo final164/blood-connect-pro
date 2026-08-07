@@ -63,7 +63,18 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
     setActiveLayer(0);
     setLayer0(list[0] ?? LANDING_MEDIA.hero);
     setLayer1(list[1] ?? list[0] ?? LANDING_MEDIA.hero);
-    preload(list);
+    // First frame only on critical path; rest after idle so LCP stays fast.
+    preload(list.slice(0, 1));
+    const rest = list.slice(1);
+    if (rest.length) {
+      const run = () => preload(rest);
+      if (typeof requestIdleCallback === "function") {
+        const id = requestIdleCallback(run, { timeout: 2500 });
+        return () => cancelIdleCallback(id);
+      }
+      const t = window.setTimeout(run, 800);
+      return () => window.clearTimeout(t);
+    }
   }, [images.join("|")]);
 
   useEffect(() => {

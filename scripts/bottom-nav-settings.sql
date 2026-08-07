@@ -12,6 +12,7 @@ ALTER TABLE public.app_settings
     ]
   }'::jsonb;
 
+
 UPDATE public.app_settings
 SET bottom_nav_settings = COALESCE(bottom_nav_settings, '{
   "items": [
