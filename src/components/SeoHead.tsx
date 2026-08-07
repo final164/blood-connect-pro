@@ -69,7 +69,10 @@ function syncJsonLdScripts(prefix: string, entries: Array<Record<string, unknown
 
 export function SeoHeadUpdater({ seo, lang }: { seo: SeoSettings; lang: "bn" | "en" }) {
   useEffect(() => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const origin =
+      (typeof window !== "undefined" ? window.location.origin : "") ||
+      seo.site_url?.replace(/\/$/, "") ||
+      "";
     const { meta, links } = buildHead(seo, lang, origin);
 
     for (const tag of meta) {
@@ -115,7 +118,10 @@ export function LandingSeoJsonLd({
   lang: "bn" | "en";
   faqs: SeoFaqEntry[];
 }) {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const origin =
+    (typeof window !== "undefined" ? window.location.origin : "") ||
+    seo.site_url?.replace(/\/$/, "") ||
+    "";
   const entries = buildLandingJsonLd(seo, lang, origin, faqs);
 
   useEffect(() => {

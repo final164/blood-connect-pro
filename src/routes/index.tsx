@@ -1,14 +1,20 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import {
   DEFAULT_LANDING_SETTINGS,
   fetchLandingSettings,
+  fetchLandingSettingsForLoader,
   type LandingSettings,
 } from "@/lib/landing-settings";
-import { DEFAULT_SEO_SETTINGS, buildHead, fetchSeoSettings } from "@/lib/seo-settings";
+import {
+  DEFAULT_SEO_SETTINGS,
+  buildHead,
+  fetchSeoSettings,
+  fetchSeoSettingsForLoader,
+} from "@/lib/seo-settings";
 import {
   fetchLandingContentOnly,
   fetchLandingLiveCounts,
@@ -17,9 +23,16 @@ import {
 } from "@/lib/landing-content";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
-import { renderLandingSection } from "@/components/landing/LandingSections";
+import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingSeoJsonLd, SeoHeadUpdater } from "@/components/SeoHead";
 import { LANDING_MEDIA } from "@/lib/landing-media";
+import { ensureHeroSlides } from "@/components/landing/HeroBackgroundSlideshow";
+
+const LandingRestSections = lazy(() =>
+  import("@/components/landing/LandingRestSections").then((m) => ({
+    default: m.LandingRestSections,
+  })),
+);
 
 const PLACEHOLDER_CONTENT: LandingContentBundle = {
   ...DEFAULT_LANDING_CONTENT,
@@ -44,18 +57,25 @@ function hasStoredAuthHint(): boolean {
 }
 
 export const Route = createFileRoute("/")({
-  // Instant HTML: never await Supabase in the critical path.
-  loader: () => ({ seo: DEFAULT_SEO_SETTINGS }),
+  loader: async () => {
+    // Race CMS SEO/settings (~120ms max) so crawlers get real meta when warm/fast,
+    // but anonymous users never wait on a slow Supabase RTT.
+    const [seo, settings] = await Promise.all([
+      fetchSeoSettingsForLoader(120),
+      fetchLandingSettingsForLoader(120),
+    ]);
+    return { seo, settings };
+  },
   head: ({ loaderData }) => {
     const seo = loaderData?.seo ?? DEFAULT_SEO_SETTINGS;
+    const settings = loaderData?.settings ?? DEFAULT_LANDING_SETTINGS;
     const { meta, links } = buildHead(seo, "bn");
+    const heroLcp =
+      ensureHeroSlides(settings.hero?.background_images, settings.hero?.background_url)[0] ||
+      LANDING_MEDIA.hero;
     return {
       meta,
-      links: [
-        ...links,
-        // LCP: first hero frame only
-        { rel: "preload", as: "image", href: LANDING_MEDIA.hero },
-      ],
+      links: [...links, { rel: "preload", as: "image", href: heroLcp }],
     };
   },
   component: LandingPage,
@@ -67,11 +87,13 @@ function LandingPage() {
   const navigate = useNavigate();
   const [landingLang, setLandingLang] = useState<"bn" | "en">(lang);
   const [authHint] = useState(hasStoredAuthHint);
+  const loaderData = Route.useLoaderData();
 
   const settingsQ = useQuery({
     queryKey: ["landing-settings"],
     queryFn: () => fetchLandingSettings(),
     staleTime: 60_000,
+    initialData: loaderData.settings,
     placeholderData: DEFAULT_LANDING_SETTINGS,
   });
 
@@ -79,7 +101,7 @@ function LandingPage() {
     queryKey: ["seo-settings"],
     queryFn: () => fetchSeoSettings(),
     staleTime: 60_000,
-    initialData: DEFAULT_SEO_SETTINGS,
+    initialData: loaderData.seo,
   });
 
   const contentQ = useQuery({
@@ -107,6 +129,7 @@ function LandingPage() {
     answer: landingLang === "bn" ? item.answer_bn : item.answer_en,
   }));
   const loggedIn = !loading && !!session && !isAnonymous;
+  const showHero = settings.sections_enabled.hero !== false;
 
   useEffect(() => {
     setLandingLang(lang);
@@ -125,7 +148,6 @@ function LandingPage() {
     }
   }, [settings.enabled, settingsQ.isLoading, loggedIn, navigate]);
 
-  // Logged-in returning users: tiny redirect shell (don't make anonymous wait on auth).
   if (loggedIn || (authHint && loading)) {
     return (
       <div className="min-h-dvh grid place-items-center bg-[#F7F3F0]">
@@ -134,7 +156,6 @@ function LandingPage() {
     );
   }
 
-  // Anonymous / unknown: paint landing immediately with defaults (no auth spinner).
   if (settingsQ.isFetched && settings.enabled === false) {
     return (
       <div className="min-h-dvh grid place-items-center bg-[#F7F3F0]">
@@ -163,9 +184,10 @@ function LandingPage() {
         />
       )}
       <main>
-        {settings.section_order.map((id) =>
-          renderLandingSection(id, { settings, content, lang: landingLang }),
-        )}
+        {showHero && <LandingHero settings={settings} lang={landingLang} />}
+        <Suspense fallback={<div className="min-h-[40vh]" aria-hidden />}>
+          <LandingRestSections settings={settings} content={content} lang={landingLang} />
+        </Suspense>
       </main>
     </LandingShell>
   );

@@ -615,7 +615,7 @@ export async function fetchLandingSettings(force = false): Promise<LandingSettin
     .maybeSingle();
   if (error) {
     // Column may not exist yet — fall back to defaults
-    cache = DEFAULT_LANDING_SETTINGS;
+    cache = cache ?? DEFAULT_LANDING_SETTINGS;
     cachedAt = Date.now();
     return cache;
   }
@@ -623,6 +623,33 @@ export async function fetchLandingSettings(force = false): Promise<LandingSettin
   cache = normalizeLandingSettings(row?.landing_settings);
   cachedAt = Date.now();
   return cache;
+}
+
+export function peekLandingSettingsCache(): LandingSettings {
+  return cache ?? DEFAULT_LANDING_SETTINGS;
+}
+
+/** Cached / raced fetch so SSR HTML stays fast but still gets CMS when warm. */
+export async function fetchLandingSettingsForLoader(maxWaitMs = 120): Promise<LandingSettings> {
+  if (cache && Date.now() - cachedAt < TTL) return cache;
+  const pending = fetchLandingSettings(true).catch(() => peekLandingSettingsCache());
+  if (maxWaitMs <= 0) {
+    void pending;
+    return peekLandingSettingsCache();
+  }
+  return await new Promise<LandingSettings>((resolve) => {
+    let settled = false;
+    const done = (s: LandingSettings) => {
+      if (settled) return;
+      settled = true;
+      resolve(s);
+    };
+    const timer = setTimeout(() => done(peekLandingSettingsCache()), maxWaitMs);
+    void pending.then((s) => {
+      clearTimeout(timer);
+      done(s);
+    });
+  });
 }
 
 export async function saveLandingSettings(settings: LandingSettings): Promise<void> {

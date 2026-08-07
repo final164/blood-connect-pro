@@ -76,11 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      // display=swap already; keep stylesheet last so app CSS paints first
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap",
-      },
+      // Fonts loaded async in RootShell (non-blocking) — keep preconnect only here
       ...rootSeoHead.links,
     ],
   }),
@@ -95,10 +91,22 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="bn" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* Non-blocking Google Fonts: media=print → all on load (script below). */}
+        <link
+          id="bloodlink-fonts"
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
+          media="print"
+        />
+        <noscript>
+          <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
+          />
+        </noscript>
         <script
           dangerouslySetInnerHTML={{
-            // User app defaults to light. Admin theme is applied only on /admin.
-            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");}catch(e){document.documentElement.classList.remove("dark");}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");}catch(e){document.documentElement.classList.remove("dark");}var l=document.getElementById("bloodlink-fonts");if(l){var go=function(){l.media="all"};l.addEventListener("load",go);if(l.sheet)go();setTimeout(go,3000);}})();`,
           }}
         />
       </head>

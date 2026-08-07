@@ -150,7 +150,7 @@ export async function fetchSeoSettings(force = false): Promise<SeoSettings> {
     .eq("id", 1)
     .maybeSingle();
   if (error) {
-    cache = DEFAULT_SEO_SETTINGS;
+    cache = cache ?? DEFAULT_SEO_SETTINGS;
     cachedAt = Date.now();
     return cache;
   }
@@ -158,6 +158,40 @@ export async function fetchSeoSettings(force = false): Promise<SeoSettings> {
   cache = normalizeSeoSettings(row?.seo_settings);
   cachedAt = Date.now();
   return cache;
+}
+
+/** Last known SEO (even stale) — better for crawlers than empty defaults when possible. */
+export function peekSeoSettingsCache(): SeoSettings {
+  return cache ?? DEFAULT_SEO_SETTINGS;
+}
+
+/**
+ * Fast path for route `head` / loader: return cached SEO immediately, else race
+ * Supabase vs a short timeout so HTML isn't stalled. Continues warming the cache.
+ */
+export async function fetchSeoSettingsForLoader(maxWaitMs = 120): Promise<SeoSettings> {
+  if (cache && Date.now() - cachedAt < TTL) return cache;
+
+  const pending = fetchSeoSettings(true).catch(() => peekSeoSettingsCache());
+
+  if (maxWaitMs <= 0) {
+    void pending;
+    return peekSeoSettingsCache();
+  }
+
+  return await new Promise<SeoSettings>((resolve) => {
+    let settled = false;
+    const done = (seo: SeoSettings) => {
+      if (settled) return;
+      settled = true;
+      resolve(seo);
+    };
+    const timer = setTimeout(() => done(peekSeoSettingsCache()), maxWaitMs);
+    void pending.then((seo) => {
+      clearTimeout(timer);
+      done(seo);
+    });
+  });
 }
 
 export async function saveSeoSettings(settings: SeoSettings): Promise<void> {
