@@ -77,6 +77,8 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
+-- Also run scripts/feed-carousel-district.sql for district_id + community toggles.
+
 DROP POLICY IF EXISTS "feed_carousel_storage_read" ON storage.objects;
 CREATE POLICY "feed_carousel_storage_read" ON storage.objects
   FOR SELECT

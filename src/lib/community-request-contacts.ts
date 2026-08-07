@@ -44,6 +44,19 @@ export async function restoreExpiredDonorAvailability(): Promise<void> {
   }
 }
 
+/** Merge org-imported donor history into the signed-in profile (same phone). */
+export async function linkOrgDonorHistoryToProfile(userId?: string): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc("link_org_donor_history_to_profile", {
+      p_user_id: userId ?? null,
+    });
+    if (error) return 0;
+    return typeof data === "number" ? data : Number(data) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function logCommunityContact(params: {
   requestId: string;
   contactedBy: string;

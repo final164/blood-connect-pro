@@ -31,6 +31,27 @@ export type MessagingSettings = {
   community_save_posts_to_feed: boolean;
   /** Max donors selectable per bulk SMS */
   max_sms_donors: number;
+  /** Show A+/B+/… chip filter under community header */
+  show_community_blood_filter: boolean;
+  /** Apply save-request blood group to donor list filter */
+  community_apply_save_request_blood: boolean;
+  /** Apply save-request district to donor list filter */
+  community_apply_save_request_district: boolean;
+  /** Apply save-request upazila to donor list filter */
+  community_apply_save_request_upazila: boolean;
+  /**
+   * How long a saved community request stays on the button (hours).
+   * Default 24 (1 day). 0 = never auto-clear.
+   */
+  community_save_request_ttl_hours: number;
+  /** Put unavailable (cooldown) donors at the end of the list */
+  community_sort_unavailable_last: boolean;
+  /** Hide call/SMS/WhatsApp while donor is in cooldown */
+  community_hide_contact_when_unavailable: boolean;
+  /** Show “Not available” label on cooldown donors */
+  community_show_unavailable_label: boolean;
+  /** On signup with same phone as org-imported donor, merge donation history into profile */
+  link_org_donor_on_signup: boolean;
 };
 
 export const DEFAULT_POST_ICONS: PostIconSettings = {
@@ -59,6 +80,15 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   community_save_request_label_en: "Save request (optional)",
   community_save_posts_to_feed: true,
   max_sms_donors: 10,
+  show_community_blood_filter: true,
+  community_apply_save_request_blood: true,
+  community_apply_save_request_district: true,
+  community_apply_save_request_upazila: true,
+  community_save_request_ttl_hours: 24,
+  community_sort_unavailable_last: true,
+  community_hide_contact_when_unavailable: true,
+  community_show_unavailable_label: true,
+  link_org_donor_on_signup: true,
 };
 
 export type SmsTemplateVars = Record<string, string | number | null | undefined>;
@@ -140,6 +170,45 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       Number.isFinite(max) && max >= 1
         ? Math.min(100, Math.floor(max))
         : DEFAULT_MESSAGING_SETTINGS.max_sms_donors,
+    show_community_blood_filter:
+      typeof r.show_community_blood_filter === "boolean"
+        ? r.show_community_blood_filter
+        : DEFAULT_MESSAGING_SETTINGS.show_community_blood_filter,
+    community_apply_save_request_blood:
+      typeof r.community_apply_save_request_blood === "boolean"
+        ? r.community_apply_save_request_blood
+        : DEFAULT_MESSAGING_SETTINGS.community_apply_save_request_blood,
+    community_apply_save_request_district:
+      typeof r.community_apply_save_request_district === "boolean"
+        ? r.community_apply_save_request_district
+        : DEFAULT_MESSAGING_SETTINGS.community_apply_save_request_district,
+    community_apply_save_request_upazila:
+      typeof r.community_apply_save_request_upazila === "boolean"
+        ? r.community_apply_save_request_upazila
+        : DEFAULT_MESSAGING_SETTINGS.community_apply_save_request_upazila,
+    community_save_request_ttl_hours: (() => {
+      const h = Number(r.community_save_request_ttl_hours);
+      if (!Number.isFinite(h) || h < 0) {
+        return DEFAULT_MESSAGING_SETTINGS.community_save_request_ttl_hours;
+      }
+      return Math.min(720, Math.floor(h));
+    })(),
+    community_sort_unavailable_last:
+      typeof r.community_sort_unavailable_last === "boolean"
+        ? r.community_sort_unavailable_last
+        : DEFAULT_MESSAGING_SETTINGS.community_sort_unavailable_last,
+    community_hide_contact_when_unavailable:
+      typeof r.community_hide_contact_when_unavailable === "boolean"
+        ? r.community_hide_contact_when_unavailable
+        : DEFAULT_MESSAGING_SETTINGS.community_hide_contact_when_unavailable,
+    community_show_unavailable_label:
+      typeof r.community_show_unavailable_label === "boolean"
+        ? r.community_show_unavailable_label
+        : DEFAULT_MESSAGING_SETTINGS.community_show_unavailable_label,
+    link_org_donor_on_signup:
+      typeof r.link_org_donor_on_signup === "boolean"
+        ? r.link_org_donor_on_signup
+        : DEFAULT_MESSAGING_SETTINGS.link_org_donor_on_signup,
   };
 }
 
@@ -153,6 +222,11 @@ let cachedAt = 0;
 export function invalidateMessagingSettingsCache() {
   cached = null;
   cachedAt = 0;
+}
+
+/** Sync peek at last fetched settings (or defaults). Used by local draft TTL. */
+export function getCachedMessagingSettings(): MessagingSettings {
+  return cached ?? DEFAULT_MESSAGING_SETTINGS;
 }
 
 export async function fetchMessagingSettings(force = false): Promise<MessagingSettings> {

@@ -19,6 +19,10 @@ export type FeedCarouselSettings = {
   gap_px: number;
   radius_px: number;
   open_links_new_tab: boolean;
+  /** Show highlights carousel on community page (under save request) */
+  show_on_community: boolean;
+  /** On community, filter slides by resolved district (profile / search / save-request) */
+  community_district_filter: boolean;
 };
 
 export type FeedCarouselSlide = {
@@ -27,6 +31,8 @@ export type FeedCarouselSlide = {
   title_bn: string;
   title_en: string;
   link_url: string | null;
+  /** null = global (all districts); set for district-specific highlights */
+  district_id: string | null;
   sort_order: number;
   is_active: boolean;
   created_at?: string;
@@ -49,6 +55,8 @@ export const DEFAULT_FEED_CAROUSEL_SETTINGS: FeedCarouselSettings = {
   gap_px: 10,
   radius_px: 14,
   open_links_new_tab: true,
+  show_on_community: true,
+  community_district_filter: true,
 };
 
 const BUCKET = "feed-carousel";
@@ -161,6 +169,8 @@ export function normalizeFeedCarouselSettings(raw: unknown): FeedCarouselSetting
     gap_px: clampInt(r.gap_px, 0, 32, 10),
     radius_px: clampInt(r.radius_px, 0, 32, 14),
     open_links_new_tab: r.open_links_new_tab !== false,
+    show_on_community: r.show_on_community !== false,
+    community_district_filter: r.community_district_filter !== false,
   };
 }
 
@@ -171,11 +181,27 @@ function mapSlide(row: Record<string, unknown>): FeedCarouselSlide {
     title_bn: typeof row.title_bn === "string" ? row.title_bn : "",
     title_en: typeof row.title_en === "string" ? row.title_en : "",
     link_url: typeof row.link_url === "string" && row.link_url.trim() ? row.link_url.trim() : null,
+    district_id:
+      typeof row.district_id === "string" && row.district_id.trim() ? row.district_id.trim() : null,
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
     created_at: typeof row.created_at === "string" ? row.created_at : undefined,
     updated_at: typeof row.updated_at === "string" ? row.updated_at : undefined,
   };
+}
+
+/** Prefer district-specific slides; fall back to global (district_id null). */
+export function filterCarouselSlidesForDistrict(
+  slides: FeedCarouselSlide[],
+  districtId: string | null | undefined,
+  enabled: boolean,
+): FeedCarouselSlide[] {
+  const active = slides.filter((s) => s.is_active && s.image_url);
+  if (!enabled) return active;
+  if (!districtId) return active.filter((s) => !s.district_id);
+  const specific = active.filter((s) => s.district_id === districtId);
+  if (specific.length) return specific;
+  return active.filter((s) => !s.district_id);
 }
 
 export async function fetchFeedCarouselSettings(force = false): Promise<FeedCarouselSettings> {
@@ -252,6 +278,7 @@ export async function upsertFeedCarouselSlide(
     title_bn: slide.title_bn?.trim() ?? "",
     title_en: slide.title_en?.trim() ?? "",
     link_url: slide.link_url?.trim() || null,
+    district_id: slide.district_id?.trim() || null,
     sort_order: Number.isFinite(slide.sort_order) ? slide.sort_order! : 0,
     is_active: slide.is_active !== false,
     updated_at: new Date().toISOString(),
@@ -270,7 +297,24 @@ export async function upsertFeedCarouselSlide(
         .select("*")
         .maybeSingle();
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+  if (error && /district_id/i.test(error.message)) {
+    const { district_id: _drop, ...withoutDistrict } = payload;
+    const retry = slide.id
+      ? await supabase
+          .from("feed_carousel_slides")
+          .update(withoutDistrict as never)
+          .eq("id", slide.id)
+          .select("*")
+          .maybeSingle()
+      : await supabase
+          .from("feed_carousel_slides")
+          .insert(withoutDistrict as never)
+          .select("*")
+          .maybeSingle();
+    data = retry.data;
+    error = retry.error;
+  }
   invalidateFeedCarouselCache();
   return {
     error: error ? new Error(error.message) : null,

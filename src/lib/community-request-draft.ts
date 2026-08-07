@@ -1,4 +1,8 @@
 import type { District, Hospital } from "@/lib/api";
+import {
+  DEFAULT_MESSAGING_SETTINGS,
+  getCachedMessagingSettings,
+} from "@/lib/messaging-settings";
 
 const STORAGE_PREFIX = "bloodlink:community-request-draft:v1:";
 
@@ -50,13 +54,9 @@ function parseDraft(raw: unknown): CommunityRequestDraft | null {
   if (typeof o.updatedAt !== "number") return null;
 
   const district =
-    o.district && typeof o.district === "object"
-      ? (o.district as District)
-      : null;
+    o.district && typeof o.district === "object" ? (o.district as District) : null;
   const hospital =
-    o.hospital && typeof o.hospital === "object"
-      ? (o.hospital as Hospital)
-      : null;
+    o.hospital && typeof o.hospital === "object" ? (o.hospital as Hospital) : null;
 
   return {
     version: 1,
@@ -82,12 +82,53 @@ function parseDraft(raw: unknown): CommunityRequestDraft | null {
   };
 }
 
-export function loadCommunityRequestDraft(userId: string | null | undefined): CommunityRequestDraft | null {
+/** Resolve TTL hours: explicit arg → cached settings → default 24. 0 = never expire. */
+export function resolveSaveRequestTtlHours(ttlHours?: number | null): number {
+  if (typeof ttlHours === "number" && Number.isFinite(ttlHours) && ttlHours >= 0) {
+    return Math.min(720, Math.floor(ttlHours));
+  }
+  const fromSettings = getCachedMessagingSettings().community_save_request_ttl_hours;
+  if (typeof fromSettings === "number" && Number.isFinite(fromSettings) && fromSettings >= 0) {
+    return Math.min(720, Math.floor(fromSettings));
+  }
+  return DEFAULT_MESSAGING_SETTINGS.community_save_request_ttl_hours;
+}
+
+export function isCommunityRequestDraftExpired(
+  draft: CommunityRequestDraft,
+  ttlHours?: number | null,
+): boolean {
+  const hours = resolveSaveRequestTtlHours(ttlHours);
+  if (hours <= 0) return false;
+  return Date.now() - draft.updatedAt >= hours * 60 * 60 * 1000;
+}
+
+/** ms until auto-clear; null if never expires or already expired. */
+export function communityRequestDraftMsRemaining(
+  draft: CommunityRequestDraft,
+  ttlHours?: number | null,
+): number | null {
+  const hours = resolveSaveRequestTtlHours(ttlHours);
+  if (hours <= 0) return null;
+  const left = draft.updatedAt + hours * 60 * 60 * 1000 - Date.now();
+  return left > 0 ? left : 0;
+}
+
+export function loadCommunityRequestDraft(
+  userId: string | null | undefined,
+  ttlHours?: number | null,
+): CommunityRequestDraft | null {
   if (!userId || typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(storageKey(userId));
     if (!raw) return null;
-    return parseDraft(JSON.parse(raw) as unknown);
+    const draft = parseDraft(JSON.parse(raw) as unknown);
+    if (!draft) return null;
+    if (isCommunityRequestDraftExpired(draft, ttlHours)) {
+      clearCommunityRequestDraft(userId);
+      return null;
+    }
+    return draft;
   } catch {
     return null;
   }

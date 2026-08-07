@@ -15,7 +15,10 @@ import { Settings as SettingsIcon, Shield } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
-import { restoreExpiredDonorAvailability } from "@/lib/community-request-contacts";
+import {
+  linkOrgDonorHistoryToProfile,
+  restoreExpiredDonorAvailability,
+} from "@/lib/community-request-contacts";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile")({
@@ -41,26 +44,28 @@ function ProfilePage() {
     if (!user) return;
     fetchProfileLockSettings().then(setLockSettings);
     fetchGoogleDriveSettings().then(setDriveCfg);
-    void restoreExpiredDonorAvailability().finally(() => {
-      void supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle()
-        .then(async ({ data }) => {
-          setProfile(data ?? {});
-          setUpazila((data?.area as string) ?? "");
-          setAge(ageFromDateOfBirth(data?.date_of_birth as string));
-          if (data?.district_id) {
-            const { data: d } = await supabase
-              .from("districts")
-              .select("id,name_bn,name_en,slug,is_active,sort_order")
-              .eq("id", data.district_id)
-              .maybeSingle();
-            if (d) setDistrict(d as District);
-          }
-        });
-    });
+    void restoreExpiredDonorAvailability()
+      .then(() => linkOrgDonorHistoryToProfile(user.id))
+      .finally(() => {
+        void supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle()
+          .then(async ({ data }) => {
+            setProfile(data ?? {});
+            setUpazila((data?.area as string) ?? "");
+            setAge(ageFromDateOfBirth(data?.date_of_birth as string));
+            if (data?.district_id) {
+              const { data: d } = await supabase
+                .from("districts")
+                .select("id,name_bn,name_en,slug,is_active,sort_order")
+                .eq("id", data.district_id)
+                .maybeSingle();
+              if (d) setDistrict(d as District);
+            }
+          });
+      });
   }, [user]);
 
   async function toggleLock() {

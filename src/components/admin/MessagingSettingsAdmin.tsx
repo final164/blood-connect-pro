@@ -171,6 +171,159 @@ export function MessagingSettingsAdmin() {
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "কমিউনিটি ফিল্টার ও অ্যাভেইলেবিলিটি" : "Community filter & availability"}
+        </h3>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "হেডারের নিচে ব্লাড গ্রুপ ফিল্টার দেখাবে"
+              : "Show blood group filter chips under header"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.show_community_blood_filter}
+            onChange={(e) => setS({ ...s, show_community_blood_filter: e.target.checked })}
+          />
+        </label>
+        <p className="text-[10px] text-slate-500 leading-relaxed px-1">
+          {lang === "bn"
+            ? "Save request-এর ব্লাড গ্রুপ / জেলা / উপজেলা দিয়ে ডোনার অটো-ফিল্টার (নিচের টগল দিয়ে আলাদা নিয়ন্ত্রণ)।"
+            : "Auto-filter donors from save-request blood / district / upazila (toggles below)."}
+        </p>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "Save request ব্লাড গ্রুপ → ডোনার ফিল্টার"
+              : "Save-request blood group → donor filter"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_apply_save_request_blood}
+            onChange={(e) =>
+              setS({ ...s, community_apply_save_request_blood: e.target.checked })
+            }
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "Save request জেলা → ডোনার ফিল্টার"
+              : "Save-request district → donor filter"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_apply_save_request_district}
+            onChange={(e) =>
+              setS({ ...s, community_apply_save_request_district: e.target.checked })
+            }
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "Save request উপজেলা → ডোনার ফিল্টার"
+              : "Save-request upazila → donor filter"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_apply_save_request_upazila}
+            onChange={(e) =>
+              setS({ ...s, community_apply_save_request_upazila: e.target.checked })
+            }
+          />
+        </label>
+        <div className="rounded-lg border border-slate-800 px-3 py-2.5 space-y-1.5">
+          <label className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-slate-300 leading-snug">
+              {lang === "bn"
+                ? "Save request কত ঘণ্টা পর অটো-ক্লিয়ার"
+                : "Auto-clear save request after (hours)"}
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={720}
+              className="w-20 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40"
+              value={s.community_save_request_ttl_hours}
+              onChange={(e) =>
+                setS({
+                  ...s,
+                  community_save_request_ttl_hours: Math.max(
+                    0,
+                    Math.min(720, Math.floor(Number(e.target.value) || 0)),
+                  ),
+                })
+              }
+            />
+          </label>
+          <p className="text-[10px] text-slate-500 leading-relaxed">
+            {lang === "bn"
+              ? "ডিফল্ট ২৪ = একদিন। ০ = কখনো অটো-ক্লিয়ার হবে না (ম্যানুয়ালি ক্লিয়ার করতে হবে)।"
+              : "Default 24 = one day. 0 = never auto-clear (manual clear only)."}
+          </p>
+        </div>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "অনুপলব্ধ ডোনারদের তালিকার শেষে রাখবে"
+              : "Sort unavailable donors to the end"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_sort_unavailable_last}
+            onChange={(e) => setS({ ...s, community_sort_unavailable_last: e.target.checked })}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "অনুপলব্ধ হলে কল/SMS/WhatsApp আইকন লুকাবে"
+              : "Hide call/SMS/WhatsApp while unavailable"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_hide_contact_when_unavailable}
+            onChange={(e) =>
+              setS({ ...s, community_hide_contact_when_unavailable: e.target.checked })
+            }
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "অনুপলব্ধ ডোনারে “Not available” লেবেল"
+              : "Show “Not available” on cooldown donors"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_show_unavailable_label}
+            onChange={(e) => setS({ ...s, community_show_unavailable_label: e.target.checked })}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "অর্গ ডোনার একই ফোন দিয়ে সাইনআপ করলে হিস্ট্রি প্রোফাইলে মিলবে"
+              : "Link org-donor history when they sign up with same phone"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.link_org_donor_on_signup}
+            onChange={(e) => setS({ ...s, link_org_donor_on_signup: e.target.checked })}
+          />
+        </label>
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">
           {lang === "bn" ? "কমিউনিটি SMS টেমপ্লেট" : "Community SMS template"}
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">

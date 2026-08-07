@@ -166,7 +166,6 @@ export function CommunitySendSmsSheet({
     }
   }, [open, defaultDistrict, defaultUpazila, lang, user?.id]);
 
-  const isCustomHospital = !!hospital?.id.startsWith("custom:");
   const selectedCategory = useMemo(
     () => categories.find((c) => c.id === reasonKey) ?? null,
     [categories, reasonKey],
@@ -482,7 +481,7 @@ export function CommunitySendSmsSheet({
               </div>
             </div>
 
-            <div className={`grid gap-2 ${isCustomHospital ? "grid-cols-2" : "grid-cols-1"}`}>
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">{t("district")}</label>
                 <DistrictTypeahead
@@ -496,31 +495,29 @@ export function CommunitySendSmsSheet({
                   placeholder={t("district")}
                 />
               </div>
-              {isCustomHospital && (
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground">{t("upazila")}</label>
-                  <UpazilaSelect
-                    district={district}
-                    value={upazila}
-                    onChange={(v) => {
-                      setUpazila(v);
-                      setHospital((h) => (h ? { ...h, upazila: v || null } : h));
-                    }}
-                  />
-                </div>
-              )}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">{t("upazila")}</label>
+                <UpazilaSelect
+                  district={district}
+                  value={upazila}
+                  onChange={(v) => {
+                    setUpazila(v);
+                    setHospital(null);
+                  }}
+                />
+              </div>
             </div>
 
             <HospitalTypeahead
-              key={district?.id ?? "d"}
+              key={`${district?.id ?? "d"}:${upazila.trim() || "all"}`}
               value={hospital}
               onChange={(h) => {
                 setHospital(h);
-                setUpazila(h?.upazila?.trim() ?? "");
+                if (h?.upazila?.trim()) setUpazila(h.upazila.trim());
               }}
               districtId={district?.id}
               districtSlug={district?.slug}
-              upazila={isCustomHospital ? upazila || undefined : undefined}
+              upazila={upazila.trim() || undefined}
               required={req("hospital")}
               placeholder={ph("হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক…", "Hospital / clinic / diagnostic…")}
             />

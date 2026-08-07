@@ -23,8 +23,16 @@ export const queryKeys = {
     districtId: string | null | undefined;
     upazila: string;
     orgId: string | null | undefined;
+    sortUnavailableLast?: boolean;
   }) =>
-    ["community-donors", q.bloodGroup, q.districtId ?? null, q.upazila || "", q.orgId ?? null] as const,
+    [
+      "community-donors",
+      q.bloodGroup,
+      q.districtId ?? null,
+      q.upazila || "",
+      q.orgId ?? null,
+      q.sortUnavailableLast !== false,
+    ] as const,
   activity: (view: string, userId: string | undefined) =>
     ["activity", view, userId ?? null] as const,
   profile: (userId: string | undefined) => ["profile", userId ?? null] as const,

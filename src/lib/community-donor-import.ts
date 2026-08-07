@@ -15,6 +15,8 @@ export type CommunityDonorRow = {
   address: string | null;
   is_active: boolean;
   created_at: string;
+  unavailable_until?: string | null;
+  last_donated_at?: string | null;
   community_orgs?: {
     name: string;
     name_bn: string | null;
@@ -22,6 +24,17 @@ export type CommunityDonorRow = {
   } | null;
   districts?: { name_bn: string; name_en: string; slug: string } | null;
 };
+
+/** True while cooldown is active (unavailable_until in the future). */
+export function isCommunityDonorUnavailable(
+  donor: Pick<CommunityDonorRow, "unavailable_until">,
+  now = Date.now(),
+): boolean {
+  const raw = donor.unavailable_until;
+  if (!raw) return false;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) && t > now;
+}
 
 export type DonorGender = "male" | "female";
 
@@ -226,17 +239,18 @@ export async function fetchCommunityDonors(opts: {
   orgId?: string | null;
   offset?: number;
   limit?: number;
+  /** Put available donors before cooldown donors (default true) */
+  sortUnavailableLast?: boolean;
 }): Promise<{ items: CommunityDonorRow[]; hasMore: boolean }> {
   const limit = opts.limit ?? 24;
   const offset = opts.offset ?? 0;
+  const sortUnavailableLast = opts.sortUnavailableLast !== false;
   let q = supabase
     .from("community_donors")
     .select(
-      "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, created_at, community_orgs(name, name_bn, donor_contact_settings), districts(name_bn, name_en, slug)",
+      "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, created_at, unavailable_until, last_donated_at, community_orgs(name, name_bn, donor_contact_settings), districts(name_bn, name_en, slug)",
     )
-    .eq("is_active", true)
-    .order("full_name", { ascending: true })
-    .range(offset, offset + limit - 1);
+    .eq("is_active", true);
 
   if (opts.bloodGroup && opts.bloodGroup !== "ALL") {
     q = q.eq("blood_group", opts.bloodGroup);
@@ -247,9 +261,50 @@ export async function fetchCommunityDonors(opts: {
   }
   if (opts.orgId) q = q.eq("org_id", opts.orgId);
 
+  // Available (null / expired) first when sorting unavailable last
+  if (sortUnavailableLast) {
+    q = q
+      .order("unavailable_until", { ascending: true, nullsFirst: true })
+      .order("full_name", { ascending: true });
+  } else {
+    q = q.order("full_name", { ascending: true });
+  }
+
+  q = q.range(offset, offset + limit - 1);
+
   const { data, error } = await q;
-  if (error) throw error;
-  const rows = (data ?? []) as unknown as CommunityDonorRow[];
+  if (error) {
+    // Older DBs may lack cooldown columns — retry without them
+    if (/unavailable_until|last_donated_at|column/i.test(error.message)) {
+      let q2 = supabase
+        .from("community_donors")
+        .select(
+          "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, created_at, community_orgs(name, name_bn, donor_contact_settings), districts(name_bn, name_en, slug)",
+        )
+        .eq("is_active", true)
+        .order("full_name", { ascending: true })
+        .range(offset, offset + limit - 1);
+      if (opts.bloodGroup && opts.bloodGroup !== "ALL") q2 = q2.eq("blood_group", opts.bloodGroup);
+      if (opts.districtId) q2 = q2.eq("district_id", opts.districtId);
+      if (opts.upazila?.trim()) q2 = q2.eq("upazila", opts.upazila.trim());
+      if (opts.orgId) q2 = q2.eq("org_id", opts.orgId);
+      const retry = await q2;
+      if (retry.error) throw retry.error;
+      const rows = (retry.data ?? []) as unknown as CommunityDonorRow[];
+      return { items: rows, hasMore: rows.length >= limit };
+    }
+    throw error;
+  }
+  let rows = (data ?? []) as unknown as CommunityDonorRow[];
+  if (sortUnavailableLast) {
+    const now = Date.now();
+    rows = [...rows].sort((a, b) => {
+      const ua = isCommunityDonorUnavailable(a, now) ? 1 : 0;
+      const ub = isCommunityDonorUnavailable(b, now) ? 1 : 0;
+      if (ua !== ub) return ua - ub;
+      return (a.full_name || "").localeCompare(b.full_name || "", undefined, { sensitivity: "base" });
+    });
+  }
   return { items: rows, hasMore: rows.length >= limit };
 }
 

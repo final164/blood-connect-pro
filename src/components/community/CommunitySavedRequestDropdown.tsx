@@ -436,16 +436,24 @@ function CommunityRequestDraftSheet({
             }}
             required={req("district")}
           />
-          <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
+          <UpazilaSelect
+            district={district}
+            value={upazila}
+            onChange={(v) => {
+              setUpazila(v);
+              setHospital(null);
+            }}
+          />
           <HospitalTypeahead
-            key={district?.id ?? "d"}
+            key={`${district?.id ?? "d"}:${upazila.trim() || "all"}`}
             value={hospital}
             onChange={(h) => {
               setHospital(h);
-              setUpazila(h?.upazila?.trim() ?? "");
+              if (h?.upazila?.trim()) setUpazila(h.upazila.trim());
             }}
             districtId={district?.id}
             districtSlug={district?.slug}
+            upazila={upazila.trim() || undefined}
             required={req("hospital")}
             placeholder={ph("হাসপাতাল / ক্লিনিক / ডায়াগনস্টিক…", "Hospital / clinic / diagnostic…")}
           />

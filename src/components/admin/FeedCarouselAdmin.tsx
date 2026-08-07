@@ -11,7 +11,9 @@ import {
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
+import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
+import { fetchDistricts, type District } from "@/lib/api";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
   deleteFeedCarouselSlide,
@@ -65,6 +67,7 @@ function emptyDraft(sortOrder: number): Omit<FeedCarouselSlide, "id"> & { id?: s
     title_bn: "",
     title_en: "",
     link_url: null,
+    district_id: null,
     sort_order: sortOrder,
     is_active: true,
   };
@@ -80,6 +83,8 @@ export function FeedCarouselAdmin() {
   const [uploadForId, setUploadForId] = useState<string | "new">("new");
   const [busy, setBusy] = useState(false);
   const [schemaHint, setSchemaHint] = useState(false);
+  const [draftDistrict, setDraftDistrict] = useState<District | null>(null);
+  const [districtById, setDistrictById] = useState<Record<string, District>>({});
 
   async function reload() {
     const settings = await fetchFeedCarouselSettings(true);
@@ -95,6 +100,16 @@ export function FeedCarouselAdmin() {
     setSchemaHint(false);
     setSlides(rows);
     setDraft(emptyDraft((rows.at(-1)?.sort_order ?? 0) + 10));
+    setDraftDistrict(null);
+    const ids = [...new Set(rows.map((s) => s.district_id).filter(Boolean))] as string[];
+    if (ids.length) {
+      const all = await fetchDistricts();
+      const map: Record<string, District> = {};
+      for (const d of all) {
+        if (ids.includes(d.id)) map[d.id] = d;
+      }
+      setDistrictById((prev) => ({ ...prev, ...map }));
+    }
   }
 
   useEffect(() => {
@@ -224,8 +239,8 @@ export function FeedCarouselAdmin() {
       {schemaHint && (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
           {lang === "bn"
-            ? "ডাটাবেস সেটআপ বাকি — Supabase SQL Editor-এ scripts/feed-carousel.sql চালান।"
-            : "Database setup pending — run scripts/feed-carousel.sql in the Supabase SQL Editor."}
+            ? "ডাটাবেস সেটআপ বাকি — scripts/feed-carousel.sql এবং scripts/feed-carousel-district.sql চালান।"
+            : "Database setup pending — run scripts/feed-carousel.sql and scripts/feed-carousel-district.sql."}
         </div>
       )}
 
@@ -257,6 +272,26 @@ export function FeedCarouselAdmin() {
           hint={lang === "bn" ? "বন্ধ করলে ক্যারোজেল লুকানো থাকবে" : "Hide the carousel when off"}
           checked={cfg.enabled}
           onChange={(v) => setFlag("enabled", v)}
+        />
+        <ToggleRow
+          title={lang === "bn" ? "কমিউনিটিতে দেখাও" : "Show on community"}
+          hint={
+            lang === "bn"
+              ? "Save request বাটনের নিচে হাইলাইটস"
+              : "Highlights under the save-request button"
+          }
+          checked={cfg.show_on_community}
+          onChange={(v) => setFlag("show_on_community", v)}
+        />
+        <ToggleRow
+          title={lang === "bn" ? "কমিউনিটিতে জেলাভিত্তিক ফিল্টার" : "Community district filter"}
+          hint={
+            lang === "bn"
+              ? "প্রোফাইল → সার্চ → Save request জেলা অনুযায়ী স্লাইড"
+              : "Slides by profile → search → save-request district"
+          }
+          checked={cfg.community_district_filter}
+          onChange={(v) => setFlag("community_district_filter", v)}
         />
 
         <div className="grid grid-cols-2 gap-3">
@@ -498,6 +533,21 @@ export function FeedCarouselAdmin() {
             value={draft.link_url ?? ""}
             onChange={(e) => setDraft((d) => ({ ...d, link_url: e.target.value || null }))}
           />
+          <div>
+            <label className="text-[10px] text-slate-500 mb-1 block">
+              {lang === "bn" ? "জেলা (খালি = সব জেলা / গ্লোবাল)" : "District (empty = global)"}
+            </label>
+            <DistrictTypeahead
+              value={draftDistrict}
+              onChange={(d) => {
+                setDraftDistrict(d);
+                setDraft((prev) => ({ ...prev, district_id: d?.id ?? null }));
+                if (d) setDistrictById((m) => ({ ...m, [d.id]: d }));
+              }}
+              placeholder={lang === "bn" ? "জেলা খুঁজুন (ঐচ্ছিক)…" : "Search district (optional)…"}
+              variant="admin"
+            />
+          </div>
           <button
             type="button"
             disabled={busy}
@@ -507,6 +557,7 @@ export function FeedCarouselAdmin() {
                 title_bn: draft.title_bn,
                 title_en: draft.title_en,
                 link_url: draft.link_url,
+                district_id: draft.district_id,
                 sort_order: draft.sort_order,
                 is_active: true,
               })
@@ -613,6 +664,29 @@ export function FeedCarouselAdmin() {
                       patchSlideLocal(slide.id, { link_url: e.target.value || null })
                     }
                   />
+                  <div>
+                    <label className="text-[10px] text-slate-500 mb-1 block">
+                      {lang === "bn" ? "জেলা" : "District"}
+                      {slide.district_id
+                        ? ` — ${
+                            lang === "bn"
+                              ? districtById[slide.district_id]?.name_bn ?? slide.district_id.slice(0, 8)
+                              : districtById[slide.district_id]?.name_en ?? slide.district_id.slice(0, 8)
+                          }`
+                        : lang === "bn"
+                          ? " — গ্লোবাল"
+                          : " — Global"}
+                    </label>
+                    <DistrictTypeahead
+                      value={slide.district_id ? districtById[slide.district_id] ?? null : null}
+                      onChange={(d) => {
+                        if (d) setDistrictById((m) => ({ ...m, [d.id]: d }));
+                        patchSlideLocal(slide.id, { district_id: d?.id ?? null });
+                      }}
+                      placeholder={lang === "bn" ? "জেলা (ঐচ্ছিক)…" : "District (optional)…"}
+                      variant="admin"
+                    />
+                  </div>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <button
                       type="button"

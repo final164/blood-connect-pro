@@ -159,7 +159,8 @@ function FeedPage() {
   useEffect(() => {
     void fetchFeedCarouselBundle(true).then(({ settings, slides }) => {
       setCarouselSettings(settings);
-      setCarouselSlides(slides);
+      // Feed shows global slides; district-specific slides are for community.
+      setCarouselSlides(slides.filter((s) => !s.district_id));
     });
     void fetchFeedBannerBundle(true).then(({ settings, slides }) => {
       setBannerSettings(settings);
