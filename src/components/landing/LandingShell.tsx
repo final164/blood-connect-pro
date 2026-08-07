@@ -28,9 +28,7 @@ export function LandingShell({
         }
         .landing-glass {
           background: var(--landing-glass);
-          /* Lighter blur — full 16px blur was a major scroll/FPS cost */
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
+          /* No backdrop-filter — blur over hero images tanks scroll FPS */
         }
         .landing-section {
           content-visibility: auto;
@@ -40,20 +38,33 @@ export function LandingShell({
           animation: landingFadeUp 0.45s ease-out both;
         }
         @keyframes landingFadeUp {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: none; }
         }
         @media (prefers-reduced-motion: reduce) {
           .landing-fade-up { animation: none; }
           .hero-bg-layer { transition: none !important; }
         }
-        /* Hero slideshow — opacity-only GPU fade (no transform/scale = no lag) */
+        /* Hero slideshow — opacity-only; frozen when scrolled away */
         .hero-bg-layer {
           backface-visibility: hidden;
           transform: translateZ(0);
-          transition: opacity var(--hero-transition-ms, 900ms) ease-in-out;
+          transition: opacity var(--hero-transition-ms, 700ms) ease-in-out;
           pointer-events: none;
           user-select: none;
+          will-change: opacity;
+        }
+        .hero-bg-root[data-away="true"] .hero-bg-layer {
+          transition: none !important;
+          will-change: auto;
+          /* Drop from compositor while off-screen — big scroll FPS win */
+          content-visibility: hidden;
+        }
+        .hero-bg-root[data-away="true"] {
+          contain: strict;
+        }
+        .landing-hero {
+          contain: layout paint style;
         }
       `}</style>
       {children}

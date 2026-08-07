@@ -13,7 +13,7 @@ export function LandingNav({
 }) {
   const nav = settings.nav;
   return (
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-[color:var(--landing-glass)] supports-[backdrop-filter]:backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-black/8 bg-[color:var(--landing-bg)]/92">
       <div className="mx-auto flex w-full max-w-5xl md:max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <a href="#top" className="flex items-center gap-2 min-w-0">
           {nav.logo_url ? (

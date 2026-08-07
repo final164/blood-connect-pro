@@ -35,22 +35,25 @@ function preload(urls: string[]) {
 }
 
 /**
- * Lag-free hero crossfade: two GPU layers, opacity only, stable timer via refs.
- * All slides preloaded once; next image is painted on the hidden layer before fade.
+ * Lag-free hero crossfade: two GPU layers, opacity only.
+ * Pauses while the user scrolls / hero leaves the viewport so scroll FPS stays smooth.
  */
 export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: Props) {
   const slides = ensureHeroSlides(images);
   const rootRef = useRef<HTMLDivElement>(null);
   const visibleRef = useRef(true);
+  const scrollingRef = useRef(false);
   const pausedRef = useRef(false);
   const indexRef = useRef(0);
   const activeLayerRef = useRef<0 | 1>(0);
   const slidesRef = useRef(slides);
+  const scrollResumeTimer = useRef(0);
 
   const [layer0, setLayer0] = useState(slides[0] ?? LANDING_MEDIA.hero);
   const [layer1, setLayer1] = useState(slides[1] ?? slides[0] ?? LANDING_MEDIA.hero);
   const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
   const [index, setIndex] = useState(0);
+  const [away, setAway] = useState(false);
 
   slidesRef.current = slides;
 
@@ -63,7 +66,6 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
     setActiveLayer(0);
     setLayer0(list[0] ?? LANDING_MEDIA.hero);
     setLayer1(list[1] ?? list[0] ?? LANDING_MEDIA.hero);
-    // First frame only on critical path; rest after idle so LCP stays fast.
     preload(list.slice(0, 1));
     const rest = list.slice(1);
     if (rest.length) {
@@ -77,29 +79,56 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
     }
   }, [images.join("|")]);
 
+  // Pause slideshow while scrolling (hero crossfade mid-scroll = jank)
+  useEffect(() => {
+    const onScroll = () => {
+      scrollingRef.current = true;
+      window.clearTimeout(scrollResumeTimer.current);
+      scrollResumeTimer.current = window.setTimeout(() => {
+        scrollingRef.current = false;
+      }, 180);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.clearTimeout(scrollResumeTimer.current);
+    };
+  }, []);
+
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        visibleRef.current = !!entry?.isIntersecting;
+        const ratio = entry?.intersectionRatio ?? 0;
+        const onScreen = !!entry?.isIntersecting && ratio > 0.08;
+        visibleRef.current = onScreen;
+        // Freeze compositor work for full-bleed images once hero is mostly gone
+        setAway(!onScreen);
       },
-      { threshold: 0.05 },
+      { threshold: [0, 0.08, 0.25, 0.5] },
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
 
   const enabled = slideshow.enabled !== false && slides.length >= 2;
-  // Honor admin settings fully (normalized range: interval 2.5–30s, fade 0.4–4s)
   const intervalMs = Math.min(30000, Math.max(2500, slideshow.interval_ms || 5500));
-  const transitionMs = Math.min(4000, Math.max(400, slideshow.transition_ms || 900));
+  // Cap fade length — long opacity transitions over 88vh images hurt scroll
+  const transitionMs = Math.min(700, Math.max(350, slideshow.transition_ms || 700));
 
   useEffect(() => {
     if (!enabled) return;
 
     const tick = () => {
-      if (!visibleRef.current || document.hidden || pausedRef.current) return;
+      if (
+        !visibleRef.current ||
+        scrollingRef.current ||
+        document.hidden ||
+        pausedRef.current
+      ) {
+        return;
+      }
       const list = slidesRef.current;
       if (list.length < 2) return;
 
@@ -107,13 +136,12 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
       const nextSrc = list[nextIdx] ?? list[0];
       const nextLayer: 0 | 1 = activeLayerRef.current === 0 ? 1 : 0;
 
-      // Paint next image on the hidden layer, then fade
       if (nextLayer === 0) setLayer0(nextSrc);
       else setLayer1(nextSrc);
 
-      // Double-rAF so the browser paints the new src before opacity flip
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
+          if (scrollingRef.current || !visibleRef.current) return;
           activeLayerRef.current = nextLayer;
           indexRef.current = nextIdx;
           setActiveLayer(nextLayer);
@@ -134,8 +162,9 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
   return (
     <div
       ref={rootRef}
-      className="absolute inset-0 overflow-hidden bg-black"
+      className="hero-bg-root absolute inset-0 overflow-hidden bg-black"
       style={style}
+      data-away={away ? "true" : "false"}
       onMouseEnter={() => {
         if (slideshow.pause_on_hover) pausedRef.current = true;
       }}
@@ -152,7 +181,10 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
         fetchPriority={activeLayer === 0 ? "high" : "low"}
         draggable={false}
         className="hero-bg-layer absolute inset-0 h-full w-full object-cover"
-        style={{ opacity: activeLayer === 0 ? 1 : 0 }}
+        style={{
+          opacity: away ? 0 : activeLayer === 0 ? 1 : 0,
+          visibility: away ? "hidden" : "visible",
+        }}
       />
       <img
         src={layer1}
@@ -163,17 +195,22 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
         fetchPriority={activeLayer === 1 ? "high" : "low"}
         draggable={false}
         className="hero-bg-layer absolute inset-0 h-full w-full object-cover"
-        style={{ opacity: activeLayer === 1 ? 1 : 0 }}
+        style={{
+          opacity: away ? 0 : activeLayer === 1 ? 1 : 0,
+          visibility: away ? "hidden" : "visible",
+        }}
       />
 
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `linear-gradient(to top, rgba(0,0,0,${o}) 0%, rgba(0,0,0,${o * 0.45}) 50%, rgba(0,0,0,${o * 0.28}) 100%)`,
+          background: away
+            ? "var(--landing-bg, #F7F3F0)"
+            : `linear-gradient(to top, rgba(0,0,0,${o}) 0%, rgba(0,0,0,${o * 0.45}) 50%, rgba(0,0,0,${o * 0.28}) 100%)`,
         }}
       />
 
-      {slideshow.show_dots && slides.length > 1 && (
+      {slideshow.show_dots && slides.length > 1 && !away && (
         <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-1.5 pointer-events-none">
           {slides.map((_, i) => (
             <span

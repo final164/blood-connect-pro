@@ -77,7 +77,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   return (
     <section
       id="top"
-      className="relative min-h-[min(88dvh,820px)] flex flex-col justify-end overflow-x-hidden"
+      className="landing-hero relative min-h-[min(88dvh,820px)] flex flex-col justify-end overflow-x-hidden"
     >
       {/* Hidden LCP image so crawlers / Lighthouse see a real img candidate */}
       {lcpSrc ? (

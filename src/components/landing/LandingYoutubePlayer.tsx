@@ -58,7 +58,7 @@ export function LandingYoutubePlayer({ youtube, lang, variant = "hero" }: Props)
           <img
             src={poster}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+            className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
             decoding="async"
             width={1280}

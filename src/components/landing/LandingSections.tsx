@@ -73,7 +73,7 @@ export function LandingStats({
           return (
             <div
               key={s.id}
-              className="text-center py-3 rounded-2xl border border-black/5 bg-white/40 backdrop-blur-sm"
+              className="text-center py-3 rounded-2xl border border-black/5 bg-white/55"
             >
               <Icon className="h-5 w-5 mx-auto mb-2" style={{ color: "var(--landing-primary)" }} />
               <p className="text-lg sm:text-2xl font-bold tabular-nums">{value}</p>
