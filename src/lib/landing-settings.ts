@@ -9,6 +9,7 @@ export type LandingSectionId =
   | "hero"
   | "stats"
   | "how_it_works"
+  | "islamic_carousel"
   | "campaigns"
   | "community"
   | "gallery"
@@ -116,6 +117,104 @@ export type LandingCommunityBlock = {
   cta_href: string;
 };
 
+/** Islamic inspiration section (text-first cards; no heavy media). */
+export type LandingIslamicCard = {
+  id: string;
+  theme_bn: string;
+  theme_en: string;
+  quote_bn: string;
+  quote_en: string;
+  source_bn: string;
+  source_en: string;
+  reflection_bn: string;
+  reflection_en: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type LandingIslamicBlock = {
+  title_bn: string;
+  title_en: string;
+  body_bn: string;
+  body_en: string;
+  /** Editable in Admin → Landing → Islamic (saved with landing_settings). */
+  cards: LandingIslamicCard[];
+};
+
+export const DEFAULT_ISLAMIC_CARDS: LandingIslamicCard[] = [
+  {
+    id: "seed-isl-1",
+    theme_bn: "জীবন রক্ষা",
+    theme_en: "Saving a life",
+    quote_bn: "যে ব্যক্তি একজন মানুষের জীবন রক্ষা করল, সে যেন সমগ্র মানবজাতির জীবন রক্ষা করল।",
+    quote_en: "Whoever saves a life, it is as if he had saved all of mankind.",
+    source_bn: "সূরা আল-মায়িদাহ ৫:৩২",
+    source_en: "Qur’an 5:32",
+    reflection_bn: "জরুরি রক্তের চাহিদায় সাড়া দেওয়া — এই বাণীর বাস্তব প্রয়োগ।",
+    reflection_en: "Answering an urgent blood need is this verse lived out.",
+    sort_order: 0,
+    is_active: true,
+  },
+  {
+    id: "seed-isl-2",
+    theme_bn: "পরস্পর সাহায্য",
+    theme_en: "Helping others",
+    quote_bn: "মানুষের মধ্যে সর্বোত্তম তারাই, যারা মানুষের সবচেয়ে বেশি উপকার করে।",
+    quote_en: "The best of people are those who are most beneficial to people.",
+    source_bn: "হাদিস — আত-তাবারানি",
+    source_en: "Hadith — al-Tabarani",
+    reflection_bn: "নিবন্ধিত রক্তদাতা হয়ে আপনার এলাকার কারো উপকারে আসুন।",
+    reflection_en: "Become a registered donor and benefit someone near you.",
+    sort_order: 10,
+    is_active: true,
+  },
+  {
+    id: "seed-isl-3",
+    theme_bn: "এক দেহ",
+    theme_en: "One body",
+    quote_bn: "মুমিনগণ পরস্পরের প্রতি ভালোবাসা ও সহানুভূতিতে এক দেহের মতো।",
+    quote_en: "The believers in their mutual kindness and compassion are like one body.",
+    source_bn: "সহিহ বুখারি ও মুসলিম",
+    source_en: "Sahih al-Bukhari & Muslim",
+    reflection_bn: "কমিউনিটি নেটওয়ার্কে যুক্ত হয়ে একজনের ব্যথা সবার হয়ে উঠুক।",
+    reflection_en: "Join the network so one person’s need becomes everyone’s concern.",
+    sort_order: 20,
+    is_active: true,
+  },
+  {
+    id: "seed-isl-4",
+    theme_bn: "কষ্ট লাঘব",
+    theme_en: "Relieving hardship",
+    quote_bn: "যে ব্যক্তি কোনো মুমিনের দুনিয়ার কষ্ট লাঘব করে, আল্লাহ তার কষ্ট লাঘব করবেন।",
+    quote_en: "Whoever relieves a believer’s distress in this world, Allah will relieve his distress.",
+    source_bn: "সহিহ মুসলিম",
+    source_en: "Sahih Muslim",
+    reflection_bn: "এক ব্যাগ রক্ত — কারো পরিবারের সবচেয়ে কঠিন রাত হালকা করতে পারে।",
+    reflection_en: "One unit of blood can ease a family’s hardest night.",
+    sort_order: 30,
+    is_active: true,
+  },
+  {
+    id: "seed-isl-5",
+    theme_bn: "সদাচার",
+    theme_en: "Continuous good",
+    quote_bn: "যে ব্যক্তি কোনো ভালো কাজের পথ দেখায়, সে যেন তা নিজে করেছে — সমান সওয়াব।",
+    quote_en: "Whoever guides others to good is like the one who does it.",
+    source_bn: "সহিহ মুসলিম",
+    source_en: "Sahih Muslim",
+    reflection_bn: "BloodLink-এ শেয়ার ও আমন্ত্রণ — অন্যকেও রক্তদানে উদ্বুদ্ধ করে।",
+    reflection_en: "Sharing BloodLink invites others into the same good.",
+    sort_order: 40,
+    is_active: true,
+  },
+];
+
+export function activeIslamicCards(block: LandingIslamicBlock): LandingIslamicCard[] {
+  return [...(block.cards ?? [])]
+    .filter((c) => c.is_active !== false)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+}
+
 export type LandingCtaBand = {
   title_bn: string;
   title_en: string;
@@ -158,6 +257,7 @@ export type LandingSettings = {
     links: LandingNavLink[];
   };
   hero: LandingHero;
+  islamic: LandingIslamicBlock;
   community: LandingCommunityBlock;
   cta_band: LandingCtaBand;
   footer: {
@@ -176,6 +276,7 @@ export const LANDING_SECTION_IDS: LandingSectionId[] = [
   "hero",
   "stats",
   "how_it_works",
+  "islamic_carousel",
   "campaigns",
   "community",
   "gallery",
@@ -210,9 +311,9 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     title_bn: "BloodLink — রক্তদানে জীবন বাঁচান",
     title_en: "BloodLink — Save lives with blood donation",
     description_bn:
-      "বাংলাদেশের রিয়েলটাইম রক্তদাতা নেটওয়ার্ক। জরুরি রিকোয়েস্ট দেখুন, কাছের ডোনার খুঁজুন, এক ক্লিকে সাহায্য করুন।",
+      "বাংলাদেশের রিয়েলটাইম রক্তদাতা নেটওয়ার্ক। জরুরি রিকোয়েস্ট দেখুন, কাছের ডোনার খুঁজুন — ইসলামে জীবন রক্ষার আলোকে সাহায্য করুন।",
     description_en:
-      "Bangladesh’s realtime blood donor network. See urgent requests, find nearby donors, and help in one tap.",
+      "Bangladesh’s realtime blood donor network. See urgent requests, find nearby donors — give inspired by saving lives.",
     og_image_url: LANDING_MEDIA.og,
   },
   nav: {
@@ -250,6 +351,14 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     slideshow: { ...DEFAULT_HERO_SLIDESHOW },
     background_video_url: "",
     youtube: { ...DEFAULT_HERO_YOUTUBE },
+  },
+  islamic: {
+    title_bn: "ইসলামে জীবন রক্ষা ও সাহায্য",
+    title_en: "Saving lives in Islam",
+    body_bn:
+      "রক্তদান একটি মানবিক ইবাদতের মতো — একজনের জীবন বাঁচানো মানেই মানবতার সেবা।",
+    body_en: "Blood donation is an act of mercy — saving one life serves humanity.",
+    cards: DEFAULT_ISLAMIC_CARDS.map((c) => ({ ...c })),
   },
   community: {
     title_bn: "একসাথে গড়া রক্তদানের কমিউনিটি",
@@ -342,6 +451,32 @@ const TTL = 60_000;
 export function invalidateLandingSettingsCache() {
   cache = null;
   cachedAt = 0;
+}
+
+function normalizeIslamicCards(raw: unknown, fallback: LandingIslamicCard[]): LandingIslamicCard[] {
+  if (!Array.isArray(raw)) {
+    return fallback.map((c) => ({ ...c }));
+  }
+  if (raw.length === 0) return [];
+  return raw
+    .map((item, i) => {
+      const x = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+      const id = str(x.id, `isl-${i}`);
+      return {
+        id,
+        theme_bn: str(x.theme_bn, ""),
+        theme_en: str(x.theme_en, ""),
+        quote_bn: str(x.quote_bn, ""),
+        quote_en: str(x.quote_en, ""),
+        source_bn: str(x.source_bn, ""),
+        source_en: str(x.source_en, ""),
+        reflection_bn: str(x.reflection_bn, ""),
+        reflection_en: str(x.reflection_en, ""),
+        sort_order: num(x.sort_order, i * 10, 0, 9999),
+        is_active: x.is_active !== false,
+      } satisfies LandingIslamicCard;
+    })
+    .filter((c) => c.quote_bn || c.quote_en || c.theme_bn || c.theme_en);
 }
 
 function str(v: unknown, fallback: string) {
@@ -457,6 +592,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
     string,
     unknown
   >;
+  const islamicRaw = (r.islamic && typeof r.islamic === "object" ? r.islamic : {}) as Record<string, unknown>;
   const ctaRaw = (r.cta_band && typeof r.cta_band === "object" ? r.cta_band : {}) as Record<string, unknown>;
   const footerRaw = (r.footer && typeof r.footer === "object" ? r.footer : {}) as Record<string, unknown>;
 
@@ -468,11 +604,18 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
     LANDING_SECTION_IDS.map((id) => [id, enabledRaw[id] !== false]),
   ) as Record<LandingSectionId, boolean>;
 
-  let section_order = Array.isArray(r.section_order)
+  const section_order = Array.isArray(r.section_order)
     ? (r.section_order.filter((x) => LANDING_SECTION_IDS.includes(x as LandingSectionId)) as LandingSectionId[])
     : [...d.section_order];
   for (const id of LANDING_SECTION_IDS) {
-    if (!section_order.includes(id)) section_order.push(id);
+    if (section_order.includes(id)) continue;
+    if (id === "islamic_carousel") {
+      const howIdx = section_order.indexOf("how_it_works");
+      if (howIdx >= 0) section_order.splice(howIdx + 1, 0, id);
+      else section_order.push(id);
+    } else {
+      section_order.push(id);
+    }
   }
 
   const footerCols =
@@ -567,6 +710,13 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
         youtube: normalizeHeroYoutube(heroRaw.youtube, d.hero.youtube),
       };
     })(),
+    islamic: {
+      title_bn: str(islamicRaw.title_bn, d.islamic.title_bn),
+      title_en: str(islamicRaw.title_en, d.islamic.title_en),
+      body_bn: str(islamicRaw.body_bn, d.islamic.body_bn),
+      body_en: str(islamicRaw.body_en, d.islamic.body_en),
+      cards: normalizeIslamicCards(islamicRaw.cards, d.islamic.cards),
+    },
     community: {
       title_bn: str(communityRaw.title_bn, d.community.title_bn),
       title_en: str(communityRaw.title_en, d.community.title_en),

@@ -1,6 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { LANDING_MEDIA, optimizeLandingImageUrl } from "@/lib/landing-media";
+import {
+  DEFAULT_ISLAMIC_CARDS,
+  type LandingIslamicCard,
+} from "@/lib/landing-settings";
+
+export type { LandingIslamicCard };
 
 const BUCKET = "feed-carousel";
 const PREFIX = "landing";
@@ -90,6 +96,9 @@ export type LandingCommunityCard = {
   is_active: boolean;
 };
 
+/** @deprecated Prefer settings.islamic.cards — DB table optional. */
+export type LandingIslamicCardRow = LandingIslamicCard;
+
 export type LandingContentBundle = {
   stats: LandingStat[];
   cards: LandingCard[];
@@ -99,6 +108,7 @@ export type LandingContentBundle = {
   gallery: LandingGalleryItem[];
   faqs: LandingFaq[];
   communityCards: LandingCommunityCard[];
+  islamicCards: LandingIslamicCard[];
   liveRequestCount: number | null;
   liveDonorCount: number | null;
 };
@@ -393,6 +403,7 @@ export const DEFAULT_LANDING_CONTENT: Omit<
       is_active: true,
     },
   ],
+  islamicCards: DEFAULT_ISLAMIC_CARDS.map((c) => ({ ...c })),
 };
 
 function fixBrokenMedia(url: string | null | undefined, local: string): string {
@@ -467,6 +478,7 @@ function withContentDefaults(
       link_url: c.link_url || "/auth",
     };
   });
+  const islamicCards = (bundle.islamicCards?.length ? bundle.islamicCards : d.islamicCards);
 
   return {
     stats,
@@ -477,6 +489,7 @@ function withContentDefaults(
     gallery,
     faqs,
     communityCards,
+    islamicCards,
     liveRequestCount: bundle.liveRequestCount,
     liveDonorCount: bundle.liveDonorCount,
   };
@@ -618,6 +631,22 @@ function mapCommunityCard(row: Record<string, unknown>): LandingCommunityCard {
   };
 }
 
+function mapIslamicCard(row: Record<string, unknown>): LandingIslamicCard {
+  return {
+    id: String(row.id),
+    theme_bn: String(row.theme_bn ?? ""),
+    theme_en: String(row.theme_en ?? ""),
+    quote_bn: String(row.quote_bn ?? ""),
+    quote_en: String(row.quote_en ?? ""),
+    source_bn: String(row.source_bn ?? ""),
+    source_en: String(row.source_en ?? ""),
+    reflection_bn: String(row.reflection_bn ?? ""),
+    reflection_en: String(row.reflection_en ?? ""),
+    sort_order: Number(row.sort_order) || 0,
+    is_active: row.is_active !== false,
+  };
+}
+
 export async function fetchLandingContentBundle(): Promise<LandingContentBundle> {
   const [bundle, counts] = await Promise.all([
     fetchLandingContentOnly(),
@@ -632,15 +661,17 @@ export async function fetchLandingContentBundle(): Promise<LandingContentBundle>
 
 /** Content tables only — faster first settle; counts load separately. */
 export async function fetchLandingContentOnly(): Promise<LandingContentBundle> {
-  const [stats, cards, slides, campaigns, gallery, faqs, communityCards] = await Promise.all([
-    selectActive("landing_stats", mapStat),
-    selectActive("landing_cards", mapCard),
-    selectActive("landing_carousel_slides", mapSlide),
-    selectActive("landing_campaigns", mapCampaign),
-    selectActive("landing_gallery", mapGallery),
-    selectActive("landing_faqs", mapFaq),
-    selectActive("landing_community_cards", mapCommunityCard),
-  ]);
+  const [stats, cards, slides, campaigns, gallery, faqs, communityCards, islamicCards] =
+    await Promise.all([
+      selectActive("landing_stats", mapStat),
+      selectActive("landing_cards", mapCard),
+      selectActive("landing_carousel_slides", mapSlide),
+      selectActive("landing_campaigns", mapCampaign),
+      selectActive("landing_gallery", mapGallery),
+      selectActive("landing_faqs", mapFaq),
+      selectActive("landing_community_cards", mapCommunityCard),
+      selectActive("landing_islamic_cards", mapIslamicCard),
+    ]);
 
   return withContentDefaults({
     stats,
@@ -651,6 +682,7 @@ export async function fetchLandingContentOnly(): Promise<LandingContentBundle> {
     gallery,
     faqs,
     communityCards,
+    islamicCards,
     liveRequestCount: null,
     liveDonorCount: null,
   });
@@ -714,6 +746,8 @@ export const landingAdmin = {
   gallery: () => selectAllAdmin("landing_gallery", mapGallery),
   faqs: () => selectAllAdmin("landing_faqs", mapFaq),
   communityCards: () => selectAllAdmin("landing_community_cards", mapCommunityCard),
+  islamicCards: () =>
+    selectAllAdmin("landing_islamic_cards", mapIslamicCard).catch(() => [] as LandingIslamicCard[]),
 
   async upsert(table: string, row: Record<string, unknown>) {
     const payload = { ...row };

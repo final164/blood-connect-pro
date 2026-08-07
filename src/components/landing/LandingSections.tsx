@@ -11,6 +11,7 @@ import {
   User,
 } from "lucide-react";
 import type { LandingSettings } from "@/lib/landing-settings";
+import { activeIslamicCards } from "@/lib/landing-settings";
 import type {
   LandingCampaign,
   LandingCard,
@@ -24,6 +25,7 @@ import type {
 import { LandingImg } from "@/components/landing/LandingImg";
 import { LandingHref, LandingHero } from "@/components/landing/LandingHero";
 import { DeferredMount } from "@/components/landing/DeferredMount";
+import { LandingIslamicCarousel } from "@/components/landing/LandingIslamicCarousel";
 import { LANDING_MEDIA } from "@/lib/landing-media";
 
 export { LandingHero, LandingHref } from "@/components/landing/LandingHero";
@@ -645,6 +647,16 @@ export function renderLandingSection(
         <DeferredMount key={id} minHeight={280}>
           <LandingHowItWorks cards={content.cards} lang={lang} />
         </DeferredMount>
+      );
+    case "islamic_carousel":
+      // Text-only: always mount for SSR/SEO (no DeferredMount gate).
+      return (
+        <LandingIslamicCarousel
+          key={id}
+          block={settings.islamic}
+          cards={activeIslamicCards(settings.islamic)}
+          lang={lang}
+        />
       );
     case "campaigns":
       return (

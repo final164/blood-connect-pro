@@ -15,10 +15,12 @@ import {
   DEFAULT_LANDING_SETTINGS,
   DEFAULT_HERO_SLIDESHOW,
   DEFAULT_HERO_YOUTUBE,
+  DEFAULT_ISLAMIC_CARDS,
   THEME_PRESETS,
   fetchLandingSettings,
   invalidateLandingSettingsCache,
   saveLandingSettings,
+  type LandingIslamicCard,
   type LandingSectionId,
   type LandingSettings,
   type LandingTheme,
@@ -50,6 +52,7 @@ type SubTab =
   | "campaigns"
   | "gallery"
   | "community"
+  | "islamic"
   | "faq"
   | "cta"
   | "footer"
@@ -60,6 +63,7 @@ const SECTION_LABELS: Record<LandingSectionId, { bn: string; en: string }> = {
   hero: { bn: "হিরো", en: "Hero" },
   stats: { bn: "স্ট্যাটস", en: "Stats" },
   how_it_works: { bn: "কীভাবে", en: "How it works" },
+  islamic_carousel: { bn: "ইসলামিক কার্ড", en: "Islamic cards" },
   campaigns: { bn: "ক্যাম্পেইন", en: "Campaigns" },
   community: { bn: "কমিউনিটি", en: "Community" },
   gallery: { bn: "গ্যালারি", en: "Gallery" },
@@ -253,6 +257,7 @@ export function LandingAdmin() {
     { id: "campaigns", bn: "ক্যাম্পেইন", en: "Campaigns" },
     { id: "gallery", bn: "গ্যালারি", en: "Gallery" },
     { id: "community", bn: "কমিউনিটি", en: "Community" },
+    { id: "islamic", bn: "ইসলামিক", en: "Islamic" },
     { id: "faq", bn: "FAQ", en: "FAQ" },
     { id: "cta", bn: "CTA", en: "CTA" },
     { id: "footer", bn: "ফুটার", en: "Footer" },
@@ -311,6 +316,7 @@ export function LandingAdmin() {
         tab === "sections" ||
         tab === "hero" ||
         tab === "community" ||
+        tab === "islamic" ||
         tab === "cta" ||
         tab === "footer" ||
         tab === "seo") && (
@@ -1258,6 +1264,246 @@ export function LandingAdmin() {
               </div>
             )}
           />
+        </div>
+      )}
+
+      {tab === "islamic" && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+            <p className="text-[11px] text-slate-400">
+              {lang === "bn"
+                ? "কার্ডগুলো landing settings-এ সেভ হয় — উপরের সেভ বাটনে ক্লিক করুন। সেকশন ট্যাব থেকে দেখান/লুকান ও অর্ডার বদলান।"
+                : "Cards save with landing settings — use the Save button above. Toggle/reorder via Sections tab."}
+            </p>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {(
+                [
+                  ["title_bn", "Title BN"],
+                  ["title_en", "Title EN"],
+                  ["body_bn", "Body BN"],
+                  ["body_en", "Body EN"],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  <input
+                    className={ainp}
+                    value={cfg.islamic[key]}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        islamic: { ...p.islamic, [key]: e.target.value },
+                      }))
+                    }
+                  />
+                </Field>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200"
+                onClick={() =>
+                  setCfg((p) => {
+                    const cards = p.islamic.cards ?? [];
+                    const next: LandingIslamicCard = {
+                      id: `isl-${Date.now()}`,
+                      theme_bn: "থিম",
+                      theme_en: "Theme",
+                      quote_bn: "",
+                      quote_en: "",
+                      source_bn: "",
+                      source_en: "",
+                      reflection_bn: "",
+                      reflection_en: "",
+                      sort_order: (cards.at(-1)?.sort_order ?? 0) + 10,
+                      is_active: true,
+                    };
+                    return { ...p, islamic: { ...p.islamic, cards: [...cards, next] } };
+                  })
+                }
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {lang === "bn" ? "কার্ড যোগ" : "Add card"}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300"
+                onClick={() => {
+                  if (
+                    !confirm(
+                      lang === "bn"
+                        ? "ডিফল্ট ৫টি কার্ড লোড করবেন? বর্তমান কার্ড প্রতিস্থাপিত হবে।"
+                        : "Load the 5 default cards? Current cards will be replaced.",
+                    )
+                  )
+                    return;
+                  setCfg((p) => ({
+                    ...p,
+                    islamic: {
+                      ...p.islamic,
+                      cards: DEFAULT_ISLAMIC_CARDS.map((c) => ({ ...c })),
+                    },
+                  }));
+                }}
+              >
+                {lang === "bn" ? "ডিফল্ট লোড" : "Load defaults"}
+              </button>
+            </div>
+          </div>
+
+          {(cfg.islamic.cards ?? []).map((c, idx) => (
+            <div key={c.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="inline-flex items-center gap-2 text-[11px] text-slate-300">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 accent-rose-500"
+                    checked={c.is_active !== false}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        islamic: {
+                          ...p.islamic,
+                          cards: p.islamic.cards.map((x) =>
+                            x.id === c.id ? { ...x, is_active: e.target.checked } : x,
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                  {lang === "bn" ? "সক্রিয়" : "Active"}
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    className={`${ainp} w-16`}
+                    type="number"
+                    title="sort_order"
+                    value={c.sort_order}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        islamic: {
+                          ...p.islamic,
+                          cards: p.islamic.cards.map((x) =>
+                            x.id === c.id
+                              ? { ...x, sort_order: Number(e.target.value) || 0 }
+                              : x,
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="p-1 text-slate-400"
+                    disabled={idx === 0}
+                    onClick={() =>
+                      setCfg((p) => {
+                        const cards = [...p.islamic.cards];
+                        if (idx <= 0) return p;
+                        [cards[idx - 1], cards[idx]] = [cards[idx]!, cards[idx - 1]!];
+                        return { ...p, islamic: { ...p.islamic, cards } };
+                      })
+                    }
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 text-slate-400"
+                    disabled={idx >= (cfg.islamic.cards?.length ?? 0) - 1}
+                    onClick={() =>
+                      setCfg((p) => {
+                        const cards = [...p.islamic.cards];
+                        if (idx >= cards.length - 1) return p;
+                        [cards[idx + 1], cards[idx]] = [cards[idx]!, cards[idx + 1]!];
+                        return { ...p, islamic: { ...p.islamic, cards } };
+                      })
+                    }
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-700 px-2 py-1 text-rose-300"
+                    onClick={() => {
+                      if (!confirm(lang === "bn" ? "ডিলিট করবেন?" : "Delete?")) return;
+                      setCfg((p) => ({
+                        ...p,
+                        islamic: {
+                          ...p.islamic,
+                          cards: p.islamic.cards.filter((x) => x.id !== c.id),
+                        },
+                      }));
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {(
+                  [
+                    ["theme_bn", "Theme BN"],
+                    ["theme_en", "Theme EN"],
+                    ["source_bn", "Source BN"],
+                    ["source_en", "Source EN"],
+                  ] as const
+                ).map(([key, ph]) => (
+                  <input
+                    key={key}
+                    className={ainp}
+                    value={c[key]}
+                    placeholder={ph}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        islamic: {
+                          ...p.islamic,
+                          cards: p.islamic.cards.map((x) =>
+                            x.id === c.id ? { ...x, [key]: e.target.value } : x,
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                ))}
+                {(
+                  [
+                    ["quote_bn", "Quote BN"],
+                    ["quote_en", "Quote EN"],
+                    ["reflection_bn", "Reflection BN"],
+                    ["reflection_en", "Reflection EN"],
+                  ] as const
+                ).map(([key, ph]) => (
+                  <textarea
+                    key={key}
+                    className={ainp}
+                    rows={2}
+                    value={c[key]}
+                    placeholder={ph}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        islamic: {
+                          ...p.islamic,
+                          cards: p.islamic.cards.map((x) =>
+                            x.id === c.id ? { ...x, [key]: e.target.value } : x,
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {!cfg.islamic.cards?.length && (
+            <p className="text-xs text-slate-500 px-1">
+              {lang === "bn" ? "কোনো কার্ড নেই — যোগ করুন বা ডিফল্ট লোড করুন।" : "No cards — add one or load defaults."}
+            </p>
+          )}
         </div>
       )}
 

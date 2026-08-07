@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import {
   DEFAULT_LANDING_SETTINGS,
+  activeIslamicCards,
   fetchLandingSettings,
   fetchLandingSettingsForLoader,
   type LandingSettings,
@@ -128,6 +129,26 @@ function LandingPage() {
     question: landingLang === "bn" ? item.question_bn : item.question_en,
     answer: landingLang === "bn" ? item.answer_bn : item.answer_en,
   }));
+  const islamicList =
+    settings.sections_enabled.islamic_carousel === false
+      ? null
+      : {
+          name:
+            landingLang === "bn"
+              ? settings.islamic.title_bn
+              : settings.islamic.title_en,
+          description:
+            landingLang === "bn"
+              ? settings.islamic.body_bn
+              : settings.islamic.body_en,
+          quotes: activeIslamicCards(settings.islamic).map((item) => ({
+            text: landingLang === "bn" ? item.quote_bn : item.quote_en,
+            source: landingLang === "bn" ? item.source_bn : item.source_en,
+            name: landingLang === "bn" ? item.theme_bn : item.theme_en,
+            comment:
+              landingLang === "bn" ? item.reflection_bn : item.reflection_en,
+          })),
+        };
   const loggedIn = !loading && !!session && !isAnonymous;
   const showHero = settings.sections_enabled.hero !== false;
 
@@ -171,7 +192,12 @@ function LandingPage() {
   return (
     <LandingShell settings={settings}>
       <SeoHeadUpdater seo={seo} lang={landingLang} />
-      <LandingSeoJsonLd seo={seo} lang={landingLang} faqs={faqSchemaItems} />
+      <LandingSeoJsonLd
+        seo={seo}
+        lang={landingLang}
+        faqs={faqSchemaItems}
+        islamic={islamicList}
+      />
       {settings.sections_enabled.nav && (
         <LandingNav
           settings={settings}

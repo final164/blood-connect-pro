@@ -42,13 +42,13 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   title_en: "BloodLink — Find blood donors and save lives in Bangladesh",
   title_template: "%s — BloodLink",
   description_bn:
-    "BloodLink বাংলাদেশজুড়ে রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক। রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট দিন, হাসপাতাল ও জেলা অনুযায়ী রক্তদান সহায়তা পান।",
+    "BloodLink বাংলাদেশজুড়ে রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক। রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট দিন — ইসলামে জীবন রক্ষার অনুপ্রেরণায় একসাথে সাহায্য করুন।",
   description_en:
-    "BloodLink is a Bangladesh-wide realtime blood donor network. Find blood donors, post urgent blood requests, and connect by district and hospital to save lives faster.",
+    "BloodLink is a Bangladesh-wide realtime blood donor network. Find donors, post urgent requests, and give inspired by the call to save lives.",
   keywords_bn:
-    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, BloodLink, রক্তের গ্রুপ, হাসপাতাল, জেলা ভিত্তিক রক্তদাতা, রক্ত খুঁজুন",
+    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, BloodLink, রক্তের গ্রুপ, হাসপাতাল, জেলা ভিত্তিক রক্তদাতা, রক্ত খুঁজুন, ইসলামে জীবন রক্ষা, সদকা",
   keywords_en:
-    "blood donation, blood donor, Bangladesh, urgent blood, BloodLink, blood group, hospital, district donor, find blood donor",
+    "blood donation, blood donor, Bangladesh, urgent blood, BloodLink, blood group, hospital, district donor, find blood donor, save a life Islam, charity",
   og_title_bn: "BloodLink — রক্তদাতা খুঁজুন, রক্তদান করুন",
   og_title_en: "BloodLink — Find blood donors in Bangladesh",
   og_description_bn:
@@ -391,7 +391,13 @@ export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin =
       "@type": "Country",
       name: "Bangladesh",
     },
-    knowsAbout: ["Blood donation", "Emergency blood requests", "Blood donor network"],
+    knowsAbout: [
+      "Blood donation",
+      "Emergency blood requests",
+      "Blood donor network",
+      "Islamic charity",
+      "Saving lives",
+    ],
   };
 }
 
@@ -400,21 +406,38 @@ export type SeoFaqEntry = {
   answer: string;
 };
 
+export type SeoQuoteEntry = {
+  text: string;
+  source?: string;
+  name?: string;
+  /** Optional reflection / commentary shown on the card */
+  comment?: string;
+};
+
+export type SeoIslamicList = {
+  name: string;
+  description?: string;
+  quotes: SeoQuoteEntry[];
+};
+
 export function buildLandingJsonLd(
   seo: SeoSettings,
   lang: "bn" | "en" = "bn",
   origin = "",
   faqs: SeoFaqEntry[] = [],
+  quotes: SeoQuoteEntry[] = [],
+  islamic?: SeoIslamicList | null,
 ) {
   const siteUrl = resolveSiteUrl(seo, origin);
   const pageUrl = absoluteUrl("/", seo, origin);
   const org = buildJsonLd(seo, lang, origin);
+  const inLanguage = lang === "bn" ? "bn-BD" : "en-BD";
   const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: seo.org_name || "BloodLink",
     url: siteUrl || pageUrl,
-    inLanguage: lang === "bn" ? "bn-BD" : "en-BD",
+    inLanguage,
     description: seoDescriptionForLang(seo, lang),
   };
   const webpage = {
@@ -423,7 +446,7 @@ export function buildLandingJsonLd(
     name: seoTitleForLang(seo, lang),
     url: pageUrl,
     description: seoDescriptionForLang(seo, lang),
-    inLanguage: lang === "bn" ? "bn-BD" : "en-BD",
+    inLanguage,
     isPartOf: siteUrl
       ? {
           "@type": "WebSite",
@@ -431,9 +454,27 @@ export function buildLandingJsonLd(
           url: siteUrl,
         }
       : undefined,
-    about: ["Blood donation", "Blood donor network", "Emergency blood requests", "Bangladesh"],
+    about: [
+      "Blood donation",
+      "Blood donor network",
+      "Emergency blood requests",
+      "Bangladesh",
+      "Islamic charity",
+      lang === "bn" ? "ইসলামে জীবন রক্ষা" : "Saving lives in Islam",
+      lang === "bn" ? "রক্তদান সওয়াব" : "Blood donation as charity",
+    ],
+    hasPart:
+      islamic && islamic.quotes.length
+        ? {
+            "@type": "ItemList",
+            name: islamic.name,
+            url: `${pageUrl}#islamic`,
+          }
+        : undefined,
   };
-  const items = [org, website, webpage].filter(Boolean);
+  const items: Record<string, unknown>[] = [];
+  if (org) items.push(org as unknown as Record<string, unknown>);
+  items.push(website, webpage);
   if (faqs.length) {
     items.push({
       "@context": "https://schema.org",
@@ -444,6 +485,45 @@ export function buildLandingJsonLd(
         acceptedAnswer: {
           "@type": "Answer",
           text: item.answer,
+        },
+      })),
+    });
+  }
+  const quoteList = islamic?.quotes?.length ? islamic.quotes : quotes;
+  if (quoteList.length) {
+    items.push({
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "@id": `${pageUrl}#islamic`,
+      name:
+        islamic?.name ||
+        (lang === "bn"
+          ? "ইসলামে জীবন রক্ষা ও সাহায্য — রক্তদান"
+          : "Islamic guidance on saving lives — blood donation"),
+      description:
+        islamic?.description ||
+        (lang === "bn"
+          ? "কুরআন ও হাদিসের আলোকে জীবন রক্ষা ও রক্তদানের অনুপ্রেরণা।"
+          : "Qur’anic and prophetic inspiration for saving lives through blood donation."),
+      numberOfItems: quoteList.length,
+      inLanguage,
+      url: `${pageUrl}#islamic`,
+      itemListElement: quoteList.map((q, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        item: {
+          "@type": "Quotation",
+          text: q.text,
+          name: q.name || undefined,
+          inLanguage,
+          about: ["Blood donation", "Saving lives", "Islamic charity"],
+          isBasedOn: q.source
+            ? {
+                "@type": "CreativeWork",
+                name: q.source,
+              }
+            : undefined,
+          description: q.comment || undefined,
         },
       })),
     });

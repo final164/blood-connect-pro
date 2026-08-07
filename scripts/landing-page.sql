@@ -112,12 +112,13 @@ SET landing_settings = '{
     ],
     "social": []
   },
-  "section_order": ["nav","hero","stats","how_it_works","campaigns","community","gallery","stories_carousel","faq","cta_band","footer"],
+  "section_order": ["nav","hero","stats","how_it_works","islamic_carousel","campaigns","community","gallery","stories_carousel","faq","cta_band","footer"],
   "sections_enabled": {
     "nav": true,
     "hero": true,
     "stats": true,
     "how_it_works": true,
+    "islamic_carousel": true,
     "campaigns": true,
     "community": true,
     "gallery": true,
@@ -303,6 +304,9 @@ SELECT * FROM (VALUES
   ('হাসপাতাল পার্টনার', 'Hospital partners', 'জরুরি চাহিদা দ্রুত পূরণ।', 'Faster urgent fulfillment.', 2)
 ) AS v(title_bn, title_en, body_bn, body_en, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM public.landing_community_cards LIMIT 1);
+
+-- Islamic carousel cards (also see scripts/landing-islamic-cards.sql for existing installs)
+-- \i is not available in Supabase editor — paste that script separately if needed.
 
 -- Public read of landing_settings for anon (frontpage)
 DROP POLICY IF EXISTS app_settings_landing_public ON public.app_settings;

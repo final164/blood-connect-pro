@@ -5,6 +5,8 @@ import {
   buildJsonLd,
   buildLandingJsonLd,
   type SeoFaqEntry,
+  type SeoIslamicList,
+  type SeoQuoteEntry,
   type SeoSettings,
 } from "@/lib/seo-settings";
 
@@ -44,7 +46,7 @@ function upsertJsonLd(id: string, data: Record<string, unknown> | null) {
     existing?.remove();
     return;
   }
-  const el = existing ?? document.createElement("script");
+  const el = (existing ?? document.createElement("script")) as HTMLScriptElement;
   el.id = id;
   el.type = "application/ld+json";
   el.textContent = JSON.stringify(data);
@@ -113,16 +115,20 @@ export function LandingSeoJsonLd({
   seo,
   lang,
   faqs,
+  quotes = [],
+  islamic = null,
 }: {
   seo: SeoSettings;
   lang: "bn" | "en";
   faqs: SeoFaqEntry[];
+  quotes?: SeoQuoteEntry[];
+  islamic?: SeoIslamicList | null;
 }) {
   const origin =
     (typeof window !== "undefined" ? window.location.origin : "") ||
     seo.site_url?.replace(/\/$/, "") ||
     "";
-  const entries = buildLandingJsonLd(seo, lang, origin, faqs);
+  const entries = buildLandingJsonLd(seo, lang, origin, faqs, quotes, islamic);
 
   useEffect(() => {
     syncJsonLdScripts("bloodlink-landing-jsonld", entries);
