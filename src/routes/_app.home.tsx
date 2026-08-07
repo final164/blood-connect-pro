@@ -11,7 +11,7 @@ import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
 import { Droplet, ShieldCheck, Search, X } from "lucide-react";
-import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
@@ -354,7 +354,7 @@ function FeedPage() {
                     <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
                   )}
                 </button>
-                <ChatHeaderButton size="lg" className="ml-0.5" />
+                <AlertsHeaderButton size="lg" className="ml-0.5" />
               </div>
             </div>
 

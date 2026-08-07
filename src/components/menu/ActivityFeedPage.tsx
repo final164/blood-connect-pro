@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
-import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import {
   ACTIVITY_VIEWS,
   loadActivityRequests,
@@ -131,7 +131,7 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="flex-1 min-w-0 text-sm font-bold truncate">{title}</h1>
-          <ChatHeaderButton size="lg" />
+          <AlertsHeaderButton size="lg" />
         </div>
       </AutoHideHeader>
 

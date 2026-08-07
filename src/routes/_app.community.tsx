@@ -45,7 +45,7 @@ import {
 } from "@/lib/feed-carousel";
 import { queryKeys } from "@/lib/query-client";
 import { Phone, Users, Building2, X, MessageSquare } from "lucide-react";
-import { MessengerIcon, ChatHeaderButton } from "@/components/MessengerIcon";
+import { MessengerIcon, AlertsHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
@@ -370,7 +370,7 @@ function CommunityPage() {
               </p>
             </div>
           </div>
-          <ChatHeaderButton />
+          <AlertsHeaderButton />
         </div>
 
         {orgLabel && (

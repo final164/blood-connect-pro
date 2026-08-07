@@ -19,7 +19,7 @@ const ID_HINT: Record<BottomNavItem["id"], { bn: string; en: string }> = {
   feed: { bn: "হোম ফিড", en: "Home feed" },
   community: { bn: "কমিউনিটি ডোনার", en: "Community donors" },
   post: { bn: "নতুন রিকোয়েস্ট পোস্ট", en: "Create request / post" },
-  alert: { bn: "নোটিফিকেশন / অ্যালার্ট", en: "Notifications / alerts" },
+  alert: { bn: "চ্যাট (মেসেজ)", en: "Chat / messages" },
   profile: { bn: "ইউজার প্রোফাইল", en: "User profile" },
 };
 

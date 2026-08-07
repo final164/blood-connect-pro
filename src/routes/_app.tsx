@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tansta
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { NotificationsProvider, useNotifications } from "@/lib/notifications-context";
+import { NotificationsProvider } from "@/lib/notifications-context";
 import { ChatUnreadProvider } from "@/lib/chat-unread-context";
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,9 @@ import {
   type BottomNavItemId,
   type BottomNavSettings,
 } from "@/lib/bottom-nav-settings";
-import { Home, Users, User, WifiOff, Droplet, Shield, Bell, Plus } from "lucide-react";
+import { Home, Users, User, WifiOff, Droplet, Shield, Plus } from "lucide-react";
+import { MessengerIcon } from "@/components/MessengerIcon";
+import { useChatUnread } from "@/lib/chat-unread-context";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -142,7 +144,7 @@ function AppShell({
   online: boolean;
   onboarding: boolean;
 }) {
-  const { unread } = useNotifications();
+  const { unread: chatUnread } = useChatUnread();
   const { lang } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
@@ -177,9 +179,9 @@ function AppShell({
     | {
         id: BottomNavItemId;
         kind: "link";
-        to: "/notifications";
+        to: "/chat";
         label: string;
-        icon: typeof Bell;
+        icon: "messenger";
         badge?: number;
       }
     | { id: BottomNavItemId; kind: "link"; to: "/profile"; label: string; icon: typeof User; badge?: number }
@@ -204,10 +206,10 @@ function AppShell({
       {
         id: "alert",
         kind: "link",
-        to: "/notifications",
-        label: label("alert", t("notifications")),
-        icon: Bell,
-        badge: unread,
+        to: "/chat",
+        label: label("alert", t("chat")),
+        icon: "messenger",
+        badge: chatUnread,
       },
       {
         id: "profile",
@@ -217,7 +219,7 @@ function AppShell({
         icon: User,
       },
     ];
-  }, [lang, navCfg.items, t, unread]);
+  }, [lang, navCfg.items, t, chatUnread]);
 
   const enabledOrder = useMemo(() => {
     return [...navCfg.items]
@@ -240,8 +242,8 @@ function AppShell({
         : "grid-cols-5";
 
   function renderTab(tab: NavTab, layout: "top" | "bottom") {
-    const Icon = tab.icon;
     if (tab.kind === "compose") {
+      const Icon = tab.icon;
       if (layout === "top") {
         return (
           <button
@@ -282,6 +284,20 @@ function AppShell({
         ? (locationPath === "/home" || locationPath === "/") && !composeOpen
         : locationPath.startsWith(tab.to);
     const badge = tab.badge ?? 0;
+    const iconEl =
+      tab.icon === "messenger" ? (
+        <MessengerIcon className={layout === "top" ? "h-4 w-4" : "h-[17px] w-[17px]"} />
+      ) : (
+        (() => {
+          const Icon = tab.icon;
+          return (
+            <Icon
+              className={layout === "top" ? "h-4 w-4" : "h-[17px] w-[17px]"}
+              strokeWidth={active ? 2.4 : 1.9}
+            />
+          );
+        })()
+      );
 
     if (layout === "top") {
       return (
@@ -295,7 +311,7 @@ function AppShell({
           }`}
         >
           <span className="relative">
-            <Icon className="h-4 w-4" strokeWidth={active ? 2.4 : 1.9} />
+            {iconEl}
             {badge > 0 && (
               <span
                 className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-bold grid place-items-center ring-2 ${
@@ -320,7 +336,7 @@ function AppShell({
             active ? "bg-primary text-primary-foreground shadow-md shadow-primary/30" : "text-muted-foreground"
           }`}
         >
-          <Icon className="h-[17px] w-[17px]" strokeWidth={active ? 2.4 : 1.9} />
+          {iconEl}
           {badge > 0 && (
             <span
               className={`absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold grid place-items-center ${

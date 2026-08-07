@@ -12,7 +12,7 @@ import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { ProfileFacebookLayout } from "@/components/profile/ProfileFacebookLayout";
 import { ProfileEditSheet } from "@/components/profile/ProfileEditSheet";
 import { Settings as SettingsIcon, Shield } from "lucide-react";
-import { ChatHeaderButton } from "@/components/MessengerIcon";
+import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import {
@@ -216,7 +216,7 @@ function ProfilePage() {
             <h1 className="text-base font-bold">{t("profile")}</h1>
           </div>
           <div className="flex items-center gap-1">
-            <ChatHeaderButton />
+            <AlertsHeaderButton />
             {isAdmin && (
               <Link to="/admin" className="p-1.5 rounded-lg hover:bg-muted text-primary">
                 <Shield className="h-4 w-4" />
