@@ -57,6 +57,18 @@ function hasStoredAuthHint(): boolean {
   return false;
 }
 
+/** Landing lang: default Bangla; English only when localStorage lang is explicitly "en". */
+function readLandingLang(): "bn" | "en" {
+  if (typeof window === "undefined") return "bn";
+  try {
+    const stored = window.localStorage.getItem("lang");
+    if (stored === "en") return "en";
+  } catch {
+    /* private mode */
+  }
+  return "bn";
+}
+
 export const Route = createFileRoute("/")({
   loader: async () => {
     // Race CMS SEO/settings (~120ms max) so crawlers get real meta when warm/fast,
@@ -86,7 +98,7 @@ function LandingPage() {
   const { session, loading, isAnonymous } = useAuth();
   const { lang, setLang } = useI18n();
   const navigate = useNavigate();
-  const [landingLang, setLandingLang] = useState<"bn" | "en">(lang);
+  const [landingLang, setLandingLang] = useState<"bn" | "en">(readLandingLang);
   const [authHint] = useState(hasStoredAuthHint);
   const loaderData = Route.useLoaderData();
 
@@ -152,8 +164,9 @@ function LandingPage() {
   const loggedIn = !loading && !!session && !isAnonymous;
   const showHero = settings.sections_enabled.hero !== false;
 
+  // Follow app lang after LangProvider reads localStorage (en only if stored).
   useEffect(() => {
-    setLandingLang(lang);
+    setLandingLang(lang === "en" ? "en" : "bn");
   }, [lang]);
 
   useEffect(() => {
