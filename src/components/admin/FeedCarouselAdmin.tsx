@@ -293,6 +293,16 @@ export function FeedCarouselAdmin() {
           checked={cfg.community_district_filter}
           onChange={(v) => setFlag("community_district_filter", v)}
         />
+        <ToggleRow
+          title={lang === "bn" ? "কমিউনিটিতে উপরে ফিক্সড/স্টিকি" : "Sticky at top on community"}
+          hint={
+            lang === "bn"
+              ? "স্ক্রল করলে হাইলাইটস একদম উপরে আটকে থাকবে"
+              : "Pins highlights to the top while scrolling"
+          }
+          checked={cfg.community_carousel_sticky}
+          onChange={(v) => setFlag("community_carousel_sticky", v)}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <div>

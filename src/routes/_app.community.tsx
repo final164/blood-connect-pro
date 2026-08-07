@@ -449,7 +449,13 @@ function CommunityPage() {
       </AutoHideHeader>
 
       {showCommunityCarousel && (
-        <div className="px-3 pt-3">
+        <div
+          className={
+            carouselSettings.community_carousel_sticky
+              ? "sticky top-0 z-20 border-b bg-background/95 backdrop-blur-xl px-3 py-2 shadow-sm"
+              : "px-3 pt-3"
+          }
+        >
           <FeedImageCarousel settings={carouselSettings} slides={communityCarouselSlides} />
         </div>
       )}

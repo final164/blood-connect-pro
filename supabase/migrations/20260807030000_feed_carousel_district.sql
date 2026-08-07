@@ -11,6 +11,7 @@ SET feed_carousel_settings =
   COALESCE(feed_carousel_settings, '{}'::jsonb)
   || jsonb_build_object(
     'show_on_community', COALESCE((feed_carousel_settings->>'show_on_community')::boolean, true),
-    'community_district_filter', COALESCE((feed_carousel_settings->>'community_district_filter')::boolean, true)
+    'community_district_filter', COALESCE((feed_carousel_settings->>'community_district_filter')::boolean, true),
+    'community_carousel_sticky', COALESCE((feed_carousel_settings->>'community_carousel_sticky')::boolean, true)
   )
 WHERE id = 1;

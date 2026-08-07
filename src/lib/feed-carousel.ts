@@ -23,6 +23,8 @@ export type FeedCarouselSettings = {
   show_on_community: boolean;
   /** On community, filter slides by resolved district (profile / search / save-request) */
   community_district_filter: boolean;
+  /** Pin community highlights to the top of the viewport while scrolling */
+  community_carousel_sticky: boolean;
 };
 
 export type FeedCarouselSlide = {
@@ -57,6 +59,7 @@ export const DEFAULT_FEED_CAROUSEL_SETTINGS: FeedCarouselSettings = {
   open_links_new_tab: true,
   show_on_community: true,
   community_district_filter: true,
+  community_carousel_sticky: true,
 };
 
 const BUCKET = "feed-carousel";
@@ -171,6 +174,7 @@ export function normalizeFeedCarouselSettings(raw: unknown): FeedCarouselSetting
     open_links_new_tab: r.open_links_new_tab !== false,
     show_on_community: r.show_on_community !== false,
     community_district_filter: r.community_district_filter !== false,
+    community_carousel_sticky: r.community_carousel_sticky !== false,
   };
 }
 
