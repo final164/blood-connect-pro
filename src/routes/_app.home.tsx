@@ -246,7 +246,7 @@ function FeedPage() {
     }
   }, [isError, feedError, items.length]);
 
-  // Scroll to a deep-linked post once — never again on every load-more (items.length).
+  // Scroll to a deep-linked / newly created post once it appears in the list.
   useEffect(() => {
     let targetId = requestId ?? undefined;
     let fromSession = false;
@@ -264,35 +264,52 @@ function FeedPage() {
     if (!targetId) return;
     if (scrolledToHighlight.current === targetId) return;
 
-    const el = document.getElementById(`request-${targetId}`);
-    if (!el) return; // wait until the post is in the loaded pages
+    let cancelled = false;
+    let tries = 0;
+    let retryTimer: number | null = null;
+    let highlightTimer: number | null = null;
 
-    scrolledToHighlight.current = targetId;
-    if (fromSession) {
-      try {
-        sessionStorage.removeItem("feedReturnRequestId");
-      } catch {
-        /* ignore */
+    const go = () => {
+      if (cancelled) return;
+      const el = document.getElementById(`request-${targetId}`);
+      if (!el) {
+        if (tries++ < 40) {
+          retryTimer = window.setTimeout(go, 75);
+        }
+        return;
       }
-    }
 
-    setHighlightId(targetId);
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    const tHighlight = window.setTimeout(() => setHighlightId(null), 4000);
+      scrolledToHighlight.current = targetId!;
+      if (fromSession) {
+        try {
+          sessionStorage.removeItem("feedReturnRequestId");
+        } catch {
+          /* ignore */
+        }
+      }
 
-    if (requestId) {
-      void navigate({
-        to: "/home",
-        search: (prev: Record<string, unknown>) => ({
-          ...prev,
-          requestId: undefined,
-        }),
-        replace: true,
-      });
-    }
+      setHighlightId(targetId!);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      highlightTimer = window.setTimeout(() => setHighlightId(null), 4000);
+
+      if (requestId) {
+        void navigate({
+          to: "/home",
+          search: (prev: Record<string, unknown>) => ({
+            ...prev,
+            requestId: undefined,
+          }),
+          replace: true,
+        });
+      }
+    };
+
+    go();
 
     return () => {
-      window.clearTimeout(tHighlight);
+      cancelled = true;
+      if (retryTimer != null) window.clearTimeout(retryTimer);
+      if (highlightTimer != null) window.clearTimeout(highlightTimer);
     };
   }, [requestId, items, navigate]);
 
@@ -305,16 +322,23 @@ function FeedPage() {
               variant="panel"
               defaultDistrict={null}
               onCreated={(id) => {
-                setShowComposer(false);
-                setFilter("ALL");
-                setDistrict(null);
-                setHighlightId(id);
-                void queryClient.invalidateQueries({ queryKey: ["feed"] });
-                void navigate({
-                  to: "/home",
-                  search: { requestId: id },
-                  replace: true,
-                });
+                void (async () => {
+                  scrolledToHighlight.current = null;
+                  setFilter("ALL");
+                  setDistrict(null);
+                  setHighlightId(id);
+                  setShowComposer(false);
+                  try {
+                    await queryClient.refetchQueries({ queryKey: ["feed"] });
+                  } catch {
+                    void queryClient.invalidateQueries({ queryKey: ["feed"] });
+                  }
+                  await navigate({
+                    to: "/home",
+                    search: { requestId: id },
+                    replace: true,
+                  });
+                })();
               }}
               onCancel={closeComposer}
             />
