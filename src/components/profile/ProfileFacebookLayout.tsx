@@ -9,7 +9,9 @@ import {
   Lock,
   Pencil,
   Link2,
+  MessageCircle,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Avatar } from "@/components/Avatar";
 import type { ProfileLockField, ProfileLockSettings } from "@/lib/profile-lock";
 import { isFieldHiddenWhenLocked } from "@/lib/profile-lock";
@@ -42,6 +44,7 @@ export function ProfileFacebookLayout({
   avatarBusy,
   lockBusy,
   headerExtra,
+  messagePeerId,
 }: {
   profile: ProfileDisplayData;
   lang: "bn" | "en";
@@ -55,9 +58,12 @@ export function ProfileFacebookLayout({
   avatarBusy?: boolean;
   lockBusy?: boolean;
   headerExtra?: React.ReactNode;
+  /** Other-user profile: Message opens chat with this user id */
+  messagePeerId?: string | null;
 }) {
   const showLockIcon = (field: ProfileLockField) =>
     !!isOwnProfile && !!profileLocked && !!lockSettings && isFieldHiddenWhenLocked(field, lockSettings);
+  const showMessage = !isOwnProfile && !!messagePeerId;
 
   const donations = profile.total_donations;
   const lives = profile.lives_saved;
@@ -169,6 +175,19 @@ export function ProfileFacebookLayout({
                 {lang === "bn" ? "প্রোফাইল সম্পাদনা" : "Edit profile"}
               </button>
             )}
+          </div>
+        )}
+
+        {showMessage && (
+          <div className="flex gap-2 mt-4">
+            <Link
+              to="/chat/$peerId"
+              params={{ peerId: messagePeerId! }}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm"
+            >
+              <MessageCircle className="h-4 w-4" />
+              {lang === "bn" ? "মেসেজ" : "Message"}
+            </Link>
           </div>
         )}
 

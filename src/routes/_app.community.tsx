@@ -51,9 +51,11 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { supabase } from "@/integrations/supabase/client";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
 
 type CommunitySearch = {
   orgId?: string;
@@ -530,6 +532,8 @@ function DonorCard({
   showUnavailableLabel: boolean;
   onContact: (channel: CommunityContactChannel) => void;
 }) {
+  const navigate = useNavigate();
+  const [profileBusy, setProfileBusy] = useState(false);
   const unavailable = isCommunityDonorUnavailable(d);
   const orgName = lang === "bn" ? d.community_orgs?.name_bn || d.community_orgs?.name : d.community_orgs?.name;
   const distName = lang === "bn" ? d.districts?.name_bn : d.districts?.name_en;
@@ -546,6 +550,27 @@ function DonorCard({
   const showSms = !hideContact && flags.sms && !!phone;
   const showChat = !hideContact && flags.chat && !!phone;
 
+  async function openAppProfile() {
+    if (!phone || profileBusy) return;
+    setProfileBusy(true);
+    try {
+      const profileId = await findProfileIdByPhone(phone);
+      if (!profileId) {
+        toast.message(
+          lang === "bn"
+            ? "এই রক্তদাতার অ্যাপ প্রোফাইল নেই"
+            : "No app profile for this donor",
+        );
+        return;
+      }
+      void navigate({ to: "/profile/$userId", params: { userId: profileId } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error");
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
   return (
     <li
       className={`rounded-2xl border bg-card px-3 py-3 flex items-start gap-3 shadow-sm ${
@@ -554,7 +579,14 @@ function DonorCard({
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-semibold text-sm break-words">{d.full_name}</p>
+          <button
+            type="button"
+            onClick={() => void openAppProfile()}
+            disabled={profileBusy || !phone}
+            className="font-semibold text-sm break-words text-left hover:underline disabled:opacity-60 disabled:no-underline"
+          >
+            {d.full_name}
+          </button>
           {d.blood_group && (
             <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
               {d.blood_group}

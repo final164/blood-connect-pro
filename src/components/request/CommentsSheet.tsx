@@ -265,15 +265,26 @@ export function CommentsSheet({
     return (
       <div className={nested ? "pl-10" : ""}>
         <div className="flex gap-2.5 py-2">
-          <Avatar name={c.name} src={c.avatar_url ?? undefined} size={nested ? 28 : 36} />
+          {c.user_id !== user?.id ? (
+            <Link
+              to="/profile/$userId"
+              params={{ userId: c.user_id }}
+              onClick={rememberFeedReturn}
+              className="shrink-0 rounded-full"
+              aria-label={lang === "bn" ? "প্রোফাইল দেখুন" : "View profile"}
+            >
+              <Avatar name={c.name} src={c.avatar_url ?? undefined} size={nested ? 28 : 36} />
+            </Link>
+          ) : (
+            <Avatar name={c.name} src={c.avatar_url ?? undefined} size={nested ? 28 : 36} />
+          )}
           <div className="min-w-0 flex-1">
             <div className="rounded-2xl bg-muted/70 px-3 py-2">
               <div className="flex items-baseline gap-1.5 flex-wrap">
                 {c.user_id !== user?.id ? (
                   <Link
-                    to="/chat/$peerId"
-                    params={{ peerId: c.user_id }}
-                    search={{ fromRequestId: requestId }}
+                    to="/profile/$userId"
+                    params={{ userId: c.user_id }}
                     onClick={rememberFeedReturn}
                     className="text-[13px] font-semibold hover:underline"
                   >

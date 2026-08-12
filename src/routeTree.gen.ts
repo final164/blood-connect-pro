@@ -25,6 +25,7 @@ import { Route as AppMapRouteImport } from './routes/_app.map'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
@@ -108,6 +109,11 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppProfileRoute,
+} as any)
 const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/profile/': typeof AppProfileIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,12 +164,12 @@ export interface FileRoutesByTo {
   '/map': typeof AppMapRoute
   '/notifications': typeof AppNotificationsRoute
   '/onboarding': typeof AppOnboardingRoute
-  '/profile': typeof AppProfileRouteWithChildren
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/profile': typeof AppProfileIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -185,6 +192,7 @@ export interface FileRoutesById {
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
+  '/_app/profile/': typeof AppProfileIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +215,7 @@ export interface FileRouteTypes {
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/profile/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -221,12 +230,12 @@ export interface FileRouteTypes {
     | '/map'
     | '/notifications'
     | '/onboarding'
-    | '/profile'
     | '/requests'
     | '/settings'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/profile'
   id:
     | '__root__'
     | '/'
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
+    | '/_app/profile/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -374,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile/': {
+      id: '/_app/profile/'
+      path: '/'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof AppProfileIndexRouteImport
+      parentRoute: typeof AppProfileRoute
+    }
     '/_app/profile/$userId': {
       id: '/_app/profile/$userId'
       path: '/$userId'
@@ -411,10 +428,12 @@ const AppChatRouteWithChildren =
 
 interface AppProfileRouteChildren {
   AppProfileUserIdRoute: typeof AppProfileUserIdRoute
+  AppProfileIndexRoute: typeof AppProfileIndexRoute
 }
 
 const AppProfileRouteChildren: AppProfileRouteChildren = {
   AppProfileUserIdRoute: AppProfileUserIdRoute,
+  AppProfileIndexRoute: AppProfileIndexRoute,
 }
 
 const AppProfileRouteWithChildren = AppProfileRoute._addFileChildren(

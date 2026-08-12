@@ -370,15 +370,40 @@ export function RequestCard({
 
       <div className="relative z-[1] p-4 space-y-3 bg-card/92">
         <div className="flex items-start gap-3 min-w-0">
-          <Avatar
-            name={r.requester?.full_name}
-            src={r.requester?.avatar_url ?? undefined}
-            size={40}
-          />
+          {isOwner ? (
+            <Avatar
+              name={r.requester?.full_name}
+              src={r.requester?.avatar_url ?? undefined}
+              size={40}
+            />
+          ) : (
+            <Link
+              to="/profile/$userId"
+              params={{ userId: r.requester_id }}
+              className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label={lang === "bn" ? "প্রোফাইল দেখুন" : "View profile"}
+            >
+              <Avatar
+                name={r.requester?.full_name}
+                src={r.requester?.avatar_url ?? undefined}
+                size={40}
+              />
+            </Link>
+          )}
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold tracking-tight truncate">
-              {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
-            </h3>
+            {isOwner ? (
+              <h3 className="text-base font-semibold tracking-tight truncate">
+                {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
+              </h3>
+            ) : (
+              <Link
+                to="/profile/$userId"
+                params={{ userId: r.requester_id }}
+                className="text-base font-semibold tracking-tight truncate block hover:underline"
+              >
+                {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
+              </Link>
+            )}
             <p className="mt-0.5 text-xs text-muted-foreground truncate">
               <span className="text-muted-foreground/80">
                 {lang === "bn" ? "রোগী" : "Patient"}

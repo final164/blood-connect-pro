@@ -123,7 +123,7 @@ function PublicProfilePage() {
             lives_saved: profile.lives_saved as number | undefined,
           }}
           lang={lang}
-          headerExtra={user && user.id !== userId ? null : undefined}
+          messagePeerId={user && user.id !== userId ? userId : null}
         />
       </div>
     </div>
