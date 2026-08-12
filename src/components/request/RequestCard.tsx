@@ -455,98 +455,95 @@ function RequestCardInner({
         </div>
       )}
 
-      {/* FB action bar: Like · Comment · Share (+ compact extras) */}
-      <div className="relative z-[1] mx-3 border-t border-border/60 flex items-stretch">
+      {/* One-line action bar: Like · Comment · Share · Chat · Call · WA · Save */}
+      <div className="relative z-[1] mx-3 border-t border-border/60 flex items-center gap-0.5 py-0.5">
         {messaging.post_icons.like && (
           <button
             type="button"
             onClick={toggleLike}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold rounded-lg hover:bg-muted/70 transition ${
+            className={`min-w-0 flex-1 flex items-center justify-center gap-1 py-2.5 text-[12px] sm:text-[13px] font-semibold rounded-lg hover:bg-muted/70 transition ${
               liked ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            <ThumbsUp className="h-[18px] w-[18px]" fill={liked ? "currentColor" : "none"} strokeWidth={2} />
-            {lang === "bn" ? "লাইক" : "Like"}
+            <ThumbsUp className="h-[18px] w-[18px] shrink-0" fill={liked ? "currentColor" : "none"} strokeWidth={2} />
+            <span className="truncate">{lang === "bn" ? "লাইক" : "Like"}</span>
           </button>
         )}
         {messaging.post_icons.comment && (
           <button
             type="button"
             onClick={() => setShowComments(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold text-muted-foreground rounded-lg hover:bg-muted/70 transition"
+            className="min-w-0 flex-1 flex items-center justify-center gap-1 py-2.5 text-[12px] sm:text-[13px] font-semibold text-muted-foreground rounded-lg hover:bg-muted/70 transition"
           >
-            <MessagesSquare className="h-[18px] w-[18px]" strokeWidth={2} />
-            {lang === "bn" ? "কমেন্ট" : "Comment"}
+            <MessagesSquare className="h-[18px] w-[18px] shrink-0" strokeWidth={2} />
+            <span className="truncate">{lang === "bn" ? "কমেন্ট" : "Comment"}</span>
           </button>
         )}
         {messaging.post_icons.share && (
           <button
             type="button"
             onClick={() => void share()}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold text-muted-foreground rounded-lg hover:bg-muted/70 transition"
+            className="min-w-0 flex-1 flex items-center justify-center gap-1 py-2.5 text-[12px] sm:text-[13px] font-semibold text-muted-foreground rounded-lg hover:bg-muted/70 transition"
           >
-            <Share2 className="h-[18px] w-[18px]" strokeWidth={2} />
-            {t("share")}
+            <Share2 className="h-[18px] w-[18px] shrink-0" strokeWidth={2} />
+            <span className="truncate">{t("share")}</span>
+          </button>
+        )}
+        {!isOwner && messaging.post_icons.chat && (
+          <Link
+            to="/chat/$peerId"
+            params={{ peerId: r.requester_id }}
+            search={{ fromRequestId: r.id }}
+            onClick={() => {
+              try {
+                sessionStorage.setItem("feedReturnRequestId", r.id);
+              } catch {
+                /* ignore */
+              }
+            }}
+            className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/70 transition"
+            title={t("chat")}
+            aria-label={t("chat")}
+          >
+            <MessengerIcon className="h-[18px] w-[18px]" />
+          </Link>
+        )}
+        {!isOwner && phone && messaging.post_icons.phone && (
+          <a
+            href={`tel:${phone.replace(/\s/g, "")}`}
+            className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary/10 transition"
+            title={lang === "bn" ? "কল" : "Call"}
+            aria-label={lang === "bn" ? "কল" : "Call"}
+          >
+            <Phone className="h-[18px] w-[18px]" />
+          </a>
+        )}
+        {!isOwner && waLink && messaging.post_icons.whatsapp && (
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noreferrer"
+            className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/10 transition"
+            title="WhatsApp"
+            aria-label="WhatsApp"
+          >
+            <WhatsAppIcon className="h-[18px] w-[18px]" />
+          </a>
+        )}
+        {messaging.post_icons.save && (
+          <button
+            type="button"
+            onClick={() => void onToggleSave()}
+            className={`h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg transition ${
+              saved ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-muted/70"
+            }`}
+            title={lang === "bn" ? "সেভ" : "Save"}
+            aria-label={lang === "bn" ? "সেভ" : "Save"}
+          >
+            <Bookmark className="h-[18px] w-[18px]" fill={saved ? "currentColor" : "none"} />
           </button>
         )}
       </div>
-
-      {/* Compact contact / save row — only when useful */}
-      {((!isOwner && (messaging.post_icons.chat || (phone && messaging.post_icons.phone) || (waLink && messaging.post_icons.whatsapp))) ||
-        messaging.post_icons.save) && (
-        <div className="relative z-[1] px-3 pb-2.5 flex items-center gap-1.5">
-          {!isOwner && messaging.post_icons.chat && (
-            <Link
-              to="/chat/$peerId"
-              params={{ peerId: r.requester_id }}
-              search={{ fromRequestId: r.id }}
-              onClick={() => {
-                try {
-                  sessionStorage.setItem("feedReturnRequestId", r.id);
-                } catch {
-                  /* ignore */
-                }
-              }}
-              className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-muted/60 text-foreground text-[12px] font-medium hover:bg-muted transition"
-            >
-              <MessengerIcon className="h-3.5 w-3.5" />
-              {t("chat")}
-            </Link>
-          )}
-          {!isOwner && phone && messaging.post_icons.phone && (
-            <a
-              href={`tel:${phone.replace(/\s/g, "")}`}
-              className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/15 transition"
-              title={lang === "bn" ? "কল" : "Call"}
-            >
-              <Phone className="h-4 w-4" />
-            </a>
-          )}
-          {!isOwner && waLink && messaging.post_icons.whatsapp && (
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noreferrer"
-              className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/15 transition"
-              title="WhatsApp"
-            >
-              <WhatsAppIcon className="h-4 w-4" />
-            </a>
-          )}
-          {messaging.post_icons.save && (
-            <button
-              type="button"
-              onClick={() => void onToggleSave()}
-              className={`h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg transition ${
-                saved ? "bg-primary/10 text-primary" : "bg-muted/60 text-muted-foreground hover:bg-muted"
-              }`}
-              title={lang === "bn" ? "সেভ" : "Save"}
-            >
-              <Bookmark className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
-            </button>
-          )}
-        </div>
-      )}
 
       <div className="relative z-[1] px-3 pb-3">
         <DonationPanel

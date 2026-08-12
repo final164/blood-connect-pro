@@ -476,13 +476,12 @@ export function MessagingSettingsAdmin() {
         <h3 className="text-sm font-semibold">
           {lang === "bn" ? "পোস্ট আইকন (ফিড)" : "Post icons (feed)"}
         </h3>
-        <div className="grid sm:grid-cols-2 gap-2">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-0.5">
           {POST_ICON_KEYS.map((key) => (
             <label
               key={key}
-              className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-800 px-2.5 py-2 text-xs whitespace-nowrap"
             >
-              <span className="text-slate-300">{lang === "bn" ? iconLabels[key].bn : iconLabels[key].en}</span>
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-rose-500"
@@ -494,6 +493,7 @@ export function MessagingSettingsAdmin() {
                   })
                 }
               />
+              <span className="text-slate-300">{lang === "bn" ? iconLabels[key].bn : iconLabels[key].en}</span>
             </label>
           ))}
         </div>
