@@ -26,6 +26,7 @@ import {
 } from "@/lib/need-reason-catalog";
 import { uploadAppImage, fetchGoogleDriveSettings, canPasteImageUrl, canUploadImageFile, normalizePastedImageUrl, type GoogleDriveSettings, DEFAULT_GOOGLE_DRIVE_SETTINGS } from "@/lib/google-drive";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
+import { saveCommunityRequestDraft } from "@/lib/community-request-draft";
 import { toast } from "sonner";
 
 export function RequestComposer({
@@ -283,7 +284,30 @@ export function RequestComposer({
     if (error) return toast.error(error.message);
     const newId = (created as { id?: string } | null)?.id;
     if (!newId) return toast.error(lang === "bn" ? "পোস্ট তৈরি হয়েছে কিন্তু আইডি পাওয়া যায়নি" : "Posted but id missing");
-    toast.success(lang === "bn" ? "রিকোয়েস্ট ফিডে পোস্ট হয়েছে" : "Request posted to feed");
+
+    saveCommunityRequestDraft(user.id, {
+      patient_name: form.patient_name.trim(),
+      blood_group: form.blood_group,
+      bags_needed: Math.max(1, form.bags_needed),
+      needed_by: form.needed_by,
+      urgency: form.urgency,
+      notes: form.notes.trim(),
+      setDateTime,
+      reasonKey,
+      customReason: customReason.trim(),
+      upazila: upazila.trim(),
+      contact_phone: form.contact_phone.trim(),
+      whatsapp_phone: form.whatsapp_phone.trim(),
+      feed_request_id: newId,
+      district,
+      hospital,
+    });
+
+    toast.success(
+      lang === "bn"
+        ? "ফিডে পোস্ট হয়েছে · Save request-এও সেভ আছে"
+        : "Posted to feed · also saved as Save request",
+    );
     setHospital(null);
     setUpazila("");
     setReasonKey("");

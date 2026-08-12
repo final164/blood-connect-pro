@@ -24,6 +24,7 @@ export const queryKeys = {
     upazila: string;
     orgId: string | null | undefined;
     sortUnavailableLast?: boolean;
+    includeAppUsers?: boolean;
   }) =>
     [
       "community-donors",
@@ -32,6 +33,7 @@ export const queryKeys = {
       q.upazila || "",
       q.orgId ?? null,
       q.sortUnavailableLast !== false,
+      q.includeAppUsers !== false,
     ] as const,
   activity: (view: string, userId: string | undefined) =>
     ["activity", view, userId ?? null] as const,

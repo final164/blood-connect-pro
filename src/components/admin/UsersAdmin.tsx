@@ -26,6 +26,7 @@ type ProfileRow = {
   area: string | null;
   district_id: string | null;
   is_blocked: boolean;
+  show_in_community: boolean;
   created_at: string;
 };
 
@@ -68,13 +69,35 @@ export function UsersAdmin() {
   async function load() {
     setLoading(true);
     try {
-      const [{ data: profiles }, { data: roleRows }, credsRes, { data: requests }, { data: offers }, ds] =
+      let profiles: ProfileRow[] | null = null;
+      const withFlag = await supabase
+        .from("profiles")
+        .select(
+          "id, full_name, phone, blood_group, city, area, district_id, is_blocked, show_in_community, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (withFlag.error && /show_in_community|column/i.test(withFlag.error.message)) {
+        const fallback = await supabase
+          .from("profiles")
+          .select("id, full_name, phone, blood_group, city, area, district_id, is_blocked, created_at")
+          .order("created_at", { ascending: false })
+          .limit(1000);
+        if (fallback.error) throw fallback.error;
+        profiles = ((fallback.data ?? []) as Omit<ProfileRow, "show_in_community">[]).map((p) => ({
+          ...p,
+          show_in_community: true,
+        }));
+      } else {
+        if (withFlag.error) throw withFlag.error;
+        profiles = ((withFlag.data ?? []) as ProfileRow[]).map((p) => ({
+          ...p,
+          show_in_community: p.show_in_community !== false,
+        }));
+      }
+
+      const [{ data: roleRows }, credsRes, { data: requests }, { data: offers }, ds] =
         await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, full_name, phone, blood_group, city, area, district_id, is_blocked, created_at")
-            .order("created_at", { ascending: false })
-            .limit(1000),
           supabase.from("user_roles").select("user_id, role"),
           supabase.from("user_login_credentials").select("user_id, phone, pin"),
           supabase.from("blood_requests").select("requester_id, status"),
@@ -87,7 +110,7 @@ export function UsersAdmin() {
       }
       const loginCreds = credsRes.data;
 
-      setRows((profiles as ProfileRow[]) ?? []);
+      setRows(profiles ?? []);
       setDistricts(ds);
       const dMap: Record<string, District> = {};
       for (const d of ds) dMap[d.id] = d;
@@ -364,6 +387,27 @@ export function UsersAdmin() {
     void load();
   }
 
+  async function toggleCommunity(userId: string, show: boolean) {
+    if (!can("users.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ show_in_community: show })
+      .eq("id", userId);
+    if (error) return toast.error(error.message);
+    setRows((prev) =>
+      prev.map((r) => (r.id === userId ? { ...r, show_in_community: show } : r)),
+    );
+    toast.success(
+      show
+        ? lang === "bn"
+          ? "কমিউনিটিতে দেখাবে"
+          : "Visible in Community"
+        : lang === "bn"
+          ? "কমিউনিটি থেকে লুকানো"
+          : "Hidden from Community",
+    );
+  }
+
   async function removeUser(userId: string, name: string) {
     if (!can("users.delete")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const msg =
@@ -498,6 +542,7 @@ export function UsersAdmin() {
               <th className="text-center p-3">{lang === "bn" ? "পোস্ট" : "Posts"}</th>
               <th className="text-center p-3">{lang === "bn" ? "গ্রহণ" : "Received"}</th>
               <th className="text-center p-3">{lang === "bn" ? "দান" : "Donated"}</th>
+              <th className="text-center p-3">{lang === "bn" ? "কমিউনিটি" : "Community"}</th>
               <th className="p-3 text-right">{lang === "bn" ? "অ্যাকশন" : "Actions"}</th>
             </tr>
           </thead>
@@ -557,6 +602,40 @@ export function UsersAdmin() {
                   <td className="p-3 text-center font-mono text-xs">{st.posts}</td>
                   <td className="p-3 text-center font-mono text-xs">{st.received}</td>
                   <td className="p-3 text-center font-mono text-xs">{st.donated}</td>
+                  <td className="p-3 text-center">
+                    {can("users.edit") ? (
+                      <button
+                        type="button"
+                        onClick={() => void toggleCommunity(u.id, !u.show_in_community)}
+                        className={`text-[10px] px-2 py-1 rounded-md ${
+                          u.show_in_community
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : "bg-slate-800 text-slate-400"
+                        }`}
+                        title={
+                          lang === "bn" ? "কমিউনিটিতে দেখাবে/লুকাবে" : "Show/hide in Community"
+                        }
+                      >
+                        {u.show_in_community
+                          ? lang === "bn"
+                            ? "দেখাবে"
+                            : "Shown"
+                          : lang === "bn"
+                            ? "লুকানো"
+                            : "Hidden"}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-slate-500">
+                        {u.show_in_community
+                          ? lang === "bn"
+                            ? "দেখাবে"
+                            : "Shown"
+                          : lang === "bn"
+                            ? "লুকানো"
+                            : "Hidden"}
+                      </span>
+                    )}
+                  </td>
                   <td className="p-3 text-right whitespace-nowrap space-x-1">
                     {can("users.block") && (
                       <button
@@ -596,7 +675,7 @@ export function UsersAdmin() {
             })}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-8 text-center text-slate-500 text-sm">
+                <td colSpan={10} className="p-8 text-center text-slate-500 text-sm">
                   {lang === "bn" ? "কোনো ইউজার নেই" : "No users found"}
                 </td>
               </tr>

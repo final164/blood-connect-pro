@@ -17,6 +17,10 @@ export type CommunityDonorRow = {
   created_at: string;
   unavailable_until?: string | null;
   last_donated_at?: string | null;
+  /** org = community_donors row; app = registered profiles user */
+  source?: "org" | "app";
+  /** Set when source === "app" */
+  profile_id?: string | null;
   community_orgs?: {
     name: string;
     name_bn: string | null;
@@ -24,6 +28,167 @@ export type CommunityDonorRow = {
   } | null;
   districts?: { name_bn: string; name_en: string; slug: string } | null;
 };
+
+function phoneDigits(phone: string | null | undefined): string {
+  return (phone ?? "").replace(/\D/g, "");
+}
+
+function sortDonorsByAvailability(
+  rows: CommunityDonorRow[],
+  sortUnavailableLast: boolean,
+): CommunityDonorRow[] {
+  if (!sortUnavailableLast) return rows;
+  const now = Date.now();
+  return [...rows].sort((a, b) => {
+    const ua = isCommunityDonorUnavailable(a, now) ? 1 : 0;
+    const ub = isCommunityDonorUnavailable(b, now) ? 1 : 0;
+    if (ua !== ub) return ua - ub;
+    return (a.full_name || "").localeCompare(b.full_name || "", undefined, { sensitivity: "base" });
+  });
+}
+
+type AppProfileCommunityRow = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  blood_group: string | null;
+  gender: string | null;
+  district_id: string | null;
+  area: string | null;
+  is_available: boolean | null;
+  unavailable_until: string | null;
+  created_at: string;
+  districts: { name_bn: string; name_en: string; slug: string } | null;
+};
+
+function mapAppProfileToDonor(p: AppProfileCommunityRow): CommunityDonorRow {
+  const gender = normalizeGender(p.gender);
+  const unavailable =
+    p.unavailable_until && new Date(p.unavailable_until).getTime() > Date.now()
+      ? p.unavailable_until
+      : p.is_available === false
+        ? "9999-01-01T00:00:00.000Z"
+        : null;
+  return {
+    id: `app:${p.id}`,
+    org_id: "",
+    full_name: (p.full_name || "").trim() || "User",
+    phone: (p.phone || "").trim(),
+    blood_group: p.blood_group,
+    gender,
+    district_id: p.district_id,
+    upazila: p.area,
+    address: null,
+    is_active: true,
+    created_at: p.created_at,
+    unavailable_until: unavailable,
+    source: "app",
+    profile_id: p.id,
+    community_orgs: {
+      name: "BloodLink",
+      name_bn: "অ্যাপ ইউজার",
+      donor_contact_settings: undefined,
+    },
+    districts: p.districts,
+  };
+}
+
+/** Registered app users visible in Community (district / upazila). */
+export async function fetchCommunityAppUsers(opts: {
+  bloodGroup?: string;
+  districtId?: string | null;
+  upazila?: string;
+  viewerId?: string | null;
+  limit?: number;
+}): Promise<{ items: CommunityDonorRow[]; hasMore: boolean }> {
+  const limit = opts.limit ?? 80;
+  const selectCols =
+    "id, full_name, phone, blood_group, gender, district_id, area, is_available, unavailable_until, created_at, show_in_community, is_blocked, districts(name_bn, name_en, slug)";
+
+  async function run(withShowFlag: boolean) {
+    let q = supabase
+      .from("profiles")
+      .select(withShowFlag ? selectCols : selectCols.replace(", show_in_community", ""))
+      .eq("is_blocked", false)
+      .not("phone", "is", null)
+      .neq("phone", "");
+
+    if (withShowFlag) q = q.eq("show_in_community", true);
+    if (opts.viewerId) q = q.neq("id", opts.viewerId);
+    if (opts.bloodGroup && opts.bloodGroup !== "ALL") q = q.eq("blood_group", opts.bloodGroup);
+    if (opts.districtId) q = q.eq("district_id", opts.districtId);
+    if (opts.upazila?.trim()) q = q.eq("area", opts.upazila.trim());
+
+    return q.order("full_name", { ascending: true }).range(0, limit - 1);
+  }
+
+  let { data, error } = await run(true);
+  if (error && /show_in_community|column/i.test(error.message)) {
+    ({ data, error } = await run(false));
+  }
+  if (error) throw error;
+
+  const rows = ((data ?? []) as unknown as AppProfileCommunityRow[])
+    .filter((p) => phoneDigits(p.phone).length >= 10)
+    .map(mapAppProfileToDonor);
+
+  return { items: rows, hasMore: rows.length >= limit };
+}
+
+/**
+ * Org donors + (optional) app users for Community page.
+ * App users load on the first page only and are deduped against org rows by phone.
+ */
+export async function fetchCommunityListing(opts: {
+  bloodGroup?: string;
+  districtId?: string | null;
+  upazila?: string;
+  orgId?: string | null;
+  offset?: number;
+  limit?: number;
+  sortUnavailableLast?: boolean;
+  includeAppUsers?: boolean;
+  viewerId?: string | null;
+}): Promise<{ items: CommunityDonorRow[]; hasMore: boolean }> {
+  const offset = opts.offset ?? 0;
+  const sortUnavailableLast = opts.sortUnavailableLast !== false;
+  const includeApp = !!opts.includeAppUsers && !opts.orgId;
+
+  const orgPromise = fetchCommunityDonors({
+    bloodGroup: opts.bloodGroup,
+    districtId: opts.districtId,
+    upazila: opts.upazila,
+    orgId: opts.orgId,
+    offset,
+    limit: opts.limit,
+    sortUnavailableLast,
+  });
+
+  const appPromise =
+    includeApp && offset === 0
+      ? fetchCommunityAppUsers({
+          bloodGroup: opts.bloodGroup,
+          districtId: opts.districtId,
+          upazila: opts.upazila,
+          viewerId: opts.viewerId,
+        })
+      : Promise.resolve({ items: [] as CommunityDonorRow[], hasMore: false });
+
+  const [org, app] = await Promise.all([orgPromise, appPromise]);
+
+  const appPhones = new Set(
+    app.items.map((d) => phoneDigits(d.phone)).filter((p) => p.length >= 10),
+  );
+  const orgItems = org.items.filter((d) => {
+    const p = phoneDigits(d.phone);
+    return !p || !appPhones.has(p);
+  });
+
+  const merged =
+    offset === 0 ? sortDonorsByAvailability([...app.items, ...orgItems], sortUnavailableLast) : orgItems;
+
+  return { items: merged, hasMore: org.hasMore };
+}
 
 /** True while cooldown is active (unavailable_until in the future). */
 export function isCommunityDonorUnavailable(
@@ -296,14 +461,9 @@ export async function fetchCommunityDonors(opts: {
     throw error;
   }
   let rows = (data ?? []) as unknown as CommunityDonorRow[];
+  rows = rows.map((r) => ({ ...r, source: r.source ?? "org" }));
   if (sortUnavailableLast) {
-    const now = Date.now();
-    rows = [...rows].sort((a, b) => {
-      const ua = isCommunityDonorUnavailable(a, now) ? 1 : 0;
-      const ub = isCommunityDonorUnavailable(b, now) ? 1 : 0;
-      if (ua !== ub) return ua - ub;
-      return (a.full_name || "").localeCompare(b.full_name || "", undefined, { sensitivity: "base" });
-    });
+    rows = sortDonorsByAvailability(rows, true);
   }
   return { items: rows, hasMore: rows.length >= limit };
 }

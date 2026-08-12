@@ -20,7 +20,7 @@ import { logCommunityContact } from "@/lib/community-request-contacts";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
 import {
-  fetchCommunityDonors,
+  fetchCommunityListing,
   isCommunityDonorUnavailable,
   type CommunityDonorRow,
 } from "@/lib/community-donor-import";
@@ -80,6 +80,7 @@ function CommunityPage() {
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
   const [bloodGroup, setBloodGroup] = useState("ALL");
+  const [locationSeeded, setLocationSeeded] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [savedDraft, setSavedDraft] = useState<CommunityRequestDraft | null>(null);
   const [contactGate, setContactGate] = useState<{
@@ -167,18 +168,55 @@ function CommunityPage() {
       if (!user?.id) return null;
       const p = await getProfile(user.id);
       const districtId = (p?.district_id as string | null | undefined) ?? null;
-      if (!districtId) return null;
+      const area = ((p?.area as string | null | undefined) ?? "").trim();
+      if (!districtId) return { district: null as District | null, area };
       const { data } = await supabase
         .from("districts")
         .select("id,name_bn,name_en,slug,is_active,sort_order")
         .eq("id", districtId)
         .maybeSingle();
-      return (data as District | null) ?? null;
+      return { district: (data as District | null) ?? null, area };
     },
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
-  const profileDistrict = profileDistrictQuery.data ?? null;
+  const profileDistrict = profileDistrictQuery.data?.district ?? null;
+  const profileArea = profileDistrictQuery.data?.area ?? "";
+
+  /** Prefill filters from viewer profile (admin-controlled). Skip if save-request already set location. */
+  useEffect(() => {
+    if (!msgSettings.community_default_to_viewer_location) return;
+    if (locationSeeded) return;
+    if (profileDistrictQuery.isPending) return;
+    const draftSetsDistrict =
+      !!savedDraft &&
+      communityRequestDraftFilled(savedDraft) &&
+      msgSettings.community_apply_save_request_district &&
+      !!savedDraft.district?.id;
+    const draftSetsUpazila =
+      !!savedDraft &&
+      communityRequestDraftFilled(savedDraft) &&
+      msgSettings.community_apply_save_request_upazila &&
+      !!savedDraft.upazila?.trim();
+    if (!draftSetsDistrict && !district && profileDistrict) {
+      setDistrict(profileDistrict);
+    }
+    if (!draftSetsUpazila && !upazila.trim() && profileArea) {
+      setUpazila(profileArea);
+    }
+    setLocationSeeded(true);
+  }, [
+    msgSettings.community_default_to_viewer_location,
+    msgSettings.community_apply_save_request_district,
+    msgSettings.community_apply_save_request_upazila,
+    locationSeeded,
+    profileDistrictQuery.isPending,
+    profileDistrict,
+    profileArea,
+    savedDraft,
+    district,
+    upazila,
+  ]);
 
   const carouselQuery = useQuery({
     queryKey: ["feed-carousel-bundle"],
@@ -238,7 +276,7 @@ function CommunityPage() {
           channel,
           donorName: donor.full_name,
           donorPhone: donor.phone,
-          communityDonorId: donor.id,
+          communityDonorId: donor.source === "app" ? null : donor.id,
           orgId: donor.org_id || null,
         });
         openCommunityContactChannel(channel, donor.phone, body);
@@ -274,6 +312,7 @@ function CommunityPage() {
   const filterOrg = orgQuery.data ?? null;
 
   const sortUnavailableLast = msgSettings.community_sort_unavailable_last;
+  const includeAppUsers = msgSettings.community_include_app_users && !orgId;
 
   const donorsKey = queryKeys.communityDonors({
     bloodGroup,
@@ -281,12 +320,13 @@ function CommunityPage() {
     upazila: upazila.trim(),
     orgId,
     sortUnavailableLast,
+    includeAppUsers,
   });
 
   const donorsQuery = useInfiniteQuery({
-    queryKey: donorsKey,
+    queryKey: [...donorsKey, user?.id ?? null],
     queryFn: ({ pageParam }) =>
-      fetchCommunityDonors({
+      fetchCommunityListing({
         bloodGroup,
         districtId: district?.id ?? null,
         upazila: upazila.trim() || undefined,
@@ -294,6 +334,8 @@ function CommunityPage() {
         offset: pageParam,
         limit: PAGE,
         sortUnavailableLast,
+        includeAppUsers,
+        viewerId: user?.id ?? null,
       }),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
@@ -343,6 +385,9 @@ function CommunityPage() {
     const ch = supabase
       .channel("community-donors-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "community_donors" }, () => {
+        void queryClient.invalidateQueries({ queryKey: ["community-donors"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
         void queryClient.invalidateQueries({ queryKey: ["community-donors"] });
       })
       .subscribe();
@@ -551,7 +596,12 @@ function DonorCard({
   const showChat = !hideContact && flags.chat && !!phone;
 
   async function openAppProfile() {
-    if (!phone || profileBusy) return;
+    if (profileBusy) return;
+    if (d.profile_id) {
+      void navigate({ to: "/profile/$userId", params: { userId: d.profile_id } });
+      return;
+    }
+    if (!phone) return;
     setProfileBusy(true);
     try {
       const profileId = await findProfileIdByPhone(phone);
@@ -582,7 +632,7 @@ function DonorCard({
           <button
             type="button"
             onClick={() => void openAppProfile()}
-            disabled={profileBusy || !phone}
+            disabled={profileBusy || (!d.profile_id && !phone)}
             className="font-semibold text-sm break-words text-left hover:underline disabled:opacity-60 disabled:no-underline"
           >
             {d.full_name}

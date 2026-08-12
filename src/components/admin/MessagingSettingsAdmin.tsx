@@ -310,6 +310,34 @@ export function MessagingSettingsAdmin() {
         <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
           <span className="text-slate-300 leading-snug">
             {lang === "bn"
+              ? "অ্যাপ ইউজারদের কমিউনিটিতে দেখাবে (জেলা/উপজেলা অনুযায়ী)"
+              : "Show app users in Community (by district/upazila)"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_include_app_users}
+            onChange={(e) => setS({ ...s, community_include_app_users: e.target.checked })}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
+              ? "কমিউনিটি ফিল্টারে নিজের জেলা/উপজেলা অটো সেট"
+              : "Auto-set Community filters to viewer district/upazila"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500 shrink-0"
+            checked={s.community_default_to_viewer_location}
+            onChange={(e) =>
+              setS({ ...s, community_default_to_viewer_location: e.target.checked })
+            }
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300 leading-snug">
+            {lang === "bn"
               ? "অর্গ ডোনার একই ফোন দিয়ে সাইনআপ করলে হিস্ট্রি প্রোফাইলে মিলবে"
               : "Link org-donor history when they sign up with same phone"}
           </span>

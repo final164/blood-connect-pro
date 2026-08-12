@@ -52,6 +52,10 @@ export type MessagingSettings = {
   community_show_unavailable_label: boolean;
   /** On signup with same phone as org-imported donor, merge donation history into profile */
   link_org_donor_on_signup: boolean;
+  /** Include registered app users in Community list (matched by district/upazila) */
+  community_include_app_users: boolean;
+  /** Prefill Community district/upazila filters from the viewer's profile */
+  community_default_to_viewer_location: boolean;
 };
 
 export const DEFAULT_POST_ICONS: PostIconSettings = {
@@ -89,6 +93,8 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   community_hide_contact_when_unavailable: true,
   community_show_unavailable_label: true,
   link_org_donor_on_signup: true,
+  community_include_app_users: true,
+  community_default_to_viewer_location: true,
 };
 
 export type SmsTemplateVars = Record<string, string | number | null | undefined>;
@@ -209,6 +215,14 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       typeof r.link_org_donor_on_signup === "boolean"
         ? r.link_org_donor_on_signup
         : DEFAULT_MESSAGING_SETTINGS.link_org_donor_on_signup,
+    community_include_app_users:
+      typeof r.community_include_app_users === "boolean"
+        ? r.community_include_app_users
+        : DEFAULT_MESSAGING_SETTINGS.community_include_app_users,
+    community_default_to_viewer_location:
+      typeof r.community_default_to_viewer_location === "boolean"
+        ? r.community_default_to_viewer_location
+        : DEFAULT_MESSAGING_SETTINGS.community_default_to_viewer_location,
   };
 }
 
