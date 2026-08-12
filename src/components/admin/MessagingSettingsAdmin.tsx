@@ -394,6 +394,86 @@ export function MessagingSettingsAdmin() {
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "ফিড পোস্ট ডিভাইডার" : "Feed post divider"}
+        </h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          {lang === "bn"
+            ? "প্রত্যেক পোস্টের নিচে আলাদা করার লাইন চালু/বন্ধ, রঙ ও পুরুত্ব।"
+            : "Show/hide the line under each feed post; set color and thickness."}
+        </p>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300">
+            {lang === "bn" ? "পোস্টের নিচে লাইন দেখাবে" : "Show divider under posts"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500"
+            checked={s.feed_show_post_divider}
+            onChange={(e) => setS({ ...s, feed_show_post_divider: e.target.checked })}
+          />
+        </label>
+        {s.feed_show_post_divider && (
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">
+                {lang === "bn" ? "রঙ" : "Color"}
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  className="h-9 w-12 cursor-pointer rounded border border-slate-700 bg-slate-950 p-0.5"
+                  value={
+                    /^#[0-9A-Fa-f]{6}$/.test(s.feed_post_divider_color)
+                      ? s.feed_post_divider_color
+                      : "#E4E6EB"
+                  }
+                  onChange={(e) => setS({ ...s, feed_post_divider_color: e.target.value })}
+                />
+                <input
+                  className={ainp}
+                  value={s.feed_post_divider_color}
+                  onChange={(e) => setS({ ...s, feed_post_divider_color: e.target.value })}
+                  placeholder="#E4E6EB"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">
+                {lang === "bn" ? "পুরুত্ব (px)" : "Thickness (px)"}
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={48}
+                className={ainp}
+                value={s.feed_post_divider_height_px}
+                onChange={(e) =>
+                  setS({
+                    ...s,
+                    feed_post_divider_height_px: Number(e.target.value) || 0,
+                  })
+                }
+              />
+            </div>
+            <div
+              className="sm:col-span-2 rounded-md overflow-hidden border border-slate-800"
+              aria-hidden
+            >
+              <div className="h-6 bg-slate-950" />
+              <div
+                style={{
+                  height: Math.max(1, s.feed_post_divider_height_px || 0),
+                  backgroundColor: s.feed_post_divider_color || "#E4E6EB",
+                }}
+              />
+              <div className="h-6 bg-slate-950" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">
           {lang === "bn" ? "পোস্ট আইকন (ফিড)" : "Post icons (feed)"}
         </h3>
         <div className="grid sm:grid-cols-2 gap-2">

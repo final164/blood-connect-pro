@@ -17,7 +17,7 @@ export function Avatar({ name, src, size = 40 }: { name?: string | null; src?: s
 
   return (
     <div
-      className="rounded-full bg-primary/10 text-primary grid place-items-center font-semibold shrink-0 overflow-hidden ring-2 ring-background"
+      className="rounded-full bg-primary/10 text-primary grid place-items-center font-semibold shrink-0 overflow-hidden"
       style={{ height: size, width: size, fontSize: size * 0.38 }}
     >
       {current ? (
@@ -25,6 +25,8 @@ export function Avatar({ name, src, size = 40 }: { name?: string | null; src?: s
           src={current}
           alt=""
           className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
           onError={() => {
             if (index + 1 < candidates.length) setIndex((i) => i + 1);

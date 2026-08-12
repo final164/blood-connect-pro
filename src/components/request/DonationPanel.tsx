@@ -36,6 +36,7 @@ export function DonationPanel({
   completionOpen = false,
   onExitCompleting,
   onReopenCompleting,
+  compact = false,
 }: {
   requestId: string;
   requesterId: string;
@@ -49,6 +50,8 @@ export function DonationPanel({
   completionOpen?: boolean;
   onExitCompleting?: () => void;
   onReopenCompleting?: () => void;
+  /** Lighter chrome for Facebook-style feed cards */
+  compact?: boolean;
 }) {
   const { user } = useAuth();
   const { lang, t } = useI18n();
@@ -247,9 +250,11 @@ export function DonationPanel({
 
   return (
     <div
-      className={`rounded-xl border p-3 space-y-2.5 ${
-        completingMode ? "border-primary/40 bg-primary/5" : "bg-muted/20"
-      }`}
+      className={`${
+        compact
+          ? "rounded-xl border border-border/50 bg-muted/25 p-2.5 space-y-2"
+          : "rounded-xl border p-3 space-y-2.5"
+      } ${completingMode ? "border-primary/40 bg-primary/5" : compact ? "" : "bg-muted/20"}`}
     >
       {showProgress && (
         <>

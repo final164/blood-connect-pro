@@ -56,6 +56,12 @@ export type MessagingSettings = {
   community_include_app_users: boolean;
   /** Prefill Community district/upazila filters from the viewer's profile */
   community_default_to_viewer_location: boolean;
+  /** Show a separator line under each feed post */
+  feed_show_post_divider: boolean;
+  /** Divider color (CSS color, e.g. #E4E6EB) */
+  feed_post_divider_color: string;
+  /** Divider thickness in px */
+  feed_post_divider_height_px: number;
 };
 
 export const DEFAULT_POST_ICONS: PostIconSettings = {
@@ -95,6 +101,9 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   link_org_donor_on_signup: true,
   community_include_app_users: true,
   community_default_to_viewer_location: true,
+  feed_show_post_divider: true,
+  feed_post_divider_color: "#E4E6EB",
+  feed_post_divider_height_px: 8,
 };
 
 export type SmsTemplateVars = Record<string, string | number | null | undefined>;
@@ -223,6 +232,21 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       typeof r.community_default_to_viewer_location === "boolean"
         ? r.community_default_to_viewer_location
         : DEFAULT_MESSAGING_SETTINGS.community_default_to_viewer_location,
+    feed_show_post_divider:
+      typeof r.feed_show_post_divider === "boolean"
+        ? r.feed_show_post_divider
+        : DEFAULT_MESSAGING_SETTINGS.feed_show_post_divider,
+    feed_post_divider_color: (() => {
+      const c = typeof r.feed_post_divider_color === "string" ? r.feed_post_divider_color.trim() : "";
+      return c || DEFAULT_MESSAGING_SETTINGS.feed_post_divider_color;
+    })(),
+    feed_post_divider_height_px: (() => {
+      const h = Number(r.feed_post_divider_height_px);
+      if (!Number.isFinite(h) || h < 0) {
+        return DEFAULT_MESSAGING_SETTINGS.feed_post_divider_height_px;
+      }
+      return Math.min(48, Math.floor(h));
+    })(),
   };
 }
 

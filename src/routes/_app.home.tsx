@@ -10,7 +10,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
-import { Droplet, ShieldCheck, Search, X } from "lucide-react";
+import { Droplet, Search, X } from "lucide-react";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
@@ -322,19 +322,15 @@ function FeedPage() {
         </div>
       ) : (
         <>
-          <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
-            <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5">
+          <AutoHideHeader className="z-30 border-b bg-background safe-top">
+            <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2">
               <div className="flex items-center gap-2 min-w-0">
                 <UserMenuTrigger />
-                <div className="h-9 w-9 shrink-0 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
-                  <Droplet className="h-4 w-4" fill="currentColor" />
+                <div className="h-8 w-8 shrink-0 rounded-xl bg-primary text-primary-foreground grid place-items-center">
+                  <Droplet className="h-3.5 w-3.5" fill="currentColor" />
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-sm font-bold leading-tight tracking-tight truncate">{t("appName")}</h1>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
-                    <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shrink-0" />
-                    {t("realtime")} · <ShieldCheck className="h-2.5 w-2.5 shrink-0" /> {t("encrypted")}
-                  </p>
                 </div>
               </div>
 
@@ -431,24 +427,24 @@ function FeedPage() {
             </div>
           </AutoHideHeader>
 
-          <div className="px-3 pt-4 pb-2 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between bg-muted/40">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {t("liveRequests")}
             </h2>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground tabular-nums">
               {items.length}
               {hasMore ? "+" : ""}
             </span>
           </div>
 
-          <ul className="px-3 pb-2 space-y-3">
+          <ul className="pb-2 bg-muted/40 space-y-0 divide-y-0">
             {loading && (
-              <li className="rounded-2xl border bg-muted/20 py-12 text-center text-sm text-muted-foreground">
+              <li className="bg-card py-12 text-center text-sm text-muted-foreground border-b border-border/60">
                 {t("loading")}
               </li>
             )}
             {!loading && items.length === 0 && (
-              <li className="rounded-2xl border border-dashed bg-muted/20 py-16 px-6 text-center">
+              <li className="bg-card border-b border-border/60 py-16 px-6 text-center">
                 <p className="text-sm text-muted-foreground">{t("emptyRequests")}</p>
                 <button
                   type="button"
@@ -462,7 +458,7 @@ function FeedPage() {
             {bannerSettings.enabled &&
               bannerSlides.length > 0 &&
               bannerSettings.insert_after_posts === 0 && (
-                <li className="list-none">
+                <li className="list-none bg-muted/40 px-0 py-2">
                   <FeedBannerSlider settings={bannerSettings} slides={bannerSlides} />
                 </li>
               )}
@@ -478,7 +474,7 @@ function FeedPage() {
                 afterN === bannerSettings.insert_after_posts;
               return (
                 <Fragment key={r.id}>
-                  <li id={`request-${r.id}`}>
+                  <li id={`request-${r.id}`} className="bg-card">
                     <RequestCard
                       request={r}
                       currentUserId={user?.id}
@@ -487,12 +483,12 @@ function FeedPage() {
                     />
                   </li>
                   {showRail && (
-                    <li className="list-none">
+                    <li className="list-none bg-muted/40 px-0 py-2">
                       <FeedImageCarousel settings={carouselSettings} slides={carouselSlides} />
                     </li>
                   )}
                   {showBanner && (
-                    <li className="list-none">
+                    <li className="list-none bg-muted/40 px-0 py-2">
                       <FeedBannerSlider settings={bannerSettings} slides={bannerSlides} />
                     </li>
                   )}

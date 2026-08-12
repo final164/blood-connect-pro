@@ -1,27 +1,16 @@
 ﻿import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { whatsappHref } from "@/lib/request-form-options";
-import { fetchNotificationSettings } from "@/lib/notification-settings";
-import {
-  DEFAULT_DONATION_FLOW_SETTINGS,
-  donationLabel,
-  fetchDonationFlowSettings,
-  type DonationFlowSettings,
-} from "@/lib/donation-flow-settings";
-import {
-  applySmsTemplate,
-  DEFAULT_MESSAGING_SETTINGS,
-  fetchMessagingSettings,
-  type MessagingSettings,
-} from "@/lib/messaging-settings";
+import { donationLabel } from "@/lib/donation-flow-settings";
+import { applySmsTemplate } from "@/lib/messaging-settings";
 import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
+import { useFeedCardChrome } from "@/hooks/useFeedCardChrome";
 import {
   UrgencyDropletBackdrop,
-  UrgencyHeaderIcon,
 } from "@/components/request/UrgencyDropletBackdrop";
 import {
   DropdownMenu,
@@ -35,11 +24,10 @@ import {
   Phone,
   Clock,
   Share2,
-  Droplets,
   ThumbsUp,
   MessagesSquare,
   CheckCircle2,
-  MoreVertical,
+  MoreHorizontal,
   Trash2,
   Bookmark,
 } from "lucide-react";
@@ -89,7 +77,13 @@ function WhatsAppIcon({ className }: { className?: string }) {
   );
 }
 
-export function RequestCard({
+function urgencyChipClass(urgency: FeedRequest["urgency"]) {
+  if (urgency === "critical") return "bg-destructive/12 text-destructive";
+  if (urgency === "urgent") return "bg-amber-500/12 text-amber-700 dark:text-amber-400";
+  return "bg-primary/10 text-primary";
+}
+
+function RequestCardInner({
   request: r,
   currentUserId,
   onChanged,
@@ -102,6 +96,10 @@ export function RequestCard({
 }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
+  const chrome = useFeedCardChrome();
+  const messaging = chrome.messaging;
+  const donationFlow = chrome.donationFlow;
+  const showManagedMenu = chrome.enableManagedButton;
   const [liked, setLiked] = useState(!!r.liked);
   const [saved, setSaved] = useState(!!r.saved);
   const [likeCount, setLikeCount] = useState(r.like_count ?? 0);
@@ -110,22 +108,11 @@ export function RequestCard({
   const [managing, setManaging] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [completingMode, setCompletingMode] = useState(false);
-  const [showManagedMenu, setShowManagedMenu] = useState(true);
-  const [donationFlow, setDonationFlow] = useState<DonationFlowSettings>(DEFAULT_DONATION_FLOW_SETTINGS);
-  const [messaging, setMessaging] = useState<MessagingSettings>(DEFAULT_MESSAGING_SETTINGS);
   const urgencyAnim = useUrgencyAnimationSettings();
 
   useEffect(() => {
     if (r.donation_completion_open) setCompletingMode(true);
   }, [r.donation_completion_open, r.id]);
-
-  useEffect(() => {
-    fetchNotificationSettings().then((s) => {
-      setShowManagedMenu(s.enable_managed_button);
-    });
-    fetchDonationFlowSettings().then(setDonationFlow);
-    fetchMessagingSettings().then(setMessaging);
-  }, []);
 
   useEffect(() => {
     setLiked(!!r.liked);
@@ -152,7 +139,10 @@ export function RequestCard({
       : r.urgency === "urgent"
         ? urgencyAnim.urgent
         : null;
-  const showBackdrop = !!levelCfg?.enabled;
+  const showBackdrop = !!levelCfg?.enabled && r.urgency === "critical";
+  const cleanNotes = stripCommunityMetaFromNotes(r.notes);
+  const displayName =
+    r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User");
 
   async function toggleLike() {
     if (!user) return;
@@ -243,29 +233,21 @@ export function RequestCard({
     try {
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         try {
-          // Text-only avoids ShareData validation errors on some browsers when URL is also in text
           await navigator.share({ title: "BloodLink", text: payload });
           return;
         } catch (err) {
           if ((err as Error)?.name === "AbortError") return;
-          // Fall through to clipboard / WhatsApp
         }
       }
-
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload);
-        toast.success(
-          lang === "bn" ? "শেয়ার টেক্সট কপি হয়েছে" : "Share text copied",
-        );
+        toast.success(lang === "bn" ? "শেয়ার টেক্সট কপি হয়েছে" : "Share text copied");
         return;
       }
-
-      const wa = `https://wa.me/?text=${encodeURIComponent(payload)}`;
-      window.open(wa, "_blank", "noopener,noreferrer");
+      window.open(`https://wa.me/?text=${encodeURIComponent(payload)}`, "_blank", "noopener,noreferrer");
     } catch {
       try {
-        const wa = `https://wa.me/?text=${encodeURIComponent(payload)}`;
-        window.open(wa, "_blank", "noopener,noreferrer");
+        window.open(`https://wa.me/?text=${encodeURIComponent(payload)}`, "_blank", "noopener,noreferrer");
       } catch {
         toast.error(lang === "bn" ? "শেয়ার করা যায়নি" : "Could not share");
       }
@@ -293,9 +275,7 @@ export function RequestCard({
 
   async function deletePost() {
     const ok = confirm(
-      lang === "bn"
-        ? "এই পোস্ট স্থায়ীভাবে মুছবেন?"
-        : "Permanently delete this post?",
+      lang === "bn" ? "এই পোস্ট স্থায়ীভাবে মুছবেন?" : "Permanently delete this post?",
     );
     if (!ok) return;
     setDeleting(true);
@@ -306,138 +286,112 @@ export function RequestCard({
     onChanged?.();
   }
 
-  const urgencyStyle =
-    r.urgency === "critical"
-      ? "from-destructive/90 to-destructive text-destructive-foreground"
-      : r.urgency === "urgent"
-        ? "from-[color:var(--urgent)] to-amber-600 text-white"
-        : "from-primary to-primary/80 text-primary-foreground";
+  const ownerMenu =
+    isOwner && r.status === "open" ? (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={managing || deleting}
+            className="h-9 w-9 rounded-full grid place-items-center text-muted-foreground hover:bg-muted transition shrink-0"
+            aria-label={lang === "bn" ? "আরও অপশন" : "More options"}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {showManagedMenu && (
+            <DropdownMenuItem disabled={managing} onClick={() => void markManaged()}>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              {donationLabel(donationFlow, "complete_menu", lang)}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            disabled={deleting}
+            onClick={() => void deletePost()}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+            {lang === "bn" ? "পোস্ট ডিলিট" : "Delete post"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : null;
 
   return (
     <article
-      className={`ua-anim-root relative rounded-2xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow ${
-        highlighted
-          ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
-          : ""
+      className={`ua-anim-root relative bg-card content-visibility-auto ${
+        highlighted ? "ring-2 ring-inset ring-primary/40" : ""
       }`}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 420px" }}
     >
       {showBackdrop && levelCfg && <UrgencyDropletBackdrop config={levelCfg} className="z-0" />}
 
-      <div
-        className={`relative z-[1] bg-gradient-to-r ${urgencyStyle} px-4 py-2.5 flex items-center justify-between gap-2`}
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          {levelCfg && <UrgencyHeaderIcon config={levelCfg} />}
-          <span className="text-lg font-bold tracking-tight">{r.blood_group}</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider opacity-90 px-2 py-0.5 rounded-md bg-black/15">
-            {t(r.urgency)}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[10px] opacity-90">{timeAgo(r.created_at, lang)}</span>
-          {isOwner && r.status === "open" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  disabled={managing || deleting}
-                  className="h-8 w-8 rounded-lg grid place-items-center hover:bg-black/15 transition"
-                  aria-label={lang === "bn" ? "আরও অপশন" : "More options"}
+      {/* FB header: avatar · name · time · chips · menu */}
+      <div className="relative z-[1] flex items-start gap-2.5 px-3 pt-3 pb-2">
+        {isOwner ? (
+          <Avatar name={r.requester?.full_name} src={r.requester?.avatar_url ?? undefined} size={40} />
+        ) : (
+          <Link
+            to="/profile/$userId"
+            params={{ userId: r.requester_id }}
+            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            aria-label={lang === "bn" ? "প্রোফাইল দেখুন" : "View profile"}
+          >
+            <Avatar name={r.requester?.full_name} src={r.requester?.avatar_url ?? undefined} size={40} />
+          </Link>
+        )}
+        <div className="min-w-0 flex-1 pt-0.5">
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              {isOwner ? (
+                <h3 className="text-[15px] font-semibold leading-snug truncate">{displayName}</h3>
+              ) : (
+                <Link
+                  to="/profile/$userId"
+                  params={{ userId: r.requester_id }}
+                  className="text-[15px] font-semibold leading-snug truncate block hover:underline"
                 >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                {showManagedMenu && (
-                  <DropdownMenuItem disabled={managing} onClick={() => void markManaged()}>
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    {donationLabel(donationFlow, "complete_menu", lang)}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  disabled={deleting}
-                  onClick={() => void deletePost()}
-                  className="text-destructive focus:text-destructive"
+                  {displayName}
+                </Link>
+              )}
+              <p className="mt-0.5 text-[12px] text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span>{timeAgo(r.created_at, lang)}</span>
+                <span className="text-muted-foreground/40">·</span>
+                <span
+                  className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${urgencyChipClass(r.urgency)}`}
                 >
-                  <Trash2 className="h-4 w-4" />
-                  {lang === "bn" ? "পোস্ট ডিলিট" : "Delete post"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+                  {t(r.urgency)}
+                </span>
+                <span className="inline-flex items-center rounded-md bg-primary/10 text-primary px-1.5 py-0.5 text-[11px] font-bold tabular-nums">
+                  {r.blood_group}
+                </span>
+              </p>
+            </div>
+            {ownerMenu}
+          </div>
         </div>
       </div>
 
-      <div className="relative z-[1] p-4 space-y-3 bg-card/92">
-        <div className="flex items-start gap-3 min-w-0">
-          {isOwner ? (
-            <Avatar
-              name={r.requester?.full_name}
-              src={r.requester?.avatar_url ?? undefined}
-              size={40}
-            />
-          ) : (
-            <Link
-              to="/profile/$userId"
-              params={{ userId: r.requester_id }}
-              className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              aria-label={lang === "bn" ? "প্রোফাইল দেখুন" : "View profile"}
-            >
-              <Avatar
-                name={r.requester?.full_name}
-                src={r.requester?.avatar_url ?? undefined}
-                size={40}
-              />
-            </Link>
-          )}
-          <div className="min-w-0 flex-1">
-            {isOwner ? (
-              <h3 className="text-base font-semibold tracking-tight truncate">
-                {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
-              </h3>
-            ) : (
-              <Link
-                to="/profile/$userId"
-                params={{ userId: r.requester_id }}
-                className="text-base font-semibold tracking-tight truncate block hover:underline"
-              >
-                {r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User")}
-              </Link>
-            )}
-            <p className="mt-0.5 text-xs text-muted-foreground truncate">
-              <span className="text-muted-foreground/80">
-                {lang === "bn" ? "রোগী" : "Patient"}
-              </span>
-              <span className="mx-1 text-muted-foreground/50">·</span>
-              <span className="font-medium text-foreground/85">{r.patient_name}</span>
-            </p>
-            <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
-              <Droplets className="h-3.5 w-3.5 text-primary shrink-0" />
-              {r.bags_needed} {lang === "bn" ? "ব্যাগ প্রয়োজন" : "bag(s) needed"}
-            </p>
-            {r.need_reason_label && (
-              <p className="mt-1 text-[11px] text-primary/90 font-medium truncate">
-                {lang === "bn" ? "কারণ" : "Reason"} · {r.need_reason_label}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {r.image_url && (
-          <div className="overflow-hidden rounded-xl border border-border/60 -mx-0.5">
-            <CarouselRemoteImage
-              src={r.image_url}
-              className="aspect-[4/3] w-full"
-              maxWidth={900}
-              loading="lazy"
-            />
-          </div>
+      {/* Post copy */}
+      <div className="relative z-[1] px-3 pb-2 space-y-1.5">
+        <p className="text-[15px] leading-snug text-foreground">
+          <span className="font-semibold">{r.patient_name}</span>
+          <span className="text-muted-foreground">
+            {" "}
+            · {r.bags_needed} {lang === "bn" ? "ব্যাগ" : "bag(s)"} {r.blood_group}
+          </span>
+        </p>
+        {r.need_reason_label && (
+          <p className="text-[13px] text-foreground/85 leading-snug">{r.need_reason_label}</p>
         )}
-
-        <div className="space-y-1.5 text-xs text-muted-foreground">
-          <p className="flex items-start gap-1.5">
-            <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <span className="min-w-0 leading-relaxed">
+        {cleanNotes && (
+          <p className="text-[14px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{cleanNotes}</p>
+        )}
+        {(hospitalName || upazilaName || distName || r.city) && (
+          <p className="flex items-start gap-1.5 text-[13px] text-muted-foreground pt-0.5">
+            <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary/80" />
+            <span className="min-w-0 leading-snug">
               {hospitalName && (
                 <span className="inline-flex items-center gap-1 max-w-full align-middle">
                   <span className="font-medium text-foreground/90 break-words">{hospitalName}</span>
@@ -448,8 +402,7 @@ export function RequestCard({
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
                       title={lang === "bn" ? "ম্যাপে দেখুন" : "Open in Maps"}
-                      aria-label={lang === "bn" ? "ম্যাপে দেখুন" : "Open in Maps"}
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-primary hover:bg-primary/10 transition"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary/10"
                     >
                       <MapPinned className="h-3.5 w-3.5" />
                     </a>
@@ -457,68 +410,91 @@ export function RequestCard({
                 </span>
               )}
               {(upazilaName || distName || r.city) && (
-                <span className={hospitalName ? "text-muted-foreground" : undefined}>
+                <span>
                   {hospitalName ? " · " : ""}
                   {[upazilaName, distName || r.city].filter(Boolean).join(" · ")}
                 </span>
               )}
             </span>
           </p>
-          <p className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
-            {new Date(r.needed_by).toLocaleString(lang === "bn" ? "bn-BD" : "en-US", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </p>
+        )}
+        <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          {new Date(r.needed_by).toLocaleString(lang === "bn" ? "bn-BD" : "en-US", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
+        </p>
+      </div>
+
+      {/* Full-bleed media */}
+      {r.image_url && (
+        <div className="relative z-[1] bg-muted/30">
+          <CarouselRemoteImage
+            src={r.image_url}
+            className="aspect-[4/3] w-full sm:aspect-[16/10]"
+            maxWidth={720}
+            loading="lazy"
+          />
         </div>
+      )}
 
-        {(() => {
-          const cleanNotes = stripCommunityMetaFromNotes(r.notes);
-          if (!cleanNotes) return null;
-          return (
-            <p className="text-xs leading-relaxed text-foreground/80 bg-muted/40 rounded-xl px-3 py-2">
-              {cleanNotes}
-            </p>
-          );
-        })()}
+      {/* Engagement summary */}
+      {(likeCount > 0 || commentCount > 0) && (
+        <div className="relative z-[1] px-3 py-2 flex items-center justify-between text-[13px] text-muted-foreground">
+          <span className="tabular-nums">
+            {likeCount > 0
+              ? `${likeCount} ${lang === "bn" ? "লাইক" : likeCount === 1 ? "like" : "likes"}`
+              : ""}
+          </span>
+          <span className="tabular-nums">
+            {commentCount > 0
+              ? `${commentCount} ${lang === "bn" ? "কমেন্ট" : commentCount === 1 ? "comment" : "comments"}`
+              : ""}
+          </span>
+        </div>
+      )}
 
-        <DonationPanel
-          requestId={r.id}
-          requesterId={r.requester_id}
-          bagsNeeded={r.bags_needed}
-          status={r.status}
-          isOwner={isOwner}
-          onChanged={onChanged}
-          completionOpen={!!r.donation_completion_open}
-          completingMode={completingMode}
-          onExitCompleting={() => setCompletingMode(false)}
-          onReopenCompleting={() => setCompletingMode(true)}
-        />
+      {/* FB action bar: Like · Comment · Share (+ compact extras) */}
+      <div className="relative z-[1] mx-3 border-t border-border/60 flex items-stretch">
+        {messaging.post_icons.like && (
+          <button
+            type="button"
+            onClick={toggleLike}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold rounded-lg hover:bg-muted/70 transition ${
+              liked ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <ThumbsUp className="h-[18px] w-[18px]" fill={liked ? "currentColor" : "none"} strokeWidth={2} />
+            {lang === "bn" ? "লাইক" : "Like"}
+          </button>
+        )}
+        {messaging.post_icons.comment && (
+          <button
+            type="button"
+            onClick={() => setShowComments(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold text-muted-foreground rounded-lg hover:bg-muted/70 transition"
+          >
+            <MessagesSquare className="h-[18px] w-[18px]" strokeWidth={2} />
+            {lang === "bn" ? "কমেন্ট" : "Comment"}
+          </button>
+        )}
+        {messaging.post_icons.share && (
+          <button
+            type="button"
+            onClick={() => void share()}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[13px] font-semibold text-muted-foreground rounded-lg hover:bg-muted/70 transition"
+          >
+            <Share2 className="h-[18px] w-[18px]" strokeWidth={2} />
+            {t("share")}
+          </button>
+        )}
+      </div>
 
-        <div className="flex items-center pt-1 border-t">
-          {messaging.post_icons.like && (
-            <button
-              type="button"
-              onClick={toggleLike}
-              className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
-                liked ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              <ThumbsUp className="h-4 w-4 shrink-0" fill={liked ? "currentColor" : "none"} />
-              <span className="tabular-nums">{likeCount}</span>
-            </button>
-          )}
-          {messaging.post_icons.comment && (
-            <button
-              type="button"
-              onClick={() => setShowComments(true)}
-              className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
-            >
-              <MessagesSquare className="h-4 w-4 shrink-0" />
-              <span className="tabular-nums">{commentCount}</span>
-            </button>
-          )}
+      {/* Compact contact / save row — only when useful */}
+      {((!isOwner && (messaging.post_icons.chat || (phone && messaging.post_icons.phone) || (waLink && messaging.post_icons.whatsapp))) ||
+        messaging.post_icons.save) && (
+        <div className="relative z-[1] px-3 pb-2.5 flex items-center gap-1.5">
           {!isOwner && messaging.post_icons.chat && (
             <Link
               to="/chat/$peerId"
@@ -531,17 +507,17 @@ export function RequestCard({
                   /* ignore */
                 }
               }}
-              className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+              className="h-9 flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-muted/60 text-foreground text-[12px] font-medium hover:bg-muted transition"
             >
-              <MessengerIcon className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">{t("chat")}</span>
+              <MessengerIcon className="h-3.5 w-3.5" />
+              {t("chat")}
             </Link>
           )}
           {!isOwner && phone && messaging.post_icons.phone && (
             <a
               href={`tel:${phone.replace(/\s/g, "")}`}
-              title={lang === "bn" ? "এখনই কল করুন" : "Call now"}
-              className="flex flex-1 min-w-0 items-center justify-center rounded-xl px-1 py-2 text-primary hover:bg-primary/10 transition"
+              className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/15 transition"
+              title={lang === "bn" ? "কল" : "Call"}
             >
               <Phone className="h-4 w-4" />
             </a>
@@ -551,8 +527,8 @@ export function RequestCard({
               href={waLink}
               target="_blank"
               rel="noreferrer"
+              className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/15 transition"
               title="WhatsApp"
-              className="flex flex-1 min-w-0 items-center justify-center rounded-xl px-1 py-2 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/10 transition"
             >
               <WhatsAppIcon className="h-4 w-4" />
             </a>
@@ -561,27 +537,34 @@ export function RequestCard({
             <button
               type="button"
               onClick={() => void onToggleSave()}
-              className={`flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium transition hover:bg-muted ${
-                saved ? "text-primary" : "text-muted-foreground"
+              className={`h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-lg transition ${
+                saved ? "bg-primary/10 text-primary" : "bg-muted/60 text-muted-foreground hover:bg-muted"
               }`}
               title={lang === "bn" ? "সেভ" : "Save"}
             >
-              <Bookmark className="h-4 w-4 shrink-0" fill={saved ? "currentColor" : "none"} />
-              <span className="hidden sm:inline">{lang === "bn" ? "সেভ" : "Save"}</span>
-            </button>
-          )}
-          {messaging.post_icons.share && (
-            <button
-              type="button"
-              onClick={() => void share()}
-              className="flex flex-1 min-w-0 items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
-            >
-              <Share2 className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">{t("share")}</span>
+              <Bookmark className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
             </button>
           )}
         </div>
+      )}
 
+      <div className="relative z-[1] px-3 pb-3">
+        <DonationPanel
+          requestId={r.id}
+          requesterId={r.requester_id}
+          bagsNeeded={r.bags_needed}
+          status={r.status}
+          isOwner={isOwner}
+          onChanged={onChanged}
+          completionOpen={!!r.donation_completion_open}
+          completingMode={completingMode}
+          onExitCompleting={() => setCompletingMode(false)}
+          onReopenCompleting={() => setCompletingMode(true)}
+          compact
+        />
+      </div>
+
+      {showComments && (
         <CommentsSheet
           requestId={r.id}
           open={showComments}
@@ -593,7 +576,20 @@ export function RequestCard({
             onChanged?.();
           }}
         />
-      </div>
+      )}
+
+      {messaging.feed_show_post_divider && messaging.feed_post_divider_height_px > 0 && (
+        <div
+          className="relative z-[1] w-full shrink-0"
+          style={{
+            height: messaging.feed_post_divider_height_px,
+            backgroundColor: messaging.feed_post_divider_color,
+          }}
+          aria-hidden
+        />
+      )}
     </article>
   );
 }
+
+export const RequestCard = memo(RequestCardInner);
