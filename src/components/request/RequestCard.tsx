@@ -7,6 +7,7 @@ import { timeAgo } from "@/lib/format";
 import { whatsappHref } from "@/lib/request-form-options";
 import { donationLabel } from "@/lib/donation-flow-settings";
 import { applySmsTemplate } from "@/lib/messaging-settings";
+import { extractPostNotes } from "@/lib/post-text-styles";
 import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
 import { useFeedCardChrome } from "@/hooks/useFeedCardChrome";
 import {
@@ -19,10 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  MapPin,
-  MapPinned,
   Phone,
-  Clock,
   Share2,
   ThumbsUp,
   MessagesSquare,
@@ -35,9 +33,9 @@ import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { DonationPanel } from "@/components/request/DonationPanel";
 import { CommentsSheet } from "@/components/request/CommentsSheet";
+import { RequestPostBody } from "@/components/request/RequestPostBody";
 import { CarouselRemoteImage } from "@/components/feed/CarouselRemoteImage";
 import { toggleSave } from "@/lib/request-saves";
-import { stripCommunityMetaFromNotes } from "@/lib/community-request-contacts";
 import { toast } from "sonner";
 
 export type FeedRequest = {
@@ -125,11 +123,7 @@ function RequestCardInner({
   const upazilaName = r.area?.trim() || null;
   const hospitalName = r.hospital_name?.trim() || "";
   const placeParts = [hospitalName, upazilaName, distName || r.city].filter(Boolean);
-  const mapsQuery = placeParts.join(", ");
   const locationLabel = placeParts.join(" · ");
-  const mapsHref = mapsQuery
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
-    : null;
   const isOwner = !!currentUserId && r.requester_id === currentUserId;
   const phone = r.contact_phone?.trim() || null;
   const waLink = r.whatsapp_phone?.trim() ? whatsappHref(r.whatsapp_phone.trim()) : null;
@@ -139,8 +133,7 @@ function RequestCardInner({
       : r.urgency === "urgent"
         ? urgencyAnim.urgent
         : null;
-  const showBackdrop = !!levelCfg?.enabled && r.urgency === "critical";
-  const cleanNotes = stripCommunityMetaFromNotes(r.notes);
+  const showBackdrop = !!levelCfg?.enabled;
   const displayName =
     r.requester?.full_name?.trim() || (lang === "bn" ? "ব্যবহারকারী" : "User");
 
@@ -213,7 +206,7 @@ function RequestCardInner({
       bags: r.bags_needed,
       urgency: r.urgency,
       contact: phone,
-      notes: r.notes,
+      notes: extractPostNotes(r.notes).text,
       link: url,
     });
     const payload = text.includes(url) || !url ? text : `${text}\n${url}`.trim();
@@ -325,10 +318,12 @@ function RequestCardInner({
       }`}
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 420px" }}
     >
-      {showBackdrop && levelCfg && <UrgencyDropletBackdrop config={levelCfg} className="z-0" />}
+      {showBackdrop && levelCfg && (
+        <UrgencyDropletBackdrop config={levelCfg} className="z-[6]" />
+      )}
 
       {/* FB header: avatar · name · time · chips · menu */}
-      <div className="relative z-[1] flex items-start gap-2.5 px-3 pt-3 pb-2">
+      <div className="relative z-[7] flex items-start gap-2.5 px-3 pt-3 pb-2">
         {isOwner ? (
           <Avatar name={r.requester?.full_name} src={r.requester?.avatar_url ?? undefined} size={40} />
         ) : (
@@ -373,59 +368,20 @@ function RequestCardInner({
         </div>
       </div>
 
-      {/* Post copy */}
-      <div className="relative z-[1] px-3 pb-2 space-y-1.5">
-        <p className="text-[15px] leading-snug text-foreground">
-          <span className="font-semibold">{r.patient_name}</span>
-          <span className="text-muted-foreground">
-            {" "}
-            · {r.bags_needed} {lang === "bn" ? "ব্যাগ" : "bag(s)"} {r.blood_group}
-          </span>
-        </p>
-        {r.need_reason_label && (
-          <p className="text-[13px] text-foreground/85 leading-snug">{r.need_reason_label}</p>
-        )}
-        {cleanNotes && (
-          <p className="text-[14px] leading-relaxed text-foreground/90 whitespace-pre-wrap">{cleanNotes}</p>
-        )}
-        {(hospitalName || upazilaName || distName || r.city) && (
-          <p className="flex items-start gap-1.5 text-[13px] text-muted-foreground pt-0.5">
-            <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary/80" />
-            <span className="min-w-0 leading-snug">
-              {hospitalName && (
-                <span className="inline-flex items-center gap-1 max-w-full align-middle">
-                  <span className="font-medium text-foreground/90 break-words">{hospitalName}</span>
-                  {mapsHref && (
-                    <a
-                      href={mapsHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      title={lang === "bn" ? "ম্যাপে দেখুন" : "Open in Maps"}
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary/10"
-                    >
-                      <MapPinned className="h-3.5 w-3.5" />
-                    </a>
-                  )}
-                </span>
-              )}
-              {(upazilaName || distName || r.city) && (
-                <span>
-                  {hospitalName ? " · " : ""}
-                  {[upazilaName, distName || r.city].filter(Boolean).join(" · ")}
-                </span>
-              )}
-            </span>
-          </p>
-        )}
-        <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-          <Clock className="h-3.5 w-3.5 shrink-0" />
-          {new Date(r.needed_by).toLocaleString(lang === "bn" ? "bn-BD" : "en-US", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </p>
-      </div>
+      <RequestPostBody
+        lang={lang}
+        patient_name={r.patient_name}
+        blood_group={r.blood_group}
+        bags_needed={r.bags_needed}
+        hospital_name={r.hospital_name}
+        area={r.area}
+        city={r.city}
+        districtName={distName}
+        needed_by={r.needed_by}
+        notes={r.notes}
+        need_reason_label={r.need_reason_label}
+        factSettings={messaging}
+      />
 
       {/* Full-bleed media */}
       {r.image_url && (
@@ -441,7 +397,7 @@ function RequestCardInner({
 
       {/* Engagement summary */}
       {(likeCount > 0 || commentCount > 0) && (
-        <div className="relative z-[1] px-3 py-2 flex items-center justify-between text-[13px] text-muted-foreground">
+        <div className="relative z-[7] px-3 py-2 flex items-center justify-between text-[13px] text-muted-foreground">
           <span className="tabular-nums">
             {likeCount > 0
               ? `${likeCount} ${lang === "bn" ? "লাইক" : likeCount === 1 ? "like" : "likes"}`
@@ -456,7 +412,7 @@ function RequestCardInner({
       )}
 
       {/* One-line action bar: Like · Comment · Share · Chat · Call · WA · Save */}
-      <div className="relative z-[1] mx-3 border-t border-border/60 flex items-center gap-0.5 py-0.5">
+      <div className="relative z-[7] mx-3 border-t border-border/60 flex items-center gap-0.5 py-0.5">
         {messaging.post_icons.like && (
           <button
             type="button"
@@ -545,7 +501,7 @@ function RequestCardInner({
         )}
       </div>
 
-      <div className="relative z-[1] px-3 pb-3">
+      <div className="relative z-[7] px-3 pb-3">
         <DonationPanel
           requestId={r.id}
           requesterId={r.requester_id}

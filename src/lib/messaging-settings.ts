@@ -62,6 +62,17 @@ export type MessagingSettings = {
   feed_post_divider_color: string;
   /** Divider thickness in px */
   feed_post_divider_height_px: number;
+  /** Feed post facts above notes */
+  feed_show_patient_line: boolean;
+  feed_patient_label_bn: string;
+  feed_patient_label_en: string;
+  feed_show_blood_bags_line: boolean;
+  /** Placeholders: {{blood_group}} {{bags}} */
+  feed_blood_bags_template_bn: string;
+  feed_blood_bags_template_en: string;
+  feed_show_reason_line: boolean;
+  feed_reason_label_bn: string;
+  feed_reason_label_en: string;
 };
 
 export const DEFAULT_POST_ICONS: PostIconSettings = {
@@ -104,6 +115,15 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   feed_show_post_divider: true,
   feed_post_divider_color: "#E4E6EB",
   feed_post_divider_height_px: 8,
+  feed_show_patient_line: true,
+  feed_patient_label_bn: "রোগীঃ",
+  feed_patient_label_en: "Patient:",
+  feed_show_blood_bags_line: true,
+  feed_blood_bags_template_bn: "{{blood_group}} {{bags}} ব্যাগ রক্ত প্রয়োজন",
+  feed_blood_bags_template_en: "{{blood_group}} {{bags}} bag(s) of blood needed",
+  feed_show_reason_line: true,
+  feed_reason_label_bn: "সমস্যাঃ",
+  feed_reason_label_en: "Problem:",
 };
 
 export type SmsTemplateVars = Record<string, string | number | null | undefined>;
@@ -247,6 +267,42 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       }
       return Math.min(48, Math.floor(h));
     })(),
+    feed_show_patient_line:
+      typeof r.feed_show_patient_line === "boolean"
+        ? r.feed_show_patient_line
+        : DEFAULT_MESSAGING_SETTINGS.feed_show_patient_line,
+    feed_patient_label_bn: strLabel(
+      r.feed_patient_label_bn,
+      DEFAULT_MESSAGING_SETTINGS.feed_patient_label_bn,
+    ),
+    feed_patient_label_en: strLabel(
+      r.feed_patient_label_en,
+      DEFAULT_MESSAGING_SETTINGS.feed_patient_label_en,
+    ),
+    feed_show_blood_bags_line:
+      typeof r.feed_show_blood_bags_line === "boolean"
+        ? r.feed_show_blood_bags_line
+        : DEFAULT_MESSAGING_SETTINGS.feed_show_blood_bags_line,
+    feed_blood_bags_template_bn: strLabel(
+      r.feed_blood_bags_template_bn,
+      DEFAULT_MESSAGING_SETTINGS.feed_blood_bags_template_bn,
+    ),
+    feed_blood_bags_template_en: strLabel(
+      r.feed_blood_bags_template_en,
+      DEFAULT_MESSAGING_SETTINGS.feed_blood_bags_template_en,
+    ),
+    feed_show_reason_line:
+      typeof r.feed_show_reason_line === "boolean"
+        ? r.feed_show_reason_line
+        : DEFAULT_MESSAGING_SETTINGS.feed_show_reason_line,
+    feed_reason_label_bn: strLabel(
+      r.feed_reason_label_bn,
+      DEFAULT_MESSAGING_SETTINGS.feed_reason_label_bn,
+    ),
+    feed_reason_label_en: strLabel(
+      r.feed_reason_label_en,
+      DEFAULT_MESSAGING_SETTINGS.feed_reason_label_en,
+    ),
   };
 }
 

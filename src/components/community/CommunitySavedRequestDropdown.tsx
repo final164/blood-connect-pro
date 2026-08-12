@@ -10,7 +10,6 @@ import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
 import { ensureCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
 import {
-  NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
   fetchNeedReasonCatalog,
   isCustomNeedReason,
@@ -19,6 +18,12 @@ import {
   type NeedReasonCatalog,
   type NeedReasonCategory,
 } from "@/lib/need-reason-catalog";
+import { RequestNotesFields } from "@/components/request/RequestNotesFields";
+import {
+  extractPostNotes,
+  withPostTextStyle,
+  type PostTextStyleId,
+} from "@/lib/post-text-styles";
 import {
   DEFAULT_REQUEST_FORM_OPTIONS,
   fetchRequestFormOptions,
@@ -56,15 +61,11 @@ function emptyForm(blood: string = "O+") {
 
 /** Button like Send SMS — opens full request form to fill & save for icon autofill. */
 export function CommunitySavedRequestDropdown({
-  defaultDistrict,
-  defaultUpazila,
   draft,
   onDraftChange,
   emptyLabelBn,
   emptyLabelEn,
 }: {
-  defaultDistrict: District | null;
-  defaultUpazila?: string;
   draft: CommunityRequestDraft | null;
   onDraftChange: (d: CommunityRequestDraft | null) => void;
   emptyLabelBn?: string;
@@ -96,8 +97,6 @@ export function CommunitySavedRequestDropdown({
       <CommunityRequestDraftSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        defaultDistrict={defaultDistrict}
-        defaultUpazila={defaultUpazila ?? ""}
         draft={draft}
         onSaved={(d) => {
           onDraftChange(d);
@@ -115,16 +114,12 @@ export function CommunitySavedRequestDropdown({
 function CommunityRequestDraftSheet({
   open,
   onClose,
-  defaultDistrict,
-  defaultUpazila,
   draft,
   onSaved,
   onCleared,
 }: {
   open: boolean;
   onClose: () => void;
-  defaultDistrict: District | null;
-  defaultUpazila: string;
   draft: CommunityRequestDraft | null;
   onSaved: (d: CommunityRequestDraft) => void;
   onCleared: () => void;
@@ -132,13 +127,14 @@ function CommunityRequestDraftSheet({
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const [opts, setOpts] = useState<RequestFormOptions>(DEFAULT_REQUEST_FORM_OPTIONS);
-  const [district, setDistrict] = useState<District | null>(defaultDistrict);
-  const [upazila, setUpazila] = useState(defaultUpazila);
+  const [district, setDistrict] = useState<District | null>(null);
+  const [upazila, setUpazila] = useState("");
   const [hospital, setHospital] = useState<Hospital | null>(null);
   const [categories, setCategories] = useState<NeedReasonCategory[]>([]);
   const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
   const [reasonKey, setReasonKey] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [textStyleId, setTextStyleId] = useState<PostTextStyleId>("none");
   const [setDateTime, setSetDateTime] = useState(true);
   const [form, setForm] = useState(emptyForm());
   const [postOnSave, setPostOnSave] = useState(
@@ -150,28 +146,34 @@ function CommunityRequestDraftSheet({
     if (!open) return;
     const existing = draft ?? (user?.id ? loadCommunityRequestDraft(user.id) : null);
     if (existing && communityRequestDraftFilled(existing)) {
-      setDistrict(existing.district ?? defaultDistrict);
-      setUpazila(existing.upazila || defaultUpazila);
+      setDistrict(existing.district ?? null);
+      setUpazila(existing.upazila || "");
       setHospital(existing.hospital);
       setReasonKey(existing.reasonKey);
       setCustomReason(existing.customReason);
       setSetDateTime(existing.setDateTime);
-      setForm({
-        patient_name: existing.patient_name,
-        blood_group: (existing.blood_group as (typeof BLOOD_GROUPS)[number]) || "O+",
-        bags_needed: existing.bags_needed,
-        needed_by: existing.needed_by,
-        urgency: existing.urgency,
-        notes: existing.notes,
-        contact_phone: existing.contact_phone || "",
-        whatsapp_phone: existing.whatsapp_phone || "",
-      });
+      {
+        const parsed = extractPostNotes(existing.notes);
+        setTextStyleId(parsed.styleId);
+        setForm({
+          patient_name: existing.patient_name,
+          blood_group: (existing.blood_group as (typeof BLOOD_GROUPS)[number]) || "O+",
+          bags_needed: existing.bags_needed,
+          needed_by: existing.needed_by,
+          urgency: existing.urgency,
+          notes: parsed.text,
+          contact_phone: existing.contact_phone || "",
+          whatsapp_phone: existing.whatsapp_phone || "",
+        });
+      }
     } else {
-      setDistrict(defaultDistrict);
-      setUpazila(defaultUpazila);
+      // Empty Save request: do not prefill district/upazila from community filters
+      setDistrict(null);
+      setUpazila("");
       setHospital(null);
       setReasonKey("");
       setCustomReason("");
+      setTextStyleId("none");
       setSetDateTime(true);
       setForm(emptyForm());
       if (user?.id) {
@@ -193,13 +195,12 @@ function CommunityRequestDraftSheet({
       setCategories(activeNeedReasons(c));
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
     });
-  }, [open, defaultDistrict, defaultUpazila, lang, draft, user?.id]);
+  }, [open, lang, draft, user?.id]);
 
   const selectedCategory = useMemo(
     () => categories.find((c) => c.id === reasonKey) ?? null,
     [categories, reasonKey],
   );
-  const suggestionChips = selectedCategory?.suggestions ?? [];
 
   function req(key: keyof RequestFormOptions) {
     return !opts[key];
@@ -245,7 +246,7 @@ function CommunityRequestDraftSheet({
       bags_needed: Math.max(1, form.bags_needed),
       needed_by: form.needed_by,
       urgency: form.urgency,
-      notes: form.notes.trim(),
+      notes: withPostTextStyle(form.notes, textStyleId),
       setDateTime,
       reasonKey,
       customReason: customReason.trim(),
@@ -293,7 +294,7 @@ function CommunityRequestDraftSheet({
         area: upazila.trim() || null,
         needed_by: neededBy,
         urgency: form.urgency,
-        notes: form.notes.trim() || null,
+        notes: withPostTextStyle(form.notes, textStyleId) || null,
         need_reason_key: reasonKey,
         need_reason_label: reasonLabel,
         contact_phone: form.contact_phone.trim() || null,
@@ -535,88 +536,34 @@ function CommunityRequestDraftSheet({
             />
           )}
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">
-              {reasonDisplayLang === "bn" ? "সমস্যার কারণ / রোগের ধরন" : "Reason / disease type"}
-            </label>
-            <select
-              className={field}
-              value={reasonKey}
-              onChange={(e) => {
-                setReasonKey(e.target.value);
-                if (!isCustomNeedReason(e.target.value)) setCustomReason("");
-              }}
-              required
-            >
-              <option value="">
-                {reasonDisplayLang === "bn" ? "কারণ নির্বাচন করুন…" : "Select a reason…"}
-              </option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {pickLocalized(c.label, reasonDisplayLang)}
-                </option>
-              ))}
-              <option value={NEED_REASON_CUSTOM_ID}>
-                {reasonDisplayLang === "bn" ? "কাস্টম (নিজে লিখুন)" : "Custom (write your own)"}
-              </option>
-            </select>
-            {isCustomNeedReason(reasonKey) && (
-              <input
-                className={field}
-                placeholder={
-                  reasonDisplayLang === "bn" ? "কাস্টম কারণ লিখুন…" : "Write custom reason…"
-                }
-                value={customReason}
-                onChange={(e) => setCustomReason(e.target.value)}
-                required
-              />
-            )}
-          </div>
-
-          {suggestionChips.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] text-muted-foreground">
-                {reasonDisplayLang === "bn"
-                  ? "নোট সাজেশন — ট্যাপ করে নিন (চাইলে এডিট করুন)"
-                  : "Note suggestions — tap to use (edit anytime)"}
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {suggestionChips.map((s, i) => {
-                  const text = pickLocalized(s, reasonDisplayLang);
-                  const active = form.notes.trim() === text.trim();
-                  return (
-                    <button
-                      key={`${reasonKey}-chip-${i}`}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, notes: text }))}
-                      className={`text-left rounded-xl border px-3 py-2 text-xs leading-relaxed transition ${
-                        active
-                          ? "border-primary bg-primary/10 text-foreground"
-                          : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                      }`}
-                    >
-                      {text}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <textarea
-            className={field}
-            rows={3}
-            placeholder={
-              opts.notes
-                ? ph(
-                    "নোট (ঐচ্ছিক) — সাজেশন থেকে নিন বা নিজে লিখুন",
-                    "Notes (optional) — pick a suggestion or write your own",
-                  )
-                : ph("নোট — সাজেশন থেকে নিন বা নিজে লিখুন", "Notes — pick a suggestion or write your own")
-            }
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            required={req("notes")}
+          <RequestNotesFields
+            reasonKey={reasonKey}
+            customReason={customReason}
+            notes={form.notes}
+            onReasonKeyChange={setReasonKey}
+            onCustomReasonChange={setCustomReason}
+            onNotesChange={(text) => setForm((f) => ({ ...f, notes: text }))}
+            textStyleId={textStyleId}
+            onTextStyleChange={setTextStyleId}
+            categories={categories}
+            reasonDisplayLang={reasonDisplayLang}
+            uiLang={lang}
+            notesOptional={opts.notes}
+            ph={ph}
+            fieldClassName={field}
+            preview={{
+              patient_name: form.patient_name,
+              blood_group: form.blood_group,
+              bags_needed: form.bags_needed,
+              hospital_name: hospital
+                ? lang === "bn"
+                  ? hospital.name_bn
+                  : hospital.name_en
+                : undefined,
+              area: upazila || null,
+              districtName: lang === "bn" ? district?.name_bn : district?.name_en,
+              needed_by: setDateTime && form.needed_by ? form.needed_by : undefined,
+            }}
           />
 
           <div className="flex gap-2">

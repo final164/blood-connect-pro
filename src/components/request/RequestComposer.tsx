@@ -15,7 +15,6 @@ import {
   type RequestFormOptions,
 } from "@/lib/request-form-options";
 import {
-  NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
   fetchNeedReasonCatalog,
   isCustomNeedReason,
@@ -24,6 +23,11 @@ import {
   type NeedReasonCatalog,
   type NeedReasonCategory,
 } from "@/lib/need-reason-catalog";
+import { RequestNotesFields } from "@/components/request/RequestNotesFields";
+import {
+  withPostTextStyle,
+  type PostTextStyleId,
+} from "@/lib/post-text-styles";
 import { uploadAppImage, fetchGoogleDriveSettings, canPasteImageUrl, canUploadImageFile, normalizePastedImageUrl, type GoogleDriveSettings, DEFAULT_GOOGLE_DRIVE_SETTINGS } from "@/lib/google-drive";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { saveCommunityRequestDraft } from "@/lib/community-request-draft";
@@ -51,6 +55,7 @@ export function RequestComposer({
   const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
   const [reasonKey, setReasonKey] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [textStyleId, setTextStyleId] = useState<PostTextStyleId>("none");
   const [setDateTime, setSetDateTime] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageLinkDraft, setImageLinkDraft] = useState("");
@@ -100,7 +105,6 @@ export function RequestComposer({
     () => categories.find((c) => c.id === reasonKey) ?? null,
     [categories, reasonKey],
   );
-  const suggestionChips = selectedCategory?.suggestions ?? [];
 
   function setUrgency(u: "normal" | "urgent" | "critical") {
     setForm((prev) => ({ ...prev, urgency: u }));
@@ -110,10 +114,6 @@ export function RequestComposer({
 
   function req(key: keyof RequestFormOptions) {
     return !opts[key];
-  }
-
-  function applySuggestion(text: string) {
-    setForm((prev) => ({ ...prev, notes: text }));
   }
 
   async function onPickImage(file: File | undefined) {
@@ -246,7 +246,7 @@ export function RequestComposer({
       area: upazila.trim() || null,
       needed_by: resolveNeededByIso(),
       urgency: form.urgency,
-      notes: form.notes.trim() || null,
+      notes: withPostTextStyle(form.notes, textStyleId) || null,
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
     };
@@ -291,7 +291,7 @@ export function RequestComposer({
       bags_needed: Math.max(1, form.bags_needed),
       needed_by: form.needed_by,
       urgency: form.urgency,
-      notes: form.notes.trim(),
+      notes: withPostTextStyle(form.notes, textStyleId),
       setDateTime,
       reasonKey,
       customReason: customReason.trim(),
@@ -312,6 +312,7 @@ export function RequestComposer({
     setUpazila("");
     setReasonKey("");
     setCustomReason("");
+    setTextStyleId("none");
     setSetDateTime(true);
     setImageUrl(null);
     setImageLinkDraft("");
@@ -531,89 +532,34 @@ export function RequestComposer({
         />
       )}
 
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-muted-foreground">
-          {reasonDisplayLang === "bn" ? "সমস্যার কারণ / রোগের ধরন" : "Reason / disease type"}
-        </label>
-        <select
-          className={field}
-          value={reasonKey}
-          onChange={(e) => {
-            setReasonKey(e.target.value);
-            if (!isCustomNeedReason(e.target.value)) setCustomReason("");
-          }}
-          required
-        >
-          <option value="">
-            {reasonDisplayLang === "bn" ? "কারণ নির্বাচন করুন…" : "Select a reason…"}
-          </option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {pickLocalized(c.label, reasonDisplayLang)}
-            </option>
-          ))}
-          <option value={NEED_REASON_CUSTOM_ID}>
-            {reasonDisplayLang === "bn" ? "কাস্টম (নিজে লিখুন)" : "Custom (write your own)"}
-          </option>
-        </select>
-
-        {isCustomNeedReason(reasonKey) && (
-          <input
-            className={field}
-            placeholder={
-              reasonDisplayLang === "bn" ? "কাস্টম কারণ লিখুন…" : "Write custom reason…"
-            }
-            value={customReason}
-            onChange={(e) => setCustomReason(e.target.value)}
-            required
-          />
-        )}
-      </div>
-
-      {suggestionChips.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[11px] text-muted-foreground">
-            {reasonDisplayLang === "bn"
-              ? "নোট সাজেশন — ট্যাপ করে নিন (চাইলে এডিট করুন)"
-              : "Note suggestions — tap to use (edit anytime)"}
-          </p>
-          <div className="flex flex-col gap-1.5">
-            {suggestionChips.map((s, i) => {
-              const text = pickLocalized(s, reasonDisplayLang);
-              const active = form.notes.trim() === text.trim();
-              return (
-                <button
-                  key={`${reasonKey}-chip-${i}`}
-                  type="button"
-                  onClick={() => applySuggestion(text)}
-                  className={`text-left rounded-xl border px-3 py-2 text-xs leading-relaxed transition ${
-                    active
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  }`}
-                >
-                  {text}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <textarea
-        className={field}
-        rows={3}
-        placeholder={
-          opts.notes
-            ? ph(
-                "নোট (ঐচ্ছিক) — সাজেশন থেকে নিন বা নিজে লিখুন",
-                "Notes (optional) — pick a suggestion or write your own",
-              )
-            : ph("নোট — সাজেশন থেকে নিন বা নিজে লিখুন", "Notes — pick a suggestion or write your own")
-        }
-        value={form.notes}
-        onChange={(e) => setForm({ ...form, notes: e.target.value })}
-        required={req("notes")}
+      <RequestNotesFields
+        reasonKey={reasonKey}
+        customReason={customReason}
+        notes={form.notes}
+        onReasonKeyChange={setReasonKey}
+        onCustomReasonChange={setCustomReason}
+        onNotesChange={(text) => setForm((prev) => ({ ...prev, notes: text }))}
+        textStyleId={textStyleId}
+        onTextStyleChange={setTextStyleId}
+        categories={categories}
+        reasonDisplayLang={reasonDisplayLang}
+        uiLang={lang}
+        notesOptional={opts.notes}
+        ph={ph}
+        fieldClassName={field}
+        preview={{
+          patient_name: form.patient_name,
+          blood_group: form.blood_group,
+          bags_needed: form.bags_needed,
+          hospital_name: hospital
+            ? lang === "bn"
+              ? hospital.name_bn
+              : hospital.name_en
+            : undefined,
+          area: upazila || null,
+          districtName: lang === "bn" ? district?.name_bn : district?.name_en,
+          needed_by: setDateTime && form.needed_by ? form.needed_by : undefined,
+        }}
       />
 
       {driveCfg.allow_post_image && (

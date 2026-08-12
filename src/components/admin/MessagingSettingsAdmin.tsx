@@ -394,6 +394,113 @@ export function MessagingSettingsAdmin() {
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "ফিড পোস্ট তথ্য (নোটের উপরে)" : "Feed post facts (above notes)"}
+        </h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          {lang === "bn"
+            ? "রোগী, রক্তের গ্রুপ/ব্যাগ ও সমস্যা লাইন চালু/বন্ধ এবং লেবেল। {{blood_group}} {{bags}} টেমপ্লেটে ব্যবহারযোগ্য।"
+            : "Show/hide patient, blood/bags, and problem lines; edit labels. Use {{blood_group}} {{bags}} in the bags template."}
+        </p>
+
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300">
+            {lang === "bn" ? "রোগীর নাম লাইন" : "Patient name line"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500"
+            checked={s.feed_show_patient_line}
+            onChange={(e) => setS({ ...s, feed_show_patient_line: e.target.checked })}
+          />
+        </label>
+        {s.feed_show_patient_line && (
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Label · BN</label>
+              <input
+                className={ainp}
+                value={s.feed_patient_label_bn}
+                onChange={(e) => setS({ ...s, feed_patient_label_bn: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Label · EN</label>
+              <input
+                className={ainp}
+                value={s.feed_patient_label_en}
+                onChange={(e) => setS({ ...s, feed_patient_label_en: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300">
+            {lang === "bn" ? "রক্তের গ্রুপ / ব্যাগ লাইন" : "Blood group / bags line"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500"
+            checked={s.feed_show_blood_bags_line}
+            onChange={(e) => setS({ ...s, feed_show_blood_bags_line: e.target.checked })}
+          />
+        </label>
+        {s.feed_show_blood_bags_line && (
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Template · BN</label>
+              <input
+                className={ainp}
+                value={s.feed_blood_bags_template_bn}
+                onChange={(e) => setS({ ...s, feed_blood_bags_template_bn: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Template · EN</label>
+              <input
+                className={ainp}
+                value={s.feed_blood_bags_template_en}
+                onChange={(e) => setS({ ...s, feed_blood_bags_template_en: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2 text-xs">
+          <span className="text-slate-300">
+            {lang === "bn" ? "সমস্যা / কারণ লাইন" : "Problem / reason line"}
+          </span>
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-rose-500"
+            checked={s.feed_show_reason_line}
+            onChange={(e) => setS({ ...s, feed_show_reason_line: e.target.checked })}
+          />
+        </label>
+        {s.feed_show_reason_line && (
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Label · BN</label>
+              <input
+                className={ainp}
+                value={s.feed_reason_label_bn}
+                onChange={(e) => setS({ ...s, feed_reason_label_bn: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Label · EN</label>
+              <input
+                className={ainp}
+                value={s.feed_reason_label_en}
+                onChange={(e) => setS({ ...s, feed_reason_label_en: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">
           {lang === "bn" ? "ফিড পোস্ট ডিভাইডার" : "Feed post divider"}
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">

@@ -26,12 +26,17 @@ export function normalizePhoneDigits(raw: string): string {
   return raw.replace(/\D/g, "");
 }
 
-/** Strip legacy `[Community → …]` lines from notes for feed display. */
+/** Strip legacy `[Community → …]` and `[PostStyle:…]` lines from notes for feed display. */
 export function stripCommunityMetaFromNotes(notes: string | null | undefined): string {
   if (!notes) return "";
   return notes
     .split("\n")
-    .filter((line) => !/^\s*\[Community\s*→/i.test(line.trim()))
+    .filter((line) => {
+      const t = line.trim();
+      if (/^\s*\[Community\s*→/i.test(t)) return false;
+      if (/^\s*\[PostStyle:[a-z0-9_-]+\]\s*$/i.test(t)) return false;
+      return true;
+    })
     .join("\n")
     .trim();
 }

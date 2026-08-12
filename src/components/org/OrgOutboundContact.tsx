@@ -132,8 +132,6 @@ export function OrgOutboundContact({
       <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
 
       <CommunitySavedRequestDropdown
-        defaultDistrict={district}
-        defaultUpazila={upazila}
         draft={savedDraft}
         onDraftChange={setSavedDraft}
       />

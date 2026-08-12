@@ -23,7 +23,6 @@ import {
 } from "@/lib/messaging-settings";
 import { ensureCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
 import {
-  NEED_REASON_CUSTOM_ID,
   activeNeedReasons,
   fetchNeedReasonCatalog,
   isCustomNeedReason,
@@ -32,6 +31,12 @@ import {
   type NeedReasonCatalog,
   type NeedReasonCategory,
 } from "@/lib/need-reason-catalog";
+import { RequestNotesFields } from "@/components/request/RequestNotesFields";
+import {
+  extractPostNotes,
+  withPostTextStyle,
+  type PostTextStyleId,
+} from "@/lib/post-text-styles";
 import {
   DEFAULT_REQUEST_FORM_OPTIONS,
   fetchRequestFormOptions,
@@ -105,6 +110,7 @@ export function CommunitySendSmsSheet({
   const [reasonDisplayLang, setReasonDisplayLang] = useState<"bn" | "en">(lang);
   const [reasonKey, setReasonKey] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [textStyleId, setTextStyleId] = useState<PostTextStyleId>("none");
   const [setDateTime, setSetDateTime] = useState(true);
   const [myPhone, setMyPhone] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -130,20 +136,25 @@ export function CommunitySendSmsSheet({
       setReasonKey(saved.reasonKey);
       setCustomReason(saved.customReason);
       setSetDateTime(saved.setDateTime);
-      setForm({
-        patient_name: saved.patient_name,
-        blood_group: (saved.blood_group as (typeof BLOOD_GROUPS)[number]) || "O+",
-        bags_needed: saved.bags_needed,
-        needed_by: saved.needed_by,
-        urgency: saved.urgency,
-        notes: saved.notes,
-      });
+      {
+        const parsed = extractPostNotes(saved.notes);
+        setTextStyleId(parsed.styleId);
+        setForm({
+          patient_name: saved.patient_name,
+          blood_group: (saved.blood_group as (typeof BLOOD_GROUPS)[number]) || "O+",
+          bags_needed: saved.bags_needed,
+          needed_by: saved.needed_by,
+          urgency: saved.urgency,
+          notes: parsed.text,
+        });
+      }
     } else {
       setDistrict(defaultDistrict);
       setUpazila(defaultUpazila);
       setHospital(null);
       setReasonKey("");
       setCustomReason("");
+      setTextStyleId("none");
       setSetDateTime(true);
       setForm({
         patient_name: "",
@@ -170,7 +181,6 @@ export function CommunitySendSmsSheet({
     () => categories.find((c) => c.id === reasonKey) ?? null,
     [categories, reasonKey],
   );
-  const suggestionChips = selectedCategory?.suggestions ?? [];
   const maxDonors = msgSettings.max_sms_donors;
 
   const smsEligible = useMemo(
@@ -185,10 +195,6 @@ export function CommunitySendSmsSheet({
   function setUrgency(u: "normal" | "urgent" | "critical") {
     setForm((prev) => ({ ...prev, urgency: u }));
     setSetDateTime(u === "normal");
-  }
-
-  function applySuggestion(text: string) {
-    setForm((prev) => ({ ...prev, notes: text }));
   }
 
   const ph = (bn: string, en: string) => (lang === "bn" ? bn : en);
@@ -302,7 +308,7 @@ export function CommunitySendSmsSheet({
       area: upazila.trim() || null,
       needed_by: neededBy,
       urgency: form.urgency,
-      notes: form.notes.trim() || null,
+      notes: withPostTextStyle(form.notes, textStyleId) || null,
       need_reason_key: reasonKey,
       need_reason_label: reasonLabel,
       contact_phone: prev?.contact_phone?.trim() || myPhone,
@@ -335,7 +341,7 @@ export function CommunitySendSmsSheet({
       bags_needed: Math.max(1, form.bags_needed),
       needed_by: form.needed_by,
       urgency: form.urgency,
-      notes: form.notes.trim(),
+      notes: withPostTextStyle(form.notes, textStyleId),
       setDateTime,
       reasonKey,
       customReason: customReason.trim(),
@@ -574,88 +580,34 @@ export function CommunitySendSmsSheet({
               />
             )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">
-                {reasonDisplayLang === "bn" ? "সমস্যার কারণ / রোগের ধরন" : "Reason / disease type"}
-              </label>
-              <select
-                className={field}
-                value={reasonKey}
-                onChange={(e) => {
-                  setReasonKey(e.target.value);
-                  if (!isCustomNeedReason(e.target.value)) setCustomReason("");
-                }}
-                required
-              >
-                <option value="">
-                  {reasonDisplayLang === "bn" ? "কারণ নির্বাচন করুন…" : "Select a reason…"}
-                </option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {pickLocalized(c.label, reasonDisplayLang)}
-                  </option>
-                ))}
-                <option value={NEED_REASON_CUSTOM_ID}>
-                  {reasonDisplayLang === "bn" ? "কাস্টম (নিজে লিখুন)" : "Custom (write your own)"}
-                </option>
-              </select>
-              {isCustomNeedReason(reasonKey) && (
-                <input
-                  className={field}
-                  placeholder={
-                    reasonDisplayLang === "bn" ? "কাস্টম কারণ লিখুন…" : "Write custom reason…"
-                  }
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  required
-                />
-              )}
-            </div>
-
-            {suggestionChips.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[11px] text-muted-foreground">
-                  {reasonDisplayLang === "bn"
-                    ? "নোট সাজেশন — ট্যাপ করে নিন (চাইলে এডিট করুন)"
-                    : "Note suggestions — tap to use (edit anytime)"}
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {suggestionChips.map((s, i) => {
-                    const text = pickLocalized(s, reasonDisplayLang);
-                    const active = form.notes.trim() === text.trim();
-                    return (
-                      <button
-                        key={`${reasonKey}-chip-${i}`}
-                        type="button"
-                        onClick={() => applySuggestion(text)}
-                        className={`text-left rounded-xl border px-3 py-2 text-xs leading-relaxed transition ${
-                          active
-                            ? "border-primary bg-primary/10 text-foreground"
-                            : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                        }`}
-                      >
-                        {text}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <textarea
-              className={field}
-              rows={3}
-              placeholder={
-                opts.notes
-                  ? ph(
-                      "নোট (ঐচ্ছিক) — সাজেশন থেকে নিন বা নিজে লিখুন",
-                      "Notes (optional) — pick a suggestion or write your own",
-                    )
-                  : ph("নোট — সাজেশন থেকে নিন বা নিজে লিখুন", "Notes — pick a suggestion or write your own")
-              }
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              required={req("notes")}
+            <RequestNotesFields
+              reasonKey={reasonKey}
+              customReason={customReason}
+              notes={form.notes}
+              onReasonKeyChange={setReasonKey}
+              onCustomReasonChange={setCustomReason}
+              onNotesChange={(text) => setForm((f) => ({ ...f, notes: text }))}
+              textStyleId={textStyleId}
+              onTextStyleChange={setTextStyleId}
+              categories={categories}
+              reasonDisplayLang={reasonDisplayLang}
+              uiLang={lang}
+              notesOptional={opts.notes}
+              ph={ph}
+              fieldClassName={field}
+              preview={{
+                patient_name: form.patient_name,
+                blood_group: form.blood_group,
+                bags_needed: form.bags_needed,
+                hospital_name: hospital
+                  ? lang === "bn"
+                    ? hospital.name_bn
+                    : hospital.name_en
+                  : undefined,
+                area: upazila || null,
+                districtName: lang === "bn" ? district?.name_bn : district?.name_en,
+                needed_by: setDateTime && form.needed_by ? form.needed_by : undefined,
+              }}
             />
 
             <button

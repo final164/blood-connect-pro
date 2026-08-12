@@ -485,8 +485,6 @@ function CommunityPage() {
 
         {msgSettings.show_community_save_request && (
           <CommunitySavedRequestDropdown
-            defaultDistrict={district}
-            defaultUpazila={upazila}
             draft={savedDraft}
             onDraftChange={setSavedDraft}
             emptyLabelBn={msgSettings.community_save_request_label_bn}
