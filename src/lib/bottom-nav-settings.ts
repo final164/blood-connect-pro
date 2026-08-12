@@ -10,8 +10,29 @@ export type BottomNavItem = {
   label_en: string;
 };
 
+/** Mobile bottom-nav colors (dark bar). Hex or rgba. */
+export type BottomNavColors = {
+  /** Inactive icon outline / stroke */
+  icon: string;
+  /** Active icon */
+  icon_active: string;
+  /** Inactive label under icon */
+  label: string;
+  /** Active label */
+  label_active: string;
+  /** Bar background */
+  bar_bg: string;
+  /** Center Post (+) circle background */
+  compose_bg: string;
+  /** Center Post (+) icon */
+  compose_icon: string;
+  /** Top hairline on the bar */
+  bar_border: string;
+};
+
 export type BottomNavSettings = {
   items: BottomNavItem[];
+  colors: BottomNavColors;
 };
 
 const DEFAULT_ITEMS: BottomNavItem[] = [
@@ -22,11 +43,34 @@ const DEFAULT_ITEMS: BottomNavItem[] = [
   { id: "profile", enabled: true, order: 4, label_bn: "প্রোফাইল", label_en: "Profile" },
 ];
 
+export const DEFAULT_BOTTOM_NAV_COLORS: BottomNavColors = {
+  icon: "#9aa3b2",
+  icon_active: "#ffffff",
+  label: "#8b93a3",
+  label_active: "#ffffff",
+  bar_bg: "#14181f",
+  compose_bg: "#2a3140",
+  compose_icon: "#ffffff",
+  bar_border: "rgba(255,255,255,0.08)",
+};
+
 export const DEFAULT_BOTTOM_NAV_SETTINGS: BottomNavSettings = {
   items: DEFAULT_ITEMS.map((i) => ({ ...i })),
+  colors: { ...DEFAULT_BOTTOM_NAV_COLORS },
 };
 
 const VALID_IDS = new Set<string>(DEFAULT_ITEMS.map((i) => i.id));
+
+const COLOR_KEYS: (keyof BottomNavColors)[] = [
+  "icon",
+  "icon_active",
+  "label",
+  "label_active",
+  "bar_bg",
+  "compose_bg",
+  "compose_icon",
+  "bar_border",
+];
 
 let cached: BottomNavSettings | null = null;
 let cachedAt = 0;
@@ -34,6 +78,37 @@ let cachedAt = 0;
 export function invalidateBottomNavSettingsCache() {
   cached = null;
   cachedAt = 0;
+}
+
+function isCssColor(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const s = v.trim();
+  if (!s || s.length > 64) return false;
+  return /^(#([0-9a-f]{3,8})|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-z]+)$/i.test(s);
+}
+
+export function normalizeBottomNavColors(raw: unknown): BottomNavColors {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<BottomNavColors>;
+  const out = { ...DEFAULT_BOTTOM_NAV_COLORS };
+  for (const key of COLOR_KEYS) {
+    const v = r[key];
+    if (isCssColor(v)) out[key] = v.trim();
+  }
+  return out;
+}
+
+/** CSS custom properties for the dark bottom nav shell */
+export function bottomNavColorStyle(colors: BottomNavColors): Record<string, string> {
+  return {
+    "--bn-icon": colors.icon,
+    "--bn-icon-active": colors.icon_active,
+    "--bn-label": colors.label,
+    "--bn-label-active": colors.label_active,
+    "--bn-bar-bg": colors.bar_bg,
+    "--bn-compose-bg": colors.compose_bg,
+    "--bn-compose-icon": colors.compose_icon,
+    "--bn-bar-border": colors.bar_border,
+  };
 }
 
 function mergeItems(raw: unknown): BottomNavItem[] {
@@ -67,7 +142,7 @@ function mergeItems(raw: unknown): BottomNavItem[] {
 }
 
 export function normalizeBottomNavSettings(raw: unknown): BottomNavSettings {
-  const r = (raw && typeof raw === "object" ? raw : {}) as { items?: unknown };
+  const r = (raw && typeof raw === "object" ? raw : {}) as { items?: unknown; colors?: unknown };
   const items = mergeItems(r.items);
   // Keep at least one item enabled so the app always has a nav entry
   if (!items.some((i) => i.enabled)) {
@@ -75,7 +150,7 @@ export function normalizeBottomNavSettings(raw: unknown): BottomNavSettings {
     if (feed) feed.enabled = true;
     else items[0]!.enabled = true;
   }
-  return { items };
+  return { items, colors: normalizeBottomNavColors(r.colors) };
 }
 
 export async function fetchBottomNavSettings(force = false): Promise<BottomNavSettings> {
@@ -88,6 +163,7 @@ export async function fetchBottomNavSettings(force = false): Promise<BottomNavSe
   if (error || !data) {
     cached = {
       items: DEFAULT_ITEMS.map((i) => ({ ...i })),
+      colors: { ...DEFAULT_BOTTOM_NAV_COLORS },
     };
   } else {
     cached = normalizeBottomNavSettings(

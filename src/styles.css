@@ -111,11 +111,57 @@
 @layer utilities {
   .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
   .safe-top { padding-top: max(env(safe-area-inset-top), 0.5rem); }
-  .pb-bottom-nav { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); }
+  /* Compact dark professional bottom bar — ~44px content + home indicator */
+  .safe-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pb-bottom-nav { padding-bottom: calc(3.15rem + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav-dark {
+    --bn-icon: #9aa3b2;
+    --bn-icon-active: #ffffff;
+    --bn-label: #8b93a3;
+    --bn-label-active: #ffffff;
+    --bn-bar-bg: #14181f;
+    --bn-compose-bg: #2a3140;
+    --bn-compose-icon: #ffffff;
+    --bn-bar-border: rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
+      var(--bn-bar-bg);
+    border-top: 1px solid var(--bn-bar-border);
+    box-shadow:
+      0 -8px 28px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  .bottom-nav-dark .bn-tab {
+    color: var(--bn-icon);
+  }
+  .bottom-nav-dark .bn-tab .bn-label {
+    color: var(--bn-label);
+    font-weight: 400;
+  }
+  .bottom-nav-dark .bn-tab:hover {
+    color: var(--bn-icon-active);
+  }
+  .bottom-nav-dark .bn-tab--active {
+    color: var(--bn-icon-active);
+  }
+  .bottom-nav-dark .bn-tab--active .bn-label {
+    color: var(--bn-label-active);
+    font-weight: 500;
+  }
+  .bottom-nav-dark .bn-compose {
+    background: var(--bn-compose-bg);
+    color: var(--bn-compose-icon);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bn-compose-icon) 18%, transparent);
+  }
+  .bottom-nav-dark .bn-compose--open {
+    background: var(--color-primary, #c62828);
+    color: var(--color-primary-foreground, #fff);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary, #c62828) 40%, transparent);
+  }
   .h-app { height: 100dvh; }
   .min-h-app { min-height: 100dvh; }
   .h-app-main {
-    height: calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 3.15rem - env(safe-area-inset-bottom, 0px));
   }
   @media (min-width: 768px) {
     .h-app-main { height: auto; min-height: 0; }

@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
 import {
+  DEFAULT_BOTTOM_NAV_COLORS,
   DEFAULT_BOTTOM_NAV_SETTINGS,
   fetchBottomNavSettings,
   invalidateBottomNavSettingsCache,
   saveBottomNavSettings,
+  type BottomNavColors,
   type BottomNavItem,
   type BottomNavSettings,
 } from "@/lib/bottom-nav-settings";
@@ -22,6 +24,34 @@ const ID_HINT: Record<BottomNavItem["id"], { bn: string; en: string }> = {
   alert: { bn: "চ্যাট (মেসেজ)", en: "Chat / messages" },
   profile: { bn: "ইউজার প্রোফাইল", en: "User profile" },
 };
+
+const COLOR_FIELDS: {
+  key: keyof BottomNavColors;
+  bn: string;
+  en: string;
+}[] = [
+  { key: "icon", bn: "আইকন outline (ইনঅ্যাকটিভ)", en: "Icon outline (inactive)" },
+  { key: "icon_active", bn: "আইকন (অ্যাকটিভ)", en: "Icon (active)" },
+  { key: "label", bn: "লেবেল (ইনঅ্যাকটিভ)", en: "Label (inactive)" },
+  { key: "label_active", bn: "লেবেল (অ্যাকটিভ)", en: "Label (active)" },
+  { key: "compose_bg", bn: "পোস্ট (+) বৃত্ত ব্যাকগ্রাউন্ড", en: "Post (+) circle background" },
+  { key: "compose_icon", bn: "পোস্ট (+) আইকন", en: "Post (+) icon" },
+  { key: "bar_bg", bn: "ন্যাভ বার ব্যাকগ্রাউন্ড", en: "Nav bar background" },
+  { key: "bar_border", bn: "ন্যাভ টপ বর্ডার", en: "Nav top border" },
+];
+
+/** color input needs #rrggbb — extract when possible */
+function toColorInputValue(css: string): string {
+  const s = css.trim();
+  if (/^#[0-9a-f]{6}$/i.test(s)) return s;
+  if (/^#[0-9a-f]{3}$/i.test(s)) {
+    const r = s[1]!;
+    const g = s[2]!;
+    const b = s[3]!;
+    return `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return "#ffffff";
+}
 
 export function BottomNavAdmin() {
   const { lang, t } = useI18n();
@@ -54,6 +84,13 @@ export function BottomNavAdmin() {
     }));
   }
 
+  function patchColor(key: keyof BottomNavColors, value: string) {
+    setCfg((prev) => ({
+      ...prev,
+      colors: { ...prev.colors, [key]: value },
+    }));
+  }
+
   async function save() {
     if (!can("settings.edit")) {
       return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
@@ -68,6 +105,7 @@ export function BottomNavAdmin() {
       items: [...cfg.items]
         .sort((a, b) => a.order - b.order)
         .map((it, i) => ({ ...it, order: i })),
+      colors: cfg.colors,
     };
     const { error, settings } = await saveBottomNavSettings(ordered);
     setBusy(false);
@@ -170,6 +208,115 @@ export function BottomNavAdmin() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold">
+              {lang === "bn" ? "বটম ন্যাভ আইকন / রঙ" : "Bottom nav icon colors"}
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              {lang === "bn"
+                ? "মোবাইল ডার্ক ন্যাভের আইকন outline, অ্যাকটিভ রঙ, লেবেল ও বার ব্যাকগ্রাউন্ড।"
+                : "Icon outline, active color, labels, and bar background for the mobile dark nav."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="text-[10px] text-slate-400 hover:text-slate-200 underline-offset-2 hover:underline"
+            onClick={() =>
+              setCfg((prev) => ({ ...prev, colors: { ...DEFAULT_BOTTOM_NAV_COLORS } }))
+            }
+          >
+            {lang === "bn" ? "ডিফল্ট রঙ" : "Reset colors"}
+          </button>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-2.5">
+          {COLOR_FIELDS.map((field) => {
+            const value = cfg.colors[field.key];
+            return (
+              <label
+                key={field.key}
+                className="rounded-lg border border-slate-800 bg-slate-950/70 px-2.5 py-2 space-y-1.5"
+              >
+                <span className="text-[10px] text-slate-400 block">
+                  {lang === "bn" ? field.bn : field.en}
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-slate-700 bg-transparent p-0.5"
+                    value={toColorInputValue(value)}
+                    onChange={(e) => patchColor(field.key, e.target.value)}
+                    aria-label={field.en}
+                  />
+                  <input
+                    className={ainp + " font-mono"}
+                    value={value}
+                    onChange={(e) => patchColor(field.key, e.target.value)}
+                    placeholder="#ffffff"
+                  />
+                </div>
+              </label>
+            );
+          })}
+        </div>
+
+        <div
+          className="rounded-xl overflow-hidden border border-slate-700 mt-1"
+          style={{
+            background: cfg.colors.bar_bg,
+            borderColor: cfg.colors.bar_border,
+          }}
+        >
+          <p className="text-[9px] text-slate-500 px-3 pt-2">
+            {lang === "bn" ? "প্রিভিউ" : "Preview"}
+          </p>
+          <div className="grid grid-cols-5 px-1 py-2">
+            {(
+              [
+                { active: true, label: lang === "bn" ? "ফিড" : "Feed" },
+                { active: false, label: lang === "bn" ? "কমিউনিটি" : "Community" },
+                { active: false, label: lang === "bn" ? "পোস্ট" : "Post", compose: true },
+                { active: false, label: lang === "bn" ? "চ্যাট" : "Chat" },
+                { active: false, label: lang === "bn" ? "প্রোফাইল" : "Profile" },
+              ] as const
+            ).map((slot, i) => (
+              <div key={i} className="flex flex-col items-center gap-0.5 py-1">
+                {"compose" in slot && slot.compose ? (
+                  <span
+                    className="h-7 w-7 rounded-full grid place-items-center text-sm font-semibold"
+                    style={{
+                      background: cfg.colors.compose_bg,
+                      color: cfg.colors.compose_icon,
+                    }}
+                  >
+                    +
+                  </span>
+                ) : (
+                  <span
+                    className="h-5 w-5 rounded-sm border-2"
+                    style={{
+                      borderColor: slot.active ? cfg.colors.icon_active : cfg.colors.icon,
+                      background: slot.active ? cfg.colors.icon_active : "transparent",
+                      opacity: slot.active ? 1 : 0.9,
+                    }}
+                  />
+                )}
+                <span
+                  className="text-[9px]"
+                  style={{
+                    color: slot.active ? cfg.colors.label_active : cfg.colors.label,
+                  }}
+                >
+                  {slot.label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

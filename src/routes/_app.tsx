@@ -12,6 +12,7 @@ import { UserMenuSidebar } from "@/components/menu/UserMenuNav";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import {
   DEFAULT_BOTTOM_NAV_SETTINGS,
+  bottomNavColorStyle,
   fetchBottomNavSettings,
   type BottomNavItemId,
   type BottomNavSettings,
@@ -261,18 +262,25 @@ function AppShell({
           </button>
         );
       }
+      /* Dark pro nav: center + with label under icon */
       return (
-        <button key={tab.id} type="button" onClick={openComposer} className="flex flex-col items-center gap-0.5 py-1.5">
-          <div
-            className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
-              composeOpen
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
-                : "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+        <button
+          key={tab.id}
+          type="button"
+          onClick={openComposer}
+          aria-label={tab.label}
+          className={`bn-tab flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-1 pb-0.5 transition-colors ${
+            composeOpen ? "bn-tab--active" : ""
+          }`}
+        >
+          <span
+            className={`bn-compose h-7 w-7 rounded-full grid place-items-center transition shadow-sm ${
+              composeOpen ? "bn-compose--open" : ""
             }`}
           >
-            <Icon className="h-[17px] w-[17px]" strokeWidth={2.4} />
-          </div>
-          <span className="text-[9px] font-medium leading-none truncate max-w-[4.2rem] text-primary">
+            <Icon className="h-[16px] w-[16px]" strokeWidth={2.4} />
+          </span>
+          <span className="bn-label text-[10px] leading-none truncate max-w-[4.5rem] tracking-wide">
             {tab.label}
           </span>
         </button>
@@ -286,14 +294,15 @@ function AppShell({
     const badge = tab.badge ?? 0;
     const iconEl =
       tab.icon === "messenger" ? (
-        <MessengerIcon className={layout === "top" ? "h-4 w-4" : "h-[17px] w-[17px]"} />
+        <MessengerIcon className={layout === "top" ? "h-4 w-4" : "h-[20px] w-[20px]"} />
       ) : (
         (() => {
           const Icon = tab.icon;
           return (
             <Icon
-              className={layout === "top" ? "h-4 w-4" : "h-[17px] w-[17px]"}
-              strokeWidth={active ? 2.4 : 1.9}
+              className={layout === "top" ? "h-4 w-4" : "h-[20px] w-[20px]"}
+              strokeWidth={active ? 2.35 : 1.8}
+              fill={active && tab.to === "/home" ? "currentColor" : "none"}
             />
           );
         })()
@@ -330,28 +339,26 @@ function AppShell({
     }
 
     return (
-      <Link key={tab.id} to={tab.to} className="flex flex-col items-center gap-0.5 py-1.5">
-        <div
-          className={`relative h-9 w-11 grid place-items-center rounded-2xl transition ${
-            active ? "bg-primary text-primary-foreground shadow-md shadow-primary/30" : "text-muted-foreground"
-          }`}
-        >
+      <Link
+        key={tab.id}
+        to={tab.to}
+        className={`bn-tab flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-1 pb-0.5 transition-colors ${
+          active ? "bn-tab--active" : ""
+        }`}
+      >
+        <span className="relative grid place-items-center h-5 w-5">
           {iconEl}
           {badge > 0 && (
             <span
-              className={`absolute top-0.5 right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[8px] font-bold grid place-items-center ${
-                active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground"
-              }`}
+              className="absolute -top-1 -right-2 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-primary-foreground text-[8px] font-bold grid place-items-center ring-2"
+              style={{ boxShadow: `0 0 0 2px var(--bn-bar-bg, #14181f)` }}
+              aria-label={`${badge} unread`}
             >
               {badge > 9 ? "9+" : badge}
             </span>
           )}
-        </div>
-        <span
-          className={`text-[9px] font-medium leading-none truncate max-w-[4.2rem] ${
-            active ? "text-primary" : "text-muted-foreground"
-          }`}
-        >
+        </span>
+        <span className="bn-label text-[10px] leading-none truncate max-w-[4.5rem] tracking-wide">
           {tab.label}
         </span>
       </Link>
@@ -425,10 +432,13 @@ function AppShell({
           )}
         </main>
 
-        {/* Mobile: bottom nav */}
+        {/* Mobile: dark professional bottom nav (colors from admin) */}
         {!isChatThread && (
-          <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur-xl safe-bottom">
-            <div className={`app-shell grid ${gridColsClass} px-0.5 pt-1`}>
+          <nav
+            className="md:hidden fixed bottom-0 inset-x-0 z-40 bottom-nav-dark safe-bottom-nav"
+            style={bottomNavColorStyle(navCfg.colors ?? DEFAULT_BOTTOM_NAV_SETTINGS.colors)}
+          >
+            <div className={`app-shell grid ${gridColsClass} px-1`}>
               {tabs.map((tab) => renderTab(tab, "bottom"))}
             </div>
           </nav>
