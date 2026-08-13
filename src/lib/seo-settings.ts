@@ -1,4 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
+async function db() {
+  const { supabase } = await import("@/integrations/supabase/client");
+  return supabase;
+}
 
 export type SeoSettings = {
   site_url: string;
@@ -149,6 +152,7 @@ export function invalidateSeoSettingsCache() {
 
 export async function fetchSeoSettings(force = false): Promise<SeoSettings> {
   if (!force && cache && Date.now() - cachedAt < TTL) return cache;
+  const supabase = await db();
   const { data, error } = await supabase
     .from("app_settings")
     .select("seo_settings")
@@ -202,6 +206,7 @@ export async function fetchSeoSettingsForLoader(maxWaitMs = 120): Promise<SeoSet
 export async function saveSeoSettings(settings: SeoSettings): Promise<void> {
   const normalized = normalizeSeoSettings(settings);
   const landingSeo = landingSeoFromSiteSeo(normalized);
+  const supabase = await db();
 
   const { data: existing } = await supabase
     .from("app_settings")
@@ -283,6 +288,7 @@ export type HeadLinkTag = {
   type?: string;
   imageSrcSet?: string;
   imageSizes?: string;
+  fetchPriority?: "high" | "low" | "auto";
   crossOrigin?: "" | "anonymous" | "use-credentials";
 };
 

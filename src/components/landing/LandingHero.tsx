@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode, lazy, Suspense, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { LandingSettings } from "@/lib/landing-settings";
 import { DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE } from "@/lib/landing-settings";
@@ -6,8 +6,13 @@ import {
   HeroBackgroundSlideshow,
   ensureHeroSlides,
 } from "@/components/landing/HeroBackgroundSlideshow";
-import { LandingYoutubePlayer } from "@/components/landing/LandingYoutubePlayer";
 import { parseYoutubeId } from "@/lib/youtube";
+
+const LandingYoutubePlayer = lazy(() =>
+  import("@/components/landing/LandingYoutubePlayer").then((m) => ({
+    default: m.LandingYoutubePlayer,
+  })),
+);
 
 function pick(lang: "bn" | "en", bn: string, en: string) {
   return lang === "bn" ? bn : en;
@@ -71,7 +76,8 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   };
   const yt = { ...DEFAULT_HERO_YOUTUBE, ...(h.youtube ?? {}) };
   if (!yt.url?.trim()) yt.url = DEFAULT_HERO_YOUTUBE.url;
-  const showYoutube = yt.enabled !== false && !!parseYoutubeId(yt.url);
+  const canYoutube = yt.enabled !== false && !!parseYoutubeId(yt.url);
+  const [showYoutube, setShowYoutube] = useState(false);
   const lcpSrc = slides[0];
 
   return (
@@ -103,7 +109,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
         )}
       </div>
 
-      <div className={`relative z-10 ${shell} pb-12 pt-28 landing-fade-up`}>
+      <div className={`relative z-10 ${shell} pb-12 pt-28`}>
         <div
           className={
             showYoutube
@@ -135,11 +141,22 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
               >
                 {pick(lang, h.cta_secondary_bn, h.cta_secondary_en)}
               </LandingHref>
+              {canYoutube && !showYoutube && (
+                <button
+                  type="button"
+                  onClick={() => setShowYoutube(true)}
+                  className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10"
+                >
+                  {lang === "bn" ? "ভিডিও দেখুন" : "Watch video"}
+                </button>
+              )}
             </div>
           </div>
           {showYoutube && (
             <div className="min-w-0 w-full">
-              <LandingYoutubePlayer youtube={yt} lang={lang} variant="hero" />
+              <Suspense fallback={<div className="aspect-video rounded-2xl bg-black/40" aria-hidden />}>
+                <LandingYoutubePlayer youtube={yt} lang={lang} variant="hero" />
+              </Suspense>
             </div>
           )}
         </div>

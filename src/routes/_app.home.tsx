@@ -531,5 +531,3 @@ function FeedPage() {
     </div>
   );
 }
-
-export { Avatar } from "@/components/Avatar";

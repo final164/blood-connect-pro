@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchCmsStrings } from "@/lib/api";
 
 export type Lang = "bn" | "en";
 
@@ -130,6 +129,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
 
   const reloadCms = async () => {
     try {
+      const { fetchCmsStrings } = await import("@/lib/api");
       const map = await fetchCmsStrings();
       setCms(map);
     } catch {

@@ -1,6 +1,6 @@
 /* BloodLink offline shell + device notifications */
-const CACHE = "bloodlink-shell-v3";
-const ASSETS = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
+const CACHE = "bloodlink-shell-v4";
+const ASSETS = ["/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -20,6 +20,10 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (req.mode === "navigate" || req.destination === "document") {
+    event.respondWith(fetch(req));
+    return;
+  }
   event.respondWith(
     caches.match(req).then((cached) =>
       fetch(req)

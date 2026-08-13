@@ -19,31 +19,19 @@ export function LandingShell({
         .landing-root {
           background: var(--landing-bg);
           color: var(--landing-fg);
-          font-family: "DM Sans", "Noto Sans Bengali", system-ui, sans-serif;
+          font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
         }
         .landing-root a { color: inherit; }
         .landing-brand {
-          font-family: "Noto Sans Bengali", "DM Sans", sans-serif;
+          font-family: ui-sans-serif, system-ui, "Noto Sans Bengali", sans-serif;
           letter-spacing: -0.02em;
         }
         .landing-glass {
           background: var(--landing-glass);
-          /* No backdrop-filter — blur over hero images tanks scroll FPS */
         }
         .landing-section {
           content-visibility: auto;
           contain-intrinsic-size: auto 480px;
-        }
-        .landing-fade-up {
-          animation: landingFadeUp 0.45s ease-out both;
-        }
-        @keyframes landingFadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: none; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .landing-fade-up { animation: none; }
-          .hero-bg-layer { transition: none !important; }
         }
         /* Hero slideshow — opacity-only; frozen when scrolled away */
         .hero-bg-layer {

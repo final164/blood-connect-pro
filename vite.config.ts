@@ -24,7 +24,6 @@ export default defineConfig({
             if (id.includes("node_modules")) {
               if (id.includes("@supabase")) return "supabase";
               if (id.includes("lucide-react")) return "icons";
-              if (id.includes("@tanstack")) return "tanstack";
             }
           },
         },

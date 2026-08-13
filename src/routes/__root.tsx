@@ -1,22 +1,20 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
-import appCss from "../styles.css?url";
+import landingCss from "../styles-landing.css?inline";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { setupNotificationClickHandler } from "@/lib/device-push";
-import { LangProvider } from "@/lib/i18n";
-import { AuthProvider } from "@/lib/auth-context";
 
-const Toaster = lazy(() =>
-  import("sonner").then((m) => ({ default: m.Toaster })),
+const AppProviders = lazy(() =>
+  import("@/components/AppProviders").then((m) => ({ default: m.AppProviders })),
 );
 
 function NotFoundComponent() {
@@ -62,7 +60,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
-    // Keep root head minimal — full SEO/og comes from route heads (avoids og:image preload fighting LCP)
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
@@ -70,13 +67,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "BloodLink" },
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
     ],
   }),
   shellComponent: RootShell,
@@ -90,16 +84,10 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="bn" suppressHydrationWarning>
       <head>
         <HeadContent />
-        {/* Non-blocking Google Fonts — print→all on load */}
-        <link
-          id="bloodlink-fonts"
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&display=swap"
-          media="print"
-        />
+        <style dangerouslySetInnerHTML={{ __html: landingCss }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");}catch(e){document.documentElement.classList.remove("dark");}var l=document.getElementById("bloodlink-fonts");if(l){var go=function(){l.media="all"};l.addEventListener("load",go);if(l.sheet)go();setTimeout(go,3000);}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark");}catch(e){}})();`,
           }}
         />
       </head>
@@ -113,29 +101,30 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLanding = pathname === "/" || pathname === "";
+
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    if (isLanding || typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     const register = () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
-      setupNotificationClickHandler();
+      void import("@/lib/device-push").then((m) => m.setupNotificationClickHandler());
     };
     if (typeof requestIdleCallback === "function") {
-      const id = requestIdleCallback(register, { timeout: 6000 });
+      const id = requestIdleCallback(register, { timeout: 8000 });
       return () => cancelIdleCallback(id);
     }
-    const t = window.setTimeout(register, 3000);
+    const t = window.setTimeout(register, 4000);
     return () => window.clearTimeout(t);
-  }, []);
+  }, [isLanding]);
+
+  if (isLanding) return <Outlet />;
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <LangProvider>
-        <AuthProvider>
-          <Outlet />
-          <Suspense fallback={null}>
-            <Toaster position="top-center" richColors closeButton />
-          </Suspense>
-        </AuthProvider>
-      </LangProvider>
-    </QueryClientProvider>
+    <Suspense fallback={<div className="min-h-dvh" style={{ background: "#F7F3F0" }} />}>
+      <AppProviders queryClient={queryClient}>
+        <Outlet />
+      </AppProviders>
+    </Suspense>
   );
 }

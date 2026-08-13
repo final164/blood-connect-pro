@@ -87,8 +87,8 @@ export function heroLcpPreload(url: string | null | undefined): {
 export const HERO_LCP = {
   /** Default preload / fallback JPEG */
   jpg: "/landing/hero.jpg",
-  /** Best default for mobile LCP */
-  webp: "/landing/hero-960.webp",
+  /** Best default for mobile LCP (Moto G / Slow 4G) */
+  webp: "/landing/hero-640.webp",
   srcSet:
     "/landing/hero-640.webp 640w, /landing/hero-960.webp 960w, /landing/hero-1280.webp 1280w",
   sizes: "100vw",

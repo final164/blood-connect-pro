@@ -79,8 +79,9 @@ function HeroSlideImg({
       <img
         {...common}
         src={HERO_LCP.webp}
-        srcSet={HERO_LCP.srcSet}
-        sizes={HERO_LCP.sizes}
+        {...(priority
+          ? {}
+          : { srcSet: HERO_LCP.srcSet, sizes: HERO_LCP.sizes })}
         fetchPriority={priority ? "high" : "low"}
       />
     );
@@ -135,10 +136,10 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
     if (rest.length) {
       const run = () => preload(rest);
       if (typeof requestIdleCallback === "function") {
-        const id = requestIdleCallback(run, { timeout: 4000 });
+        const id = requestIdleCallback(run, { timeout: 12000 });
         return () => cancelIdleCallback(id);
       }
-      const t = window.setTimeout(run, 1200);
+      const t = window.setTimeout(run, 8000);
       return () => window.clearTimeout(t);
     }
   }, [images.join("|")]);

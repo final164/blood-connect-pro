@@ -1,10 +1,23 @@
-import { supabase } from "@/integrations/supabase/client";
-import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import {
   LANDING_MEDIA,
   optimizeLandingImageUrl,
   sanitizeLogoUrl,
 } from "@/lib/landing-media";
+
+function resolveCarouselImageUrl(url: string, maxWidth = 1200): string {
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  const w = Math.min(2000, Math.max(200, Math.round(maxWidth)));
+  const drive = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1]
+    || new URL(trimmed, "https://x").searchParams.get("id");
+  if (/drive\.google\.com/i.test(trimmed) && drive) {
+    return `https://drive.google.com/thumbnail?id=${drive}&sz=w${w}`;
+  }
+  if (/dropbox\.com\//i.test(trimmed)) {
+    return trimmed.replace(/\?dl=0/, "?raw=1").replace(/&dl=0/, "&raw=1");
+  }
+  return trimmed;
+}
 
 export type LandingTheme = "life_crimson" | "night_clinic";
 
@@ -774,8 +787,14 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
   };
 }
 
+async function db() {
+  const { supabase } = await import("@/integrations/supabase/client");
+  return supabase;
+}
+
 export async function fetchLandingSettings(force = false): Promise<LandingSettings> {
   if (!force && cache && Date.now() - cachedAt < TTL) return cache;
+  const supabase = await db();
   const { data, error } = await supabase
     .from("app_settings")
     .select("landing_settings")
@@ -822,6 +841,7 @@ export async function fetchLandingSettingsForLoader(maxWaitMs = 120): Promise<La
 
 export async function saveLandingSettings(settings: LandingSettings): Promise<void> {
   const normalized = normalizeLandingSettings(settings);
+  const supabase = await db();
   const { error } = await supabase.from("app_settings").upsert({
     id: 1,
     landing_settings: normalized,

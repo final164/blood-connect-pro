@@ -144,5 +144,3 @@ function iconFor(n: AppNotification) {
   if (["share", "request_share"].includes(String(kind))) return Share2;
   return Megaphone;
 }
-
-export { Avatar } from "@/components/Avatar";

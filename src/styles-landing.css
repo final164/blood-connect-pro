@@ -1,0 +1,29 @@
+@import "tailwindcss" source(none);
+@source "../src/components/landing";
+@source "../src/routes/index.tsx";
+@source "../src/routes/__root.tsx";
+@source "../src/components/SeoHead.tsx";
+
+@theme inline {
+  --color-background: #f7f3f0;
+  --color-foreground: #1a1210;
+  --color-primary: #c1121f;
+  --color-primary-foreground: #ffffff;
+  --color-muted-foreground: #6b5e58;
+}
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    background: #f7f3f0;
+    color: #1a1210;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

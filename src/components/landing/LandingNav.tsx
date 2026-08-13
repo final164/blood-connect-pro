@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { Droplet } from "lucide-react";
 import type { LandingSettings } from "@/lib/landing-settings";
 
 export function LandingNav({
@@ -12,11 +11,13 @@ export function LandingNav({
   onToggleLang: () => void;
 }) {
   const nav = settings.nav;
+  const customLogo =
+    nav.logo_url && !/\/icon-192\.png|\/icon-512\.png|\/icon\.svg/i.test(nav.logo_url);
   return (
     <header className="sticky top-0 z-40 border-b border-black/8 bg-[color:var(--landing-bg)]/92">
       <div className="mx-auto flex w-full max-w-5xl md:max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <a href="#top" className="flex items-center gap-2 min-w-0">
-          {nav.logo_url ? (
+          {customLogo ? (
             <img
               src={nav.logo_url}
               alt={lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
@@ -25,16 +26,16 @@ export function LandingNav({
               className="h-9 w-9 rounded-xl object-cover ring-1 ring-black/5"
               decoding="async"
               fetchPriority="low"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/icon.svg";
-              }}
             />
           ) : (
             <span
               className="h-9 w-9 rounded-xl grid place-items-center text-white shadow-md"
               style={{ background: "var(--landing-primary)" }}
+              aria-hidden
             >
-              <Droplet className="h-4 w-4" fill="currentColor" />
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                <path d="M12 2.2s6 7.1 6 11.2a6 6 0 1 1-12 0C6 9.3 12 2.2 12 2.2z" />
+              </svg>
             </span>
           )}
           <span className="landing-brand text-sm font-semibold truncate">
