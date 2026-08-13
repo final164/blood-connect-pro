@@ -19,10 +19,14 @@ export function LandingNav({
           {nav.logo_url ? (
             <img
               src={nav.logo_url}
-              alt=""
+              alt={lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
+              width={36}
+              height={36}
               className="h-9 w-9 rounded-xl object-cover ring-1 ring-black/5"
+              decoding="async"
+              fetchPriority="low"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/icon-192.png";
+                (e.currentTarget as HTMLImageElement).src = "/icon.svg";
               }}
             />
           ) : (
@@ -33,7 +37,7 @@ export function LandingNav({
               <Droplet className="h-4 w-4" fill="currentColor" />
             </span>
           )}
-          <span className="landing-brand text-sm font-bold truncate">
+          <span className="landing-brand text-sm font-semibold truncate">
             {lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
           </span>
         </a>

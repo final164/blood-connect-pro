@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ChatLink } from "@/components/chat/ChatLink";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
@@ -94,14 +95,13 @@ function PublicProfilePage() {
             <h1 className="text-base font-bold truncate">{(profile.full_name as string) ?? t("profile")}</h1>
           </div>
           {user && user.id !== userId && (
-            <Link
-              to="/chat/$peerId"
-              params={{ peerId: userId }}
+            <ChatLink
+              peerId={userId}
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
             >
               <MessageCircle className="h-3.5 w-3.5" />
               {lang === "bn" ? "মেসেজ" : "Message"}
-            </Link>
+            </ChatLink>
           )}
         </div>
       </AutoHideHeader>

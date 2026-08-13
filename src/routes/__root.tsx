@@ -7,17 +7,17 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { setupNotificationClickHandler } from "@/lib/device-push";
 import { LangProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth-context";
-import { Toaster } from "sonner";
-import { DEFAULT_SEO_SETTINGS, buildHead } from "@/lib/seo-settings";
 
-const rootSeoHead = buildHead(DEFAULT_SEO_SETTINGS, "bn");
+const Toaster = lazy(() =>
+  import("sonner").then((m) => ({ default: m.Toaster })),
+);
 
 function NotFoundComponent() {
   return (
@@ -62,22 +62,21 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
+    // Keep root head minimal — full SEO/og comes from route heads (avoids og:image preload fighting LCP)
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#c1121f" },
-      ...rootSeoHead.meta,
+      { title: "BloodLink" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "512x512" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
-      // Fonts loaded async in RootShell (non-blocking) — keep preconnect only here
-      ...rootSeoHead.links,
     ],
   }),
   shellComponent: RootShell,
@@ -91,19 +90,13 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="bn" suppressHydrationWarning>
       <head>
         <HeadContent />
-        {/* Non-blocking Google Fonts: media=print → all on load (script below). */}
+        {/* Non-blocking Google Fonts — print→all on load */}
         <link
           id="bloodlink-fonts"
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=Noto+Sans+Bengali:wght@400;600&display=swap"
           media="print"
         />
-        <noscript>
-          <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap"
-          />
-        </noscript>
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark");else document.documentElement.classList.remove("dark");}catch(e){document.documentElement.classList.remove("dark");}var l=document.getElementById("bloodlink-fonts");if(l){var go=function(){l.media="all"};l.addEventListener("load",go);if(l.sheet)go();setTimeout(go,3000);}})();`,
@@ -122,15 +115,25 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-    setupNotificationClickHandler();
+    const register = () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      setupNotificationClickHandler();
+    };
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(register, { timeout: 6000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(register, 3000);
+    return () => window.clearTimeout(t);
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <LangProvider>
         <AuthProvider>
           <Outlet />
-          <Toaster position="top-center" richColors closeButton />
+          <Suspense fallback={null}>
+            <Toaster position="top-center" richColors closeButton />
+          </Suspense>
         </AuthProvider>
       </LangProvider>
     </QueryClientProvider>

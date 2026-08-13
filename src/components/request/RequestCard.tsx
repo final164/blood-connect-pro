@@ -1,4 +1,5 @@
 ﻿import { Link } from "@tanstack/react-router";
+import { ChatLink } from "@/components/chat/ChatLink";
 import { memo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -446,10 +447,9 @@ function RequestCardInner({
           </button>
         )}
         {!isOwner && messaging.post_icons.chat && (
-          <Link
-            to="/chat/$peerId"
-            params={{ peerId: r.requester_id }}
-            search={{ fromRequestId: r.id }}
+          <ChatLink
+            peerId={r.requester_id}
+            fromRequestId={r.id}
             onClick={() => {
               try {
                 sessionStorage.setItem("feedReturnRequestId", r.id);
@@ -462,7 +462,7 @@ function RequestCardInner({
             aria-label={t("chat")}
           >
             <MessengerIcon className="h-[18px] w-[18px]" />
-          </Link>
+          </ChatLink>
         )}
         {!isOwner && phone && messaging.post_icons.phone && (
           <a

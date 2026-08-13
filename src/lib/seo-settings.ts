@@ -55,13 +55,13 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
     "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট।",
   og_description_en:
     "Realtime blood donor social network with E2EE chat and live map across Bangladesh.",
-  og_image_url: "https://blood.pgdiary.cloud/icon-512.png",
+  og_image_url: "https://blood.pgdiary.cloud/landing/hero.jpg",
   og_type: "website",
   twitter_card: "summary_large_image",
   twitter_title: "BloodLink — Find blood donors and save lives in Bangladesh",
   twitter_description:
     "Find blood donors, post urgent requests, and get district and hospital based blood support across Bangladesh.",
-  twitter_image_url: "https://blood.pgdiary.cloud/icon-512.png",
+  twitter_image_url: "https://blood.pgdiary.cloud/landing/hero.jpg",
   robots_index: true,
   robots_follow: true,
   canonical_url: "/",
@@ -71,7 +71,7 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   bing_site_verification: "",
   json_ld_enabled: true,
   org_name: "BloodLink",
-  org_logo_url: "https://blood.pgdiary.cloud/icon-512.png",
+  org_logo_url: "https://blood.pgdiary.cloud/icon-192.png",
   org_phone: "",
   org_same_as: [],
   robots_txt: "",
@@ -100,6 +100,11 @@ export function normalizeSeoSettings(raw: unknown): SeoSettings {
   const d = DEFAULT_SEO_SETTINGS;
   const x = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const twitterCard = str(x.twitter_card, d.twitter_card);
+  /** Avoid huge PWA icon as OG/social — browsers may preload og:image and stall LCP. */
+  const softImage = (v: unknown, fallback: string) => {
+    const s = str(v, fallback);
+    return /icon-512\.png/i.test(s) ? fallback : s;
+  };
   return {
     site_url: str(x.site_url, d.site_url),
     title_bn: str(x.title_bn, d.title_bn),
@@ -113,12 +118,12 @@ export function normalizeSeoSettings(raw: unknown): SeoSettings {
     og_title_en: str(x.og_title_en, d.og_title_en),
     og_description_bn: str(x.og_description_bn, d.og_description_bn),
     og_description_en: str(x.og_description_en, d.og_description_en),
-    og_image_url: str(x.og_image_url, d.og_image_url),
+    og_image_url: softImage(x.og_image_url, d.og_image_url),
     og_type: str(x.og_type, d.og_type),
     twitter_card: twitterCard === "summary" ? "summary" : "summary_large_image",
     twitter_title: str(x.twitter_title, d.twitter_title),
     twitter_description: str(x.twitter_description, d.twitter_description),
-    twitter_image_url: str(x.twitter_image_url, d.twitter_image_url),
+    twitter_image_url: softImage(x.twitter_image_url, d.twitter_image_url),
     robots_index: bool(x.robots_index, d.robots_index),
     robots_follow: bool(x.robots_follow, d.robots_follow),
     canonical_url: str(x.canonical_url, d.canonical_url),
@@ -128,7 +133,7 @@ export function normalizeSeoSettings(raw: unknown): SeoSettings {
     bing_site_verification: str(x.bing_site_verification, d.bing_site_verification),
     json_ld_enabled: bool(x.json_ld_enabled, d.json_ld_enabled),
     org_name: str(x.org_name, d.org_name),
-    org_logo_url: str(x.org_logo_url, d.org_logo_url),
+    org_logo_url: softImage(x.org_logo_url, d.org_logo_url),
     org_phone: str(x.org_phone, d.org_phone),
     org_same_as: strArray(x.org_same_as),
     robots_txt: str(x.robots_txt, d.robots_txt),
@@ -274,6 +279,11 @@ export type HeadLinkTag = {
   rel: string;
   href: string;
   hrefLang?: string;
+  as?: string;
+  type?: string;
+  imageSrcSet?: string;
+  imageSizes?: string;
+  crossOrigin?: "" | "anonymous" | "use-credentials";
 };
 
 export function buildHead(
@@ -286,9 +296,9 @@ export function buildHead(
   const ogTitle = ogTitleForLang(seo, lang);
   const ogDescription = ogDescriptionForLang(seo, lang);
   const keywords = keywordsForLang(seo, lang);
-  const ogImage = absoluteUrl(seo.og_image_url || "/icon-512.png", seo, origin);
+  const ogImage = absoluteUrl(seo.og_image_url || "/landing/hero.jpg", seo, origin);
   const twitterImage = absoluteUrl(
-    seo.twitter_image_url || seo.og_image_url || "/icon-512.png",
+    seo.twitter_image_url || seo.og_image_url || "/landing/hero.jpg",
     seo,
     origin,
   );
@@ -376,7 +386,7 @@ export function buildHeadMeta(
 export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin = "") {
   if (!seo.json_ld_enabled) return null;
   const siteUrl = resolveSiteUrl(seo, origin);
-  const logo = absoluteUrl(seo.org_logo_url || "/icon-512.png", seo, origin);
+  const logo = absoluteUrl(seo.org_logo_url || "/icon-192.png", seo, origin);
   const sameAs = seo.org_same_as.filter(Boolean);
   return {
     "@context": "https://schema.org",

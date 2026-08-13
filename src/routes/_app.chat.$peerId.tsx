@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,32 +10,38 @@ import { conversationSecret, encryptMessage, decryptMessage } from "@/lib/e2ee";
 import { ArrowLeft, Check, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { fetchProfileForViewer } from "@/lib/profile-lock";
 import { useChatUnread } from "@/lib/chat-unread-context";
+import {
+  appendChatMessage,
+  ensureConversationId,
+  fetchChatMessages,
+  hydrateChatMessagesCache,
+  peerFromConversationsCache,
+  prefetchChatThread,
+  removeChatMessages,
+  type ChatMessage,
+} from "@/lib/chat-store";
+import { queryKeys } from "@/lib/query-client";
 import { toast } from "sonner";
 
 const TYPING_IDLE_MS = 1800;
 const PEER_TYPING_HOLD_MS = 3200;
-
-type Msg = {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  recipient_id: string;
-  ciphertext: string;
-  iv: string | null;
-  is_encrypted: boolean;
-  created_at: string;
-  plaintext?: string;
-};
+const LONG_PRESS_MS = 480;
 
 type ChatSearch = { fromRequestId?: string };
-
-const LONG_PRESS_MS = 480;
 
 export const Route = createFileRoute("/_app/chat/$peerId")({
   head: () => ({ meta: [{ title: "Conversation — BloodLink" }] }),
   validateSearch: (search: Record<string, unknown>): ChatSearch => ({
     fromRequestId: typeof search.fromRequestId === "string" ? search.fromRequestId : undefined,
   }),
+  loader: async ({ context, params }) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return;
+    await prefetchChatThread(context.queryClient, userId, params.peerId);
+  },
   component: Thread,
 });
 
@@ -43,10 +50,10 @@ function Thread() {
   const { fromRequestId } = Route.useSearch();
   const { user } = useAuth();
   const { t, lang } = useI18n();
+  const queryClient = useQueryClient();
   const { markConversationRead } = useChatUnread();
-  const [peer, setPeer] = useState<any>(null);
-  const [convId, setConvId] = useState<string | null>(null);
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const userId = user?.id ?? "";
+
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -63,56 +70,58 @@ function Thread() {
   const lastTypingSentRef = useRef(false);
   const lastTypingAtRef = useRef(0);
 
-  useEffect(() => {
-    if (!user) return;
-    fetchProfileForViewer(peerId, user.id).then((data) => setPeer(data));
-  }, [peerId, user]);
+  const convIdQuery = useQuery({
+    queryKey: queryKeys.chatConvId(userId, peerId),
+    queryFn: () => ensureConversationId(userId, peerId),
+    enabled: !!userId && !!peerId,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    initialData: () => {
+      const convos = queryClient.getQueryData<{ id: string; user_a: string; user_b: string }[]>(
+        queryKeys.chatConversations(userId),
+      );
+      return convos?.find((c) => c.user_a === peerId || c.user_b === peerId)?.id;
+    },
+  });
+
+  const convId = convIdQuery.data ?? null;
+
+  const peerQuery = useQuery({
+    queryKey: queryKeys.chatPeer(peerId, userId),
+    queryFn: () => fetchProfileForViewer(peerId, userId),
+    enabled: !!userId && !!peerId,
+    staleTime: 5 * 60_000,
+    placeholderData: () => peerFromConversationsCache(queryClient, userId, peerId) ?? undefined,
+  });
+
+  const peer = peerQuery.data;
+
+  const messagesQuery = useQuery({
+    queryKey: queryKeys.chatMessages(convId ?? ""),
+    queryFn: () => fetchChatMessages(convId!, userId, peerId),
+    enabled: !!convId && !!userId,
+    staleTime: 30_000,
+    gcTime: 20 * 60_000,
+    placeholderData: () =>
+      convId ? queryClient.getQueryData<ChatMessage[]>(queryKeys.chatMessages(convId)) : undefined,
+  });
+
+  const msgs = messagesQuery.data ?? [];
 
   useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    async function ensure() {
-      const [a, b] = [user!.id, peerId].sort();
-      const { data: existing } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("user_a", a)
-        .eq("user_b", b)
-        .maybeSingle();
-      if (cancelled) return;
-      if (existing?.id) {
-        setConvId(existing.id);
-        return;
-      }
-      const { data, error } = await supabase
-        .from("conversations")
-        .insert({ user_a: a, user_b: b })
-        .select("id")
-        .single();
-      if (cancelled) return;
-      if (error) {
-        if (error.code === "23505" || /duplicate key|unique constraint/i.test(error.message)) {
-          const { data: again } = await supabase
-            .from("conversations")
-            .select("id")
-            .eq("user_a", a)
-            .eq("user_b", b)
-            .maybeSingle();
-          if (again?.id) {
-            setConvId(again.id);
-            return;
-          }
-        }
-        toast.error(error.message);
-        return;
-      }
-      setConvId(data.id);
-    }
-    ensure();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, peerId]);
+    if (!convId) return;
+    void hydrateChatMessagesCache(queryClient, convId);
+  }, [convId, queryClient]);
+
+  useEffect(() => {
+    if (!convId) return;
+    void markConversationRead(convId);
+  }, [convId, markConversationRead]);
+
+  useEffect(() => {
+    if (!msgs.length) return;
+    requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9 }));
+  }, [convId, msgs.length]);
 
   const clearPeerTypingHold = useCallback(() => {
     if (peerTypingHoldRef.current != null) {
@@ -152,7 +161,6 @@ function Thread() {
         return;
       }
       const now = Date.now();
-      // Refresh peer indicator while user keeps typing (throttle ~1s)
       if (lastTypingSentRef.current && now - lastTypingAtRef.current < 1000) return;
       lastTypingSentRef.current = true;
       lastTypingAtRef.current = now;
@@ -195,36 +203,22 @@ function Thread() {
     const secret = conversationSecret(user.id, peerId);
     setPeerTyping(false);
     lastTypingSentRef.current = false;
-    async function load() {
-      const { data } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("conversation_id", convId!)
-        .order("created_at", { ascending: true })
-        .limit(200);
-      const decrypted = await Promise.all(
-        ((data ?? []) as Msg[]).map(async (m) => ({
-          ...m,
-          plaintext: m.is_encrypted && m.iv ? await decryptMessage(m.ciphertext, m.iv, secret) : m.ciphertext,
-        })),
-      );
-      setMsgs(decrypted);
-      void markConversationRead(convId!);
-      requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9 }));
-    }
-    load();
+
     const ch = supabase
       .channel(`msg-${convId}`, { config: { broadcast: { self: false } } })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${convId}` },
         async (payload) => {
-          const m = payload.new as Msg;
+          const m = payload.new as ChatMessage;
           if (m.sender_id === peerId) markPeerTyping(false);
-          if (m.recipient_id === user.id) void markConversationRead(convId!);
-          const plaintext = m.is_encrypted && m.iv ? await decryptMessage(m.ciphertext, m.iv, secret) : m.ciphertext;
-          setMsgs((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, { ...m, plaintext }]));
-          requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }));
+          if (m.recipient_id === user.id) void markConversationRead(convId);
+          const plaintext =
+            m.is_encrypted && m.iv ? await decryptMessage(m.ciphertext, m.iv, secret) : m.ciphertext;
+          appendChatMessage(queryClient, convId, { ...m, plaintext });
+          requestAnimationFrame(() =>
+            scrollerRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }),
+          );
         },
       )
       .on(
@@ -233,7 +227,7 @@ function Thread() {
         (payload) => {
           const id = (payload.old as { id?: string }).id;
           if (!id) return;
-          setMsgs((prev) => prev.filter((m) => m.id !== id));
+          removeChatMessages(queryClient, convId, [id]);
           setSelected((prev) => {
             if (!prev.has(id)) return prev;
             const next = new Set(prev);
@@ -250,13 +244,23 @@ function Thread() {
       })
       .subscribe();
     channelRef.current = ch;
+
     return () => {
       stopTyping();
       clearPeerTypingHold();
       channelRef.current = null;
       supabase.removeChannel(ch);
     };
-  }, [convId, user, peerId, markPeerTyping, stopTyping, clearPeerTypingHold, markConversationRead]);
+  }, [
+    convId,
+    user,
+    peerId,
+    markPeerTyping,
+    stopTyping,
+    clearPeerTypingHold,
+    markConversationRead,
+    queryClient,
+  ]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -317,7 +321,7 @@ function Thread() {
   }
 
   async function deleteSelected() {
-    if (!user || selected.size === 0) return;
+    if (!user || !convId || selected.size === 0) return;
     const ids = [...selected];
     setDeleting(true);
     const { error } = await supabase.from("messages").delete().in("id", ids).eq("sender_id", user.id);
@@ -326,7 +330,7 @@ function Thread() {
       toast.error(error.message);
       return;
     }
-    setMsgs((prev) => prev.filter((m) => !ids.includes(m.id)));
+    removeChatMessages(queryClient, convId, ids);
     exitSelection();
     toast.success(t("messagesDeleted"));
   }
@@ -337,20 +341,32 @@ function Thread() {
     setSending(true);
     const secret = conversationSecret(user.id, peerId);
     const { ciphertext, iv } = await encryptMessage(text.trim(), secret);
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: convId,
-      sender_id: user.id,
-      recipient_id: peerId,
-      ciphertext,
-      iv,
-      is_encrypted: true,
-    });
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: convId,
+        sender_id: user.id,
+        recipient_id: peerId,
+        ciphertext,
+        iv,
+        is_encrypted: true,
+      })
+      .select("*")
+      .single();
     setSending(false);
     if (error) return toast.error(error.message);
+    if (data) {
+      appendChatMessage(queryClient, convId, {
+        ...(data as ChatMessage),
+        plaintext: text.trim(),
+      });
+    }
     setText("");
+    requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: 1e9, behavior: "smooth" }));
   }
 
   const selectedCount = selected.size;
+  const peerName = (peer?.full_name as string | null | undefined) ?? (lang === "bn" ? "ইউজার" : "User");
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full">
@@ -399,9 +415,13 @@ function Thread() {
               params={{ userId: peerId }}
               className="flex items-center gap-2 flex-1 min-w-0"
             >
-              <Avatar name={peer?.full_name as string} src={(peer?.avatar_url as string) ?? undefined} size={36} />
+              <Avatar
+                name={peer?.full_name as string | undefined}
+                src={(peer?.avatar_url as string | null | undefined) ?? undefined}
+                size={36}
+              />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{(peer?.full_name as string) ?? "User"}</p>
+                <p className="text-sm font-semibold truncate">{peerName}</p>
                 {peerTyping ? (
                   <p className="text-[10px] text-primary font-medium animate-pulse">{t("typing")}</p>
                 ) : (
@@ -480,7 +500,7 @@ function Thread() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              send();
+              void send();
             }}
             className="flex items-end gap-2 px-3 py-2"
           >
@@ -493,7 +513,6 @@ function Thread() {
               onChange={(e) => onComposerChange(e.target.value)}
               onBlur={() => stopTyping()}
               onKeyDown={(e) => {
-                // Enter = new line (grows). Ctrl/Cmd+Enter = send.
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
                   void send();

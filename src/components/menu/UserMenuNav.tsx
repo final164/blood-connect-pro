@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import * as Icons from "lucide-react";
-import { Moon, Sun } from "lucide-react";
+import {
+  Bookmark,
+  Building2,
+  Circle,
+  Droplet,
+  FileText,
+  Flag,
+  LogOut,
+  MessagesSquare,
+  Moon,
+  Settings,
+  Share2,
+  Sun,
+  ThumbsUp,
+  User,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -13,6 +29,23 @@ import {
   type UserMenuItem,
   type UserMenuSettings,
 } from "@/lib/user-menu-settings";
+
+/** Explicit map — never `import * as Icons` (pulls entire lucide into the graph). */
+const MENU_ICONS: Record<string, LucideIcon> = {
+  FileText,
+  ThumbsUp,
+  MessagesSquare,
+  Share2,
+  Bookmark,
+  Droplet,
+  Building2,
+  Users,
+  User,
+  Settings,
+  Flag,
+  LogOut,
+  Circle,
+};
 
 function ThemeLangControls() {
   const { lang, setLang, t } = useI18n();
@@ -61,10 +94,7 @@ function ThemeLangControls() {
 }
 
 function MenuIcon({ name, className }: { name: string; className?: string }) {
-  const Comp = (Icons as Record<string, unknown>)[name] as
-    | React.ComponentType<{ className?: string }>
-    | undefined;
-  if (!Comp) return <Icons.Circle className={className} />;
+  const Comp = MENU_ICONS[name] ?? Circle;
   return <Comp className={className} />;
 }
 

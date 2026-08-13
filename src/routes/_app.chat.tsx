@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -7,30 +8,25 @@ import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { useChatUnread } from "@/lib/chat-unread-context";
-import { conversationSecret, decryptMessage } from "@/lib/e2ee";
+import {
+  fetchChatConversations,
+  hydrateChatConversationsCache,
+  prefetchChatThread,
+  type ChatConversation,
+} from "@/lib/chat-store";
+import { queryKeys } from "@/lib/query-client";
 import { ArrowLeft, Search } from "lucide-react";
-
-type LastMsgRow = {
-  conversation_id: string;
-  sender_id: string;
-  ciphertext: string;
-  iv: string | null;
-  is_encrypted: boolean;
-  created_at: string;
-};
-
-type Convo = {
-  id: string;
-  user_a: string;
-  user_b: string;
-  last_message_at: string;
-  peer?: { id: string; full_name: string | null; avatar_url: string | null; blood_group: string | null };
-  lastPreview?: string;
-  lastFromMe?: boolean;
-};
 
 export const Route = createFileRoute("/_app/chat")({
   head: () => ({ meta: [{ title: "Chat — BloodLink" }] }),
+  loader: async ({ context }) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return;
+    await hydrateChatConversationsCache(context.queryClient, userId);
+  },
   component: ChatLayout,
 });
 
@@ -86,60 +82,48 @@ function ChatLayout() {
   );
 }
 
-function previewText(raw: string, lang: "bn" | "en"): string {
-  const t = raw.replace(/\s+/g, " ").trim();
-  if (!t || t === "🔒") {
-    return lang === "bn" ? "মেসেজ" : "Message";
-  }
-  return t.length > 72 ? `${t.slice(0, 72)}…` : t;
-}
-
-async function attachLastMessagePreviews(
-  list: Convo[],
-  userId: string,
-  lang: "bn" | "en",
-): Promise<Convo[]> {
-  if (!list.length) return list;
-  const ids = list.map((c) => c.id);
-  const { data } = await supabase
-    .from("messages")
-    .select("conversation_id, sender_id, ciphertext, iv, is_encrypted, created_at")
-    .in("conversation_id", ids)
-    .order("created_at", { ascending: false })
-    .limit(Math.min(Math.max(ids.length * 4, 40), 200));
-
-  const latest = new Map<string, LastMsgRow>();
-  for (const row of (data ?? []) as LastMsgRow[]) {
-    if (!latest.has(row.conversation_id)) latest.set(row.conversation_id, row);
-  }
-
-  return Promise.all(
-    list.map(async (c) => {
-      const m = latest.get(c.id);
-      if (!m) return { ...c, lastPreview: "", lastFromMe: false };
-      const peerId = c.user_a === userId ? c.user_b : c.user_a;
-      const secret = conversationSecret(userId, peerId);
-      const plain =
-        m.is_encrypted && m.iv
-          ? await decryptMessage(m.ciphertext, m.iv, secret)
-          : m.ciphertext;
-      return {
-        ...c,
-        lastPreview: previewText(plain, lang),
-        lastFromMe: m.sender_id === userId,
-      };
-    }),
-  );
-}
-
 function ChatList({ activePeerId }: { activePeerId?: string }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { byConversation } = useChatUnread();
-  const [convos, setConvos] = useState<Convo[]>([]);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+
+  const userId = user?.id ?? "";
+
+  const convosQuery = useQuery({
+    queryKey: queryKeys.chatConversations(userId),
+    queryFn: () => fetchChatConversations(userId, lang),
+    enabled: !!userId,
+    staleTime: 45_000,
+    gcTime: 20 * 60_000,
+    placeholderData: () =>
+      queryClient.getQueryData<ChatConversation[]>(queryKeys.chatConversations(userId)),
+  });
+
+  useEffect(() => {
+    if (!userId) return;
+    void hydrateChatConversationsCache(queryClient, userId);
+  }, [userId, queryClient]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase
+      .channel("chat-list")
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.chatConversations(userId) });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.chatConversations(userId) });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [userId, queryClient]);
+
+  const convos = convosQuery.data ?? [];
 
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -148,49 +132,6 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
     }
     void navigate({ to: "/home" });
   }
-
-  const load = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("conversations")
-      .select("*")
-      .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-      .order("last_message_at", { ascending: false });
-    const list = (data ?? []) as Convo[];
-    const peerIds = list.map((c) => (c.user_a === user.id ? c.user_b : c.user_a));
-    let withPeers = list;
-    if (peerIds.length) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url, blood_group")
-        .in("id", peerIds);
-      const map = new Map((profiles ?? []).map((p) => [p.id, p] as const));
-      withPeers = list.map((c) => ({
-        ...c,
-        peer: map.get(c.user_a === user.id ? c.user_b : c.user_a) as Convo["peer"],
-      }));
-    }
-    const withPreview = await attachLastMessagePreviews(withPeers, user.id, lang);
-    setConvos(withPreview);
-    setLoading(false);
-  }, [user, lang]);
-
-  useEffect(() => {
-    if (!user) return;
-    void load();
-    const ch = supabase
-      .channel("chat-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => {
-        void load();
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
-        void load();
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(ch);
-    };
-  }, [user, load]);
 
   const filtered = query.trim()
     ? convos.filter((c) => {
@@ -231,10 +172,7 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
       </header>
 
       <ul className="flex-1 overflow-y-auto min-h-0">
-        {loading && (
-          <li className="text-center text-sm text-muted-foreground py-16 px-4">{t("loading")}</li>
-        )}
-        {!loading && filtered.length === 0 && (
+        {filtered.length === 0 && (
           <li className="text-center text-sm text-muted-foreground py-16 px-4">
             {query.trim()
               ? lang === "bn"
@@ -260,6 +198,12 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
               <Link
                 to="/chat/$peerId"
                 params={{ peerId }}
+                onPointerEnter={() => {
+                  if (userId && peerId) void prefetchChatThread(queryClient, userId, peerId, lang);
+                }}
+                onTouchStart={() => {
+                  if (userId && peerId) void prefetchChatThread(queryClient, userId, peerId, lang);
+                }}
                 className={`flex items-center gap-3 px-3.5 py-2.5 transition ${
                   active ? "bg-primary/[0.07]" : "hover:bg-muted/60"
                 }`}

@@ -1,7 +1,10 @@
 import { Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 import { useChatUnreadOptional } from "@/lib/chat-unread-context";
+import { prefetchChatList } from "@/lib/chat-store";
 import { useNotifications } from "@/lib/notifications-context";
 
 /** Instagram / Messenger-style bubble + lightning */
@@ -33,18 +36,27 @@ export function ChatHeaderButton({
   className?: string;
   size?: "md" | "lg";
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const chatUnread = useChatUnreadOptional();
   const count = badge ?? chatUnread?.unread ?? 0;
   const showBadge = count > 0;
   const tap = size === "lg" ? "h-10 w-10" : "h-8 w-8";
   const icon = size === "lg" ? "h-5 w-5" : "h-[18px] w-[18px]";
 
+  const warm = () => {
+    if (!user?.id) return;
+    void prefetchChatList(queryClient, user.id, lang);
+  };
+
   return (
     <Link
       to="/chat"
       title={t("chat")}
       aria-label={showBadge ? `${t("chat")} (${count})` : t("chat")}
+      onPointerEnter={warm}
+      onTouchStart={warm}
       className={`relative ${tap} rounded-xl text-foreground hover:bg-muted grid place-items-center transition ${className}`}
     >
       <MessengerIcon className={icon} />

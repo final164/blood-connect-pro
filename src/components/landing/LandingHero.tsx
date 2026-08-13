@@ -79,19 +79,6 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
       id="top"
       className="landing-hero relative min-h-[min(88dvh,820px)] flex flex-col justify-end overflow-x-hidden"
     >
-      {/* Hidden LCP image so crawlers / Lighthouse see a real img candidate */}
-      {lcpSrc ? (
-        <img
-          src={lcpSrc}
-          alt=""
-          width={1600}
-          height={900}
-          fetchPriority="high"
-          decoding="async"
-          className="pointer-events-none absolute h-px w-px opacity-0"
-          aria-hidden
-        />
-      ) : null}
       <div className="absolute inset-0">
         {h.background_video_url ? (
           <video
@@ -101,7 +88,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             loop
             playsInline
             preload="metadata"
-            poster={slides[0] || undefined}
+            poster={lcpSrc || undefined}
             src={h.background_video_url}
           />
         ) : (
@@ -125,7 +112,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
           }
         >
           <div className="min-w-0">
-            <p className="landing-brand text-3xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight mb-3">
+            <p className="landing-brand text-3xl sm:text-5xl md:text-6xl font-semibold text-white tracking-tight mb-3">
               {pick(lang, h.brand_bn, h.brand_en)}
             </p>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white/95 max-w-2xl leading-snug">

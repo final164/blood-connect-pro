@@ -141,7 +141,16 @@ export function LangProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("lang") as Lang | null;
     if (stored === "bn" || stored === "en") setLangState(stored);
-    void reloadCms();
+    // Defer CMS string fetch — landing uses its own copy; don't compete with LCP
+    const run = () => {
+      void reloadCms();
+    };
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 5000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 2500);
+    return () => window.clearTimeout(t);
   }, []);
 
   const setLang = (l: Lang) => {

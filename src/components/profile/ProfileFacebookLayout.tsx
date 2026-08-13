@@ -12,6 +12,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { ChatLink } from "@/components/chat/ChatLink";
 import { Avatar } from "@/components/Avatar";
 import type { ProfileLockField, ProfileLockSettings } from "@/lib/profile-lock";
 import { isFieldHiddenWhenLocked } from "@/lib/profile-lock";
@@ -180,14 +181,13 @@ export function ProfileFacebookLayout({
 
         {showMessage && (
           <div className="flex gap-2 mt-4">
-            <Link
-              to="/chat/$peerId"
-              params={{ peerId: messagePeerId! }}
+            <ChatLink
+              peerId={messagePeerId!}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm"
             >
               <MessageCircle className="h-4 w-4" />
               {lang === "bn" ? "মেসেজ" : "Message"}
-            </Link>
+            </ChatLink>
           </div>
         )}
 

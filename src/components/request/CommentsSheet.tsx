@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { ChatLink } from "@/components/chat/ChatLink";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -348,16 +349,15 @@ export function CommentsSheet({
               </button>
             )}
             {c.user_id !== user?.id && (
-              <Link
-                to="/chat/$peerId"
-                params={{ peerId: c.user_id }}
-                search={{ fromRequestId: requestId }}
+              <ChatLink
+                peerId={c.user_id}
+                fromRequestId={requestId}
                 onClick={rememberFeedReturn}
                 className="mt-1 ml-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
               >
                 <MessengerIcon className="h-3.5 w-3.5" />
                 {t("chat")}
-              </Link>
+              </ChatLink>
             )}
           </div>
         </div>

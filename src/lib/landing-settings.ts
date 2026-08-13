@@ -1,6 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
-import { LANDING_MEDIA, optimizeLandingImageUrl } from "@/lib/landing-media";
+import {
+  LANDING_MEDIA,
+  optimizeLandingImageUrl,
+  sanitizeLogoUrl,
+} from "@/lib/landing-media";
 
 export type LandingTheme = "life_crimson" | "night_clinic";
 
@@ -504,15 +508,23 @@ function num(v: unknown, fallback: number, min: number, max: number) {
 }
 
 function normalizeHeroImages(heroRaw: Record<string, unknown>, d: LandingSettings): string[] {
-  const size = { w: 1400, q: 68 };
+  // Mobile LCP budget: prefer ~960w; slideshow still looks sharp on phones
+  const size = { w: 960, q: 58 };
   const defaults = [...d.hero.background_images];
+  /** Remote CDN heroes → local (saves Slow-4G RTT; BD-friendly). */
+  const localForRemote = (url: string, i: number) => {
+    if (/images\.unsplash\.com|images\.pexels\.com|cdn\.pixabay\.com/i.test(url)) {
+      return defaults[i % defaults.length] ?? LANDING_MEDIA.heroSlides[i % 3];
+    }
+    return url;
+  };
   const fromArray = Array.isArray(heroRaw.background_images)
     ? heroRaw.background_images
         .map((x) => (typeof x === "string" ? x.trim() : ""))
         .filter(Boolean)
         .map((url, i) =>
           mediaUrl(
-            url,
+            localForRemote(url, i),
             defaults[i] ?? LANDING_MEDIA.heroSlides[i % LANDING_MEDIA.heroSlides.length],
             size,
           ),
@@ -548,7 +560,11 @@ function normalizeHeroYoutube(raw: unknown, d: LandingHeroYoutube): LandingHeroY
     title_en: str(y.title_en, d.title_en),
     body_bn: typeof y.body_bn === "string" ? y.body_bn : d.body_bn,
     body_en: typeof y.body_en === "string" ? y.body_en : d.body_en,
-    poster_url: typeof y.poster_url === "string" ? y.poster_url.trim() : d.poster_url,
+    poster_url: (() => {
+      const p = typeof y.poster_url === "string" ? y.poster_url.trim() : d.poster_url;
+      // maxresdefault often 404s and is huge — prefer hq for LCP budget
+      return p.replace(/\/maxresdefault\.jpg/i, "/hqdefault.jpg");
+    })(),
     autoplay_on_click: y.autoplay_on_click !== false,
   };
 }
@@ -679,7 +695,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       og_image_url: mediaUrl(seoRaw.og_image_url, d.seo.og_image_url, { w: 1200, h: 630, q: 70 }),
     },
     nav: {
-      logo_url: mediaUrl(navRaw.logo_url, d.nav.logo_url, { w: 128, q: 80 }),
+      logo_url: sanitizeLogoUrl(mediaUrl(navRaw.logo_url, d.nav.logo_url, { w: 128, q: 80 })),
       show_lang_toggle: navRaw.show_lang_toggle !== false,
       cta_login_bn: str(navRaw.cta_login_bn, d.nav.cta_login_bn),
       cta_login_en: str(navRaw.cta_login_en, d.nav.cta_login_en),
@@ -703,7 +719,9 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
         cta_secondary_bn: str(heroRaw.cta_secondary_bn, d.hero.cta_secondary_bn),
         cta_secondary_en: str(heroRaw.cta_secondary_en, d.hero.cta_secondary_en),
         cta_secondary_href: str(heroRaw.cta_secondary_href, d.hero.cta_secondary_href),
-        background_url: background_images[0] ?? mediaUrl(heroRaw.background_url, d.hero.background_url, { w: 1400, q: 68 }),
+        background_url:
+          background_images[0] ??
+          mediaUrl(heroRaw.background_url, d.hero.background_url, { w: 960, q: 58 }),
         background_images,
         slideshow,
         background_video_url: str(heroRaw.background_video_url, ""),

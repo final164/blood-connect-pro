@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import {
   parseYoutubeId,
@@ -21,17 +21,32 @@ type Props = {
 /**
  * Privacy-friendly YouTube facade: thumbnail + play until click,
  * then nocookie iframe with autoplay — no redirect to YouTube.
+ * Poster load is deferred until after LCP so it does not compete with the hero.
  */
 export function LandingYoutubePlayer({ youtube, lang, variant = "hero" }: Props) {
   const videoId = parseYoutubeId(youtube.url);
   const [playing, setPlaying] = useState(false);
+  const [posterReady, setPosterReady] = useState(false);
   const [posterFailed, setPosterFailed] = useState(false);
+
+  useEffect(() => {
+    if (!youtube.enabled || !videoId) return;
+    const run = () => setPosterReady(true);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 4000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 1800);
+    return () => window.clearTimeout(t);
+  }, [youtube.enabled, videoId]);
 
   if (!youtube.enabled || !videoId) return null;
 
   const poster =
-    youtube.poster_url?.trim() ||
-    (posterFailed ? youtubePosterUrl(videoId, "hq") : youtubePosterUrl(videoId, "max"));
+    (youtube.poster_url?.trim() || youtubePosterUrl(videoId, "hq")).replace(
+      /\/maxresdefault\.jpg/i,
+      "/hqdefault.jpg",
+    );
   const title = pick(lang, youtube.title_bn, youtube.title_en);
   const body = pick(lang, youtube.body_bn, youtube.body_en);
   const autoplay = youtube.autoplay_on_click !== false;
@@ -45,7 +60,7 @@ export function LandingYoutubePlayer({ youtube, lang, variant = "hero" }: Props)
           className="absolute inset-0 h-full w-full border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
-          loading="eager"
+          loading="lazy"
           referrerPolicy="strict-origin-when-cross-origin"
         />
       ) : (
@@ -55,18 +70,23 @@ export function LandingYoutubePlayer({ youtube, lang, variant = "hero" }: Props)
           className="group absolute inset-0 block w-full cursor-pointer text-left"
           aria-label={lang === "bn" ? "ভিডিও চালু করুন" : "Play video"}
         >
-          <img
-            src={poster}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-            width={1280}
-            height={720}
-            onError={() => {
-              if (!posterFailed && !youtube.poster_url?.trim()) setPosterFailed(true);
-            }}
-          />
+          {posterReady ? (
+            <img
+              src={poster}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+              width={480}
+              height={360}
+              onError={() => {
+                if (!posterFailed && !youtube.poster_url?.trim()) setPosterFailed(true);
+              }}
+            />
+          ) : (
+            <span className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" aria-hidden />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
           <span className="absolute inset-0 grid place-items-center">
             <span
@@ -110,7 +130,7 @@ export function LandingYoutubePlayer({ youtube, lang, variant = "hero" }: Props)
     >
       {(title || body) && (
         <div className="mb-4 max-w-2xl">
-          {title ? <h2 className="text-xl md:text-2xl font-bold landing-brand">{title}</h2> : null}
+          {title ? <h2 className="text-xl md:text-2xl font-semibold landing-brand">{title}</h2> : null}
           {body ? (
             <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--landing-muted)" }}>
               {body}

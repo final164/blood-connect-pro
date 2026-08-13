@@ -1,9 +1,11 @@
 import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { ChatUnreadProvider } from "@/lib/chat-unread-context";
+import { ChatWarmup } from "@/components/chat/ChatWarmup";
 import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/api";
@@ -20,6 +22,7 @@ import {
 import { Home, Users, User, WifiOff, Droplet, Shield, Plus } from "lucide-react";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { useChatUnread } from "@/lib/chat-unread-context";
+import { prefetchChatList } from "@/lib/chat-store";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -120,6 +123,7 @@ function AppLayout() {
   return (
     <NotificationsProvider>
       <ChatUnreadProvider>
+        <ChatWarmup />
         <AppShell
           t={t}
           locationPath={location.pathname}
@@ -147,6 +151,8 @@ function AppShell({
 }) {
   const { unread: chatUnread } = useChatUnread();
   const { lang } = useI18n();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
   const isChatThread = /^\/chat\/[^/]+$/.test(locationPath);
@@ -242,6 +248,11 @@ function AppShell({
         ? "grid-cols-4"
         : "grid-cols-5";
 
+  function warmChatList() {
+    if (!user?.id) return;
+    void prefetchChatList(queryClient, user.id, lang);
+  }
+
   function renderTab(tab: NavTab, layout: "top" | "bottom") {
     if (tab.kind === "compose") {
       const Icon = tab.icon;
@@ -313,6 +324,8 @@ function AppShell({
         <Link
           key={tab.id}
           to={tab.to}
+          onPointerEnter={tab.to === "/chat" ? warmChatList : undefined}
+          onTouchStart={tab.to === "/chat" ? warmChatList : undefined}
           className={`relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
             active
               ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
@@ -342,6 +355,8 @@ function AppShell({
       <Link
         key={tab.id}
         to={tab.to}
+        onPointerEnter={tab.to === "/chat" ? warmChatList : undefined}
+        onTouchStart={tab.to === "/chat" ? warmChatList : undefined}
         className={`bn-tab flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-1 pb-0.5 transition-colors ${
           active ? "bn-tab--active" : ""
         }`}

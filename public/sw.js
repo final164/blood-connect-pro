@@ -1,5 +1,5 @@
 /* BloodLink offline shell + device notifications */
-const CACHE = "bloodlink-shell-v2";
+const CACHE = "bloodlink-shell-v3";
 const ASSETS = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {

@@ -11,5 +11,24 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    // Split route components so landing doesn't modulepreload the whole app
+    tsr: {
+      autoCodeSplitting: true,
+    },
+  },
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules")) {
+              if (id.includes("@supabase")) return "supabase";
+              if (id.includes("lucide-react")) return "icons";
+              if (id.includes("@tanstack")) return "tanstack";
+            }
+          },
+        },
+      },
+    },
   },
 });

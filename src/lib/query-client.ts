@@ -40,4 +40,8 @@ export const queryKeys = {
   profile: (userId: string | undefined) => ["profile", userId ?? null] as const,
   profileLock: ["profile-lock-settings"] as const,
   publicProfile: (userId: string) => ["public-profile", userId] as const,
+  chatConversations: (userId: string) => ["chat", "conversations", userId] as const,
+  chatMessages: (convId: string) => ["chat", "messages", convId] as const,
+  chatPeer: (peerId: string, viewerId: string) => ["chat", "peer", peerId, viewerId] as const,
+  chatConvId: (userId: string, peerId: string) => ["chat", "conv-id", userId, peerId] as const,
 };

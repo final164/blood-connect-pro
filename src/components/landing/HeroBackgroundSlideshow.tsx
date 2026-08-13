@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { LandingHeroSlideshow } from "@/lib/landing-settings";
-import { LANDING_MEDIA } from "@/lib/landing-media";
+import { HERO_LCP, LANDING_MEDIA, isDefaultHeroUrl, landingImageSrcSet, optimizeLandingImageUrl } from "@/lib/landing-media";
 
 type Props = {
   images: string[];
@@ -34,9 +34,73 @@ function preload(urls: string[]) {
   }
 }
 
+function HeroSlideImg({
+  src,
+  active,
+  away,
+  priority,
+}: {
+  src: string | null;
+  active: boolean;
+  away: boolean;
+  priority: boolean;
+}) {
+  if (!src) {
+    return (
+      <div
+        className="hero-bg-layer absolute inset-0"
+        style={{ opacity: 0, visibility: "hidden" }}
+        aria-hidden
+      />
+    );
+  }
+
+  const useWebp = isDefaultHeroUrl(src);
+  const remoteSrcSet = !useWebp ? landingImageSrcSet(src) : "";
+  const remoteSrc = !useWebp
+    ? optimizeLandingImageUrl(src, { w: 960, q: 58 }) || src
+    : src;
+  const common = {
+    alt: "",
+    width: HERO_LCP.width,
+    height: HERO_LCP.height,
+    decoding: (priority ? "sync" : "async") as "sync" | "async",
+    loading: (priority ? "eager" : "lazy") as "eager" | "lazy",
+    draggable: false,
+    className: "hero-bg-layer absolute inset-0 h-full w-full object-cover",
+    style: {
+      opacity: away ? 0 : active ? 1 : 0,
+      visibility: (away ? "hidden" : "visible") as "hidden" | "visible",
+    },
+  };
+
+  if (useWebp) {
+    return (
+      <img
+        {...common}
+        src={HERO_LCP.webp}
+        srcSet={HERO_LCP.srcSet}
+        sizes={HERO_LCP.sizes}
+        fetchPriority={priority ? "high" : "low"}
+      />
+    );
+  }
+
+  return (
+    <img
+      {...common}
+      src={remoteSrc}
+      {...(remoteSrcSet
+        ? { srcSet: remoteSrcSet, sizes: HERO_LCP.sizes }
+        : {})}
+      fetchPriority={priority ? "high" : "low"}
+    />
+  );
+}
+
 /**
  * Lag-free hero crossfade: two GPU layers, opacity only.
- * Pauses while the user scrolls / hero leaves the viewport so scroll FPS stays smooth.
+ * Layer B has no src until first transition — avoids competing with LCP.
  */
 export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: Props) {
   const slides = ensureHeroSlides(images);
@@ -49,15 +113,16 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
   const slidesRef = useRef(slides);
   const scrollResumeTimer = useRef(0);
 
-  const [layer0, setLayer0] = useState(slides[0] ?? LANDING_MEDIA.hero);
-  const [layer1, setLayer1] = useState(slides[1] ?? slides[0] ?? LANDING_MEDIA.hero);
+  const [layer0, setLayer0] = useState<string | null>(slides[0] ?? LANDING_MEDIA.hero);
+  /** Intentionally empty until first slide change — do not compete with LCP. */
+  const [layer1, setLayer1] = useState<string | null>(null);
   const [activeLayer, setActiveLayer] = useState<0 | 1>(0);
   const [index, setIndex] = useState(0);
   const [away, setAway] = useState(false);
 
   slidesRef.current = slides;
 
-  // Reset + preload when slide list changes
+  // Reset when slide list changes — only paint slide 1 immediately
   useEffect(() => {
     const list = ensureHeroSlides(images);
     indexRef.current = 0;
@@ -65,21 +130,19 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
     setIndex(0);
     setActiveLayer(0);
     setLayer0(list[0] ?? LANDING_MEDIA.hero);
-    setLayer1(list[1] ?? list[0] ?? LANDING_MEDIA.hero);
-    preload(list.slice(0, 1));
+    setLayer1(null);
     const rest = list.slice(1);
     if (rest.length) {
       const run = () => preload(rest);
       if (typeof requestIdleCallback === "function") {
-        const id = requestIdleCallback(run, { timeout: 2500 });
+        const id = requestIdleCallback(run, { timeout: 4000 });
         return () => cancelIdleCallback(id);
       }
-      const t = window.setTimeout(run, 800);
+      const t = window.setTimeout(run, 1200);
       return () => window.clearTimeout(t);
     }
   }, [images.join("|")]);
 
-  // Pause slideshow while scrolling (hero crossfade mid-scroll = jank)
   useEffect(() => {
     const onScroll = () => {
       scrollingRef.current = true;
@@ -103,7 +166,6 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
         const ratio = entry?.intersectionRatio ?? 0;
         const onScreen = !!entry?.isIntersecting && ratio > 0.08;
         visibleRef.current = onScreen;
-        // Freeze compositor work for full-bleed images once hero is mostly gone
         setAway(!onScreen);
       },
       { threshold: [0, 0.08, 0.25, 0.5] },
@@ -114,7 +176,6 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
 
   const enabled = slideshow.enabled !== false && slides.length >= 2;
   const intervalMs = Math.min(30000, Math.max(2500, slideshow.interval_ms || 5500));
-  // Cap fade length — long opacity transitions over 88vh images hurt scroll
   const transitionMs = Math.min(700, Math.max(350, slideshow.transition_ms || 700));
 
   useEffect(() => {
@@ -172,34 +233,8 @@ export function HeroBackgroundSlideshow({ images, slideshow, overlayOpacity }: P
         pausedRef.current = false;
       }}
     >
-      <img
-        src={layer0}
-        alt=""
-        width={1400}
-        height={900}
-        decoding="async"
-        fetchPriority={activeLayer === 0 ? "high" : "low"}
-        draggable={false}
-        className="hero-bg-layer absolute inset-0 h-full w-full object-cover"
-        style={{
-          opacity: away ? 0 : activeLayer === 0 ? 1 : 0,
-          visibility: away ? "hidden" : "visible",
-        }}
-      />
-      <img
-        src={layer1}
-        alt=""
-        width={1400}
-        height={900}
-        decoding="async"
-        fetchPriority={activeLayer === 1 ? "high" : "low"}
-        draggable={false}
-        className="hero-bg-layer absolute inset-0 h-full w-full object-cover"
-        style={{
-          opacity: away ? 0 : activeLayer === 1 ? 1 : 0,
-          visibility: away ? "hidden" : "visible",
-        }}
-      />
+      <HeroSlideImg src={layer0} active={activeLayer === 0} away={away} priority={activeLayer === 0} />
+      <HeroSlideImg src={layer1} active={activeLayer === 1} away={away} priority={activeLayer === 1} />
 
       <div
         className="absolute inset-0 pointer-events-none"

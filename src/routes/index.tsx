@@ -26,7 +26,7 @@ import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { LandingSeoJsonLd, SeoHeadUpdater } from "@/components/SeoHead";
-import { LANDING_MEDIA } from "@/lib/landing-media";
+import { LANDING_MEDIA, heroLcpPreload } from "@/lib/landing-media";
 import { ensureHeroSlides } from "@/components/landing/HeroBackgroundSlideshow";
 
 const LandingRestSections = lazy(() =>
@@ -86,9 +86,20 @@ export const Route = createFileRoute("/")({
     const heroLcp =
       ensureHeroSlides(settings.hero?.background_images, settings.hero?.background_url)[0] ||
       LANDING_MEDIA.hero;
+    const preload = heroLcpPreload(heroLcp);
     return {
       meta,
-      links: [...links, { rel: "preload", as: "image", href: heroLcp }],
+      links: [
+        ...links,
+        {
+          rel: "preload",
+          as: "image",
+          href: preload.href,
+          ...(preload.imageSrcSet
+            ? { imageSrcSet: preload.imageSrcSet, imageSizes: preload.imageSizes }
+            : {}),
+        },
+      ],
     };
   },
   component: LandingPage,
@@ -100,7 +111,9 @@ function LandingPage() {
   const navigate = useNavigate();
   const [landingLang, setLandingLang] = useState<"bn" | "en">(readLandingLang);
   const [authHint] = useState(hasStoredAuthHint);
+  const [countsReady, setCountsReady] = useState(false);
   const loaderData = Route.useLoaderData();
+  const loggedIn = !loading && !!session && !isAnonymous;
 
   const settingsQ = useQuery({
     queryKey: ["landing-settings"],
@@ -108,6 +121,8 @@ function LandingPage() {
     staleTime: 60_000,
     initialData: loaderData.settings,
     placeholderData: DEFAULT_LANDING_SETTINGS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const seoQ = useQuery({
@@ -115,6 +130,8 @@ function LandingPage() {
     queryFn: () => fetchSeoSettings(),
     staleTime: 60_000,
     initialData: loaderData.seo,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const contentQ = useQuery({
@@ -122,13 +139,29 @@ function LandingPage() {
     queryFn: () => fetchLandingContentOnly(),
     staleTime: 60_000,
     placeholderData: PLACEHOLDER_CONTENT,
+    enabled: countsReady && !loggedIn && !authHint,
+    refetchOnWindowFocus: false,
   });
 
   const countsQ = useQuery({
     queryKey: ["landing-live-counts"],
     queryFn: () => fetchLandingLiveCounts(),
     staleTime: 60_000,
+    // After LCP / idle — avoid competing with hero image on Slow 4G
+    enabled: countsReady && !loggedIn && !authHint,
+    refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (loggedIn || authHint) return;
+    const run = () => setCountsReady(true);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 3500 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 2000);
+    return () => window.clearTimeout(t);
+  }, [loggedIn, authHint]);
 
   const settings: LandingSettings = settingsQ.data ?? DEFAULT_LANDING_SETTINGS;
   const seo = seoQ.data ?? DEFAULT_SEO_SETTINGS;
@@ -161,7 +194,6 @@ function LandingPage() {
               landingLang === "bn" ? item.reflection_bn : item.reflection_en,
           })),
         };
-  const loggedIn = !loading && !!session && !isAnonymous;
   const showHero = settings.sections_enabled.hero !== false;
 
   // Follow app lang after LangProvider reads localStorage (en only if stored).
