@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, lazy, Suspense, useState } from "react";
+import { type CSSProperties, type ReactNode, lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { LandingSettings } from "@/lib/landing-settings";
 import { DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE } from "@/lib/landing-settings";
@@ -80,6 +80,19 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   const [showYoutube, setShowYoutube] = useState(false);
   const lcpSrc = slides[0];
 
+  useEffect(() => {
+    if (!canYoutube) return;
+    // Desktop: restore side-by-side hero video (mobile stays click-to-play for LCP).
+    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    const run = () => setShowYoutube(true);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 3500 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(t);
+  }, [canYoutube]);
+
   return (
     <section
       id="top"
@@ -145,7 +158,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
                 <button
                   type="button"
                   onClick={() => setShowYoutube(true)}
-                  className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10"
+                  className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10 lg:hidden"
                 >
                   {lang === "bn" ? "ভিডিও দেখুন" : "Watch video"}
                 </button>

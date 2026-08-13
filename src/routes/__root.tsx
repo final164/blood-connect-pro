@@ -8,14 +8,10 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
-import landingCss from "../styles-landing.css?inline";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-
-const AppProviders = lazy(() =>
-  import("@/components/AppProviders").then((m) => ({ default: m.AppProviders })),
-);
+import { AppProviders } from "@/components/AppProviders";
 
 function NotFoundComponent() {
   return (
@@ -84,7 +80,6 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="bn" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <style dangerouslySetInnerHTML={{ __html: landingCss }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark")document.documentElement.classList.add("dark");}catch(e){}})();`,
@@ -121,10 +116,8 @@ function RootComponent() {
   if (isLanding) return <Outlet />;
 
   return (
-    <Suspense fallback={<div className="min-h-dvh" style={{ background: "#F7F3F0" }} />}>
-      <AppProviders queryClient={queryClient}>
-        <Outlet />
-      </AppProviders>
-    </Suspense>
+    <AppProviders queryClient={queryClient}>
+      <Outlet />
+    </AppProviders>
   );
 }

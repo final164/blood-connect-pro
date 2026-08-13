@@ -10,6 +10,7 @@ import {
   buildHead,
 } from "@/lib/seo-settings";
 import { loadLandingPage } from "@/lib/landing-page-data";
+import { LANDING_STYLESHEET } from "@/lib/landing-stylesheet";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingHero } from "@/components/landing/LandingHero";
@@ -64,6 +65,7 @@ export const Route = createFileRoute("/")({
     return {
       meta,
       links: [
+        LANDING_STYLESHEET,
         ...links,
         {
           rel: "preload",
@@ -104,26 +106,32 @@ function LandingPage() {
         };
 
   useEffect(() => {
-    const reveal = () => setBelowReady(true);
-    const el = document.getElementById("landing-below");
-    if (el && typeof IntersectionObserver === "function") {
-      const io = new IntersectionObserver(
-        ([entry]) => {
-          if (!entry?.isIntersecting) return;
-          reveal();
-          io.disconnect();
-        },
-        { rootMargin: "240px 0px" },
-      );
-      io.observe(el);
-      const t = window.setTimeout(reveal, 16000);
+    let cancelled = false;
+    const reveal = () => {
+      if (!cancelled) setBelowReady(true);
+    };
+
+    // Desktop: show full landing immediately (hero + sections + YouTube layout).
+    if (window.matchMedia("(min-width: 768px)").matches) {
+      reveal();
       return () => {
-        io.disconnect();
-        window.clearTimeout(t);
+        cancelled = true;
       };
     }
-    const t = window.setTimeout(reveal, 16000);
-    return () => window.clearTimeout(t);
+
+    // Mobile: defer below-fold chunk so LCP stays fast.
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(reveal, { timeout: 3200 });
+      return () => {
+        cancelled = true;
+        cancelIdleCallback(id);
+      };
+    }
+    const t = window.setTimeout(reveal, 1800);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
   useEffect(() => {
@@ -168,7 +176,6 @@ function LandingPage() {
       )}
       <main>
         {showHero && <LandingHero settings={settings} lang={landingLang} />}
-        <div id="landing-below" className="min-h-[20vh]" aria-hidden={!belowReady} />
         {belowReady && (
           <Suspense fallback={<div className="min-h-[40vh]" aria-hidden />}>
             <LandingRestSections settings={settings} lang={landingLang} />
