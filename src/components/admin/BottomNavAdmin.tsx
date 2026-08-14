@@ -22,7 +22,7 @@ const ID_HINT: Record<BottomNavItem["id"], { bn: string; en: string }> = {
   community: { bn: "কমিউনিটি ডোনার", en: "Community donors" },
   post: { bn: "নতুন রিকোয়েস্ট পোস্ট", en: "Create request / post" },
   alert: { bn: "চ্যাট (মেসেজ)", en: "Chat / messages" },
-  profile: { bn: "ইউজার প্রোফাইল", en: "User profile" },
+  more: { bn: "কেয়ার হাব (ডাক্তার / টেস্ট)", en: "Care hub (doctors / tests)" },
 };
 
 const COLOR_FIELDS: {

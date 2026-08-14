@@ -25,10 +25,18 @@ import { Route as AppMapRouteImport } from './routes/_app.map'
 import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppCareRouteImport } from './routes/_app.care'
 import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
+import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
+import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
+import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
+import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
+import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
+import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-booking.$id'
+import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -109,10 +117,20 @@ const AppChatRoute = AppChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCareRoute = AppCareRouteImport.update({
+  id: '/care',
+  path: '/care',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppProfileRoute,
+} as any)
+const AppCareIndexRoute = AppCareIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCareRoute,
 } as any)
 const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
   id: '/$userId',
@@ -129,6 +147,36 @@ const AppChatPeerIdRoute = AppChatPeerIdRouteImport.update({
   path: '/$peerId',
   getParentRoute: () => AppChatRoute,
 } as any)
+const AppCareLabRoute = AppCareLabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareDeskRoute = AppCareDeskRouteImport.update({
+  id: '/desk',
+  path: '/desk',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareTestIdRoute = AppCareTestIdRouteImport.update({
+  id: '/test/$id',
+  path: '/test/$id',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareSerialIdRoute = AppCareSerialIdRouteImport.update({
+  id: '/serial/$id',
+  path: '/serial/$id',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareLabBookingIdRoute = AppCareLabBookingIdRouteImport.update({
+  id: '/lab-booking/$id',
+  path: '/lab-booking/$id',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareDoctorIdRoute = AppCareDoctorIdRouteImport.update({
+  id: '/doctor/$id',
+  path: '/doctor/$id',
+  getParentRoute: () => AppCareRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -137,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/org': typeof OrgRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/care': typeof AppCareRouteWithChildren
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/home': typeof AppHomeRoute
@@ -146,10 +195,17 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRouteWithChildren
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
+  '/care/desk': typeof AppCareDeskRoute
+  '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
+  '/care/doctor/$id': typeof AppCareDoctorIdRoute
+  '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
+  '/care/serial/$id': typeof AppCareSerialIdRoute
+  '/care/test/$id': typeof AppCareTestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -166,10 +222,17 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AppOnboardingRoute
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
+  '/care/desk': typeof AppCareDeskRoute
+  '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
+  '/care/doctor/$id': typeof AppCareDoctorIdRoute
+  '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
+  '/care/serial/$id': typeof AppCareSerialIdRoute
+  '/care/test/$id': typeof AppCareTestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -180,6 +243,7 @@ export interface FileRoutesById {
   '/org': typeof OrgRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_app/care': typeof AppCareRouteWithChildren
   '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/community': typeof AppCommunityRoute
   '/_app/home': typeof AppHomeRoute
@@ -189,10 +253,17 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRouteWithChildren
   '/_app/requests': typeof AppRequestsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/care/desk': typeof AppCareDeskRoute
+  '/_app/care/lab': typeof AppCareLabRoute
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
+  '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
+  '/_app/care/doctor/$id': typeof AppCareDoctorIdRoute
+  '/_app/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
+  '/_app/care/serial/$id': typeof AppCareSerialIdRoute
+  '/_app/care/test/$id': typeof AppCareTestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -203,6 +274,7 @@ export interface FileRouteTypes {
     | '/org'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/care'
     | '/chat'
     | '/community'
     | '/home'
@@ -212,10 +284,17 @@ export interface FileRouteTypes {
     | '/profile'
     | '/requests'
     | '/settings'
+    | '/care/desk'
+    | '/care/lab'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/'
     | '/profile/'
+    | '/care/doctor/$id'
+    | '/care/lab-booking/$id'
+    | '/care/serial/$id'
+    | '/care/test/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -232,10 +311,17 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/requests'
     | '/settings'
+    | '/care/desk'
+    | '/care/lab'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care'
     | '/profile'
+    | '/care/doctor/$id'
+    | '/care/lab-booking/$id'
+    | '/care/serial/$id'
+    | '/care/test/$id'
   id:
     | '__root__'
     | '/'
@@ -245,6 +331,7 @@ export interface FileRouteTypes {
     | '/org'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/_app/care'
     | '/_app/chat'
     | '/_app/community'
     | '/_app/home'
@@ -254,10 +341,17 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/requests'
     | '/_app/settings'
+    | '/_app/care/desk'
+    | '/_app/care/lab'
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
+    | '/_app/care/'
     | '/_app/profile/'
+    | '/_app/care/doctor/$id'
+    | '/_app/care/lab-booking/$id'
+    | '/_app/care/serial/$id'
+    | '/_app/care/test/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -384,12 +478,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/care': {
+      id: '/_app/care'
+      path: '/care'
+      fullPath: '/care'
+      preLoaderRoute: typeof AppCareRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/profile/': {
       id: '/_app/profile/'
       path: '/'
       fullPath: '/profile/'
       preLoaderRoute: typeof AppProfileIndexRouteImport
       parentRoute: typeof AppProfileRoute
+    }
+    '/_app/care/': {
+      id: '/_app/care/'
+      path: '/'
+      fullPath: '/care/'
+      preLoaderRoute: typeof AppCareIndexRouteImport
+      parentRoute: typeof AppCareRoute
     }
     '/_app/profile/$userId': {
       id: '/_app/profile/$userId'
@@ -412,8 +520,73 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatPeerIdRouteImport
       parentRoute: typeof AppChatRoute
     }
+    '/_app/care/lab': {
+      id: '/_app/care/lab'
+      path: '/lab'
+      fullPath: '/care/lab'
+      preLoaderRoute: typeof AppCareLabRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/desk': {
+      id: '/_app/care/desk'
+      path: '/desk'
+      fullPath: '/care/desk'
+      preLoaderRoute: typeof AppCareDeskRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/test/$id': {
+      id: '/_app/care/test/$id'
+      path: '/test/$id'
+      fullPath: '/care/test/$id'
+      preLoaderRoute: typeof AppCareTestIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/serial/$id': {
+      id: '/_app/care/serial/$id'
+      path: '/serial/$id'
+      fullPath: '/care/serial/$id'
+      preLoaderRoute: typeof AppCareSerialIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/lab-booking/$id': {
+      id: '/_app/care/lab-booking/$id'
+      path: '/lab-booking/$id'
+      fullPath: '/care/lab-booking/$id'
+      preLoaderRoute: typeof AppCareLabBookingIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/doctor/$id': {
+      id: '/_app/care/doctor/$id'
+      path: '/doctor/$id'
+      fullPath: '/care/doctor/$id'
+      preLoaderRoute: typeof AppCareDoctorIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
   }
 }
+
+interface AppCareRouteChildren {
+  AppCareDeskRoute: typeof AppCareDeskRoute
+  AppCareLabRoute: typeof AppCareLabRoute
+  AppCareIndexRoute: typeof AppCareIndexRoute
+  AppCareDoctorIdRoute: typeof AppCareDoctorIdRoute
+  AppCareLabBookingIdRoute: typeof AppCareLabBookingIdRoute
+  AppCareSerialIdRoute: typeof AppCareSerialIdRoute
+  AppCareTestIdRoute: typeof AppCareTestIdRoute
+}
+
+const AppCareRouteChildren: AppCareRouteChildren = {
+  AppCareDeskRoute: AppCareDeskRoute,
+  AppCareLabRoute: AppCareLabRoute,
+  AppCareIndexRoute: AppCareIndexRoute,
+  AppCareDoctorIdRoute: AppCareDoctorIdRoute,
+  AppCareLabBookingIdRoute: AppCareLabBookingIdRoute,
+  AppCareSerialIdRoute: AppCareSerialIdRoute,
+  AppCareTestIdRoute: AppCareTestIdRoute,
+}
+
+const AppCareRouteWithChildren =
+  AppCareRoute._addFileChildren(AppCareRouteChildren)
 
 interface AppChatRouteChildren {
   AppChatPeerIdRoute: typeof AppChatPeerIdRoute
@@ -441,6 +614,7 @@ const AppProfileRouteWithChildren = AppProfileRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppCareRoute: typeof AppCareRouteWithChildren
   AppChatRoute: typeof AppChatRouteWithChildren
   AppCommunityRoute: typeof AppCommunityRoute
   AppHomeRoute: typeof AppHomeRoute
@@ -454,6 +628,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCareRoute: AppCareRouteWithChildren,
   AppChatRoute: AppChatRouteWithChildren,
   AppCommunityRoute: AppCommunityRoute,
   AppHomeRoute: AppHomeRoute,

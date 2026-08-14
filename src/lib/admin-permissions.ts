@@ -12,7 +12,8 @@ export type AdminModule =
   | "notifications"
   | "settings"
   | "architecture"
-  | "access";
+  | "access"
+  | "care";
 
 export type PermissionKey = `${AdminModule}.${string}`;
 
@@ -95,6 +96,10 @@ export const ADMIN_PERMISSION_CATALOG: PermissionDef[] = [
   { key: "architecture.view", module: "architecture", action: "view", label_en: "View architecture", label_bn: "আর্কিটেকচার দেখা", sort_order: 100 },
   { key: "access.view", module: "access", action: "view", label_en: "View access control", label_bn: "অ্যাক্সেস দেখা", sort_order: 110 },
   { key: "access.manage", module: "access", action: "manage", label_en: "Manage roles & ACL", label_bn: "রোল ও ACL ম্যানেজ", sort_order: 111 },
+  { key: "care.view", module: "care", action: "view", label_en: "View Care CMS", label_bn: "কেয়ার CMS দেখা", sort_order: 120 },
+  { key: "care.edit", module: "care", action: "edit", label_en: "Edit Care catalogs", label_bn: "কেয়ার ক্যাটালগ এডিট", sort_order: 121 },
+  { key: "care.kyc", module: "care", action: "kyc", label_en: "Verify Care vendors", label_bn: "কেয়ার KYC", sort_order: 122 },
+  { key: "care.orgs", module: "care", action: "orgs", label_en: "Manage Care organizations", label_bn: "কেয়ার অর্গ ম্যানেজ", sort_order: 123 },
 ];
 
 export const ADMIN_MODULES: { id: AdminModule; label_en: string; label_bn: string }[] = [
@@ -110,6 +115,7 @@ export const ADMIN_MODULES: { id: AdminModule; label_en: string; label_bn: strin
   { id: "settings", label_en: "Settings", label_bn: "সেটিংস" },
   { id: "architecture", label_en: "Architecture", label_bn: "আর্কিটেকচার" },
   { id: "access", label_en: "Access Control", label_bn: "অ্যাক্সেস কন্ট্রোল" },
+  { id: "care", label_en: "Care", label_bn: "কেয়ার" },
 ];
 
 export type AdminRoleRow = {

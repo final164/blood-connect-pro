@@ -19,8 +19,9 @@ import {
   type BottomNavItemId,
   type BottomNavSettings,
 } from "@/lib/bottom-nav-settings";
-import { Home, Users, User, WifiOff, Droplet, Shield, Plus } from "lucide-react";
+import { Home, Users, WifiOff, Droplet, Shield, Plus, LayoutGrid } from "lucide-react";
 import { MessengerIcon } from "@/components/MessengerIcon";
+import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { useChatUnread } from "@/lib/chat-unread-context";
 import { prefetchChatList } from "@/lib/chat-store";
 export function AppLayout() {
@@ -152,6 +153,9 @@ function AppShell({
   const location = useLocation();
   const isChatThread = /^\/chat\/[^/]+$/.test(locationPath);
   const isChatSection = locationPath.startsWith("/chat");
+  const isCareVendorShell =
+    locationPath.startsWith("/care/desk") || locationPath.startsWith("/care/lab");
+  const hideBottomNav = isChatThread || isCareVendorShell;
   const composeOpen =
     (locationPath === "/home" || locationPath === "/") &&
     !!(location.search as { compose?: boolean | string }).compose;
@@ -186,7 +190,7 @@ function AppShell({
         icon: "messenger";
         badge?: number;
       }
-    | { id: BottomNavItemId; kind: "link"; to: "/profile"; label: string; icon: typeof User; badge?: number }
+    | { id: BottomNavItemId; kind: "link"; to: "/care"; label: string; icon: typeof LayoutGrid; badge?: number }
     | { id: BottomNavItemId; kind: "compose"; label: string; icon: typeof Plus };
 
   const allTabs: NavTab[] = useMemo(() => {
@@ -214,11 +218,11 @@ function AppShell({
         badge: chatUnread,
       },
       {
-        id: "profile",
+        id: "more",
         kind: "link",
-        to: "/profile",
-        label: label("profile", t("profile")),
-        icon: User,
+        to: "/care",
+        label: label("more", t("more")),
+        icon: LayoutGrid,
       },
     ];
   }, [lang, navCfg.items, t, chatUnread]);
@@ -417,6 +421,7 @@ function AppShell({
               <span className="hidden lg:inline">{t("adminPanel")}</span>
             </Link>
           )}
+          <ProfileHeaderButton className="shrink-0" />
         </AutoHideHeader>
 
         {!online && (
@@ -428,10 +433,10 @@ function AppShell({
 
         <main
           className={`flex-1 flex flex-col min-h-0 min-w-0 ${
-            isChatThread ? "pb-0" : "pb-bottom-nav md:pb-0"
+            hideBottomNav ? "pb-0" : "pb-bottom-nav md:pb-0"
           }`}
         >
-          {isChatSection ? (
+          {isChatSection || isCareVendorShell ? (
             <div className="flex-1 flex flex-col min-h-0 app-shell-wide md:px-4 md:py-4 lg:px-6">
               <Outlet />
             </div>
@@ -443,7 +448,7 @@ function AppShell({
         </main>
 
         {/* Mobile: dark professional bottom nav (colors from admin) */}
-        {!isChatThread && (
+        {!hideBottomNav && (
           <nav
             className="md:hidden fixed bottom-0 inset-x-0 z-40 bottom-nav-dark safe-bottom-nav"
             style={bottomNavColorStyle(navCfg.colors ?? DEFAULT_BOTTOM_NAV_SETTINGS.colors)}

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type BottomNavItemId = "feed" | "community" | "post" | "alert" | "profile";
+export type BottomNavItemId = "feed" | "community" | "post" | "alert" | "more";
 
 export type BottomNavItem = {
   id: BottomNavItemId;
@@ -40,7 +40,7 @@ const DEFAULT_ITEMS: BottomNavItem[] = [
   { id: "community", enabled: true, order: 1, label_bn: "কমিউনিটি", label_en: "Community" },
   { id: "post", enabled: true, order: 2, label_bn: "পোস্ট", label_en: "Post" },
   { id: "alert", enabled: true, order: 3, label_bn: "চ্যাট", label_en: "Chat" },
-  { id: "profile", enabled: true, order: 4, label_bn: "প্রোফাইল", label_en: "Profile" },
+  { id: "more", enabled: true, order: 4, label_bn: "আরও", label_en: "More" },
 ];
 
 export const DEFAULT_BOTTOM_NAV_COLORS: BottomNavColors = {
@@ -116,18 +116,26 @@ function mergeItems(raw: unknown): BottomNavItem[] {
   if (Array.isArray(raw)) {
     for (const row of raw) {
       if (!row || typeof row !== "object") continue;
-      const r = row as Partial<BottomNavItem>;
-      if (!r.id || !VALID_IDS.has(r.id)) continue;
-      const base = byId.get(r.id as BottomNavItemId)!;
-      byId.set(r.id as BottomNavItemId, {
+      const r = row as {
+        id?: string;
+        enabled?: boolean;
+        order?: number;
+        label_bn?: string;
+        label_en?: string;
+      };
+      const storedId = String(r.id ?? "");
+      const rawId = storedId === "profile" ? "more" : storedId;
+      if (!rawId || !VALID_IDS.has(rawId)) continue;
+      const id = rawId as BottomNavItemId;
+      const base = byId.get(id)!;
+      byId.set(id, {
         ...base,
         enabled: r.enabled !== false,
         order: Number.isFinite(Number(r.order)) ? Number(r.order) : base.order,
         label_bn: typeof r.label_bn === "string" && r.label_bn.trim() ? r.label_bn.trim() : base.label_bn,
         label_en: typeof r.label_en === "string" && r.label_en.trim() ? r.label_en.trim() : base.label_en,
       });
-      // Slot id stays "alert" but destination is chat — migrate old default labels.
-      if (r.id === "alert") {
+      if (id === "alert") {
         const cur = byId.get("alert")!;
         if (!cur.label_en || /^alert$/i.test(cur.label_en) || cur.label_en === "Alerts") {
           cur.label_en = base.label_en;
@@ -135,6 +143,11 @@ function mergeItems(raw: unknown): BottomNavItem[] {
         if (!cur.label_bn || cur.label_bn === "অ্যালার্ট" || cur.label_bn === "নোটিফ") {
           cur.label_bn = base.label_bn;
         }
+      }
+      if (id === "more" && (storedId === "profile" || storedId === "more")) {
+        const cur = byId.get("more")!;
+        if (!cur.label_en || /^profile$/i.test(cur.label_en)) cur.label_en = base.label_en;
+        if (!cur.label_bn || cur.label_bn === "প্রোফাইল") cur.label_bn = base.label_bn;
       }
     }
   }

@@ -46,6 +46,7 @@ import {
 import { queryKeys } from "@/lib/query-client";
 import { Phone, Users, Building2, X, MessageSquare } from "lucide-react";
 import { MessengerIcon, AlertsHeaderButton } from "@/components/MessengerIcon";
+import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
@@ -417,7 +418,10 @@ function CommunityPage() {
               </p>
             </div>
           </div>
-          <AlertsHeaderButton />
+          <div className="flex items-center gap-0.5 shrink-0">
+            <ProfileHeaderButton />
+            <AlertsHeaderButton />
+          </div>
         </div>
 
         {orgLabel && (

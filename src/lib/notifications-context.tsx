@@ -28,6 +28,13 @@ export type AppNotification = {
     comment_id?: string;
     kind?: string;
     blood_group?: string;
+    serial_id?: string;
+    booking_id?: string;
+    session_id?: string;
+    serial?: number;
+    code?: string;
+    ahead?: number;
+    now?: number;
   } | null;
   created_at: string;
   actor?: { full_name: string | null; avatar_url: string | null } | null;

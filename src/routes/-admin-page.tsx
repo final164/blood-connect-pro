@@ -23,6 +23,7 @@ import { upazilaDisplayName } from "@/data/bangladesh-clinics";
 import { seedUpazilasFromCatalog, fetchUpazilaOptions } from "@/lib/upazilas";
 import { seedGeoNeighborsFromCatalog } from "@/lib/geo-neighbors-seed";
 import { DistrictUpazilaPanel } from "@/components/admin/DistrictUpazilaPanel";
+import { CareAdmin } from "@/components/admin/CareAdmin";
 import { UsersAdmin } from "@/components/admin/UsersAdmin";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
@@ -72,6 +73,7 @@ import {
   FileCode2,
   ChartPie,
   Globe,
+  Stethoscope,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -123,7 +125,8 @@ type Tab =
   | "notifications"
   | "settings"
   | "architecture"
-  | "access";
+  | "access"
+  | "care";
 
 export function AdminPage() {
   return (
@@ -196,6 +199,7 @@ function AdminPageInner() {
           "settings",
           "architecture",
           "access",
+          "care",
         ] as Tab[]
       ).find((id) => canModule(id as AdminModule));
       if (first) setTab(first);
@@ -235,6 +239,12 @@ function AdminPageInner() {
       label: lang === "bn" ? "অ্যাক্সেস" : "Access",
       icon: Shield,
       module: "access",
+    },
+    {
+      id: "care",
+      label: lang === "bn" ? "কেয়ার" : "Care",
+      icon: Stethoscope,
+      module: "care",
     },
   ];
   const tabs = allTabs.filter(
@@ -434,6 +444,7 @@ function AdminPageInner() {
             {tab === "settings" && can("settings.view") && <SettingsAdmin />}
             {tab === "architecture" && can("architecture.view") && <ArchitectureAdmin />}
             {tab === "access" && can("access.view") && <AccessControlAdmin />}
+            {tab === "care" && can("care.view") && <CareAdmin />}
           </div>
         </main>
       </div>

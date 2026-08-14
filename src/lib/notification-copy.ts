@@ -24,6 +24,22 @@ export function notificationCopy(
     };
   }
 
+  if (kind.startsWith("care_") || String(n.title || "").startsWith("care_")) {
+    const map: Record<string, { bn: string; en: string }> = {
+      care_serial_booked: { bn: "সিরিয়াল নিশ্চিত", en: "Serial confirmed" },
+      care_serial_called: { bn: "আপনার নম্বর কল হয়েছে", en: "Your number is called" },
+      care_serial_ahead: { bn: "আপনার পালা কাছে", en: "You are next soon" },
+      care_session_paused: { bn: "সেশন আপডেট", en: "Session updated" },
+      care_lab_reserved: { bn: "টেস্ট বুকিং নিশ্চিত", en: "Test booking confirmed" },
+      care_lab_cancelled: { bn: "টেস্ট বুকিং বাতিল", en: "Test booking cancelled" },
+    };
+    const hit = map[kind] || map[String(n.title)];
+    return {
+      title: hit ? (lang === "bn" ? hit.bn : hit.en) : n.title || "Care",
+      body: n.body,
+    };
+  }
+
   if (n.type === "system" && !/request|like|comment|share|reply/i.test(kind)) {
     return { title: n.title || (lang === "bn" ? "সিস্টেম" : "System"), body: n.body };
   }

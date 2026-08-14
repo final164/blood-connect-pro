@@ -17,6 +17,8 @@ const fallback: Record<string, { bn: string; en: string }> = {
   community: { bn: "কমিউনিটি", en: "Community" },
   chat: { bn: "চ্যাট", en: "Chat" },
   profile: { bn: "প্রোফাইল", en: "Profile" },
+  more: { bn: "আরও", en: "More" },
+  careHub: { bn: "কেয়ার", en: "Care" },
   settings: { bn: "সেটিংস", en: "Settings" },
   district: { bn: "জেলা", en: "District" },
   searchDistrict: { bn: "জেলা খুঁজুন…", en: "Search district…" },

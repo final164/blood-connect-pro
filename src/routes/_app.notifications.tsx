@@ -3,7 +3,7 @@ import { useNotifications, type AppNotification } from "@/lib/notifications-cont
 import { notificationCopy, resolveActorName } from "@/lib/notification-copy";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
-import { Bell, ThumbsUp, MessageSquare, Share2, Megaphone, CheckCheck, Droplets } from "lucide-react";
+import { Bell, ThumbsUp, MessageSquare, Share2, Megaphone, CheckCheck, Droplets, Stethoscope } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -114,6 +114,22 @@ function NotificationRow({ n, onOpen }: { n: AppNotification; onOpen: () => void
   );
 
   const requestId = n.request_id ?? (n.data?.request_id as string | undefined);
+  const serialId = typeof n.data?.serial_id === "string" ? n.data.serial_id : null;
+  const bookingId = typeof n.data?.booking_id === "string" ? n.data.booking_id : null;
+  if (serialId) {
+    return (
+      <Link to="/care/serial/$id" params={{ id: serialId }} onClick={onOpen} className="block">
+        {inner}
+      </Link>
+    );
+  }
+  if (bookingId) {
+    return (
+      <Link to="/care/lab-booking/$id" params={{ id: bookingId }} onClick={onOpen} className="block">
+        {inner}
+      </Link>
+    );
+  }
   if (requestId) {
     return (
       <Link to="/home" search={{ requestId }} onClick={onOpen} className="block">
@@ -142,5 +158,6 @@ function iconFor(n: AppNotification) {
     return MessageSquare;
   }
   if (["share", "request_share"].includes(String(kind))) return Share2;
+  if (String(kind).startsWith("care_")) return Stethoscope;
   return Megaphone;
 }
