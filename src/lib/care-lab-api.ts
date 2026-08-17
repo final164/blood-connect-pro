@@ -64,8 +64,9 @@ export async function searchTestOfferings(opts: {
   districtId?: string;
   upazila?: string;
   categoryId?: string;
+  catalogIds?: string[];
 }): Promise<CareOffering[]> {
-  const { data, error } = await supabase
+  let qy = supabase
     .from("care_test_offerings")
     .select(
       `
@@ -75,8 +76,9 @@ export async function searchTestOfferings(opts: {
       care_locations ( id, name, name_bn, upazila, district_id )
     `,
     )
-    .eq("is_active", true)
-    .limit(120);
+    .eq("is_active", true);
+  if (opts.catalogIds?.length) qy = qy.in("catalog_id", opts.catalogIds);
+  const { data, error } = await qy.limit(opts.catalogIds?.length ? 500 : 120);
   if (error) {
     if (missing(error)) return [];
     throw new Error(error.message);
@@ -140,6 +142,15 @@ export async function fetchLabCalendars(offeringId: string, fromDate: string, to
     throw new Error(error.message);
   }
   return (data as CareLabCalendar[]) ?? [];
+}
+
+export async function ensurePatientLabDay(offeringId: string, date?: string): Promise<CareLabCalendar> {
+  const { data, error } = await supabase.rpc("care_ensure_patient_lab_day", {
+    _offering_id: offeringId,
+    ...(date ? { _date: date } : {}),
+  } as never);
+  if (error) throw new Error(error.message);
+  return data as CareLabCalendar;
 }
 
 export async function reserveLabSlot(params: {

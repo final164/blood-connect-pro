@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Microscope,
   Ambulance,
+  Sparkles,
 } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -36,6 +37,7 @@ const ICONS: Record<string, typeof Stethoscope> = {
   Microscope,
   LayoutGrid,
   Ambulance,
+  Sparkles,
 };
 
 export function CareHubPage({ initialTab }: { initialTab?: string }) {
@@ -132,6 +134,18 @@ export function CareHubPage({ initialTab }: { initialTab?: string }) {
                   <Link
                     key={m.id}
                     to="/care/portal/ambulance"
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Link>
+                );
+              }
+              if (m.slug === "ai_tests" || m.href.includes("/care/ai-tests")) {
+                return (
+                  <Link
+                    key={m.id}
+                    to="/care/ai-tests"
                     className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -335,6 +349,22 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
 
   return (
     <div className="space-y-3">
+      <Link
+        to="/care/ai-tests"
+        className="flex items-start gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-3 py-3 hover:bg-primary/10"
+      >
+        <span className="h-11 w-11 rounded-xl bg-primary/15 text-primary grid place-items-center shrink-0">
+          <Sparkles className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold">{lang === "bn" ? "AI সাজেশন" : "AI suggestion"}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {lang === "bn"
+              ? "লক্ষণ বলুন — ক্যাটালগ থেকে টেস্ট ও দামসহ বুকিং সাজেস্ট হবে।"
+              : "Describe symptoms — get catalog tests and a priced booking plan."}
+          </p>
+        </div>
+      </Link>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input

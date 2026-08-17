@@ -136,6 +136,17 @@ export const FALLBACK_HUB_MODULES: CareHubModule[] = [
     sort_order: 10,
   },
   {
+    id: "ai_tests",
+    slug: "ai_tests",
+    label_bn: "AI টেস্ট সাজেশন",
+    label_en: "AI test advisor",
+    icon: "Sparkles",
+    href: "/care/ai-tests",
+    audience: "patient",
+    is_enabled: true,
+    sort_order: 15,
+  },
+  {
     id: "tests",
     slug: "tests",
     label_bn: "ল্যাব টেস্ট",

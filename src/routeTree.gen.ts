@@ -42,6 +42,7 @@ import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
 import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
 import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
+import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
 import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
 import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
 import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
@@ -214,6 +215,11 @@ const AppCareDeskRoute = AppCareDeskRouteImport.update({
   path: '/desk',
   getParentRoute: () => AppCareRoute,
 } as any)
+const AppCareAiTestsRoute = AppCareAiTestsRouteImport.update({
+  id: '/ai-tests',
+  path: '/ai-tests',
+  getParentRoute: () => AppCareRoute,
+} as any)
 const AppAmbulanceRequestRoute = AppAmbulanceRequestRouteImport.update({
   id: '/request',
   path: '/request',
@@ -272,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
   '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
+  '/care/ai-tests': typeof AppCareAiTestsRoute
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/care/auth': typeof CareAuthRoute
   '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
+  '/care/ai-tests': typeof AppCareAiTestsRoute
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
   '/_app/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
+  '/_app/care/ai-tests': typeof AppCareAiTestsRoute
   '/_app/care/desk': typeof AppCareDeskRoute
   '/_app/care/lab': typeof AppCareLabRoute
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
@@ -395,6 +404,7 @@ export interface FileRouteTypes {
     | '/care/auth'
     | '/care/portal'
     | '/ambulance/request'
+    | '/care/ai-tests'
     | '/care/desk'
     | '/care/lab'
     | '/chat/$peerId'
@@ -432,6 +442,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/care/auth'
     | '/ambulance/request'
+    | '/care/ai-tests'
     | '/care/desk'
     | '/care/lab'
     | '/chat/$peerId'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/care/auth'
     | '/care/portal'
     | '/_app/ambulance/request'
+    | '/_app/care/ai-tests'
     | '/_app/care/desk'
     | '/_app/care/lab'
     | '/_app/chat/$peerId'
@@ -740,6 +752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareDeskRouteImport
       parentRoute: typeof AppCareRoute
     }
+    '/_app/care/ai-tests': {
+      id: '/_app/care/ai-tests'
+      path: '/ai-tests'
+      fullPath: '/care/ai-tests'
+      preLoaderRoute: typeof AppCareAiTestsRouteImport
+      parentRoute: typeof AppCareRoute
+    }
     '/_app/ambulance/request': {
       id: '/_app/ambulance/request'
       path: '/request'
@@ -820,6 +839,7 @@ const AppAmbulanceRouteWithChildren = AppAmbulanceRoute._addFileChildren(
 )
 
 interface AppCareRouteChildren {
+  AppCareAiTestsRoute: typeof AppCareAiTestsRoute
   AppCareDeskRoute: typeof AppCareDeskRoute
   AppCareLabRoute: typeof AppCareLabRoute
   AppCareIndexRoute: typeof AppCareIndexRoute
@@ -830,6 +850,7 @@ interface AppCareRouteChildren {
 }
 
 const AppCareRouteChildren: AppCareRouteChildren = {
+  AppCareAiTestsRoute: AppCareAiTestsRoute,
   AppCareDeskRoute: AppCareDeskRoute,
   AppCareLabRoute: AppCareLabRoute,
   AppCareIndexRoute: AppCareIndexRoute,

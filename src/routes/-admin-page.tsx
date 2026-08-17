@@ -107,6 +107,7 @@ import { SeoAdmin } from "@/components/admin/SeoAdmin";
 import { RequestContactsExpandable } from "@/components/request/RequestContactsExpandable";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
+import { GeminiKeysAdmin } from "@/components/admin/GeminiKeysAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
 import { ReportsAdmin } from "@/components/admin/ReportsAdmin";
 import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
@@ -3390,6 +3391,7 @@ function SettingsAdmin() {
     | "profilelock"
     | "messaging"
     | "drive"
+    | "gemini"
     | "app"
   >("urgency");
   const [s, setS] = useState<any>({
@@ -3462,6 +3464,7 @@ function SettingsAdmin() {
     { id: "profilelock" as const, bn: "প্রোফাইল লক", en: "Profile lock" },
     { id: "messaging" as const, bn: "SMS ও আইকন", en: "SMS & icons" },
     { id: "drive" as const, bn: "Google Drive", en: "Google Drive" },
+    { id: "gemini" as const, bn: "Gemini API", en: "Gemini API" },
     { id: "app" as const, bn: "অ্যাপ", en: "App" },
   ];
 
@@ -3511,6 +3514,7 @@ function SettingsAdmin() {
       {settingsTab === "profilelock" && <ProfileLockAdmin />}
       {settingsTab === "messaging" && <MessagingSettingsAdmin />}
       {settingsTab === "drive" && <GoogleDriveAdmin />}
+      {settingsTab === "gemini" && <GeminiKeysAdmin />}
 
       {settingsTab === "form" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">
