@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { useI18n } from "@/lib/i18n";
-import { fetchLabBooking, setLabBookingStatus, type CareLabBooking } from "@/lib/care-lab-api";
+import { fetchLabBooking, setLabBookingStatus } from "@/lib/care-lab-api";
+import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
 
 export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
   const { lang } = useI18n();
-  const [row, setRow] = useState<CareLabBooking | null>(null);
+  const [row, setRow] = useState<Awaited<ReturnType<typeof fetchLabBooking>>>(null);
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
@@ -43,21 +44,44 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
           <h1 className="text-sm font-bold">{lang === "bn" ? "টেস্ট বুকিং" : "Test booking"}</h1>
         </div>
       </AutoHideHeader>
-      <div className="px-3 py-6 max-w-md mx-auto text-center space-y-3">
+      <div className="px-3 py-6 max-w-lg mx-auto space-y-6">
         {!row ? (
-          <p className="text-sm text-muted-foreground">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>
+          <p className="text-sm text-muted-foreground text-center">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>
         ) : (
           <>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              {lang === "bn" ? "রেফারেন্স" : "Reference"}
-            </p>
-            <p className="text-3xl font-black tracking-widest">{row.reference_code}</p>
-            <p className="text-sm">{row.status} · ৳{row.price}</p>
-            {["reserved", "confirmed"].includes(row.status) && (
-              <button type="button" disabled={busy} onClick={() => void cancel()} className="text-xs font-semibold text-destructive">
-                {lang === "bn" ? "বাতিল" : "Cancel"}
-              </button>
-            )}
+            <div className="text-center space-y-3 max-w-md mx-auto">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {lang === "bn" ? "রেফারেন্স" : "Reference"}
+              </p>
+              <p className="text-3xl font-black tracking-widest text-primary">{row.reference_code}</p>
+              {row.invoice_no && (
+                <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1 justify-center">
+                  <Receipt className="h-3 w-3" />
+                  {row.invoice_no}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                {row.status} · ৳{row.price}
+              </p>
+              {["reserved", "confirmed"].includes(row.status) && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void cancel()}
+                  className="text-xs font-semibold text-destructive"
+                >
+                  {lang === "bn" ? "বাতিল" : "Cancel"}
+                </button>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1">
+                <Receipt className="h-3.5 w-3.5" />
+                {lang === "bn" ? "ইনভয়েস" : "Invoice"}
+              </p>
+              <CareLabInvoiceCard bookingId={bookingId} />
+            </div>
           </>
         )}
       </div>

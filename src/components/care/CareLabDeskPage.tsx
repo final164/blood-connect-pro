@@ -18,6 +18,13 @@ import {
 } from "@/lib/care-lab-api";
 import { fetchOrgLocations } from "@/lib/care-api";
 import { supabase } from "@/integrations/supabase/client";
+import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type LabTab = "today" | "offerings" | "calendar" | "checkin";
 
@@ -131,7 +138,9 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-4">
-        {(tab === "today" || tab === "checkin") && <TodayPanel orgId={orgId} lang={lang} />}
+        {(tab === "today" || tab === "checkin") && (
+          <TodayPanel orgId={orgId} canManage={can("lab.checkin")} lang={lang} />
+        )}
         {tab === "offerings" && <OfferingsPanel orgId={orgId} lang={lang} />}
         {tab === "calendar" && <CalendarPanel orgId={orgId} lang={lang} />}
       </main>
@@ -139,12 +148,22 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
   );
 }
 
-function TodayPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
+function TodayPanel({
+  orgId,
+  canManage,
+  lang,
+}: {
+  orgId: string;
+  canManage: boolean;
+  lang: "bn" | "en";
+}) {
   const [date, setDate] = useState(todayIso());
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [guestName, setGuestName] = useState("");
   const [offeringId, setOfferingId] = useState("");
   const [offerings, setOfferings] = useState<{ id: string; label: string }[]>([]);
+  const [invoiceBookingId, setInvoiceBookingId] = useState<string | null>(null);
+  const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
 
   async function reload() {
     setRows((await fetchOrgLabBookings(orgId, date)) as Record<string, unknown>[]);
@@ -173,8 +192,15 @@ function TodayPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
       let cal = cals[0];
       if (!cal) cal = await generateLabDay(offeringId, date);
       if (remainingSeats(cal) <= 0) throw new Error(lang === "bn" ? "ক্যাপাসিটি শেষ" : "Capacity full");
-      await reserveLabSlot({ calendarId: cal.id, source: "walk_in", guestName: guestName || undefined });
+      const booking = await reserveLabSlot({ calendarId: cal.id, source: "walk_in", guestName: guestName || undefined });
       setGuestName("");
+      setAutoPrintInvoice(true);
+      setInvoiceBookingId(booking.id);
+      toast.success(
+        lang === "bn"
+          ? `বুকিং ${booking.reference_code} · ইনভয়েস তৈরি`
+          : `Booked ${booking.reference_code} · Invoice ready`,
+      );
       await reload();
     } catch (e) {
       toast.error((e as Error).message);
@@ -204,9 +230,25 @@ function TodayPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
           return (
             <li key={String(r.id)} className="flex items-center gap-2 px-3 py-2 text-sm">
               <span className="font-mono text-xs">{String(r.reference_code)}</span>
+              {r.invoice_no ? (
+                <span className="font-mono text-[10px] text-muted-foreground">{String(r.invoice_no)}</span>
+              ) : null}
               <span className="flex-1 truncate">{lang === "bn" ? cat?.name_bn : cat?.name_en}</span>
+              {r.price != null ? (
+                <span className="text-[11px] text-muted-foreground tabular-nums">৳{String(r.price)}</span>
+              ) : null}
               <span className="text-[11px] text-muted-foreground">{String(r.status)}</span>
-              {String(r.status) !== "completed" && String(r.status) !== "cancelled" && (
+              <button
+                type="button"
+                className="text-[11px] font-semibold text-primary"
+                onClick={() => {
+                  setAutoPrintInvoice(false);
+                  setInvoiceBookingId(String(r.id));
+                }}
+              >
+                {lang === "bn" ? "ইনভয়েস" : "Invoice"}
+              </button>
+              {canManage && String(r.status) !== "completed" && String(r.status) !== "cancelled" && (
                 <>
                   <button type="button" className="text-[11px] font-semibold" onClick={() => void setLabBookingStatus(String(r.id), "checked_in").then(reload)}>
                     {lang === "bn" ? "চেক-ইন" : "Check-in"}
@@ -227,6 +269,29 @@ function TodayPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
         })}
         {rows.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">{lang === "bn" ? "বুকিং নেই" : "No bookings"}</li>}
       </ul>
+
+      <Dialog
+        open={!!invoiceBookingId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInvoiceBookingId(null);
+            setAutoPrintInvoice(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{lang === "bn" ? "টেস্ট বুকিং ইনভয়েস" : "Test booking invoice"}</DialogTitle>
+          </DialogHeader>
+          {invoiceBookingId && (
+            <CareLabInvoiceCard
+              bookingId={invoiceBookingId}
+              canManagePayment={canManage}
+              autoPrint={autoPrintInvoice}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

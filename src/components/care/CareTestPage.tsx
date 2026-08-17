@@ -58,7 +58,11 @@ export function CareTestPage({ offeringId }: { offeringId: string }) {
     setBusy(cal.id);
     try {
       const booking = await reserveLabSlot({ calendarId: cal.id, source: "app" });
-      toast.success(lang === "bn" ? `বুকিং ${booking.reference_code}` : `Booked ${booking.reference_code}`);
+      toast.success(
+        lang === "bn"
+          ? `বুকিং ${booking.reference_code} · ইনভয়েস প্রস্তুত`
+          : `Booked ${booking.reference_code} · Invoice ready`,
+      );
       void navigate({ to: "/care/lab-booking/$id", params: { id: booking.id } });
     } catch (e) {
       toast.error((e as Error).message);

@@ -148,8 +148,10 @@ export async function resolveCarePortalPath(membership?: CareMembership | null):
   const kind = types.find((t) => t.id === kindId);
   const panels = new Set(kind?.panels ?? ["desk"]);
 
-  if (panels.has("desk") && !panels.has("lab")) return "/care/portal/desk";
-  if (panels.has("lab") && !panels.has("desk")) return "/care/portal/lab";
+  if (panels.has("ambulance") && !panels.has("desk") && !panels.has("lab")) return "/care/portal/ambulance";
+  if (panels.has("desk") && !panels.has("lab") && !panels.has("ambulance")) return "/care/portal/desk";
+  if (panels.has("lab") && !panels.has("desk") && !panels.has("ambulance")) return "/care/portal/lab";
+  if (panels.has("ambulance")) return "/care/portal/ambulance";
   if (panels.has("desk")) return "/care/portal/desk";
   return "/care/portal/lab";
 }

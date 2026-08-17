@@ -14,6 +14,7 @@
     "bootstrap:admin": "bun --env-file=.env run scripts/bootstrap-admin.mjs",
     "seed:hospitals": "bun --env-file=.env run scripts/seed-hospitals.mjs",
     "seed:care-vendors": "bun --env-file=.env run scripts/seed-care-vendors.mjs",
+    "seed:ambulance-vendors": "bun --env-file=.env run scripts/seed-ambulance-vendors.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
@@ -55,7 +56,10 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
+    "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.3.8",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",

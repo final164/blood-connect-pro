@@ -586,3 +586,23 @@
     border-radius: 0.25rem;
   }
 }
+
+/* Sonner — drag/swipe to dismiss floating toasts */
+[data-sonner-toast][data-dismissible="true"] {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-sonner-toast][data-swiping="true"] {
+  cursor: grabbing;
+}
+
+[data-sonner-toast] [data-close-button] {
+  cursor: pointer;
+}
+
+[data-sonner-toast] [data-button] {
+  cursor: pointer;
+}

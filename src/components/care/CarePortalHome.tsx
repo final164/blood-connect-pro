@@ -8,6 +8,7 @@ import {
   Microscope,
   ShieldAlert,
   ShieldCheck,
+  Ambulance,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -75,6 +76,11 @@ export function CarePortalHome() {
   const showLab =
     panels.has("lab") &&
     (careHasPermission(membership, "lab.checkin") ||
+      careHasPermission(membership, "overview.view") ||
+      membership?.role === "owner");
+  const showAmbulance =
+    panels.has("ambulance") &&
+    (careHasPermission(membership, "ambulance.dispatch.view") ||
       careHasPermission(membership, "overview.view") ||
       membership?.role === "owner");
 
@@ -211,9 +217,23 @@ export function CarePortalHome() {
               </p>
             </Link>
           )}
+          {showAmbulance && (
+            <Link
+              to="/care/portal/ambulance"
+              className="group rounded-2xl border bg-card p-5 shadow-sm transition hover:border-orange-500/50 hover:shadow-md"
+            >
+              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-orange-600/10 text-orange-700">
+                <Ambulance className="h-5 w-5" />
+              </div>
+              <h2 className="font-bold">{lang === "bn" ? "অ্যাম্বুলেন্স প্যানেল" : "Ambulance panel"}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {lang === "bn" ? "ডিসপ্যাচ, ফ্লিট ও প্রাইসিং" : "Dispatch, fleet & pricing"}
+              </p>
+            </Link>
+          )}
         </div>
 
-        {!showDesk && !showLab && (
+        {!showDesk && !showLab && !showAmbulance && (
           <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
             {lang === "bn"
               ? "আপনার ভূমিকায় কোনো ডেস্ক প্যানেল নেই। মালিকের সাথে যোগাযোগ করুন।"

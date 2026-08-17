@@ -8,6 +8,7 @@ import {
   Ticket,
   ClipboardList,
   Microscope,
+  Ambulance,
 } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -24,6 +25,7 @@ import {
   type CareDoctorListItem,
 } from "@/lib/care-api";
 import { searchTestOfferings, fetchMyLabBookings, type CareOffering } from "@/lib/care-lab-api";
+import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
 
 const ICONS: Record<string, typeof Stethoscope> = {
@@ -33,6 +35,7 @@ const ICONS: Record<string, typeof Stethoscope> = {
   ClipboardList,
   Microscope,
   LayoutGrid,
+  Ambulance,
 };
 
 export function CareHubPage({ initialTab }: { initialTab?: string }) {
@@ -112,6 +115,30 @@ export function CareHubPage({ initialTab }: { initialTab?: string }) {
                   </Link>
                 );
               }
+              if (m.slug === "ambulance" || m.href === "/ambulance") {
+                return (
+                  <Link
+                    key={m.id}
+                    to="/ambulance"
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Link>
+                );
+              }
+              if (m.href.includes("/portal/ambulance")) {
+                return (
+                  <Link
+                    key={m.id}
+                    to="/care/portal/ambulance"
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </Link>
+                );
+              }
               const active = tab === m.slug;
               return (
                 <button
@@ -139,6 +166,8 @@ export function CareHubPage({ initialTab }: { initialTab?: string }) {
           <TestsPanel lang={lang} />
         ) : tab === "bookings" ? (
           <BookingsPanel lang={lang} userId={user?.id} />
+        ) : tab === "ambulance" ? (
+          <AmbulanceTabPanel lang={lang} />
         ) : (
           <DoctorsPanel lang={lang} />
         )}
@@ -372,16 +401,18 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
 function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string }) {
   const [serials, setSerials] = useState<Awaited<ReturnType<typeof fetchMySerials>>>([]);
   const [labs, setLabs] = useState<Awaited<ReturnType<typeof fetchMyLabBookings>>>([]);
+  const [ambulance, setAmbulance] = useState<Awaited<ReturnType<typeof fetchMyAmbulanceRequests>>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    void Promise.all([fetchMySerials(), fetchMyLabBookings()])
-      .then(([s, l]) => {
+    void Promise.all([fetchMySerials(), fetchMyLabBookings(), fetchMyAmbulanceRequests()])
+      .then(([s, l, a]) => {
         if (cancelled) return;
         setSerials(s);
         setLabs(l);
+        setAmbulance(a);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -395,7 +426,7 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
     return <p className="text-sm text-muted-foreground text-center py-10">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>;
   }
 
-  if (!serials.length && !labs.length) {
+  if (!serials.length && !labs.length && !ambulance.length) {
     return (
       <p className="text-sm text-muted-foreground text-center py-12">
         {lang === "bn" ? "এখনো কোনো বুকিং নেই" : "No bookings yet"}
@@ -448,13 +479,55 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                   <p className="text-sm font-semibold">
                     {lang === "bn" ? b.offering?.name_bn : b.offering?.name_en} · {b.status}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">{b.reference_code}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {b.reference_code}
+                    {b.invoice_no ? ` · ${b.invoice_no}` : ""}
+                    {b.price != null ? ` · ৳${b.price}` : ""}
+                  </p>
                 </Link>
               </li>
             ))}
           </ul>
         </section>
       )}
+      {ambulance.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            {lang === "bn" ? "অ্যাম্বুলেন্স" : "Ambulance"}
+          </h2>
+          <ul className="space-y-2">
+            {ambulance.map((b) => (
+              <li key={b.id}>
+                <Link
+                  to="/ambulance/request/$id"
+                  params={{ id: b.id }}
+                  className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
+                >
+                  <p className="text-sm font-semibold">{b.reference_code} · {b.status}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {b.mode}
+                    {b.invoice_no ? ` · ${b.invoice_no}` : ""}
+                    {b.estimated_fare != null ? ` · ৳${b.estimated_fare}` : ""}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function AmbulanceTabPanel({ lang }: { lang: "bn" | "en" }) {
+  return (
+    <div className="space-y-4 text-center py-6">
+      <p className="text-sm text-muted-foreground">
+        {lang === "bn" ? "জরুরি বা শিডিউল অ্যাম্বুলেন্স বুক করুন" : "Book emergency or scheduled ambulance"}
+      </p>
+      <Link to="/ambulance" className="inline-flex rounded-xl bg-orange-600 text-white px-6 py-3 text-sm font-bold">
+        {lang === "bn" ? "অ্যাম্বুলেন্স হাব" : "Open ambulance hub"}
+      </Link>
     </div>
   );
 }

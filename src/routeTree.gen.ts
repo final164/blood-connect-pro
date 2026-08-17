@@ -28,21 +28,27 @@ import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AppCareRouteImport } from './routes/_app.care'
+import { Route as AppAmbulanceRouteImport } from './routes/_app.ambulance'
 import { Route as CarePortalIndexRouteImport } from './routes/care.portal.index'
 import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
 import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
+import { Route as AppAmbulanceIndexRouteImport } from './routes/_app.ambulance.index'
 import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.onboarding'
 import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
 import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
+import { Route as CarePortalAmbulanceRouteImport } from './routes/care.portal.ambulance'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
 import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
 import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
+import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
 import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
 import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
 import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-booking.$id'
 import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
+import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulance.request.$id'
+import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -138,6 +144,11 @@ const AppCareRoute = AppCareRouteImport.update({
   path: '/care',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAmbulanceRoute = AppAmbulanceRouteImport.update({
+  id: '/ambulance',
+  path: '/ambulance',
+  getParentRoute: () => AppRoute,
+} as any)
 const CarePortalIndexRoute = CarePortalIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -153,6 +164,11 @@ const AppCareIndexRoute = AppCareIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppCareRoute,
 } as any)
+const AppAmbulanceIndexRoute = AppAmbulanceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAmbulanceRoute,
+} as any)
 const CarePortalOnboardingRoute = CarePortalOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -166,6 +182,11 @@ const CarePortalLabRoute = CarePortalLabRouteImport.update({
 const CarePortalDeskRoute = CarePortalDeskRouteImport.update({
   id: '/desk',
   path: '/desk',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalAmbulanceRoute = CarePortalAmbulanceRouteImport.update({
+  id: '/ambulance',
+  path: '/ambulance',
   getParentRoute: () => CarePortalRoute,
 } as any)
 const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
@@ -193,6 +214,11 @@ const AppCareDeskRoute = AppCareDeskRouteImport.update({
   path: '/desk',
   getParentRoute: () => AppCareRoute,
 } as any)
+const AppAmbulanceRequestRoute = AppAmbulanceRequestRouteImport.update({
+  id: '/request',
+  path: '/request',
+  getParentRoute: () => AppAmbulanceRoute,
+} as any)
 const AppCareTestIdRoute = AppCareTestIdRouteImport.update({
   id: '/test/$id',
   path: '/test/$id',
@@ -213,6 +239,17 @@ const AppCareDoctorIdRoute = AppCareDoctorIdRouteImport.update({
   path: '/doctor/$id',
   getParentRoute: () => AppCareRoute,
 } as any)
+const AppAmbulanceRequestIdRoute = AppAmbulanceRequestIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppAmbulanceRequestRoute,
+} as any)
+const AppAmbulanceProviderOrgIdRoute =
+  AppAmbulanceProviderOrgIdRouteImport.update({
+    id: '/provider/$orgId',
+    path: '/provider/$orgId',
+    getParentRoute: () => AppAmbulanceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -221,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/org': typeof OrgRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/ambulance': typeof AppAmbulanceRouteWithChildren
   '/care': typeof AppCareRouteWithChildren
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
@@ -233,17 +271,22 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
+  '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/ambulance/': typeof AppAmbulanceIndexRoute
   '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
   '/care/portal/': typeof CarePortalIndexRoute
+  '/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
+  '/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
@@ -265,17 +308,22 @@ export interface FileRoutesByTo {
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
   '/care/auth': typeof CareAuthRoute
+  '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/ambulance': typeof AppAmbulanceIndexRoute
   '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
   '/care/portal': typeof CarePortalIndexRoute
+  '/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
+  '/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
@@ -290,6 +338,7 @@ export interface FileRoutesById {
   '/org': typeof OrgRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_app/ambulance': typeof AppAmbulanceRouteWithChildren
   '/_app/care': typeof AppCareRouteWithChildren
   '/_app/chat': typeof AppChatRouteWithChildren
   '/_app/community': typeof AppCommunityRoute
@@ -302,17 +351,22 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
+  '/_app/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/_app/care/desk': typeof AppCareDeskRoute
   '/_app/care/lab': typeof AppCareLabRoute
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/_app/ambulance/': typeof AppAmbulanceIndexRoute
   '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
   '/care/portal/': typeof CarePortalIndexRoute
+  '/_app/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
+  '/_app/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/_app/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/_app/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/_app/care/serial/$id': typeof AppCareSerialIdRoute
@@ -327,6 +381,7 @@ export interface FileRouteTypes {
     | '/org'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/ambulance'
     | '/care'
     | '/chat'
     | '/community'
@@ -339,17 +394,22 @@ export interface FileRouteTypes {
     | '/settings'
     | '/care/auth'
     | '/care/portal'
+    | '/ambulance/request'
     | '/care/desk'
     | '/care/lab'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/ambulance/'
     | '/care/'
     | '/profile/'
     | '/care/portal/'
+    | '/ambulance/provider/$orgId'
+    | '/ambulance/request/$id'
     | '/care/doctor/$id'
     | '/care/lab-booking/$id'
     | '/care/serial/$id'
@@ -371,17 +431,22 @@ export interface FileRouteTypes {
     | '/requests'
     | '/settings'
     | '/care/auth'
+    | '/ambulance/request'
     | '/care/desk'
     | '/care/lab'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/ambulance'
     | '/care'
     | '/profile'
     | '/care/portal'
+    | '/ambulance/provider/$orgId'
+    | '/ambulance/request/$id'
     | '/care/doctor/$id'
     | '/care/lab-booking/$id'
     | '/care/serial/$id'
@@ -395,6 +460,7 @@ export interface FileRouteTypes {
     | '/org'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/_app/ambulance'
     | '/_app/care'
     | '/_app/chat'
     | '/_app/community'
@@ -407,17 +473,22 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/care/auth'
     | '/care/portal'
+    | '/_app/ambulance/request'
     | '/_app/care/desk'
     | '/_app/care/lab'
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
+    | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/_app/ambulance/'
     | '/_app/care/'
     | '/_app/profile/'
     | '/care/portal/'
+    | '/_app/ambulance/provider/$orgId'
+    | '/_app/ambulance/request/$id'
     | '/_app/care/doctor/$id'
     | '/_app/care/lab-booking/$id'
     | '/_app/care/serial/$id'
@@ -571,6 +642,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/ambulance': {
+      id: '/_app/ambulance'
+      path: '/ambulance'
+      fullPath: '/ambulance'
+      preLoaderRoute: typeof AppAmbulanceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/care/portal/': {
       id: '/care/portal/'
       path: '/'
@@ -592,6 +670,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareIndexRouteImport
       parentRoute: typeof AppCareRoute
     }
+    '/_app/ambulance/': {
+      id: '/_app/ambulance/'
+      path: '/'
+      fullPath: '/ambulance/'
+      preLoaderRoute: typeof AppAmbulanceIndexRouteImport
+      parentRoute: typeof AppAmbulanceRoute
+    }
     '/care/portal/onboarding': {
       id: '/care/portal/onboarding'
       path: '/onboarding'
@@ -611,6 +696,13 @@ declare module '@tanstack/react-router' {
       path: '/desk'
       fullPath: '/care/portal/desk'
       preLoaderRoute: typeof CarePortalDeskRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/ambulance': {
+      id: '/care/portal/ambulance'
+      path: '/ambulance'
+      fullPath: '/care/portal/ambulance'
+      preLoaderRoute: typeof CarePortalAmbulanceRouteImport
       parentRoute: typeof CarePortalRoute
     }
     '/_app/profile/$userId': {
@@ -648,6 +740,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareDeskRouteImport
       parentRoute: typeof AppCareRoute
     }
+    '/_app/ambulance/request': {
+      id: '/_app/ambulance/request'
+      path: '/request'
+      fullPath: '/ambulance/request'
+      preLoaderRoute: typeof AppAmbulanceRequestRouteImport
+      parentRoute: typeof AppAmbulanceRoute
+    }
     '/_app/care/test/$id': {
       id: '/_app/care/test/$id'
       path: '/test/$id'
@@ -676,8 +775,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareDoctorIdRouteImport
       parentRoute: typeof AppCareRoute
     }
+    '/_app/ambulance/request/$id': {
+      id: '/_app/ambulance/request/$id'
+      path: '/$id'
+      fullPath: '/ambulance/request/$id'
+      preLoaderRoute: typeof AppAmbulanceRequestIdRouteImport
+      parentRoute: typeof AppAmbulanceRequestRoute
+    }
+    '/_app/ambulance/provider/$orgId': {
+      id: '/_app/ambulance/provider/$orgId'
+      path: '/provider/$orgId'
+      fullPath: '/ambulance/provider/$orgId'
+      preLoaderRoute: typeof AppAmbulanceProviderOrgIdRouteImport
+      parentRoute: typeof AppAmbulanceRoute
+    }
   }
 }
+
+interface AppAmbulanceRequestRouteChildren {
+  AppAmbulanceRequestIdRoute: typeof AppAmbulanceRequestIdRoute
+}
+
+const AppAmbulanceRequestRouteChildren: AppAmbulanceRequestRouteChildren = {
+  AppAmbulanceRequestIdRoute: AppAmbulanceRequestIdRoute,
+}
+
+const AppAmbulanceRequestRouteWithChildren =
+  AppAmbulanceRequestRoute._addFileChildren(AppAmbulanceRequestRouteChildren)
+
+interface AppAmbulanceRouteChildren {
+  AppAmbulanceRequestRoute: typeof AppAmbulanceRequestRouteWithChildren
+  AppAmbulanceIndexRoute: typeof AppAmbulanceIndexRoute
+  AppAmbulanceProviderOrgIdRoute: typeof AppAmbulanceProviderOrgIdRoute
+}
+
+const AppAmbulanceRouteChildren: AppAmbulanceRouteChildren = {
+  AppAmbulanceRequestRoute: AppAmbulanceRequestRouteWithChildren,
+  AppAmbulanceIndexRoute: AppAmbulanceIndexRoute,
+  AppAmbulanceProviderOrgIdRoute: AppAmbulanceProviderOrgIdRoute,
+}
+
+const AppAmbulanceRouteWithChildren = AppAmbulanceRoute._addFileChildren(
+  AppAmbulanceRouteChildren,
+)
 
 interface AppCareRouteChildren {
   AppCareDeskRoute: typeof AppCareDeskRoute
@@ -728,6 +868,7 @@ const AppProfileRouteWithChildren = AppProfileRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAmbulanceRoute: typeof AppAmbulanceRouteWithChildren
   AppCareRoute: typeof AppCareRouteWithChildren
   AppChatRoute: typeof AppChatRouteWithChildren
   AppCommunityRoute: typeof AppCommunityRoute
@@ -742,6 +883,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAmbulanceRoute: AppAmbulanceRouteWithChildren,
   AppCareRoute: AppCareRouteWithChildren,
   AppChatRoute: AppChatRouteWithChildren,
   AppCommunityRoute: AppCommunityRoute,
@@ -758,6 +900,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface CarePortalRouteChildren {
+  CarePortalAmbulanceRoute: typeof CarePortalAmbulanceRoute
   CarePortalDeskRoute: typeof CarePortalDeskRoute
   CarePortalLabRoute: typeof CarePortalLabRoute
   CarePortalOnboardingRoute: typeof CarePortalOnboardingRoute
@@ -765,6 +908,7 @@ interface CarePortalRouteChildren {
 }
 
 const CarePortalRouteChildren: CarePortalRouteChildren = {
+  CarePortalAmbulanceRoute: CarePortalAmbulanceRoute,
   CarePortalDeskRoute: CarePortalDeskRoute,
   CarePortalLabRoute: CarePortalLabRoute,
   CarePortalOnboardingRoute: CarePortalOnboardingRoute,

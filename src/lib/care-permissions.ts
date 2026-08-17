@@ -12,7 +12,12 @@ export type CarePermissionKey =
   | "lab.checkin"
   | "staff.manage"
   | "roles.manage"
-  | "settings.edit";
+  | "settings.edit"
+  | "ambulance.dispatch.view"
+  | "ambulance.dispatch.manage"
+  | "ambulance.fleet.manage"
+  | "ambulance.pricing.manage"
+  | "ambulance.requests.view";
 
 export type CarePermissionDef = {
   key: CarePermissionKey;
@@ -34,6 +39,11 @@ export const CARE_PERMISSION_FALLBACK: CarePermissionDef[] = [
   { key: "staff.manage", group: "staff", label_en: "Manage staff", label_bn: "স্টাফ ম্যানেজ" },
   { key: "roles.manage", group: "staff", label_en: "Manage roles", label_bn: "রোল ম্যানেজ" },
   { key: "settings.edit", group: "settings", label_en: "Edit org settings", label_bn: "অর্গ সেটিংস" },
+  { key: "ambulance.dispatch.view", group: "ambulance", label_en: "View dispatch board", label_bn: "ডিসপ্যাচ বোর্ড" },
+  { key: "ambulance.dispatch.manage", group: "ambulance", label_en: "Manage dispatch", label_bn: "ডিসপ্যাচ ম্যানেজ" },
+  { key: "ambulance.fleet.manage", group: "ambulance", label_en: "Manage fleet", label_bn: "ফ্লিট ম্যানেজ" },
+  { key: "ambulance.pricing.manage", group: "ambulance", label_en: "Manage pricing", label_bn: "প্রাইসিং ম্যানেজ" },
+  { key: "ambulance.requests.view", group: "ambulance", label_en: "View requests", label_bn: "রিকোয়েস্ট দেখা" },
 ];
 
 export const ALL_CARE_PERMISSION_KEYS = CARE_PERMISSION_FALLBACK.map((p) => p.key);
@@ -43,6 +53,8 @@ export const DEFAULT_CARE_ROLE_PERMISSIONS: Record<string, CarePermissionKey[]> 
   reception: ["overview.view", "queue.view", "queue.manage", "serial.issue", "lab.checkin"],
   doctor: ["overview.view", "queue.view"],
   lab_tech: ["overview.view", "lab.checkin", "lab.calendar"],
+  dispatcher: ["overview.view", "ambulance.dispatch.view", "ambulance.dispatch.manage", "ambulance.requests.view", "ambulance.fleet.manage", "ambulance.pricing.manage"],
+  driver: ["overview.view", "ambulance.dispatch.view", "ambulance.requests.view"],
 };
 
 export function slugifyRoleName(name: string) {

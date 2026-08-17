@@ -2,7 +2,7 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { LangProvider } from "@/lib/i18n";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 export function AppProviders({
   queryClient,

@@ -1,54 +1,46 @@
 import { useCallback, useEffect, useState } from "react";
-import { Download, Printer, Receipt } from "lucide-react";
+import { Download, FlaskConical, Printer, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import {
-  fetchCareSerialInvoice,
   formatCareMoney,
-  invoiceDoctorName,
-  invoiceLocationLine,
-  invoiceOrgName,
-  invoicePatientName,
-  invoicePatientPhone,
-  invoiceScheduleLine,
   paymentStatusLabel,
   printCareSerialInvoice,
   downloadCareSerialInvoicePdf,
-  setSerialPaymentStatus,
-  type CareSerialInvoice,
 } from "@/lib/care-invoice";
+import {
+  fetchCareLabInvoice,
+  labInvoiceLocationLine,
+  labInvoiceOrgName,
+  labInvoicePatientName,
+  labInvoicePatientPhone,
+  labInvoiceSlotLine,
+  labInvoiceTestName,
+  setLabPaymentStatus,
+  type CareLabInvoice,
+} from "@/lib/care-lab-invoice";
 
-type CareSerialInvoiceCardProps = {
-  serialId: string;
-  /** Desk staff can mark payment */
+type CareLabInvoiceCardProps = {
+  bookingId: string;
   canManagePayment?: boolean;
-  compact?: boolean;
   autoPrint?: boolean;
-  onLoaded?: (invoice: CareSerialInvoice) => void;
 };
 
-export function CareSerialInvoiceCard({
-  serialId,
-  canManagePayment = false,
-  compact = false,
-  autoPrint = false,
-  onLoaded,
-}: CareSerialInvoiceCardProps) {
+export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPrint = false }: CareLabInvoiceCardProps) {
   const { lang } = useI18n();
-  const [invoice, setInvoice] = useState<CareSerialInvoice | null>(null);
+  const [invoice, setInvoice] = useState<CareLabInvoice | null>(null);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const printRootId = `care-invoice-${serialId}`;
+  const printRootId = `care-lab-invoice-${bookingId}`;
 
   const reload = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const inv = await fetchCareSerialInvoice(serialId);
+      const inv = await fetchCareLabInvoice(bookingId);
       setInvoice(inv);
-      if (inv) onLoaded?.(inv);
       if (!inv) setLoadError(lang === "bn" ? "ইনভয়েস পাওয়া যায়নি" : "Invoice not found");
       return inv;
     } catch (e) {
@@ -59,7 +51,7 @@ export function CareSerialInvoiceCard({
     } finally {
       setLoading(false);
     }
-  }, [serialId, onLoaded, lang]);
+  }, [bookingId, lang]);
 
   useEffect(() => {
     void reload().then((inv) => {
@@ -73,7 +65,7 @@ export function CareSerialInvoiceCard({
     if (!invoice) return;
     setDownloading(true);
     try {
-      await downloadCareSerialInvoicePdf(printRootId, `${invoice.invoice_no}-serial-${invoice.serial_no}`);
+      await downloadCareSerialInvoicePdf(printRootId, `${invoice.invoice_no}-ref-${invoice.reference_code}`);
       toast.success(lang === "bn" ? "PDF ডাউনলোড হয়েছে" : "PDF downloaded");
     } catch (e) {
       toast.error((e as Error).message);
@@ -82,10 +74,10 @@ export function CareSerialInvoiceCard({
     }
   }
 
-  async function markPaid(status: CareSerialInvoice["payment_status"]) {
+  async function markPaid(status: CareLabInvoice["payment_status"]) {
     setBusy(true);
     try {
-      await setSerialPaymentStatus(serialId, status);
+      await setLabPaymentStatus(bookingId, status);
       toast.success(lang === "bn" ? "আপডেট হয়েছে" : "Updated");
       await reload();
     } catch (e) {
@@ -122,19 +114,19 @@ export function CareSerialInvoiceCard({
     );
   }
 
-  const org = invoiceOrgName(invoice, lang);
-  const doctor = invoiceDoctorName(invoice, lang);
-  const patient = invoicePatientName(invoice, lang);
-  const phone = invoicePatientPhone(invoice);
-  const location = invoiceLocationLine(invoice, lang);
-  const specialty = lang === "bn" ? invoice.specialty_bn || invoice.specialty_en : invoice.specialty_en || invoice.specialty_bn;
+  const org = labInvoiceOrgName(invoice, lang);
+  const testName = labInvoiceTestName(invoice, lang);
+  const patient = labInvoicePatientName(invoice, lang);
+  const phone = labInvoicePatientPhone(invoice);
+  const location = labInvoiceLocationLine(invoice, lang);
+  const prep = lang === "bn" ? invoice.prep_bn || invoice.prep_en : invoice.prep_en || invoice.prep_bn;
   const issued = new Date(invoice.created_at).toLocaleString(lang === "bn" ? "bn-BD" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
   return (
-    <div className={compact ? "space-y-2" : "space-y-3"}>
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 no-print">
         <button
           type="button"
@@ -182,19 +174,17 @@ export function CareSerialInvoiceCard({
       </div>
 
       <article id={printRootId} className="invoice rounded-2xl border bg-card overflow-hidden shadow-sm">
-        <header className="head bg-gradient-to-br from-red-700 to-red-600 text-white px-4 py-4 sm:px-6">
+        <header className="head bg-gradient-to-br from-teal-700 to-cyan-600 text-white px-4 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-90 flex items-center gap-1">
-                <Receipt className="h-3 w-3" />
-                BloodLink Care
+                <FlaskConical className="h-3 w-3" />
+                BloodLink Care · Lab
               </p>
               <h1 className="text-lg sm:text-xl font-black mt-1">{org}</h1>
               {location && <p className="text-xs opacity-90 mt-1 max-w-md">{location}</p>}
               {(invoice.org_phone || invoice.location_phone) && (
-                <p className="text-xs opacity-90 mt-0.5">
-                  {invoice.location_phone || invoice.org_phone}
-                </p>
+                <p className="text-xs opacity-90 mt-0.5">{invoice.location_phone || invoice.org_phone}</p>
               )}
             </div>
             <div className="text-right shrink-0">
@@ -206,14 +196,14 @@ export function CareSerialInvoiceCard({
           </div>
         </header>
 
-        <div className="meta grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3 bg-red-50/80 border-b text-xs">
+        <div className="meta grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3 bg-teal-50/80 border-b text-xs">
           <div>
-            <strong>{lang === "bn" ? "তারিখ" : "Date"}</strong>
-            {invoice.session_date}
+            <strong>{lang === "bn" ? "টেস্ট তারিখ" : "Test date"}</strong>
+            {invoice.test_date || "—"}
           </div>
           <div>
             <strong>{lang === "bn" ? "সময়" : "Time"}</strong>
-            {invoiceScheduleLine(invoice)}
+            {labInvoiceSlotLine(invoice)}
           </div>
           <div>
             <strong>{lang === "bn" ? "ইস্যু" : "Issued"}</strong>
@@ -221,7 +211,9 @@ export function CareSerialInvoiceCard({
           </div>
           <div>
             <strong>{lang === "bn" ? "পেমেন্ট" : "Payment"}</strong>
-            <span className={`badge inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${invoice.payment_status === "paid" ? "paid bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+            <span
+              className={`badge inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${invoice.payment_status === "paid" ? "paid bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+            >
               {paymentStatusLabel(invoice.payment_status, lang)}
             </span>
           </div>
@@ -229,12 +221,14 @@ export function CareSerialInvoiceCard({
 
         <div className="serial-box text-center py-5 border-b bg-white">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            {lang === "bn" ? "আপনার সিরিয়াল" : "Your serial number"}
+            {lang === "bn" ? "রেফারেন্স কোড" : "Reference code"}
           </p>
-          <p className="serial-num text-5xl sm:text-6xl font-black tabular-nums text-red-700 leading-none mt-1">
-            {invoice.serial_no}
+          <p className="serial-num text-3xl sm:text-4xl font-black tracking-widest text-teal-700 leading-none mt-1">
+            {invoice.reference_code}
           </p>
-          <p className="font-mono text-xs text-muted-foreground mt-2">{invoice.claim_code}</p>
+          {invoice.test_code && (
+            <p className="font-mono text-xs text-muted-foreground mt-2">{invoice.test_code}</p>
+          )}
         </div>
 
         <section className="px-4 py-3 sm:px-6 border-b space-y-1">
@@ -251,29 +245,40 @@ export function CareSerialInvoiceCard({
           </div>
           <div className="row flex justify-between text-sm">
             <span>{lang === "bn" ? "উৎস" : "Source"}</span>
-            <span>{invoice.source === "walk_in" ? (lang === "bn" ? "ওয়াক-ইন" : "Walk-in") : (lang === "bn" ? "অ্যাপ" : "App")}</span>
+            <span>
+              {invoice.source === "walk_in"
+                ? lang === "bn"
+                  ? "ওয়াক-ইন"
+                  : "Walk-in"
+                : lang === "bn"
+                  ? "অ্যাপ"
+                  : "App"}
+            </span>
           </div>
         </section>
 
         <section className="px-4 py-3 sm:px-6 border-b space-y-1">
           <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-            {lang === "bn" ? "পরামর্শ" : "Consultation"}
+            {lang === "bn" ? "ল্যাব টেস্ট" : "Lab test"}
           </h2>
           <div className="row flex justify-between text-sm gap-3">
-            <span>{lang === "bn" ? "ডাক্তার" : "Doctor"}</span>
-            <span className="font-semibold text-right">{doctor}</span>
+            <span>{lang === "bn" ? "টেস্ট" : "Test"}</span>
+            <span className="font-semibold text-right">{testName}</span>
           </div>
-          {specialty && (
+          {invoice.sample_type && (
             <div className="row flex justify-between text-sm">
-              <span>{lang === "bn" ? "বিশেষত্ব" : "Specialty"}</span>
-              <span>{specialty}</span>
+              <span>{lang === "bn" ? "নমুনা" : "Sample"}</span>
+              <span>{invoice.sample_type}</span>
             </div>
           )}
-          {invoice.doctor_bmdc && (
+          {invoice.home_collection && (
             <div className="row flex justify-between text-sm">
-              <span>BMDC</span>
-              <span>{invoice.doctor_bmdc}</span>
+              <span>{lang === "bn" ? "হোম কালেকশন" : "Home collection"}</span>
+              <span>{lang === "bn" ? "হ্যাঁ" : "Yes"}</span>
             </div>
+          )}
+          {prep && (
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">{prep}</p>
           )}
         </section>
 
@@ -288,16 +293,16 @@ export function CareSerialInvoiceCard({
             <tbody>
               <tr className="border-t">
                 <td className="py-3">
-                  {lang === "bn" ? "ডাক্তার পরামর্শ ফি (সিরিয়াল)" : "Doctor consultation fee (serial)"}
+                  {lang === "bn" ? "ডায়াগনস্টিক টেস্ট ফি" : "Diagnostic test fee"}
                 </td>
                 <td className="py-3 text-right font-medium tabular-nums">
-                  {formatCareMoney(invoice.fee_amount, lang)}
+                  {formatCareMoney(invoice.price, lang)}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="py-3 total font-bold">{lang === "bn" ? "মোট" : "Total"}</td>
                 <td className="py-3 text-right total font-black tabular-nums text-base">
-                  {formatCareMoney(invoice.fee_amount, lang)}
+                  {formatCareMoney(invoice.price, lang)}
                 </td>
               </tr>
             </tbody>
@@ -306,8 +311,8 @@ export function CareSerialInvoiceCard({
 
         <footer className="foot px-4 py-3 sm:px-6 text-[11px] text-muted-foreground leading-relaxed bg-muted/30">
           {lang === "bn"
-            ? "এই ইনভয়েস BloodLink Care প্ল্যাটফর্মে সিরিয়াল নিশ্চিত হওয়ার সাথে সাথে তৈরি হয়েছে। চেম্বারে উপস্থিত হয়ে সিরিয়াল নম্বর দেখান।"
-            : "This invoice was generated when your serial was confirmed on BloodLink Care. Present this serial number at the chamber."}
+            ? "এই ইনভয়েস BloodLink Care-এ টেস্ট বুকিং নিশ্চিত হওয়ার সাথে সাথে তৈরি হয়েছে। ল্যাবে উপস্থিত হয়ে রেফারেন্স কোড দেখান।"
+            : "This invoice was generated when your lab test was booked on BloodLink Care. Present this reference code at the lab."}
         </footer>
       </article>
     </div>

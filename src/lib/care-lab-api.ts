@@ -49,6 +49,8 @@ export type CareLabBooking = {
   source: string;
   status: string;
   reference_code: string;
+  invoice_no?: string | null;
+  payment_status?: "pending" | "paid" | "waived";
   price: number;
   created_at: string;
 };
@@ -160,7 +162,7 @@ export async function fetchMyLabBookings(): Promise<(CareLabBooking & { offering
   const { data, error } = await supabase
     .from("care_lab_bookings")
     .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
+      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -181,7 +183,7 @@ export async function fetchLabBooking(id: string) {
   const { data, error } = await supabase
     .from("care_lab_bookings")
     .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, price, created_at",
+      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -221,7 +223,7 @@ export async function fetchOrgLabBookings(orgId: string, date: string) {
   const { data, error } = await supabase
     .from("care_lab_bookings")
     .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
+      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
     )
     .eq("org_id", orgId)
     .in("calendar_id", ids)
