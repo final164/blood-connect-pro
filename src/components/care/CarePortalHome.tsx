@@ -93,6 +93,8 @@ export function CarePortalHome() {
 
   const kycLabel = careOrgKycLabel(org, lang);
   const verified = !!org?.is_verified;
+  const needsProfile = org?.kyc_status === "draft" || !org?.profile_completed;
+  const pendingApproval = org?.kyc_status === "pending" && !!org?.profile_completed;
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-teal-50/40 to-background dark:from-teal-950/20">
@@ -152,10 +154,26 @@ export function CarePortalHome() {
                   ? lang === "bn"
                     ? "আপনার প্রতিষ্ঠান রোগীদের কাছে দৃশ্যমান।"
                     : "Your organization is visible to patients."
-                  : lang === "bn"
-                    ? "ডেস্ক ব্যবহার করতে পারবেন; KYC সম্পন্ন হলে রোগী সার্চে লিস্ট হবেন।"
-                    : "You can use the desk now; after KYC you will appear in patient search."}
+                  : needsProfile
+                    ? lang === "bn"
+                      ? "ডেস্ক ব্যবহার করতে পারবেন; প্রোফাইল সম্পূর্ণ করে অনুমোদন নিন।"
+                      : "You can use the desk; complete profile and submit for approval."
+                    : pendingApproval
+                      ? lang === "bn"
+                        ? "অ্যাডমিন পর্যালোচনা চলছে — সাধারণত ১–২ কার্যদিবস।"
+                        : "Admin review in progress — usually 1–2 business days."
+                      : lang === "bn"
+                        ? "ডেস্ক ব্যবহার করতে পারবেন; KYC সম্পন্ন হলে রোগী সার্চে লিস্ট হবেন।"
+                        : "You can use the desk now; after KYC you will appear in patient search."}
               </p>
+              {(needsProfile || org?.kyc_status === "rejected") && (
+                <Link
+                  to="/care/portal/onboarding"
+                  className="mt-3 inline-flex rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white"
+                >
+                  {lang === "bn" ? "প্রোফাইল সম্পূর্ণ করুন" : "Complete profile"}
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -204,6 +222,13 @@ export function CarePortalHome() {
         )}
 
         <div className="flex flex-wrap gap-2 pt-2">
+          <Link
+            to="/care/portal/onboarding"
+            className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            {lang === "bn" ? "প্রোফাইল / KYC" : "Profile / KYC"}
+          </Link>
           <Link
             to="/care"
             className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium"

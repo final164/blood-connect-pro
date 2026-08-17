@@ -1,25 +1,20 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  Building2,
-  FlaskConical,
-  Loader2,
-  ShieldCheck,
-  Stethoscope,
-} from "lucide-react";
+import { Building2, FlaskConical, Loader2, ShieldCheck, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { fetchAllDistricts, type District } from "@/lib/api";
-import { fetchCareVendorTypes, type CareVendorType } from "@/lib/care-cms";
 import { fetchMyCareMemberships } from "@/lib/care-access";
 import { useI18n } from "@/lib/i18n";
-import { isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
+import { clampPhoneDigits, isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
 import {
   authErrorMessage,
   loginWithPhonePin,
   registerWithPhonePin,
 } from "@/lib/phone-session";
-import { registerCareVendorOrg, resolveCarePortalPath } from "@/lib/care-vendor-auth";
+import {
+  registerCareVendorAccount,
+  resolveCarePortalPath,
+} from "@/lib/care-vendor-auth";
 
 type Mode = "login" | "register";
 
@@ -27,27 +22,6 @@ type CareAuthSearch = {
   mode?: Mode;
   next?: string;
 };
-
-const VENDOR_KIND_FALLBACK: CareVendorType[] = [
-  {
-    id: "chamber",
-    slug: "chamber",
-    name_bn: "চেম্বার / ক্লিনিক",
-    name_en: "Chamber / Clinic",
-    panels: ["desk"],
-    is_active: true,
-    sort_order: 10,
-  },
-  {
-    id: "lab",
-    slug: "lab",
-    name_bn: "ডায়াগনস্টিক ল্যাব",
-    name_en: "Diagnostic lab",
-    panels: ["lab"],
-    is_active: true,
-    sort_order: 20,
-  },
-];
 
 export function CareAuthPage() {
   const { lang, setLang } = useI18n();
@@ -58,25 +32,7 @@ export function CareAuthPage() {
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [orgName, setOrgName] = useState("");
-  const [orgNameBn, setOrgNameBn] = useState("");
-  const [orgPhone, setOrgPhone] = useState("");
-  const [orgKind, setOrgKind] = useState("chamber");
-  const [districtId, setDistrictId] = useState("");
-  const [upazila, setUpazila] = useState("");
-  const [address, setAddress] = useState("");
-  const [locationName, setLocationName] = useState("");
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [vendorKinds, setVendorKinds] = useState<CareVendorType[]>(VENDOR_KIND_FALLBACK);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    void fetchAllDistricts().then(setDistricts).catch(() => setDistricts([]));
-    void fetchCareVendorTypes().then((rows) => {
-      if (rows.length) setVendorKinds(rows.filter((r) => r.slug !== "patient"));
-    });
-  }, []);
 
   useEffect(() => {
     if (loading || !session || isAnonymous) return;
@@ -122,37 +78,26 @@ export function CareAuthPage() {
           toast.error(lang === "bn" ? "PIN মিলছে না" : "PINs do not match");
           return;
         }
-        if (!orgName.trim()) {
-          toast.error(lang === "bn" ? "প্রতিষ্ঠানের নাম দিন" : "Organization name is required");
-          return;
-        }
 
         await registerWithPhonePin({
           phone: normalized,
           pin,
           confirmPin,
-          fullName: ownerName.trim() || orgName.trim() || normalized,
+          fullName: normalized,
         });
 
-        await registerCareVendorOrg({
-          orgName: orgName.trim(),
-          orgNameBn: orgNameBn.trim() || undefined,
-          orgPhone: orgPhone.trim() || normalized,
-          orgKindSlug: orgKind,
-          districtId: districtId || null,
-          upazila: upazila.trim() || undefined,
-          address: address.trim() || undefined,
-          locationName: locationName.trim() || undefined,
-        });
+        await registerCareVendorAccount();
 
         toast.success(
           lang === "bn"
-            ? "কেয়ার ভেন্ডর অ্যাকাউন্ট তৈরি হয়েছে — KYC পর্যালোচনার জন্য অপেক্ষা করুন"
-            : "Care vendor account created — pending KYC review",
+            ? "অ্যাকাউন্ট তৈরি হয়েছে — এখন প্রোফাইল সম্পূর্ণ করুন"
+            : "Account created — complete your profile next",
         );
 
-        const path = await resolveCarePortalPath();
-        void navigate({ to: path as "/care/portal/desk" });
+        void navigate({
+          to: "/care/portal/onboarding",
+          search: { welcome: true, next: undefined, mode: undefined },
+        });
         return;
       }
 
@@ -166,7 +111,6 @@ export function CareAuthPage() {
             : "No care vendor account on this number — please register",
         );
         setMode("register");
-        setOrgPhone(normalized);
         return;
       }
 
@@ -194,6 +138,10 @@ export function CareAuthPage() {
         : "Professional portal for chambers, clinics & labs",
     login: lang === "bn" ? "ভেন্ডর লগইন" : "Vendor login",
     register: lang === "bn" ? "নতুন ভেন্ডর নিবন্ধন" : "New vendor registration",
+    registerHint:
+      lang === "bn"
+        ? "শুধু মোবাইল ও PIN — প্রোফাইল পরে সম্পূর্ণ করুন"
+        : "Mobile & PIN only — complete profile later",
     patientLink: lang === "bn" ? "রোগী হিসেবে লগইন" : "Sign in as patient",
   };
 
@@ -212,26 +160,18 @@ export function CareAuthPage() {
           <ul className="mt-8 hidden space-y-4 text-sm text-teal-50/90 lg:block">
             <li className="flex items-start gap-3">
               <Building2 className="mt-0.5 h-4 w-4 shrink-0" />
-              {lang === "bn"
-                ? "চেম্বার ডেস্ক — সিরিয়াল, কিউ ও ওয়াক-ইন"
-                : "Chamber desk — serials, queue & walk-ins"}
+              {lang === "bn" ? "১ মিনিটে অ্যাকাউন্ট — ফোন + PIN" : "1-minute signup — phone + PIN"}
             </li>
             <li className="flex items-start gap-3">
               <FlaskConical className="mt-0.5 h-4 w-4 shrink-0" />
-              {lang === "bn"
-                ? "ল্যাব ডেস্ক — টেস্ট অফার, স্লট ও চেক-ইন"
-                : "Lab desk — offerings, slots & check-in"}
+              {lang === "bn" ? "প্রোফাইল যেকোনো সময় সম্পূর্ণ করুন" : "Complete profile anytime"}
             </li>
             <li className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-              {lang === "bn"
-                ? "KYC ভেরিফিকেশনের পর রোগীদের কাছে লিস্টেড"
-                : "Listed for patients after KYC verification"}
+              <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />
+              {lang === "bn" ? "অ্যাডমিন অনুমোদনের পর লিস্টেড" : "Listed after admin approval"}
             </li>
           </ul>
-          <p className="mt-6 text-xs text-teal-200/70">
-            © {new Date().getFullYear()} BloodLink Care
-          </p>
+          <p className="mt-6 text-xs text-teal-200/70">© {new Date().getFullYear()} BloodLink Care</p>
         </div>
       </aside>
 
@@ -277,24 +217,22 @@ export function CareAuthPage() {
               ))}
             </div>
 
+            {mode === "register" && (
+              <p className="mb-4 rounded-xl bg-teal-50 px-3 py-2 text-xs text-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
+                {copy.registerHint}
+              </p>
+            )}
+
             <form onSubmit={(e) => void submit(e)} className="space-y-3">
               <Field
                 label={lang === "bn" ? "মালিকের মোবাইল" : "Owner mobile"}
                 value={phone}
-                onChange={setPhone}
+                onChange={(v) => setPhone(clampPhoneDigits(v))}
                 inputMode="tel"
                 placeholder="01XXXXXXXXX"
+                maxLength={11}
                 required
               />
-
-              {mode === "register" && (
-                <Field
-                  label={lang === "bn" ? "মালিকের নাম" : "Owner name"}
-                  value={ownerName}
-                  onChange={setOwnerName}
-                  placeholder={lang === "bn" ? "ডাঃ … / প্রতিষ্ঠান প্রতিনিধি" : "Dr. … / representative"}
-                />
-              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <Field
@@ -321,83 +259,6 @@ export function CareAuthPage() {
                 ) : null}
               </div>
 
-              {mode === "register" && (
-                <>
-                  <hr className="border-dashed" />
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {lang === "bn" ? "প্রতিষ্ঠানের তথ্য" : "Organization details"}
-                  </p>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      {lang === "bn" ? "ভেন্ডর ধরন" : "Vendor type"}
-                    </label>
-                    <select
-                      className="w-full rounded-xl border bg-background px-3 py-2.5 text-sm"
-                      value={orgKind}
-                      onChange={(e) => setOrgKind(e.target.value)}
-                    >
-                      {vendorKinds.map((k) => (
-                        <option key={k.slug} value={k.slug}>
-                          {lang === "bn" ? k.name_bn : k.name_en}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <Field
-                    label={lang === "bn" ? "প্রতিষ্ঠানের নাম (ইংরেজি)" : "Organization name (English)"}
-                    value={orgName}
-                    onChange={setOrgName}
-                    required
-                  />
-                  <Field
-                    label={lang === "bn" ? "প্রতিষ্ঠানের নাম (বাংলা)" : "Organization name (Bangla)"}
-                    value={orgNameBn}
-                    onChange={setOrgNameBn}
-                  />
-                  <Field
-                    label={lang === "bn" ? "প্রতিষ্ঠান ফোন" : "Organization phone"}
-                    value={orgPhone}
-                    onChange={setOrgPhone}
-                    inputMode="tel"
-                    placeholder="01XXXXXXXXX"
-                  />
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      {lang === "bn" ? "জেলা" : "District"}
-                    </label>
-                    <select
-                      className="w-full rounded-xl border bg-background px-3 py-2.5 text-sm"
-                      value={districtId}
-                      onChange={(e) => setDistrictId(e.target.value)}
-                    >
-                      <option value="">{lang === "bn" ? "নির্বাচন করুন" : "Select"}</option>
-                      {districts.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {lang === "bn" ? d.name_bn : d.name_en}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <Field
-                    label={lang === "bn" ? "উপজেলা / এলাকা" : "Upazila / area"}
-                    value={upazila}
-                    onChange={setUpazila}
-                  />
-                  <Field
-                    label={lang === "bn" ? "ঠিকানা" : "Address"}
-                    value={address}
-                    onChange={setAddress}
-                  />
-                  <Field
-                    label={lang === "bn" ? "শাখা / চেম্বার নাম (ঐচ্ছিক)" : "Branch / chamber name (optional)"}
-                    value={locationName}
-                    onChange={setLocationName}
-                  />
-                </>
-              )}
-
               <button
                 type="submit"
                 disabled={busy}
@@ -409,8 +270,8 @@ export function CareAuthPage() {
                     ? "পোর্টালে প্রবেশ"
                     : "Enter portal"
                   : lang === "bn"
-                    ? "ভেন্ডর হিসেবে নিবন্ধন"
-                    : "Register as vendor"}
+                    ? "অ্যাকাউন্ট তৈরি করুন"
+                    : "Create account"}
               </button>
             </form>
           </div>
@@ -432,6 +293,8 @@ function Field({
   value,
   onChange,
   type = "text",
+  inputMode,
+  maxLength,
   ...rest
 }: {
   label: string;
@@ -439,13 +302,16 @@ function Field({
   onChange: (v: string) => void;
   type?: string;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">) {
+  const isPhone = inputMode === "tel";
   return (
     <div>
       <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
       <input
         type={type}
+        inputMode={inputMode}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        maxLength={isPhone ? 11 : maxLength}
+        onChange={(e) => onChange(isPhone ? clampPhoneDigits(e.target.value) : e.target.value)}
         className="w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none ring-teal-600/30 focus:ring-2"
         {...rest}
       />

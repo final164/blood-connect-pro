@@ -29,6 +29,7 @@ export type LandingSectionId =
   | "islamic_carousel"
   | "campaigns"
   | "community"
+  | "care_vendor"
   | "gallery"
   | "stories_carousel"
   | "faq"
@@ -132,6 +133,17 @@ export type LandingCommunityBlock = {
   cta_bn: string;
   cta_en: string;
   cta_href: string;
+};
+
+export type LandingCareVendorBlock = {
+  title_bn: string;
+  title_en: string;
+  body_bn: string;
+  body_en: string;
+  register_bn: string;
+  register_en: string;
+  login_bn: string;
+  login_en: string;
 };
 
 /** Islamic inspiration section (text-first cards; no heavy media). */
@@ -276,6 +288,7 @@ export type LandingSettings = {
   hero: LandingHero;
   islamic: LandingIslamicBlock;
   community: LandingCommunityBlock;
+  care_vendor: LandingCareVendorBlock;
   cta_band: LandingCtaBand;
   footer: {
     copyright_bn: string;
@@ -296,6 +309,7 @@ export const LANDING_SECTION_IDS: LandingSectionId[] = [
   "islamic_carousel",
   "campaigns",
   "community",
+  "care_vendor",
   "gallery",
   "stories_carousel",
   "faq",
@@ -344,6 +358,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
       { id: "how", label_bn: "কীভাবে কাজ করে", label_en: "How it works", href: "#how" },
       { id: "campaigns", label_bn: "ক্যাম্পেইন", label_en: "Campaigns", href: "#campaigns" },
       { id: "community", label_bn: "কমিউনিটি", label_en: "Community", href: "#community" },
+      { id: "care-vendor", label_bn: "Care ভেন্ডর", label_en: "Care vendor", href: "#care-vendor" },
       { id: "gallery", label_bn: "গ্যালারি", label_en: "Gallery", href: "#gallery" },
       { id: "faq", label_bn: "প্রশ্নোত্তর", label_en: "FAQ", href: "#faq" },
     ],
@@ -390,6 +405,18 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     cta_en: "Create account",
     cta_href: "/auth",
   },
+  care_vendor: {
+    title_bn: "BloodLink Care — চেম্বার, ক্লিনিক ও ল্যাব",
+    title_en: "BloodLink Care — chambers, clinics & labs",
+    body_bn:
+      "ডাক্তার সিরিয়াল, কিউ, ওয়াক-ইন ও ল্যাব বুকিং পরিচালনার জন্য আলাদা পেশাদার পোর্টাল। চেম্বার বা ডায়াগনস্টিক ল্যাব হিসেবে নিবন্ধন করুন।",
+    body_en:
+      "A dedicated professional portal for doctor serials, queues, walk-ins, and lab bookings. Register as a chamber or diagnostic lab.",
+    register_bn: "ভেন্ডর নিবন্ধন",
+    register_en: "Vendor registration",
+    login_bn: "ভেন্ডর লগইন",
+    login_en: "Vendor login",
+  },
   cta_band: {
     title_bn: "আজই একজনের জীবন বদলান",
     title_en: "Change a life today",
@@ -414,6 +441,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
         links: [
           { label_bn: "লগইন", label_en: "Log in", href: "/auth" },
           { label_bn: "সাইন আপ", label_en: "Sign up", href: "/auth" },
+          { label_bn: "Care ভেন্ডর নিবন্ধন", label_en: "Care vendor register", href: "/care/auth?mode=register" },
+          { label_bn: "Care ভেন্ডর লগইন", label_en: "Care vendor login", href: "/care/auth" },
           { label_bn: "কীভাবে কাজ করে", label_en: "How it works", href: "#how" },
         ],
       },
@@ -621,6 +650,10 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
     string,
     unknown
   >;
+  const careVendorRaw = (r.care_vendor && typeof r.care_vendor === "object" ? r.care_vendor : {}) as Record<
+    string,
+    unknown
+  >;
   const islamicRaw = (r.islamic && typeof r.islamic === "object" ? r.islamic : {}) as Record<string, unknown>;
   const ctaRaw = (r.cta_band && typeof r.cta_band === "object" ? r.cta_band : {}) as Record<string, unknown>;
   const footerRaw = (r.footer && typeof r.footer === "object" ? r.footer : {}) as Record<string, unknown>;
@@ -641,6 +674,10 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
     if (id === "islamic_carousel") {
       const howIdx = section_order.indexOf("how_it_works");
       if (howIdx >= 0) section_order.splice(howIdx + 1, 0, id);
+      else section_order.push(id);
+    } else if (id === "care_vendor") {
+      const commIdx = section_order.indexOf("community");
+      if (commIdx >= 0) section_order.splice(commIdx + 1, 0, id);
       else section_order.push(id);
     } else {
       section_order.push(id);
@@ -761,6 +798,16 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       cta_bn: str(communityRaw.cta_bn, d.community.cta_bn),
       cta_en: str(communityRaw.cta_en, d.community.cta_en),
       cta_href: str(communityRaw.cta_href, d.community.cta_href),
+    },
+    care_vendor: {
+      title_bn: str(careVendorRaw.title_bn, d.care_vendor.title_bn),
+      title_en: str(careVendorRaw.title_en, d.care_vendor.title_en),
+      body_bn: str(careVendorRaw.body_bn, d.care_vendor.body_bn),
+      body_en: str(careVendorRaw.body_en, d.care_vendor.body_en),
+      register_bn: str(careVendorRaw.register_bn, d.care_vendor.register_bn),
+      register_en: str(careVendorRaw.register_en, d.care_vendor.register_en),
+      login_bn: str(careVendorRaw.login_bn, d.care_vendor.login_bn),
+      login_en: str(careVendorRaw.login_en, d.care_vendor.login_en),
     },
     cta_band: {
       title_bn: str(ctaRaw.title_bn, d.cta_band.title_bn),

@@ -65,9 +65,16 @@ export function LandingNav({
           )}
           <Link
             to="/auth"
-            className="text-xs font-semibold px-3 py-2 rounded-xl border border-black/10"
+            className="hidden sm:inline-flex text-xs font-semibold px-3 py-2 rounded-xl border border-black/10"
           >
             {lang === "bn" ? nav.cta_login_bn : nav.cta_login_en}
+          </Link>
+          <Link
+            to="/care/auth"
+            search={{ mode: "register", next: undefined }}
+            className="inline-flex text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl border border-teal-700/30 text-teal-800 bg-teal-50/80 whitespace-nowrap"
+          >
+            {lang === "bn" ? "Care ভেন্ডর" : "Care vendor"}
           </Link>
           <Link
             to="/auth"

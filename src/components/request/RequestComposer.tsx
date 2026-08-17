@@ -8,7 +8,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
-import { getProfile } from "@/lib/api";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 import {
   DEFAULT_REQUEST_FORM_OPTIONS,
   fetchRequestFormOptions,
@@ -461,9 +461,10 @@ export function RequestComposer({
             : ph("যোগাযোগ নম্বর", "Contact number")
         }
         value={form.contact_phone}
-        onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+        onChange={(e) => setForm({ ...form, contact_phone: clampPhoneDigits(e.target.value) })}
         required={req("contact_phone")}
         inputMode="tel"
+        maxLength={11}
       />
 
       <input
@@ -474,9 +475,10 @@ export function RequestComposer({
             : ph("WhatsApp নম্বর", "WhatsApp number")
         }
         value={form.whatsapp_phone}
-        onChange={(e) => setForm({ ...form, whatsapp_phone: e.target.value })}
+        onChange={(e) => setForm({ ...form, whatsapp_phone: clampPhoneDigits(e.target.value) })}
         required={req("whatsapp")}
         inputMode="tel"
+        maxLength={11}
       />
 
       <div className="grid grid-cols-3 gap-1.5">

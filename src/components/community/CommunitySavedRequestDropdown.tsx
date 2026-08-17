@@ -3,7 +3,7 @@ import { ClipboardList, X, Minus, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
-import { getProfile } from "@/lib/api";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
@@ -467,9 +467,10 @@ function CommunityRequestDraftSheet({
                 : ph("যোগাযোগ নম্বর", "Contact number")
             }
             value={form.contact_phone}
-            onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+            onChange={(e) => setForm({ ...form, contact_phone: clampPhoneDigits(e.target.value) })}
             required={req("contact_phone")}
             inputMode="tel"
+            maxLength={11}
           />
           <input
             className={field}
@@ -479,9 +480,10 @@ function CommunityRequestDraftSheet({
                 : ph("WhatsApp নম্বর", "WhatsApp number")
             }
             value={form.whatsapp_phone}
-            onChange={(e) => setForm({ ...form, whatsapp_phone: e.target.value })}
+            onChange={(e) => setForm({ ...form, whatsapp_phone: clampPhoneDigits(e.target.value) })}
             required={req("whatsapp")}
             inputMode="tel"
+            maxLength={11}
           />
 
           <div className="grid grid-cols-3 gap-1.5">

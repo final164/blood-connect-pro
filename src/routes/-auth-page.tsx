@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
+import { clampPhoneDigits, isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
 import {
   authErrorMessage,
   loginAsDefaultAdmin,
@@ -192,15 +192,6 @@ export function AuthPage() {
       </div>
     </div>
   );
-}
-
-function clampPhoneDigits(raw: string): string {
-  // Digits only; if pasted with country code, normalize then keep 11
-  let digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("880") && digits.length > 11) digits = "0" + digits.slice(3);
-  else if (digits.startsWith("88") && digits.length > 11) digits = "0" + digits.slice(2);
-  else if (digits.length === 10 && digits.startsWith("1")) digits = "0" + digits;
-  return digits.slice(0, 11);
 }
 
 function PhoneField({

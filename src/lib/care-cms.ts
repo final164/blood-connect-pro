@@ -83,6 +83,46 @@ export type CareFeatureFlags = {
   report_vault: boolean;
 };
 
+export type CareVendorFieldKey =
+  | "owner_name"
+  | "org_name"
+  | "org_name_bn"
+  | "org_kind"
+  | "org_phone"
+  | "email"
+  | "district"
+  | "upazila"
+  | "address"
+  | "location_name"
+  | "description";
+
+export type CareVendorFieldConfig = {
+  enabled: boolean;
+  required: boolean;
+  label_bn: string;
+  label_en: string;
+};
+
+export type CareVendorOnboardingSettings = {
+  fields: Record<CareVendorFieldKey, CareVendorFieldConfig>;
+};
+
+const DEFAULT_VENDOR_ONBOARDING: CareVendorOnboardingSettings = {
+  fields: {
+    owner_name: { enabled: true, required: true, label_bn: "মালিকের নাম", label_en: "Owner name" },
+    org_name: { enabled: true, required: true, label_bn: "প্রতিষ্ঠানের নাম", label_en: "Organization name" },
+    org_name_bn: { enabled: true, required: false, label_bn: "প্রতিষ্ঠান (বাংলা)", label_en: "Organization (Bangla)" },
+    org_kind: { enabled: true, required: true, label_bn: "ভেন্ডর ধরন", label_en: "Vendor type" },
+    org_phone: { enabled: true, required: true, label_bn: "প্রতিষ্ঠান ফোন", label_en: "Organization phone" },
+    email: { enabled: true, required: false, label_bn: "ইমেইল", label_en: "Email" },
+    district: { enabled: true, required: true, label_bn: "জেলা", label_en: "District" },
+    upazila: { enabled: true, required: true, label_bn: "উপজেলা", label_en: "Upazila" },
+    address: { enabled: true, required: true, label_bn: "ঠিকানা", label_en: "Address" },
+    location_name: { enabled: true, required: false, label_bn: "শাখা / চেম্বার", label_en: "Branch / chamber" },
+    description: { enabled: true, required: false, label_bn: "বিবরণ", label_en: "Description" },
+  },
+};
+
 export const FALLBACK_HUB_MODULES: CareHubModule[] = [
   {
     id: "doctors",
@@ -272,6 +312,42 @@ export async function saveCarePolicies(policies: CareBookingPolicies, flags: Car
     id: 1,
     care_booking_policies: policies,
     care_feature_flags: flags,
+  } as never);
+  if (error) throw new Error(error.message);
+}
+
+function normalizeVendorOnboarding(raw: unknown): CareVendorOnboardingSettings {
+  const base = DEFAULT_VENDOR_ONBOARDING;
+  if (!raw || typeof raw !== "object") return base;
+  const r = raw as { fields?: Record<string, Partial<CareVendorFieldConfig>> };
+  const fields = { ...base.fields };
+  for (const key of Object.keys(base.fields) as CareVendorFieldKey[]) {
+    const f = r.fields?.[key];
+    if (!f) continue;
+    fields[key] = {
+      enabled: f.enabled !== false,
+      required: f.required === true,
+      label_bn: f.label_bn?.trim() || base.fields[key].label_bn,
+      label_en: f.label_en?.trim() || base.fields[key].label_en,
+    };
+  }
+  return { fields };
+}
+
+export async function fetchCareVendorOnboarding(): Promise<CareVendorOnboardingSettings> {
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("care_vendor_onboarding")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error || !data) return DEFAULT_VENDOR_ONBOARDING;
+  return normalizeVendorOnboarding((data as { care_vendor_onboarding?: unknown }).care_vendor_onboarding);
+}
+
+export async function saveCareVendorOnboarding(settings: CareVendorOnboardingSettings) {
+  const { error } = await supabase.from("app_settings").upsert({
+    id: 1,
+    care_vendor_onboarding: settings,
   } as never);
   if (error) throw new Error(error.message);
 }

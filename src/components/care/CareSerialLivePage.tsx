@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { useI18n } from "@/lib/i18n";
@@ -14,6 +14,7 @@ import {
   type CareSerialRow,
   type CareSessionRow,
 } from "@/lib/care-api";
+import { CareSerialInvoiceCard } from "@/components/care/CareSerialInvoice";
 
 export function CareSerialLivePage({ serialId }: { serialId: string }) {
   const { lang } = useI18n();
@@ -69,16 +70,23 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
           <h1 className="text-sm font-bold">{lang === "bn" ? "লাইভ কিউ" : "Live queue"}</h1>
         </div>
       </AutoHideHeader>
-      <div className="px-3 py-6 max-w-md mx-auto text-center space-y-4">
+      <div className="px-3 py-6 max-w-lg mx-auto space-y-6">
         {!ticket ? (
           <p className="text-sm text-muted-foreground">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>
         ) : (
           <>
+            <div className="text-center space-y-4 max-w-md mx-auto">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {lang === "bn" ? "আপনার নম্বর" : "Your number"}
             </p>
             <p className="text-6xl font-black tabular-nums text-primary">{ticket.serial_no}</p>
             <p className="text-sm text-muted-foreground font-mono">{ticket.claim_code}</p>
+              {ticket.invoice_no && (
+                <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1 justify-center">
+                  <Receipt className="h-3 w-3" />
+                  {ticket.invoice_no}
+                </p>
+              )}
             <div className="rounded-2xl border bg-card p-4 grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-[10px] text-muted-foreground">{lang === "bn" ? "এখন চলছে" : "Now"}</p>
@@ -106,6 +114,15 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
                 {lang === "bn" ? "বাতিল" : "Cancel"}
               </button>
             )}
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1">
+                <Receipt className="h-3.5 w-3.5" />
+                {lang === "bn" ? "ইনভয়েস" : "Invoice"}
+              </p>
+              <CareSerialInvoiceCard serialId={serialId} />
+            </div>
           </>
         )}
       </div>

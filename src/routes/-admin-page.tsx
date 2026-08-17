@@ -83,7 +83,7 @@ import {
   exportRequestsSql,
   loadRequestsExportBundle,
 } from "@/lib/request-export";
-import { isAdminIdentity } from "@/lib/phone-auth";
+import { isAdminIdentity, clampPhoneDigits } from "@/lib/phone-auth";
 import { AdminAccessProvider, useAdminAccess } from "@/lib/admin-access-context";
 import { AccessControlAdmin } from "@/components/admin/AccessControlAdmin";
 import { UrgencyAnimationAdmin } from "@/components/admin/UrgencyAnimationAdmin";
@@ -1955,7 +1955,9 @@ function OrgEditForm({
           className={ainp}
           placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
           value={draft.phone}
-          onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+          onChange={(e) => setDraft({ ...draft, phone: clampPhoneDigits(e.target.value) })}
+          inputMode="tel"
+          maxLength={11}
         />
         {optionalFields.map((f) => (
           <input
@@ -2293,7 +2295,9 @@ function OrgDonorsPanel({
                           className={ainp}
                           placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
                           value={editForm.phone}
-                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                          onChange={(e) => setEditForm({ ...editForm, phone: clampPhoneDigits(e.target.value) })}
+                          inputMode="tel"
+                          maxLength={11}
                         />
                         <select
                           className={ainp}
@@ -2665,7 +2669,9 @@ function CommunityAdmin() {
             className={ainp}
             placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onChange={(e) => setForm({ ...form, phone: clampPhoneDigits(e.target.value) })}
+            inputMode="tel"
+            maxLength={11}
           />
           {optionalFields.map((f) => (
             <input
@@ -2826,8 +2832,9 @@ function CommunityAdmin() {
                   className={ainp}
                   placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
                   value={quickOrg.phone}
-                  onChange={(e) => setQuickOrg({ ...quickOrg, phone: e.target.value })}
+                  onChange={(e) => setQuickOrg({ ...quickOrg, phone: clampPhoneDigits(e.target.value) })}
                   inputMode="tel"
+                  maxLength={11}
                 />
               </div>
               <div className="flex gap-2">

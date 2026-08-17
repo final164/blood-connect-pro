@@ -66,7 +66,11 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
     try {
       const sessionId = await ensureCareSession(scheduleId, date);
       const ticket = await issueCareSerial({ sessionId, source: "app" });
-      toast.success(lang === "bn" ? `সিরিয়াল ${ticket.serial_no}` : `Serial ${ticket.serial_no}`);
+      toast.success(
+        lang === "bn"
+          ? `সিরিয়াল ${ticket.serial_no} · ইনভয়েস প্রস্তুত`
+          : `Serial ${ticket.serial_no} · Invoice ready`,
+      );
       void navigate({ to: "/care/serial/$id", params: { id: ticket.id } });
     } catch (e) {
       toast.error((e as Error).message);

@@ -423,6 +423,8 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     {s.session?.session_date} · {s.claim_code}
+                    {s.invoice_no ? ` · ${s.invoice_no}` : ""}
+                    {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
                   </p>
                 </Link>
               </li>

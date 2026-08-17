@@ -8,12 +8,14 @@ import {
   fetchCareHubModules,
   fetchCarePolicies,
   fetchCareSpecialties,
+  fetchCareVendorOnboarding,
   fetchCareVendorTypes,
   fetchLabBookingStatuses,
   fetchSerialStatuses,
   fetchTestCatalog,
   fetchTestCategories,
   saveCarePolicies,
+  saveCareVendorOnboarding,
   type CareBookingPolicies,
   type CareFeatureFlags,
   type CareHubModule,
@@ -21,6 +23,8 @@ import {
   type CareStatusRow,
   type CareTestCatalogItem,
   type CareTestCategory,
+  type CareVendorFieldKey,
+  type CareVendorOnboardingSettings,
   type CareVendorType,
 } from "@/lib/care-cms";
 
@@ -29,6 +33,7 @@ const ainp =
 
 type Sub =
   | "orgs"
+  | "onboarding"
   | "hub"
   | "vendors"
   | "specialties"
@@ -47,6 +52,7 @@ export function CareAdmin() {
 
   const tabs: { id: Sub; bn: string; en: string }[] = [
     { id: "orgs", bn: "ভেন্ডর / KYC", en: "Vendors / KYC" },
+    { id: "onboarding", bn: "অনবোর্ডিং ফিল্ড", en: "Onboarding fields" },
     { id: "hub", bn: "হাব মডিউল", en: "Hub modules" },
     { id: "vendors", bn: "ভেন্ডর টাইপ", en: "Vendor types" },
     { id: "specialties", bn: "স্পেশালিটি", en: "Specialties" },
@@ -79,6 +85,7 @@ export function CareAdmin() {
         ))}
       </div>
       {sub === "orgs" && <OrgsPanel canKyc={canKyc} lang={lang} />}
+      {sub === "onboarding" && <VendorOnboardingPanel canEdit={canEdit} lang={lang} />}
       {sub === "hub" && <HubPanel canEdit={canEdit} lang={lang} />}
       {sub === "vendors" && <VendorTypesPanel canEdit={canEdit} lang={lang} />}
       {sub === "specialties" && <SpecialtiesPanel canEdit={canEdit} lang={lang} />}
@@ -96,15 +103,33 @@ function OrgsPanel({ canKyc, lang }: { canKyc: boolean; lang: "bn" | "en" }) {
   const [name, setName] = useState("");
   const [kinds, setKinds] = useState<CareVendorType[]>([]);
   const [kindId, setKindId] = useState("");
+  const [filter, setFilter] = useState<"all" | "draft" | "pending" | "verified">("all");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   async function reload() {
     const { data, error } = await supabase
       .from("care_orgs")
-      .select("id, name, name_bn, is_active, is_verified, is_listed, kyc_status, featured, org_kind_id, phone")
+      .select(
+        "id, name, name_bn, phone, email, upazila, address, is_active, is_verified, is_listed, kyc_status, kyc_notes, featured, org_kind_id, profile_completed, profile_submitted_at, created_at, districts(name_bn, name_en)",
+      )
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
     else setRows((data as Record<string, unknown>[]) ?? []);
   }
+
+  const filtered = rows.filter((r) => {
+    const st = String(r.kyc_status ?? "");
+    if (filter === "draft") return st === "draft";
+    if (filter === "pending") return st === "pending";
+    if (filter === "verified") return st === "verified" || r.is_verified;
+    return true;
+  });
+
+  const counts = {
+    draft: rows.filter((r) => r.kyc_status === "draft").length,
+    pending: rows.filter((r) => r.kyc_status === "pending").length,
+    verified: rows.filter((r) => r.is_verified).length,
+  };
 
   useEffect(() => {
     void reload();
@@ -136,8 +161,34 @@ function OrgsPanel({ canKyc, lang }: { canKyc: boolean; lang: "bn" | "en" }) {
     else await reload();
   }
 
+  async function approve(id: string) {
+    await patch(id, { kyc_status: "verified", is_verified: true, is_listed: true });
+    toast.success(lang === "bn" ? "অনুমোদিত" : "Approved");
+  }
+
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            ["all", lang === "bn" ? "সব" : "All", rows.length],
+            ["draft", lang === "bn" ? "খসড়া" : "Draft", counts.draft],
+            ["pending", lang === "bn" ? "অপেক্ষমান" : "Pending", counts.pending],
+            ["verified", lang === "bn" ? "অনুমোদিত" : "Verified", counts.verified],
+          ] as const
+        ).map(([id, label, n]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setFilter(id)}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              filter === id ? "bg-rose-600 text-white" : "border border-slate-700 text-slate-300"
+            }`}
+          >
+            {label} ({n})
+          </button>
+        ))}
+      </div>
       {canKyc && (
         <div className="flex flex-wrap gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={lang === "bn" ? "নতুন অর্গ নাম" : "New org name"} className={ainp + " max-w-xs"} />
@@ -153,55 +204,85 @@ function OrgsPanel({ canKyc, lang }: { canKyc: boolean; lang: "bn" | "en" }) {
           </button>
         </div>
       )}
+      <div className="space-y-2">
+        {filtered.map((r) => {
+          const id = String(r.id);
+          const open = expanded === id;
+          const district = r.districts as { name_bn?: string; name_en?: string } | null;
+          const kind = kinds.find((k) => k.id === r.org_kind_id);
+          return (
+            <div key={id} className="rounded-xl border border-slate-800 overflow-hidden">
+              <button type="button" className="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-slate-900/50" onClick={() => setExpanded(open ? null : id)}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-100 truncate">{String(r.name)}</p>
+                  <p className="text-[11px] text-slate-400">{String(r.phone || "—")} · {kind?.slug ?? "—"}</p>
+                </div>
+                <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase bg-slate-800 text-slate-300">{String(r.kyc_status)}</span>
+              </button>
+              {open && (
+                <div className="border-t border-slate-800 px-3 py-3 space-y-2 text-xs text-slate-300">
+                  <p>{lang === "bn" ? "জেলা" : "District"}: {district?.name_en || district?.name_bn || "—"} · {String(r.upazila || "—")}</p>
+                  <p>{lang === "bn" ? "ঠিকানা" : "Address"}: {String(r.address || "—")}</p>
+                  <p>Submitted: {r.profile_submitted_at ? String(r.profile_submitted_at).slice(0, 19) : "—"}</p>
+                  {canKyc && (
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <select value={String(r.kyc_status)} onChange={(e) => void patch(id, { kyc_status: e.target.value, is_verified: e.target.value === "verified" })} className={ainp + " max-w-[8rem]"}>
+                        <option value="draft">draft</option>
+                        <option value="pending">pending</option>
+                        <option value="verified">verified</option>
+                        <option value="rejected">rejected</option>
+                      </select>
+                      {r.kyc_status === "pending" && (
+                        <button type="button" onClick={() => void approve(id)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">{lang === "bn" ? "অনুমোদন" : "Approve"}</button>
+                      )}
+                      <label className="inline-flex items-center gap-1"><input type="checkbox" checked={!!r.is_listed} onChange={(e) => void patch(id, { is_listed: e.target.checked })} />listed</label>
+                      <label className="inline-flex items-center gap-1"><input type="checkbox" checked={!!r.is_active} onChange={(e) => void patch(id, { is_active: e.target.checked })} />active</label>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function VendorOnboardingPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" }) {
+  const [settings, setSettings] = useState<CareVendorOnboardingSettings | null>(null);
+  useEffect(() => {
+    void fetchCareVendorOnboarding().then(setSettings);
+  }, []);
+  if (!settings) return null;
+  const keys = Object.keys(settings.fields) as CareVendorFieldKey[];
+  return (
+    <div className="space-y-3 max-w-2xl">
+      <p className="text-xs text-slate-400">{lang === "bn" ? "ভেন্ডর প্রোফাইল ফিল্ড নিয়ন্ত্রণ" : "Vendor profile field controls"}</p>
       <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full text-xs">
-          <thead className="bg-slate-900 text-slate-400">
-            <tr>
-              <th className="text-left px-2 py-2">Name</th>
-              <th className="text-left px-2 py-2">KYC</th>
-              <th className="text-left px-2 py-2">Flags</th>
-            </tr>
-          </thead>
+          <thead className="bg-slate-900 text-slate-400"><tr><th className="px-2 py-2 text-left">Field</th><th className="px-2 py-2 text-left">BN</th><th className="px-2 py-2 text-left">EN</th><th className="px-2 py-2">On</th><th className="px-2 py-2">Req</th></tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={String(r.id)} className="border-t border-slate-800">
-                <td className="px-2 py-2 text-slate-100">{String(r.name)}</td>
-                <td className="px-2 py-2">
-                  <select
-                    disabled={!canKyc}
-                    value={String(r.kyc_status)}
-                    onChange={(e) =>
-                      void patch(String(r.id), {
-                        kyc_status: e.target.value,
-                        is_verified: e.target.value === "verified",
-                      })
-                    }
-                    className={ainp}
-                  >
-                    <option value="pending">pending</option>
-                    <option value="verified">verified</option>
-                    <option value="rejected">rejected</option>
-                  </select>
-                </td>
-                <td className="px-2 py-2 space-x-2 whitespace-nowrap">
-                  <label className="inline-flex items-center gap-1 text-slate-300">
-                    <input type="checkbox" checked={!!r.is_listed} disabled={!canKyc} onChange={(e) => void patch(String(r.id), { is_listed: e.target.checked })} />
-                    listed
-                  </label>
-                  <label className="inline-flex items-center gap-1 text-slate-300">
-                    <input type="checkbox" checked={!!r.is_active} disabled={!canKyc} onChange={(e) => void patch(String(r.id), { is_active: e.target.checked })} />
-                    active
-                  </label>
-                  <label className="inline-flex items-center gap-1 text-slate-300">
-                    <input type="checkbox" checked={!!r.featured} disabled={!canKyc} onChange={(e) => void patch(String(r.id), { featured: e.target.checked })} />
-                    featured
-                  </label>
-                </td>
-              </tr>
-            ))}
+            {keys.map((key) => {
+              const f = settings.fields[key];
+              return (
+                <tr key={key} className="border-t border-slate-800">
+                  <td className="px-2 py-2 font-mono">{key}</td>
+                  <td className="px-2 py-2"><input disabled={!canEdit} className={ainp} value={f.label_bn} onChange={(e) => setSettings((p) => p ? { ...p, fields: { ...p.fields, [key]: { ...f, label_bn: e.target.value } } } : p)} /></td>
+                  <td className="px-2 py-2"><input disabled={!canEdit} className={ainp} value={f.label_en} onChange={(e) => setSettings((p) => p ? { ...p, fields: { ...p.fields, [key]: { ...f, label_en: e.target.value } } } : p)} /></td>
+                  <td className="px-2 py-2"><input type="checkbox" disabled={!canEdit} checked={f.enabled} onChange={(e) => setSettings((p) => p ? { ...p, fields: { ...p.fields, [key]: { ...f, enabled: e.target.checked } } } : p)} /></td>
+                  <td className="px-2 py-2"><input type="checkbox" disabled={!canEdit || !f.enabled} checked={f.required} onChange={(e) => setSettings((p) => p ? { ...p, fields: { ...p.fields, [key]: { ...f, required: e.target.checked } } } : p)} /></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+      {canEdit && (
+        <button type="button" onClick={() => void saveCareVendorOnboarding(settings).then(() => toast.success(lang === "bn" ? "সেভ" : "Saved"))} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white">
+          {lang === "bn" ? "সেভ" : "Save"}
+        </button>
+      )}
     </div>
   );
 }

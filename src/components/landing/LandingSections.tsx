@@ -4,9 +4,13 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Droplet,
+  FlaskConical,
   Heart,
   Bell,
+  Microscope,
+  Stethoscope,
   Users,
   User,
 } from "lucide-react";
@@ -37,6 +41,10 @@ const ICONS: Record<string, typeof Droplet> = {
   user: User,
   bell: Bell,
   building: Building2,
+  stethoscope: Stethoscope,
+  microscope: Microscope,
+  flask: FlaskConical,
+  clipboard: ClipboardList,
 };
 
 function pick(lang: "bn" | "en", bn: string, en: string) {
@@ -515,6 +523,58 @@ export function LandingFaq({ faqs, lang }: { faqs: LandingFaq[]; lang: "bn" | "e
   );
 }
 
+export function LandingCareVendor({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
+  const c = settings.care_vendor;
+  return (
+    <section
+      id="care-vendor"
+      className="landing-section relative overflow-hidden px-4 py-14"
+      style={{
+        background:
+          "linear-gradient(135deg, color-mix(in srgb, #0d9488 14%, var(--landing-bg)), var(--landing-bg))",
+      }}
+    >
+      <div className={`relative ${shell}`}>
+        <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center rounded-3xl border border-teal-900/10 bg-white/60 p-6 sm:p-8 shadow-lg shadow-teal-900/5 backdrop-blur">
+          <div>
+            <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-600 text-white">
+              <Stethoscope className="h-5 w-5" />
+            </div>
+            <h2 className="text-xl md:text-2xl font-bold landing-brand">{pick(lang, c.title_bn, c.title_en)}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--landing-muted)" }}>
+              {pick(lang, c.body_bn, c.body_en)}
+            </p>
+            <ul className="mt-5 grid gap-2 text-xs sm:grid-cols-2" style={{ color: "var(--landing-muted)" }}>
+              <li className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 shrink-0 text-teal-700" />
+                {lang === "bn" ? "চেম্বার ডেস্ক — সিরিয়াল ও কিউ" : "Chamber desk — serials & queue"}
+              </li>
+              <li className="flex items-center gap-2">
+                <Microscope className="h-4 w-4 shrink-0 text-teal-700" />
+                {lang === "bn" ? "ল্যাব ডেস্ক — বুকিং ও চেক-ইন" : "Lab desk — bookings & check-in"}
+              </li>
+            </ul>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:min-w-[220px]">
+            <LandingHref
+              href="/care/auth?mode=register"
+              className="inline-flex items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-900/20 hover:bg-teal-700"
+            >
+              {pick(lang, c.register_bn, c.register_en)}
+            </LandingHref>
+            <LandingHref
+              href="/care/auth"
+              className="inline-flex items-center justify-center rounded-2xl border border-teal-700/25 bg-white/70 px-5 py-3 text-sm font-semibold text-teal-900"
+            >
+              {pick(lang, c.login_bn, c.login_en)}
+            </LandingHref>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function LandingCtaBand({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const c = settings.cta_band;
   return (
@@ -671,6 +731,12 @@ export function renderLandingSection(
       return (
         <DeferredMount key={id} minHeight={320}>
           <LandingCommunity settings={settings} cards={content.communityCards} lang={lang} />
+        </DeferredMount>
+      );
+    case "care_vendor":
+      return (
+        <DeferredMount key={id} minHeight={280}>
+          <LandingCareVendor settings={settings} lang={lang} />
         </DeferredMount>
       );
     case "gallery":

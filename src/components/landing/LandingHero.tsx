@@ -47,9 +47,33 @@ export function LandingHref({
     );
   }
 
-  if (h === "/auth" || h.startsWith("/auth")) {
+  if (h === "/auth" || h.startsWith("/auth?") || h.startsWith("/auth/")) {
     return (
       <Link to="/auth" className={className} style={style}>
+        {children}
+      </Link>
+    );
+  }
+
+  if (h.startsWith("/care/auth")) {
+    const q = h.includes("?") ? new URLSearchParams(h.split("?")[1]) : null;
+    const mode = q?.get("mode");
+    return (
+      <Link
+        to="/care/auth"
+        search={mode === "register" ? { mode: "register" as const, next: undefined } : { mode: undefined, next: undefined }}
+        className={className}
+        style={style}
+      >
+        {children}
+      </Link>
+    );
+  }
+
+  if (h.startsWith("/care/portal")) {
+    const path = h.split("?")[0] as "/care/portal" | "/care/portal/desk" | "/care/portal/lab";
+    return (
+      <Link to={path || "/care/portal"} className={className} style={style}>
         {children}
       </Link>
     );

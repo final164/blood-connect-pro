@@ -63,6 +63,9 @@ export type CareSerialRow = {
   source: string;
   status: string;
   claim_code: string;
+  invoice_no?: string | null;
+  fee_amount?: number | null;
+  payment_status?: "pending" | "paid" | "waived";
   called_at: string | null;
   created_at: string;
 };
@@ -271,7 +274,7 @@ export async function fetchMySerials(): Promise<(CareSerialRow & { session?: Car
   const { data, error } = await supabase
     .from("care_serials")
     .select(
-      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, called_at, created_at, care_sessions(id, schedule_id, org_id, location_id, doctor_id, session_date, status, max_serial, start_number, last_issued, now_serving)",
+      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, invoice_no, fee_amount, payment_status, called_at, created_at, care_sessions(id, schedule_id, org_id, location_id, doctor_id, session_date, status, max_serial, start_number, last_issued, now_serving)",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -289,7 +292,7 @@ export async function fetchSerial(id: string) {
   const { data, error } = await supabase
     .from("care_serials")
     .select(
-      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, called_at, created_at",
+      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, invoice_no, fee_amount, payment_status, called_at, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -301,7 +304,7 @@ export async function fetchSessionQueue(sessionId: string): Promise<CareSerialRo
   const { data, error } = await supabase
     .from("care_serials")
     .select(
-      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, called_at, created_at",
+      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, invoice_no, fee_amount, payment_status, called_at, created_at",
     )
     .eq("session_id", sessionId)
     .order("serial_no");

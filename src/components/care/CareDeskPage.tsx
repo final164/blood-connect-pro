@@ -39,6 +39,14 @@ import {
 } from "@/lib/care-api";
 import { supabase } from "@/integrations/supabase/client";
 import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
+import { clampPhoneDigits } from "@/lib/phone-auth";
+import { CareSerialInvoiceCard } from "@/components/care/CareSerialInvoice";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type DeskTab = "queue" | "doctors" | "schedule" | "staff" | "settings";
 
@@ -194,6 +202,8 @@ function QueuePanel({
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [docs, setDocs] = useState<{ id: string; full_name: string }[]>([]);
+  const [invoiceSerialId, setInvoiceSerialId] = useState<string | null>(null);
+  const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
 
   async function reload() {
     const list = await fetchOrgSessions(orgId, date);
@@ -277,7 +287,7 @@ function QueuePanel({
           onSubmit={(e) => {
             e.preventDefault();
             void act(async () => {
-              await issueCareSerial({
+              const ticket = await issueCareSerial({
                 sessionId: sess.id,
                 source: "walk_in",
                 guestName: guestName || undefined,
@@ -285,11 +295,14 @@ function QueuePanel({
               });
               setGuestName("");
               setGuestPhone("");
+              setAutoPrintInvoice(true);
+              setInvoiceSerialId(ticket.id);
+              toast.success(lang === "bn" ? `সিরিয়াল ${ticket.serial_no} · ইনভয়েস তৈরি` : `Serial ${ticket.serial_no} · Invoice ready`);
             });
           }}
         >
           <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={lang === "bn" ? "নাম" : "Name"} className="rounded-xl border px-3 py-2 text-sm" />
-          <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder={lang === "bn" ? "ফোন" : "Phone"} className="rounded-xl border px-3 py-2 text-sm" />
+          <input value={guestPhone} onChange={(e) => setGuestPhone(clampPhoneDigits(e.target.value))} placeholder={lang === "bn" ? "ফোন" : "Phone"} className="rounded-xl border px-3 py-2 text-sm" inputMode="tel" maxLength={11} />
           <button type="submit" className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold">
             {lang === "bn" ? "ওয়াক-ইন সিরিয়াল" : "Walk-in serial"}
           </button>
@@ -301,6 +314,16 @@ function QueuePanel({
             <span className="font-black tabular-nums w-8">{t.serial_no}</span>
             <span className="flex-1 truncate">{t.guest_name || t.guest_phone || t.patient_id?.slice(0, 8) || "—"}</span>
             <span className="text-[11px] text-muted-foreground">{t.status}</span>
+            <button
+                type="button"
+                className="text-[11px] font-semibold text-primary"
+                onClick={() => {
+                  setAutoPrintInvoice(false);
+                  setInvoiceSerialId(t.id);
+                }}
+              >
+                {lang === "bn" ? "ইনভয়েস" : "Invoice"}
+              </button>
             {canManage && t.status !== "done" && t.status !== "cancelled" && (
               <>
                 <button type="button" className="text-[11px] font-semibold" onClick={() => void act(() => setSerialStatus(t.id, "no_show"))}>
@@ -315,6 +338,29 @@ function QueuePanel({
         ))}
         {queue.length === 0 && <li className="px-3 py-6 text-center text-xs text-muted-foreground">{lang === "bn" ? "কিউ খালি" : "Queue empty"}</li>}
       </ul>
+
+      <Dialog
+        open={!!invoiceSerialId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInvoiceSerialId(null);
+            setAutoPrintInvoice(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{lang === "bn" ? "সিরিয়াল ইনভয়েস" : "Serial invoice"}</DialogTitle>
+          </DialogHeader>
+          {invoiceSerialId && (
+            <CareSerialInvoiceCard
+              serialId={invoiceSerialId}
+              canManagePayment={canManage}
+              autoPrint={autoPrintInvoice}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -554,7 +600,7 @@ function StaffPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={lang === "bn" ? "ফোন" : "Phone"} className="rounded-xl border px-3 py-2 text-sm" />
+        <input value={phone} onChange={(e) => setPhone(clampPhoneDigits(e.target.value))} placeholder={lang === "bn" ? "ফোন" : "Phone"} className="rounded-xl border px-3 py-2 text-sm" inputMode="tel" maxLength={11} />
         <select value={roleSlug} onChange={(e) => setRoleSlug(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
           {roles.map((r) => (
             <option key={r.id} value={r.slug}>
@@ -633,7 +679,7 @@ function SettingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
     <div className="space-y-3 max-w-lg">
       <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" />
       <input value={nameBn} onChange={(e) => setNameBn(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="বাংলা নাম" />
-      <input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" />
+      <input value={phone} onChange={(e) => setPhone(clampPhoneDigits(e.target.value))} className="w-full rounded-xl border px-3 py-2 text-sm" inputMode="tel" maxLength={11} />
       <select value={kindId} onChange={(e) => setKindId(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm">
         {kinds.map((k) => (
           <option key={k.id} value={k.id}>

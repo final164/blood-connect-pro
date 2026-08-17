@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "bootstrap:admin": "bun --env-file=.env run scripts/bootstrap-admin.mjs",
     "seed:hospitals": "bun --env-file=.env run scripts/seed-hospitals.mjs",
+    "seed:care-vendors": "bun --env-file=.env run scripts/seed-care-vendors.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {

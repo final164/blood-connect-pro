@@ -18,6 +18,7 @@ import {
   type DonorImportInput,
 } from "@/lib/community-donor-import";
 import { toast } from "sonner";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 
 const field =
   "w-full rounded-xl border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25";
@@ -340,8 +341,9 @@ export function OrgDonorsManager({
                   className={field}
                   placeholder={lang === "bn" ? "ফোন *" : "Phone *"}
                   value={manualForm.phone}
-                  onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })}
+                  onChange={(e) => setManualForm({ ...manualForm, phone: clampPhoneDigits(e.target.value) })}
                   inputMode="tel"
+                  maxLength={11}
                 />
                 <select
                   className={field}
@@ -420,7 +422,7 @@ export function OrgDonorsManager({
                 <li key={d.id} className="p-3 space-y-2 bg-muted/30">
                   <div className="grid sm:grid-cols-2 gap-2">
                     <input className={field} value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} placeholder="Name" />
-                    <input className={field} value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="Phone" />
+                    <input className={field} value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: clampPhoneDigits(e.target.value) })} placeholder="Phone" inputMode="tel" maxLength={11} />
                     <select className={field} value={editForm.blood_group} onChange={(e) => setEditForm({ ...editForm, blood_group: e.target.value })}>
                       <option value="">BG</option>
                       {BLOOD_GROUPS.map((g) => (

@@ -16,6 +16,7 @@ import {
 } from "@/lib/users-geo-scope";
 import { Ban, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 
 type ProfileRow = {
   id: string;
@@ -436,9 +437,10 @@ export function UsersAdmin() {
               <input
                 className={sel + " w-full font-mono"}
                 value={searchPhone}
-                onChange={(e) => setSearchPhone(e.target.value)}
+                onChange={(e) => setSearchPhone(clampPhoneDigits(e.target.value))}
                 placeholder="01XXXXXXXXX"
                 inputMode="numeric"
+                maxLength={11}
               />
             </div>
           )}

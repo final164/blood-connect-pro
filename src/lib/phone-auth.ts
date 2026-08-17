@@ -3,6 +3,18 @@
 const PHONE_RE = /^01[3-9]\d{8}$/;
 const PIN_RE = /^\d{4}$/;
 
+/** Bangladesh local mobile length: 01XXXXXXXXX */
+export const BD_PHONE_MAX_LEN = 11;
+
+/** Digits only, max 11 — strips +880 / 88 country code on paste. */
+export function clampPhoneDigits(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("880") && digits.length > 11) digits = "0" + digits.slice(3);
+  else if (digits.startsWith("88") && digits.length > 11) digits = "0" + digits.slice(2);
+  else if (digits.length === 10 && digits.startsWith("1")) digits = "0" + digits;
+  return digits.slice(0, BD_PHONE_MAX_LEN);
+}
+
 /** Default admin credentials (phone + PIN auth). */
 export const ADMIN_PHONE = "01700000000";
 export const ADMIN_PIN = "1212";

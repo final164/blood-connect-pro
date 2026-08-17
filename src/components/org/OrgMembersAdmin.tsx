@@ -9,6 +9,7 @@ import {
   type OrgRoleRow,
 } from "@/lib/org-access";
 import { toast } from "sonner";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 
 export function OrgMembersAdmin({
   orgId,
@@ -135,8 +136,10 @@ export function OrgMembersAdmin({
             <input
               className={inp}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(clampPhoneDigits(e.target.value))}
               placeholder="01XXXXXXXXX"
+              inputMode="tel"
+              maxLength={11}
             />
           </div>
           <div className="space-y-1">

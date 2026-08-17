@@ -31,6 +31,7 @@ import { Route as AppCareRouteImport } from './routes/_app.care'
 import { Route as CarePortalIndexRouteImport } from './routes/care.portal.index'
 import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
 import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
+import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.onboarding'
 import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
 import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
@@ -152,6 +153,11 @@ const AppCareIndexRoute = AppCareIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppCareRoute,
 } as any)
+const CarePortalOnboardingRoute = CarePortalOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => CarePortalRoute,
+} as any)
 const CarePortalLabRoute = CarePortalLabRouteImport.update({
   id: '/lab',
   path: '/lab',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/profile/$userId': typeof AppProfileUserIdRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
+  '/care/portal/onboarding': typeof CarePortalOnboardingRoute
   '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
   '/care/portal/': typeof CarePortalIndexRoute
@@ -265,6 +272,7 @@ export interface FileRoutesByTo {
   '/profile/$userId': typeof AppProfileUserIdRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
+  '/care/portal/onboarding': typeof CarePortalOnboardingRoute
   '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
   '/care/portal': typeof CarePortalIndexRoute
@@ -301,6 +309,7 @@ export interface FileRoutesById {
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
+  '/care/portal/onboarding': typeof CarePortalOnboardingRoute
   '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
   '/care/portal/': typeof CarePortalIndexRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/profile/$userId'
     | '/care/portal/desk'
     | '/care/portal/lab'
+    | '/care/portal/onboarding'
     | '/care/'
     | '/profile/'
     | '/care/portal/'
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/profile/$userId'
     | '/care/portal/desk'
     | '/care/portal/lab'
+    | '/care/portal/onboarding'
     | '/care'
     | '/profile'
     | '/care/portal'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/_app/profile/$userId'
     | '/care/portal/desk'
     | '/care/portal/lab'
+    | '/care/portal/onboarding'
     | '/_app/care/'
     | '/_app/profile/'
     | '/care/portal/'
@@ -580,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareIndexRouteImport
       parentRoute: typeof AppCareRoute
     }
+    '/care/portal/onboarding': {
+      id: '/care/portal/onboarding'
+      path: '/onboarding'
+      fullPath: '/care/portal/onboarding'
+      preLoaderRoute: typeof CarePortalOnboardingRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
     '/care/portal/lab': {
       id: '/care/portal/lab'
       path: '/lab'
@@ -741,12 +760,14 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 interface CarePortalRouteChildren {
   CarePortalDeskRoute: typeof CarePortalDeskRoute
   CarePortalLabRoute: typeof CarePortalLabRoute
+  CarePortalOnboardingRoute: typeof CarePortalOnboardingRoute
   CarePortalIndexRoute: typeof CarePortalIndexRoute
 }
 
 const CarePortalRouteChildren: CarePortalRouteChildren = {
   CarePortalDeskRoute: CarePortalDeskRoute,
   CarePortalLabRoute: CarePortalLabRoute,
+  CarePortalOnboardingRoute: CarePortalOnboardingRoute,
   CarePortalIndexRoute: CarePortalIndexRoute,
 }
 

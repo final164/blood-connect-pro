@@ -11,6 +11,7 @@ import {
   type SeoSettings,
 } from "@/lib/seo-settings";
 import { SEO_GUIDE_BN, SEO_GUIDE_EN } from "@/lib/seo-guide";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 import {
   Drawer,
   DrawerClose,
@@ -388,7 +389,9 @@ export function SeoAdmin() {
             <input
               className={ainp}
               value={s.org_phone}
-              onChange={(e) => setS({ ...s, org_phone: e.target.value })}
+              onChange={(e) => setS({ ...s, org_phone: clampPhoneDigits(e.target.value) })}
+              inputMode="tel"
+              maxLength={11}
             />
           </Field>
           <Field label="Logo URL">

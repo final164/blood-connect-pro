@@ -4,6 +4,7 @@ import { UpazilaTypeahead } from "@/components/district/UpazilaTypeahead";
 import type { District } from "@/lib/api";
 import { ProfileToggle } from "@/components/profile/ProfileToggle";
 import { X } from "lucide-react";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 
 const inp =
   "w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30";
@@ -64,7 +65,9 @@ export function ProfileEditSheet({
             <input
               className={inp}
               value={(profile.phone as string) ?? ""}
-              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+              onChange={(e) => setProfile({ ...profile, phone: clampPhoneDigits(e.target.value) })}
+              inputMode="tel"
+              maxLength={11}
             />
           </Field>
           <div className="grid grid-cols-2 gap-2">

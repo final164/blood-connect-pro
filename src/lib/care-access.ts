@@ -28,8 +28,12 @@ export type CareMembership = {
     name_bn: string | null;
     is_active: boolean;
     is_verified: boolean;
+    is_listed?: boolean;
     org_kind_id: string | null;
     phone: string | null;
+    kyc_status?: string | null;
+    profile_completed?: boolean;
+    profile_submitted_at?: string | null;
   } | null;
 };
 
@@ -49,7 +53,7 @@ export async function fetchMyCareMemberships(): Promise<CareMembership[]> {
   const { data, error } = await supabase
     .from("care_org_members")
     .select(
-      "id, org_id, user_id, role, role_id, care_org_roles(id, org_id, slug, name, name_bn, is_system, permissions), care_orgs(id, name, name_bn, is_active, is_verified, org_kind_id, phone)",
+      "id, org_id, user_id, role, role_id, care_org_roles(id, org_id, slug, name, name_bn, is_system, permissions), care_orgs(id, name, name_bn, is_active, is_verified, is_listed, org_kind_id, phone, kyc_status, profile_completed, profile_submitted_at)",
     );
   if (error) {
     if (/care_org_members|schema cache|does not exist/i.test(error.message)) return [];
