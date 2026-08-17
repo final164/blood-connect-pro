@@ -61,6 +61,11 @@ export function AppLayout() {
     getProfile(user.id)
       .then((profile) => {
         if (cancelled) return;
+        const accountKind = (profile as { account_kind?: string } | null)?.account_kind;
+        if (accountKind === "care_vendor") {
+          setProfileGate("ok");
+          return;
+        }
         const complete = isProfileComplete(profile);
         setProfileGate(complete ? "ok" : "incomplete");
         if (!complete && !onOnboarding) {
@@ -154,7 +159,9 @@ function AppShell({
   const isChatThread = /^\/chat\/[^/]+$/.test(locationPath);
   const isChatSection = locationPath.startsWith("/chat");
   const isCareVendorShell =
-    locationPath.startsWith("/care/desk") || locationPath.startsWith("/care/lab");
+    locationPath.startsWith("/care/desk") ||
+    locationPath.startsWith("/care/lab") ||
+    locationPath.startsWith("/care/portal");
   const hideBottomNav = isChatThread || isCareVendorShell;
   const composeOpen =
     (locationPath === "/home" || locationPath === "/") &&

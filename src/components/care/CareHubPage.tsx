@@ -88,11 +88,11 @@ export function CareHubPage({ initialTab }: { initialTab?: string }) {
             {visible.map((m) => {
               const Icon = ICONS[m.icon] ?? LayoutGrid;
               const label = lang === "bn" ? m.label_bn : m.label_en;
-              if (m.href.startsWith("/care/desk")) {
+              if (m.href.includes("/desk")) {
                 return (
                   <Link
                     key={m.id}
-                    to="/care/desk"
+                    to="/care/portal/desk"
                     className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -100,11 +100,11 @@ export function CareHubPage({ initialTab }: { initialTab?: string }) {
                   </Link>
                 );
               }
-              if (m.href.startsWith("/care/lab")) {
+              if (m.href.includes("/lab") && !m.href.includes("lab-booking")) {
                 return (
                   <Link
                     key={m.id}
-                    to="/care/lab"
+                    to="/care/portal/lab"
                     className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
                   >
                     <Icon className="h-3.5 w-3.5" />

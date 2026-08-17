@@ -42,10 +42,17 @@ import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
 
 type DeskTab = "queue" | "doctors" | "schedule" | "staff" | "settings";
 
-export function CareDeskPage() {
+type CareDeskPageProps = {
+  /** Vendor portal — separate auth & no donor onboarding */
+  portalMode?: boolean;
+};
+
+export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { lang } = useI18n();
+  const authPath = portalMode ? "/care/auth" : "/auth";
+  const homePath = portalMode ? "/care/portal" : "/care";
   const [memberships, setMemberships] = useState<CareMembership[]>([]);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState<DeskTab>("queue");
@@ -54,7 +61,7 @@ export function CareDeskPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: "/auth" });
+      void navigate({ to: authPath });
       return;
     }
     void fetchMyCareMemberships()
@@ -62,7 +69,7 @@ export function CareDeskPage() {
         const active = rows.filter((r) => r.care_orgs?.is_active !== false);
         if (!active.length) {
           toast.error(lang === "bn" ? "চেম্বার মেম্বারশিপ নেই" : "No chamber membership");
-          void navigate({ to: "/care" });
+          void navigate({ to: portalMode ? "/care/auth" : "/care" });
           return;
         }
         setMemberships(active);
@@ -71,9 +78,14 @@ export function CareDeskPage() {
       })
       .catch((e) => {
         toast.error((e as Error).message);
-        void navigate({ to: "/care" });
+        void navigate({ to: portalMode ? "/care/auth" : "/care" });
       });
-  }, [loading, user, navigate, lang]);
+  }, [loading, user, navigate, lang, authPath, portalMode]);
+
+  async function handleSignOut() {
+    await signOut();
+    void navigate({ to: authPath });
+  }
 
   const membership = useMemo(
     () => memberships.find((m) => m.org_id === orgId) ?? null,
@@ -125,10 +137,10 @@ export function CareDeskPage() {
               ))}
             </select>
           )}
-          <Link to="/care" className="rounded-xl border px-2.5 py-2 text-xs font-medium">
-            {lang === "bn" ? "কেয়ার" : "Care"}
+          <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium">
+            {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
           </Link>
-          <button type="button" onClick={() => void signOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
+          <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
             <LogOut className="h-4 w-4" />
           </button>
         </div>

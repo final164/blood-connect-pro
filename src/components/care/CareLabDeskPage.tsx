@@ -21,14 +21,20 @@ import { supabase } from "@/integrations/supabase/client";
 
 type LabTab = "today" | "offerings" | "calendar" | "checkin";
 
+type CareLabDeskPageProps = {
+  portalMode?: boolean;
+};
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function CareLabDeskPage() {
+export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { lang } = useI18n();
+  const authPath = portalMode ? "/care/auth" : "/auth";
+  const homePath = portalMode ? "/care/portal" : "/care";
   const [memberships, setMemberships] = useState<CareMembership[]>([]);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState<LabTab>("today");
@@ -37,21 +43,26 @@ export function CareLabDeskPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: "/auth" });
+      void navigate({ to: authPath });
       return;
     }
     void fetchMyCareMemberships().then((rows) => {
       const active = rows.filter((r) => r.care_orgs?.is_active !== false);
       if (!active.length) {
         toast.error(lang === "bn" ? "ল্যাব মেম্বারশিপ নেই" : "No lab membership");
-        void navigate({ to: "/care" });
+        void navigate({ to: portalMode ? "/care/auth" : "/care" });
         return;
       }
       setMemberships(active);
       setOrgId((prev) => prev ?? active[0]!.org_id);
       setReady(true);
     });
-  }, [loading, user, navigate, lang]);
+  }, [loading, user, navigate, lang, authPath, portalMode]);
+
+  async function handleSignOut() {
+    await signOut();
+    void navigate({ to: authPath });
+  }
 
   const membership = useMemo(() => memberships.find((m) => m.org_id === orgId) ?? null, [memberships, orgId]);
   const can = (key: CarePermissionKey) => careHasPermission(membership, key);
@@ -95,10 +106,10 @@ export function CareLabDeskPage() {
               ))}
             </select>
           )}
-          <Link to="/care" className="rounded-xl border px-2.5 py-2 text-xs font-medium">
-            {lang === "bn" ? "কেয়ার" : "Care"}
+          <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium">
+            {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
           </Link>
-          <button type="button" onClick={() => void signOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
+          <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
             <LogOut className="h-4 w-4" />
           </button>
         </div>

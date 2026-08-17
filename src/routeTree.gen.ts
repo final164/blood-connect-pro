@@ -16,6 +16,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CarePortalRouteImport } from './routes/care.portal'
+import { Route as CareAuthRouteImport } from './routes/care.auth'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppRequestsRouteImport } from './routes/_app.requests'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -26,8 +28,11 @@ import { Route as AppHomeRouteImport } from './routes/_app.home'
 import { Route as AppCommunityRouteImport } from './routes/_app.community'
 import { Route as AppChatRouteImport } from './routes/_app.chat'
 import { Route as AppCareRouteImport } from './routes/_app.care'
+import { Route as CarePortalIndexRouteImport } from './routes/care.portal.index'
 import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
 import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
+import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
+import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
@@ -70,6 +75,16 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarePortalRoute = CarePortalRouteImport.update({
+  id: '/care/portal',
+  path: '/care/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareAuthRoute = CareAuthRouteImport.update({
+  id: '/care/auth',
+  path: '/care/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -122,6 +137,11 @@ const AppCareRoute = AppCareRouteImport.update({
   path: '/care',
   getParentRoute: () => AppRoute,
 } as any)
+const CarePortalIndexRoute = CarePortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CarePortalRoute,
+} as any)
 const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -131,6 +151,16 @@ const AppCareIndexRoute = AppCareIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppCareRoute,
+} as any)
+const CarePortalLabRoute = CarePortalLabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalDeskRoute = CarePortalDeskRouteImport.update({
+  id: '/desk',
+  path: '/desk',
+  getParentRoute: () => CarePortalRoute,
 } as any)
 const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
   id: '/$userId',
@@ -195,13 +225,18 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRouteWithChildren
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
+  '/care/auth': typeof CareAuthRoute
+  '/care/portal': typeof CarePortalRouteWithChildren
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/portal/desk': typeof CarePortalDeskRoute
+  '/care/portal/lab': typeof CarePortalLabRoute
   '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
+  '/care/portal/': typeof CarePortalIndexRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
@@ -222,13 +257,17 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AppOnboardingRoute
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
+  '/care/auth': typeof CareAuthRoute
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/portal/desk': typeof CarePortalDeskRoute
+  '/care/portal/lab': typeof CarePortalLabRoute
   '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
+  '/care/portal': typeof CarePortalIndexRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
@@ -253,13 +292,18 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRouteWithChildren
   '/_app/requests': typeof AppRequestsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/care/auth': typeof CareAuthRoute
+  '/care/portal': typeof CarePortalRouteWithChildren
   '/_app/care/desk': typeof AppCareDeskRoute
   '/_app/care/lab': typeof AppCareLabRoute
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/portal/desk': typeof CarePortalDeskRoute
+  '/care/portal/lab': typeof CarePortalLabRoute
   '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
+  '/care/portal/': typeof CarePortalIndexRoute
   '/_app/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/_app/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/_app/care/serial/$id': typeof AppCareSerialIdRoute
@@ -284,13 +328,18 @@ export interface FileRouteTypes {
     | '/profile'
     | '/requests'
     | '/settings'
+    | '/care/auth'
+    | '/care/portal'
     | '/care/desk'
     | '/care/lab'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/portal/desk'
+    | '/care/portal/lab'
     | '/care/'
     | '/profile/'
+    | '/care/portal/'
     | '/care/doctor/$id'
     | '/care/lab-booking/$id'
     | '/care/serial/$id'
@@ -311,13 +360,17 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/requests'
     | '/settings'
+    | '/care/auth'
     | '/care/desk'
     | '/care/lab'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/portal/desk'
+    | '/care/portal/lab'
     | '/care'
     | '/profile'
+    | '/care/portal'
     | '/care/doctor/$id'
     | '/care/lab-booking/$id'
     | '/care/serial/$id'
@@ -341,13 +394,18 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/requests'
     | '/_app/settings'
+    | '/care/auth'
+    | '/care/portal'
     | '/_app/care/desk'
     | '/_app/care/lab'
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
+    | '/care/portal/desk'
+    | '/care/portal/lab'
     | '/_app/care/'
     | '/_app/profile/'
+    | '/care/portal/'
     | '/_app/care/doctor/$id'
     | '/_app/care/lab-booking/$id'
     | '/_app/care/serial/$id'
@@ -362,6 +420,8 @@ export interface RootRouteChildren {
   OrgRoute: typeof OrgRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  CareAuthRoute: typeof CareAuthRoute
+  CarePortalRoute: typeof CarePortalRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -413,6 +473,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/portal': {
+      id: '/care/portal'
+      path: '/care/portal'
+      fullPath: '/care/portal'
+      preLoaderRoute: typeof CarePortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/auth': {
+      id: '/care/auth'
+      path: '/care/auth'
+      fullPath: '/care/auth'
+      preLoaderRoute: typeof CareAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/settings': {
@@ -485,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareRouteImport
       parentRoute: typeof AppRoute
     }
+    '/care/portal/': {
+      id: '/care/portal/'
+      path: '/'
+      fullPath: '/care/portal/'
+      preLoaderRoute: typeof CarePortalIndexRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
     '/_app/profile/': {
       id: '/_app/profile/'
       path: '/'
@@ -498,6 +579,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/care/'
       preLoaderRoute: typeof AppCareIndexRouteImport
       parentRoute: typeof AppCareRoute
+    }
+    '/care/portal/lab': {
+      id: '/care/portal/lab'
+      path: '/lab'
+      fullPath: '/care/portal/lab'
+      preLoaderRoute: typeof CarePortalLabRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/desk': {
+      id: '/care/portal/desk'
+      path: '/desk'
+      fullPath: '/care/portal/desk'
+      preLoaderRoute: typeof CarePortalDeskRouteImport
+      parentRoute: typeof CarePortalRoute
     }
     '/_app/profile/$userId': {
       id: '/_app/profile/$userId'
@@ -643,6 +738,22 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface CarePortalRouteChildren {
+  CarePortalDeskRoute: typeof CarePortalDeskRoute
+  CarePortalLabRoute: typeof CarePortalLabRoute
+  CarePortalIndexRoute: typeof CarePortalIndexRoute
+}
+
+const CarePortalRouteChildren: CarePortalRouteChildren = {
+  CarePortalDeskRoute: CarePortalDeskRoute,
+  CarePortalLabRoute: CarePortalLabRoute,
+  CarePortalIndexRoute: CarePortalIndexRoute,
+}
+
+const CarePortalRouteWithChildren = CarePortalRoute._addFileChildren(
+  CarePortalRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
@@ -651,6 +762,8 @@ const rootRouteChildren: RootRouteChildren = {
   OrgRoute: OrgRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  CareAuthRoute: CareAuthRoute,
+  CarePortalRoute: CarePortalRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

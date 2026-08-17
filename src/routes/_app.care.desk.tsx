@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CareDeskPage } from "@/components/care/CareDeskPage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/care/desk")({
-  component: CareDeskPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/care/portal/desk" });
+  },
 });
