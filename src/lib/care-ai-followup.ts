@@ -49,6 +49,27 @@ export function formatFollowUpAnswer(question: string, answer: string, cfg: Foll
   return `${cfg.answerTag}\n${cfg.questionTag} ${question}\n${cfg.answerInline} ${a}`;
 }
 
+export function formatFollowUpBatchAnswer(
+  entries: { question: string; answer: string }[],
+  cfg: FollowUpPublicConfig,
+): string {
+  const blocks = entries
+    .filter((e) => e.answer.trim())
+    .map((e) => `${cfg.questionTag} ${e.question}\n${cfg.answerInline} ${e.answer.trim()}`);
+  if (!blocks.length) return "";
+  return `${cfg.answerTag}\n${blocks.join("\n\n")}`;
+}
+
+export function displayBatchAnswerBubble(
+  entries: { question: string; answer: string }[],
+  cfg: FollowUpPublicConfig,
+): string {
+  const lines = entries
+    .filter((e) => e.answer.trim())
+    .map((e) => `${e.answer.trim()}\n${cfg.bubblePrefix} ${e.question}`);
+  return lines.join("\n\n");
+}
+
 /** Short label shown in the user chat bubble. */
 export function displayAnswerBubble(question: string, answer: string, cfg: FollowUpPublicConfig): string {
   const a = answer.trim();

@@ -30,7 +30,7 @@ import {
   DEFAULT_PROMPT_CHAT_EN,
   DEFAULT_PROMPT_MATCH,
   type GeminiThinkingLevel,
-} from "@/lib/gemini-rotate";
+} from "@/lib/gemini-shared";
 
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-rose-500/40 placeholder:text-slate-500";
@@ -90,6 +90,16 @@ const FOLLOWUP_GENERAL_FIELDS: (keyof GeminiFollowUpSettings)[] = [
   "bubble_prefix",
   "bubble_caption_bn",
   "bubble_caption_en",
+  "mode_single_bn",
+  "mode_single_en",
+  "mode_batch_bn",
+  "mode_batch_en",
+  "batch_submit_bn",
+  "batch_submit_en",
+  "batch_hint_bn",
+  "batch_hint_en",
+  "composer_hint_bn",
+  "composer_hint_en",
 ];
 
 const FOLLOWUP_LABELS: Record<string, { bn: string; en: string }> = {
@@ -110,6 +120,16 @@ const FOLLOWUP_LABELS: Record<string, { bn: string; en: string }> = {
   bubble_prefix: { bn: "বাবল প্রিফিক্স", en: "Bubble prefix" },
   bubble_caption_bn: { bn: "বাবল ক্যাপশন (বাংলা)", en: "Bubble caption (Bangla)" },
   bubble_caption_en: { bn: "বাবল ক্যাপশন (English)", en: "Bubble caption (English)" },
+  mode_single_bn: { bn: "একটি মোড (বাংলা)", en: "Single mode (Bangla)" },
+  mode_single_en: { bn: "একটি মোড (English)", en: "Single mode (English)" },
+  mode_batch_bn: { bn: "সব মোড (বাংলা)", en: "Batch mode (Bangla)" },
+  mode_batch_en: { bn: "সব মোড (English)", en: "Batch mode (English)" },
+  batch_submit_bn: { bn: "ব্যাচ সাবমিট (বাংলা)", en: "Batch submit (Bangla)" },
+  batch_submit_en: { bn: "ব্যাচ সাবমিট (English)", en: "Batch submit (English)" },
+  batch_hint_bn: { bn: "ব্যাচ হিন্ট (বাংলা)", en: "Batch hint (Bangla)" },
+  batch_hint_en: { bn: "ব্যাচ হিন্ট (English)", en: "Batch hint (English)" },
+  composer_hint_bn: { bn: "কম্পোজার হিন্ট (বাংলা)", en: "Composer hint (Bangla)" },
+  composer_hint_en: { bn: "কম্পোজার হিন্ট (English)", en: "Composer hint (English)" },
   text_placeholder_bn: { bn: "টেক্সট placeholder (বাংলা)", en: "Text placeholder (Bangla)" },
   text_placeholder_en: { bn: "টেক্সট placeholder (English)", en: "Text placeholder (English)" },
   patterns: { bn: "Regex (প্রতি লাইনে)", en: "Regex patterns (one per line)" },

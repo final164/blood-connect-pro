@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, FlaskConical, Send, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
+import { ArrowLeft, FlaskConical, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { useI18n } from "@/lib/i18n";
@@ -18,9 +18,12 @@ import {
 import { loadBundlePlan, type BundlePlan } from "@/lib/care-ai-bundle";
 import { CareAiBundleSheet } from "@/components/care/CareAiBundleSheet";
 import { CareAiFollowUpPanel } from "@/components/care/CareAiFollowUpPanel";
+import { CareAiChatComposer } from "@/components/care/CareAiChatComposer";
 import {
   displayAnswerBubble,
+  displayBatchAnswerBubble,
   formatFollowUpAnswer,
+  formatFollowUpBatchAnswer,
   parseFollowUpQuestions,
   type FollowUpQuestion,
 } from "@/lib/care-ai-followup";
@@ -35,6 +38,7 @@ type ChatBubble = CareAiChatMessage & {
   apiText?: string;
   /** Display-only: user answered a follow-up question */
   followUpQuestion?: string;
+  followUpBatch?: boolean;
 };
 
 type CatalogCard = {
@@ -122,7 +126,14 @@ export function CareAiTestsPage() {
     if (pendingQuestions.length === 1) setActiveFollowUp(pendingQuestions[0]);
   }, [pendingQuestions]);
 
-  async function send(text: string, opts?: { followUp?: FollowUpQuestion; displayText?: string }) {
+  async function send(
+    text: string,
+    opts?: {
+      followUp?: FollowUpQuestion;
+      followUpBatch?: FollowUpQuestion[];
+      displayText?: string;
+    },
+  ) {
     const t = text.trim();
     if (!t || busy) return;
     setInput("");
@@ -131,13 +142,21 @@ export function CareAiTestsPage() {
     const userBubble: ChatBubble = {
       role: "user",
       text: bubbleText,
-      apiText: opts?.followUp ? t : undefined,
+      apiText: opts?.followUp || opts?.followUpBatch?.length ? t : undefined,
       followUpQuestion: opts?.followUp?.text,
+      followUpBatch: !!opts?.followUpBatch?.length,
     };
     const nextMsgs: ChatBubble[] = [...messages, userBubble];
     setMessages(nextMsgs);
     if (opts?.followUp) {
       setAnsweredFollowUps((prev) => new Set(prev).add(opts.followUp!.text));
+    }
+    if (opts?.followUpBatch?.length) {
+      setAnsweredFollowUps((prev) => {
+        const next = new Set(prev);
+        for (const q of opts.followUpBatch!) next.add(q.text);
+        return next;
+      });
     }
     setBusy(true);
     try {
@@ -183,6 +202,22 @@ export function CareAiTestsPage() {
     void send(payload, { followUp: question, displayText: display });
   }
 
+  function submitFollowUpBatch(entries: { question: FollowUpQuestion; answer: string }[]) {
+    if (!aiConfig?.followUp || !entries.length) return;
+    const payload = formatFollowUpBatchAnswer(
+      entries.map((e) => ({ question: e.question.text, answer: e.answer })),
+      aiConfig.followUp,
+    );
+    const display = displayBatchAnswerBubble(
+      entries.map((e) => ({ question: e.question.text, answer: e.answer })),
+      aiConfig.followUp,
+    );
+    void send(payload, {
+      followUpBatch: entries.map((e) => e.question),
+      displayText: display,
+    });
+  }
+
   async function openBundle() {
     const ids = cart.length ? cart : cards.map((c) => c.catalogId);
     if (!ids.length) return toast.error(lang === "bn" ? "আগে টেস্ট বেছে নিন" : "Select tests first");
@@ -222,7 +257,12 @@ export function CareAiTestsPage() {
         </div>
       </AutoHideHeader>
 
-      <div className="flex-1 px-3 py-3 max-w-2xl mx-auto w-full space-y-3 pb-40">
+      <div
+        className="flex-1 px-3 py-3 max-w-2xl mx-auto w-full space-y-3"
+        style={{
+          paddingBottom: "calc(var(--care-ai-composer-h, 9rem) + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
         <DistrictTypeahead value={district} onChange={setDistrict} />
 
         {messages.map((m, i) => (
@@ -260,6 +300,11 @@ export function CareAiTestsPage() {
                       {aiConfig.followUp.bubbleCaption}
                     </p>
                   )}
+                  {m.followUpBatch && aiConfig?.followUp && (
+                    <p className="text-[10px] opacity-75 mt-1 pt-1 border-t border-primary-foreground/20">
+                      {aiConfig.followUp.bubbleCaption}
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -281,6 +326,7 @@ export function CareAiTestsPage() {
             copy={aiConfig.followUp}
             onSelect={setActiveFollowUp}
             onSubmit={submitFollowUpAnswer}
+            onSubmitBatch={submitFollowUpBatch}
           />
         )}
 
@@ -339,9 +385,15 @@ export function CareAiTestsPage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 border-t bg-background/95 backdrop-blur-xl pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        <div className="max-w-2xl mx-auto px-3 py-2 space-y-2">
-          {showBundle && (
+      <CareAiChatComposer
+        value={input}
+        onChange={setInput}
+        onSend={() => void send(input)}
+        placeholder={lang === "bn" ? "লক্ষণ বা প্রশ্ন লিখুন…" : "Describe symptoms or ask…"}
+        hint={aiConfig?.followUp?.composerHint}
+        busy={busy}
+        topSlot={
+          showBundle ? (
             <button
               type="button"
               disabled={bookBusy || (cartCount === 0 && cards.length === 0)}
@@ -354,30 +406,9 @@ export function CareAiTestsPage() {
                   ? "এই টেস্টগুলো সবচেয়ে ভালো ও কম টাকায় বুক করব?"
                   : "Book these tests at the best price together?")}
             </button>
-          )}
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send(input);
-            }}
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={lang === "bn" ? "লক্ষণ বা প্রশ্ন লিখুন…" : "Describe symptoms or ask…"}
-              className="flex-1 rounded-xl border bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <button
-              type="submit"
-              disabled={busy || !input.trim()}
-              className="h-11 w-11 rounded-xl bg-primary text-primary-foreground grid place-items-center disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
-      </div>
+          ) : undefined
+        }
+      />
 
       <CareAiBundleSheet
         open={sheetOpen}

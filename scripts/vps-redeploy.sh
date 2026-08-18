@@ -22,7 +22,12 @@ echo "=== Build ==="
 npm run build
 
 echo "=== Restart ==="
-pm2 restart blood --update-env
+set -a
+# shellcheck disable=SC1091
+. ./.env
+set +a
+pm2 restart blood --update-env || pm2 start .output/server/index.mjs --name blood
+pm2 save
 sleep 2
 curl -s -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:3000/
 pm2 logs blood --err --lines 10 --nostream

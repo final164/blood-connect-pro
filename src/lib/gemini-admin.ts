@@ -1,13 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  DEFAULT_GEMINI_SETTINGS,
-  GEMINI_MODEL_CATALOG_SEED,
-  adminClient,
-  fetchSettingsRaw,
-  geminiPing,
-  markKey,
-} from "@/lib/gemini-rotate";
+import { DEFAULT_GEMINI_SETTINGS, GEMINI_MODEL_CATALOG_SEED } from "@/lib/gemini-shared";
 import {
   DEFAULT_GEMINI_FEATURES,
   DEFAULT_GEMINI_UI,
@@ -16,6 +10,10 @@ import {
   packGeminiSettingsForDb,
   type GeminiSettingsExtended,
 } from "@/lib/gemini-ai-config";
+
+async function loadRotate() {
+  return import("@/lib/gemini-rotate.server");
+}
 
 export type GeminiKeyPublic = {
   id: string;
@@ -38,13 +36,14 @@ function maskKey(key: string) {
 }
 
 async function assertAdmin(userId: string) {
+  const { adminClient } = await loadRotate();
   const sb = adminClient();
   const { data, error } = await sb.rpc("is_admin_staff", { _uid: userId });
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Not allowed");
 }
 
-async function ensureModelCatalog(sb: ReturnType<typeof adminClient>) {
+async function ensureModelCatalog(sb: SupabaseClient) {
   const { data, error } = await sb.from("gemini_model_catalog").select("slug");
   if (error) throw new Error(error.message);
   const have = new Set(((data ?? []) as { slug: string }[]).map((r) => r.slug));
@@ -67,6 +66,7 @@ export const fetchGeminiAdminState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context.userId);
+    const { adminClient, fetchSettingsRaw } = await loadRotate();
     const sb = adminClient();
     await ensureModelCatalog(sb);
     const [settingsRaw, keys, models] = await Promise.all([
@@ -104,6 +104,7 @@ export const saveGeminiSettingsFn = createServerFn({ method: "POST" })
   .validator((data: GeminiSettingsExtended) => normalizeGeminiSettingsExtended(data))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
+    const { adminClient } = await loadRotate();
     const sb = adminClient();
     const packed = packGeminiSettingsForDb(data);
     const { error } = await sb.from("app_settings").update({ gemini_settings: packed } as never).eq("id", 1);
@@ -125,6 +126,7 @@ export const upsertGeminiKeyFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
+    const { adminClient } = await loadRotate();
     const sb = adminClient();
     if (data.id) {
       const patch: Record<string, unknown> = { name: data.name, is_active: data.is_active, updated_at: new Date().toISOString() };
@@ -156,6 +158,7 @@ export const deleteGeminiKeyFn = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     if (!data.id) throw new Error("id required");
+    const { adminClient } = await loadRotate();
     const sb = adminClient();
     const { error } = await sb.from("gemini_api_keys").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -167,6 +170,7 @@ export const testGeminiKeyFn = createServerFn({ method: "POST" })
   .validator((data: { id?: string }) => ({ id: data?.id ? String(data.id) : undefined }))
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
+    const { adminClient, fetchSettingsRaw, geminiPing, markKey } = await loadRotate();
     const sb = adminClient();
     const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(sb));
     let keys: { id: string; api_key: string; name?: string }[] = [];
@@ -209,6 +213,7 @@ export const upsertGeminiModelFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
+    const { adminClient } = await loadRotate();
     const sb = adminClient();
     const { data: existing } = await sb.from("gemini_model_catalog").select("slug").eq("slug", data.slug).maybeSingle();
     if (existing) {

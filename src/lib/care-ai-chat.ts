@@ -7,7 +7,8 @@ import {
   type CareAiPublicConfig,
 } from "@/lib/gemini-ai-config";
 export type { CareAiPublicConfig } from "@/lib/gemini-ai-config";
-import { adminClient, fetchSettingsRaw, fillPrompt, geminiGenerate } from "@/lib/gemini-rotate";
+import { fillPrompt } from "@/lib/gemini-shared";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CareAiChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -83,8 +84,7 @@ function asString(v: unknown) {
   return typeof v === "string" ? v.trim() : "";
 }
 
-async function loadCatalog(limit: number): Promise<CatalogRow[]> {
-  const sb = adminClient();
+async function loadCatalog(sb: SupabaseClient, limit: number): Promise<CatalogRow[]> {
   const { data, error } = await sb
     .from("care_test_catalog")
     .select("id, code, name_bn, name_en, category_id")
@@ -130,9 +130,15 @@ function resolveAgainstCatalog(raw: unknown, catalog: CatalogRow[], max: number)
   return out.slice(0, max);
 }
 
+async function fetchSettingsRaw(sb: SupabaseClient): Promise<unknown> {
+  const { data } = await sb.from("app_settings").select("gemini_settings").eq("id", 1).maybeSingle();
+  return (data as { gemini_settings?: unknown } | null)?.gemini_settings;
+}
+
 async function matchFuzzy(unresolved: unknown[], catalog: CatalogRow[], prompt: string, max: number): Promise<CareAiSuggestedTest[]> {
   if (!unresolved.length) return [];
   try {
+    const { geminiGenerate } = await import("@/lib/gemini-rotate.server");
     const text = await geminiGenerate({
       modelRole: "match",
       json: true,
@@ -151,9 +157,8 @@ export const fetchCareAiPublicConfig = createServerFn({ method: "POST" })
   .validator((data: { lang?: "bn" | "en" }) => ({
     lang: data?.lang === "en" ? ("en" as const) : ("bn" as const),
   }))
-  .handler(async ({ data }): Promise<CareAiPublicConfig> => {
-    const sb = adminClient();
-    const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(sb));
+  .handler(async ({ context, data }): Promise<CareAiPublicConfig> => {
+    const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(context.supabase));
     return getPublicAiConfig(settings, data.lang);
   });
 
@@ -171,11 +176,10 @@ export const careAiTestChat = createServerFn({ method: "POST" })
     if (!cleaned.length) throw new Error("Message required");
     return { messages: cleaned, lang: data?.lang === "en" ? ("en" as const) : ("bn" as const) };
   })
-  .handler(async ({ data }): Promise<CareAiChatResult> => {
-    const sb = adminClient();
-    const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(sb));
+  .handler(async ({ context, data }): Promise<CareAiChatResult> => {
+    const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(context.supabase));
     const { features } = settings;
-    const catalog = await loadCatalog(settings.max_catalog_items);
+    const catalog = await loadCatalog(context.supabase, settings.max_catalog_items);
     if (!catalog.length) {
       return {
         reply:
@@ -199,6 +203,7 @@ export const careAiTestChat = createServerFn({ method: "POST" })
 
     let rawText: string;
     try {
+      const { geminiGenerate } = await import("@/lib/gemini-rotate.server");
       rawText = await geminiGenerate({
         userText: history,
         systemText,

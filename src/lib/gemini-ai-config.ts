@@ -2,7 +2,7 @@ import {
   fillPrompt,
   normalizeGeminiSettings,
   type GeminiSettings,
-} from "@/lib/gemini-rotate";
+} from "@/lib/gemini-shared";
 
 export type GeminiAiFeatures = {
   medical_advice: boolean;
@@ -105,6 +105,16 @@ export type GeminiFollowUpSettings = {
   severity: GeminiFollowUpKindSettings;
   text_placeholder_bn: string;
   text_placeholder_en: string;
+  mode_single_bn: string;
+  mode_single_en: string;
+  mode_batch_bn: string;
+  mode_batch_en: string;
+  batch_submit_bn: string;
+  batch_submit_en: string;
+  batch_hint_bn: string;
+  batch_hint_en: string;
+  composer_hint_bn: string;
+  composer_hint_en: string;
 };
 
 const DEFAULT_FOLLOWUP_KIND = (patterns: string, quick_bn: string[], quick_en: string[], ph_bn: string, ph_en: string): GeminiFollowUpKindSettings => ({
@@ -116,8 +126,8 @@ const DEFAULT_FOLLOWUP_KIND = (patterns: string, quick_bn: string[], quick_en: s
 });
 
 export const DEFAULT_GEMINI_FOLLOWUP: GeminiFollowUpSettings = {
-  panel_title_bn: "আরও জানতে চাই — একটি প্রশ্নে ট্যাপ করুন",
-  panel_title_en: "Tap a question to answer",
+  panel_title_bn: "আরও জানতে চাই — একটি প্রশ্নে ট্যাপ করুন অথবা সবগুলো একসাথে উত্তর দিন",
+  panel_title_en: "Tell us more — tap one question or answer all together",
   question_label_bn: "প্রশ্ন:",
   question_label_en: "Question:",
   close_label_bn: "বন্ধ",
@@ -163,6 +173,16 @@ export const DEFAULT_GEMINI_FOLLOWUP: GeminiFollowUpSettings = {
   ),
   text_placeholder_bn: "আপনার উত্তর লিখুন…",
   text_placeholder_en: "Type your answer…",
+  mode_single_bn: "একটি",
+  mode_single_en: "One",
+  mode_batch_bn: "সবগুলো",
+  mode_batch_en: "All",
+  batch_submit_bn: "সব উত্তর পাঠান",
+  batch_submit_en: "Send all answers",
+  batch_hint_bn: "প্রতিটি প্রশ্নের উত্তর লিখুন, তারপর একসাথে পাঠান।",
+  batch_hint_en: "Answer each question, then send together.",
+  composer_hint_bn: "Enter পাঠান · Shift+Enter নতুন লাইন",
+  composer_hint_en: "Enter to send · Shift+Enter new line",
 };
 
 const FOLLOWUP_KIND_KEYS = ["duration", "yes_no", "age", "severity"] as const;
@@ -214,6 +234,16 @@ export function normalizeGeminiFollowUp(raw: unknown): GeminiFollowUpSettings {
     "bubble_caption_en",
     "text_placeholder_bn",
     "text_placeholder_en",
+    "mode_single_bn",
+    "mode_single_en",
+    "mode_batch_bn",
+    "mode_batch_en",
+    "batch_submit_bn",
+    "batch_submit_en",
+    "batch_hint_bn",
+    "batch_hint_en",
+    "composer_hint_bn",
+    "composer_hint_en",
   ] as const;
   for (const key of stringKeys) {
     if (typeof f[key] === "string" && (f[key] as string).trim()) out[key] = f[key] as string;
@@ -235,6 +265,11 @@ export type FollowUpPublicConfig = {
   bubblePrefix: string;
   bubbleCaption: string;
   textPlaceholder: string;
+  modeSingle: string;
+  modeBatch: string;
+  batchSubmit: string;
+  batchHint: string;
+  composerHint: string;
   kinds: Record<
     Exclude<FollowUpKind, "text">,
     { patterns: RegExp[]; quickReplies: string[]; placeholder: string }
@@ -270,6 +305,11 @@ export function resolveFollowUpForLang(settings: GeminiFollowUpSettings, lang: "
     bubblePrefix: settings.bubble_prefix || "↳",
     bubbleCaption: lang === "bn" ? settings.bubble_caption_bn : settings.bubble_caption_en,
     textPlaceholder: lang === "bn" ? settings.text_placeholder_bn : settings.text_placeholder_en,
+    modeSingle: lang === "bn" ? settings.mode_single_bn : settings.mode_single_en,
+    modeBatch: lang === "bn" ? settings.mode_batch_bn : settings.mode_batch_en,
+    batchSubmit: lang === "bn" ? settings.batch_submit_bn : settings.batch_submit_en,
+    batchHint: lang === "bn" ? settings.batch_hint_bn : settings.batch_hint_en,
+    composerHint: lang === "bn" ? settings.composer_hint_bn : settings.composer_hint_en,
     kinds: {
       duration: kind("duration"),
       yes_no: kind("yes_no"),
