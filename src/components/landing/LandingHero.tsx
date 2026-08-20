@@ -1,11 +1,13 @@
 import { type CSSProperties, type ReactNode, lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { LandingSettings } from "@/lib/landing-settings";
-import { DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE } from "@/lib/landing-settings";
+import { DEFAULT_FEATURE_GRID, DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE } from "@/lib/landing-settings";
 import {
   HeroBackgroundSlideshow,
   ensureHeroSlides,
 } from "@/components/landing/HeroBackgroundSlideshow";
+import { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGrid";
+import { LandingAiHealthPanel } from "@/components/landing/LandingAiHealthPanel";
 import { parseYoutubeId } from "@/lib/youtube";
 
 const LandingYoutubePlayer = lazy(() =>
@@ -90,6 +92,8 @@ const shell = "mx-auto w-full max-w-5xl md:max-w-6xl px-4 sm:px-5";
 
 export function LandingHero({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const h = settings.hero;
+  const grid = h.feature_grid ?? DEFAULT_FEATURE_GRID;
+  const gridOn = grid.enabled !== false && grid.tiles.length > 0;
   const slides = ensureHeroSlides(h.background_images, h.background_url);
   const overlay = h.slideshow?.overlay_opacity ?? DEFAULT_HERO_SLIDESHOW.overlay_opacity;
   const slideshow = {
@@ -102,11 +106,11 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   if (!yt.url?.trim()) yt.url = DEFAULT_HERO_YOUTUBE.url;
   const canYoutube = yt.enabled !== false && !!parseYoutubeId(yt.url);
   const [showYoutube, setShowYoutube] = useState(false);
+  const [aiOpen, setAiOpen] = useState(true);
   const lcpSrc = slides[0];
 
   useEffect(() => {
-    if (!canYoutube) return;
-    // Desktop: restore side-by-side hero video (mobile stays click-to-play for LCP).
+    if (!canYoutube || gridOn) return;
     if (!window.matchMedia("(min-width: 1024px)").matches) return;
     const run = () => setShowYoutube(true);
     if (typeof requestIdleCallback === "function") {
@@ -115,7 +119,54 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
     }
     const t = window.setTimeout(run, 1200);
     return () => window.clearTimeout(t);
-  }, [canYoutube]);
+  }, [canYoutube, gridOn]);
+
+  if (gridOn) {
+    return (
+      <section id="top" className="landing-hero relative flex flex-col overflow-x-hidden">
+        <div
+          className="relative flex flex-col justify-end"
+          style={{
+            background:
+              "linear-gradient(165deg, color-mix(in srgb, var(--landing-primary) 88%, #1a0505) 0%, color-mix(in srgb, var(--landing-primary) 55%, #0d0d0d) 55%, #120808 100%)",
+          }}
+        >
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.12]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 20% 20%, #fff 0%, transparent 45%), radial-gradient(circle at 80% 0%, #fff 0%, transparent 35%)",
+            }}
+          />
+          <div className={`relative z-10 ${shell} pb-6 pt-24`}>
+            <p className="landing-brand text-3xl sm:text-4xl md:text-5xl font-semibold text-white tracking-tight">
+              {pick(lang, h.brand_bn, h.brand_en)}
+            </p>
+            <p className="mt-2 text-sm sm:text-base text-white/80 max-w-xl leading-relaxed">
+              {pick(lang, h.sub_bn, h.sub_en)}
+            </p>
+          </div>
+        </div>
+
+        <div className={`${shell} -mt-5 relative z-20 space-y-3 pb-8`}>
+          <LandingFeatureGridGuest
+            grid={grid}
+            lang={lang}
+            onAiHealth={() => {
+              setAiOpen(true);
+              requestAnimationFrame(() => {
+                document.getElementById("landing-ai-health")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                });
+              });
+            }}
+          />
+          <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -149,9 +200,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
       <div className={`relative z-10 ${shell} pb-12 pt-28`}>
         <div
           className={
-            showYoutube
-              ? "grid gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-10 lg:items-end"
-              : undefined
+            showYoutube ? "grid gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-10 lg:items-end" : undefined
           }
         >
           <div className="min-w-0">

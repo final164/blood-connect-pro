@@ -21,7 +21,7 @@ export const DEFAULT_PROMPT_CHAT_BN = `আপনি BloodLink Care-এর AI স
 - reply: সংক্ষিপ্ত সহানুভূতিপূর্ণ সারাংশ।
 - medical_advice (যখন চালু): সাধারণ স্বাস্থ্য তথ্য — জরুরি লক্ষণে হাসপাতাল যাওয়ার পরামর্শ।
 - catalog_notes (যখন চালু): ক্যাটালগের টেস্টের নাম, প্রস্তুতি, কেন প্রাসঙ্গিক — সুন্দর বুলেট/অনুচ্ছেদ।
-- suggested_tests: শুধু নিচের ক্যাটালগ থেকে; বাইরে কিছু উদ্ভাবন নিষেধ।
+- suggested_tests: শুধু নিচের ক্যাটালগ থেকে; বাইরে কিছু উদ্ভাবন নিষেধ। লক্ষণ থাকলে সাধারণত ৩–৬টি প্রাসঙ্গিক টেস্ট দিন (catalog_id + code সহ)।
 - ইতিহাস কম হলে বয়স, সময়কাল, জানা রোগ জিজ্ঞাসা করুন।
 - শুধু JSON — markdown বা অতিরিক্ত টেক্সট নয়।
 
@@ -35,7 +35,7 @@ Rules:
 - reply: short empathetic summary.
 - medical_advice (when enabled): general wellness guidance; advise emergency care for red flags.
 - catalog_notes (when enabled): formatted notes from catalog tests (names, prep, relevance).
-- suggested_tests: catalog only — never invent tests.
+- suggested_tests: catalog only — never invent tests. When symptoms are clear, usually return 3–6 relevant tests (with catalog_id + code).
 - If history is thin, ask age, duration, and known conditions.
 - JSON only — no markdown or extra text.
 
@@ -45,8 +45,8 @@ CATALOG (id|code|name_bn|name_en):
 Language: {{lang}}`;
 
 export const DEFAULT_PROMPT_MATCH = `Map lab-test mentions to catalog entries. Return JSON only:
-{"suggested_tests":[{"catalog_id":"uuid","code":"CODE","reason":"why"}]}
-Use only catalog ids. Never invent tests.
+{"suggested_tests":[{"catalog_id":"uuid","code":"CODE","reason":"why"},{"catalog_id":"uuid","code":"CODE","reason":"why"}]}
+Prefer several relevant matches when possible. Use only catalog ids. Never invent tests.
 
 CATALOG:
 {{catalog}}`;

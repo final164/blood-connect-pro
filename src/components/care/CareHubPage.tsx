@@ -435,7 +435,10 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     void Promise.all([fetchMySerials(), fetchMyLabBookings(), fetchMyAmbulanceRequests()])
       .then(([s, l, a]) => {
@@ -451,6 +454,23 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
       cancelled = true;
     };
   }, [userId]);
+
+  if (!userId) {
+    return (
+      <div className="text-center py-12 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          {lang === "bn" ? "বুকিং দেখতে লগইন করুন" : "Log in to see your bookings"}
+        </p>
+        <Link
+          to="/auth"
+          search={{ next: "/care?tab=bookings" } as never}
+          className="inline-flex rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
+        >
+          {lang === "bn" ? "লগইন" : "Log in"}
+        </Link>
+      </div>
+    );
+  }
 
   if (loading) {
     return <p className="text-sm text-muted-foreground text-center py-10">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>;

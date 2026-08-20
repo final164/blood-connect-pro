@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { NotificationsProvider } from "@/lib/notifications-context";
@@ -10,6 +10,18 @@ import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/devi
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/api";
 import { isProfileComplete } from "@/lib/onboarding";
+import { isGuestBrowsePath } from "@/lib/auth-next";
+
+function pathWithSearch(pathname: string, search: unknown) {
+  if (!search || typeof search !== "object") return pathname;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(search as Record<string, unknown>)) {
+    if (v == null || v === "") continue;
+    qs.set(k, String(v));
+  }
+  const s = qs.toString();
+  return s ? `${pathname}?${s}` : pathname;
+}
 import { UserMenuSidebar } from "@/components/menu/UserMenuNav";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import {
@@ -19,7 +31,7 @@ import {
   type BottomNavItemId,
   type BottomNavSettings,
 } from "@/lib/bottom-nav-settings";
-import { Home, Users, WifiOff, Droplet, Shield, Plus, LayoutGrid } from "lucide-react";
+import { Home, Users, WifiOff, Droplet, Plus, LayoutGrid, LogIn, Ambulance, Sparkles, Shield } from "lucide-react";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { useChatUnread } from "@/lib/chat-unread-context";
@@ -32,6 +44,8 @@ export function AppLayout() {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [profileGate, setProfileGate] = useState<"checking" | "incomplete" | "ok">("checking");
   const onOnboarding = location.pathname === "/onboarding";
+  const guestBrowse = isGuestBrowsePath(location.pathname);
+  const isGuest = !session || isAnonymous;
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -45,10 +59,12 @@ export function AppLayout() {
   }, []);
 
   useEffect(() => {
-    if (!loading && (!session || isAnonymous)) {
-      navigate({ to: "/auth" });
+    if (loading) return;
+    if (isGuest && !guestBrowse) {
+      const next = pathWithSearch(location.pathname, location.search);
+      void navigate({ to: "/auth", search: { next } as never });
     }
-  }, [loading, session, isAnonymous, navigate]);
+  }, [loading, isGuest, guestBrowse, navigate, location.pathname, location.search]);
 
   useEffect(() => {
     if (!user || loading || isAnonymous) {
@@ -56,7 +72,6 @@ export function AppLayout() {
       return;
     }
     let cancelled = false;
-    // Skip full-screen gate spinner when this user already passed the check.
     setProfileGate((prev) => (prev === "ok" ? "ok" : "checking"));
     getProfile(user.id)
       .then((profile) => {
@@ -105,11 +120,20 @@ export function AppLayout() {
     );
   }
 
-  if (!session || isAnonymous) {
+  if (isGuest) {
+    if (!guestBrowse) {
+      return (
+        <div className="min-h-dvh grid place-items-center bg-background">
+          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      );
+    }
     return (
-      <div className="min-h-dvh grid place-items-center bg-background">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
+      <NotificationsProvider>
+        <ChatUnreadProvider>
+          <GuestAppShell t={t} locationPath={location.pathname} online={online} />
+        </ChatUnreadProvider>
+      </NotificationsProvider>
     );
   }
 
@@ -134,6 +158,106 @@ export function AppLayout() {
         />
       </ChatUnreadProvider>
     </NotificationsProvider>
+  );
+}
+
+function GuestAppShell({
+  t,
+  locationPath,
+  online,
+}: {
+  t: (k: string) => string;
+  locationPath: string;
+  online: boolean;
+}) {
+  const { lang } = useI18n();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const next = pathWithSearch(locationPath, location.search);
+
+  function requireLogin(path?: string) {
+    void navigate({ to: "/auth", search: { next: path || next } as never });
+  }
+
+  return (
+    <div
+      className="min-h-dvh flex flex-col bg-background"
+      style={{
+        ...bottomNavColorStyle(DEFAULT_BOTTOM_NAV_SETTINGS),
+        ["--app-bottom-nav-h" as string]: "calc(3.35rem + env(safe-area-inset-bottom, 0px))",
+      }}
+    >
+      <AutoHideHeader className="z-30 border-b bg-background/95 backdrop-blur safe-top">
+        <div className="flex items-center gap-2 px-3 py-2 max-w-3xl mx-auto w-full">
+          <Link to="/" className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted shrink-0">
+            <Droplet className="h-5 w-5 text-primary" fill="currentColor" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold truncate">{t("appName")}</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {lang === "bn" ? "গেস্ট মোড — বুক/পোস্টে লগইন লাগবে" : "Guest — login to book or post"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => requireLogin()}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            {lang === "bn" ? "লগইন" : "Log in"}
+          </button>
+        </div>
+        {!online && (
+          <div className="px-3 pb-2">
+            <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1">
+              <WifiOff className="h-3.5 w-3.5" />
+              Offline
+            </p>
+          </div>
+        )}
+      </AutoHideHeader>
+      <main className="flex-1 w-full max-w-3xl mx-auto pb-20">
+        <Outlet />
+      </main>
+      <nav className="bn-bar fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-3xl mx-auto grid grid-cols-4 gap-1 px-2 pt-1">
+          {(
+            [
+              { to: "/care", label: lang === "bn" ? "কেয়ার" : "Care", icon: LayoutGrid, match: (p: string) => p === "/care" || (p.startsWith("/care/") && !p.startsWith("/care/ai-tests")) },
+              { to: "/ambulance", label: lang === "bn" ? "অ্যাম্বুলেন্স" : "Ambulance", icon: Ambulance, match: (p: string) => p.startsWith("/ambulance") },
+              { to: "/care/ai-tests", label: lang === "bn" ? "AI" : "AI", icon: Sparkles, match: (p: string) => p.startsWith("/care/ai-tests") },
+              { kind: "login" as const, label: lang === "bn" ? "লগইন" : "Log in" },
+            ] as const
+          ).map((tab) => {
+            if ("kind" in tab && tab.kind === "login") {
+              return (
+                <button
+                  key="login"
+                  type="button"
+                  onClick={() => requireLogin("/home")}
+                  className="bn-tab flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-1 pb-0.5 text-muted-foreground"
+                >
+                  <LogIn className="h-5 w-5" />
+                  <span className="bn-label text-[10px]">{tab.label}</span>
+                </button>
+              );
+            }
+            const Icon = tab.icon;
+            const active = tab.match(locationPath);
+            return (
+              <Link
+                key={tab.to}
+                to={tab.to}
+                className={`bn-tab flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-1 pb-0.5 ${active ? "bn-tab--active text-primary" : "text-muted-foreground"}`}
+              >
+                <Icon className="h-5 w-5" strokeWidth={active ? 2.3 : 1.8} />
+                <span className="bn-label text-[10px]">{tab.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
   );
 }
 
@@ -400,7 +524,16 @@ function AppShell({
     <div className="min-h-dvh flex bg-background">
       <UserMenuSidebar />
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-dvh">
+      <div
+        className="flex-1 flex flex-col min-w-0 min-h-dvh"
+        style={
+          hideBottomNav
+            ? undefined
+            : ({
+                ["--app-bottom-nav-h"]: "calc(3.15rem + env(safe-area-inset-bottom, 0px))",
+              } as CSSProperties)
+        }
+      >
         {/* Desktop / large screen: top app nav (was bottom on mobile) */}
         <AutoHideHeader
           className="hidden z-40 md:flex items-center gap-3 border-b bg-card/95 backdrop-blur-xl px-4 lg:px-6 py-2.5"
@@ -438,11 +571,11 @@ function AppShell({
           </div>
         )}
 
-        <main
-          className={`flex-1 flex flex-col min-h-0 min-w-0 ${
-            hideBottomNav ? "pb-0" : "pb-bottom-nav md:pb-0"
-          }`}
-        >
+      <div
+        className={`flex-1 flex flex-col min-h-0 min-w-0 ${
+          hideBottomNav ? "pb-0" : "pb-bottom-nav md:pb-0"
+        }`}
+      >
           {isChatSection || isCareVendorShell ? (
             <div className="flex-1 flex flex-col min-h-0 app-shell-wide md:px-4 md:py-4 lg:px-6">
               <Outlet />
@@ -452,7 +585,7 @@ function AppShell({
               <Outlet />
             </div>
           )}
-        </main>
+        </div>
 
         {/* Mobile: dark professional bottom nav (colors from admin) */}
         {!hideBottomNav && (

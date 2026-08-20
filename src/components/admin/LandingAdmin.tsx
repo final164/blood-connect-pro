@@ -464,6 +464,69 @@ export function LandingAdmin() {
 
       {tab === "hero" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-4">
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-200">
+                {lang === "bn" ? "ফিচার গ্রিড (MyGP স্টাইল)" : "Feature grid (MyGP style)"}
+              </p>
+              <label className="flex items-center gap-2 text-[11px] text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={cfg.hero.feature_grid?.enabled !== false}
+                  onChange={(e) =>
+                    setCfg((p) => ({
+                      ...p,
+                      hero: {
+                        ...p.hero,
+                        feature_grid: {
+                          ...(p.hero.feature_grid ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid),
+                          enabled: e.target.checked,
+                        },
+                      },
+                    }))
+                  }
+                />
+                {lang === "bn" ? "চালু" : "Enabled"}
+              </label>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {(
+                [
+                  ["title_bn", "Grid title BN"],
+                  ["title_en", "Grid title EN"],
+                  ["see_more_bn", "See more BN"],
+                  ["see_more_en", "See more EN"],
+                  ["see_less_bn", "See less BN"],
+                  ["see_less_en", "See less EN"],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  <input
+                    className={ainp}
+                    value={(cfg.hero.feature_grid ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid)[key]}
+                    onChange={(e) =>
+                      setCfg((p) => ({
+                        ...p,
+                        hero: {
+                          ...p.hero,
+                          feature_grid: {
+                            ...(p.hero.feature_grid ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid),
+                            [key]: e.target.value,
+                          },
+                        },
+                      }))
+                    }
+                  />
+                </Field>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-500">
+              {lang === "bn"
+                ? "টাইল রুট/আইকন কোড-ডিফল্ট; গ্রিড চালু থাকলে প্রথম স্ক্রিনে দেখাবে।"
+                : "Tile routes/icons are code defaults; when enabled, grid leads the first viewport."}
+            </p>
+          </div>
+
           <div className="grid sm:grid-cols-2 gap-2">
             {(
               [

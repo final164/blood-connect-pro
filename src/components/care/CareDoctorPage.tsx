@@ -4,6 +4,7 @@ import { ArrowLeft, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 import {
   ensureCareSession,
   fetchCareDoctor,
@@ -19,6 +20,7 @@ import { locName } from "@/lib/care-cms";
 
 export function CareDoctorPage({ doctorId }: { doctorId: string }) {
   const { lang } = useI18n();
+  const { session, isAnonymous } = useAuth();
   const navigate = useNavigate();
   const [doc, setDoc] = useState<Awaited<ReturnType<typeof fetchCareDoctor>>>(null);
   const [schedules, setSchedules] = useState<CareScheduleRow[]>([]);
@@ -62,6 +64,13 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
   }
 
   async function book(scheduleId: string, date: string) {
+    if (!session || isAnonymous) {
+      void navigate({
+        to: "/auth",
+        search: { next: `/care/doctor/${doctorId}` } as never,
+      });
+      return;
+    }
     setBusy(`${scheduleId}:${date}`);
     try {
       const sessionId = await ensureCareSession(scheduleId, date);

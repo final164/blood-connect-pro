@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, FlaskConical, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import type { District } from "@/lib/api";
 import { fetchTestCatalog } from "@/lib/care-cms";
@@ -27,6 +28,7 @@ import {
   parseFollowUpQuestions,
   type FollowUpQuestion,
 } from "@/lib/care-ai-followup";
+import { AI_CHAT_RESUME_PATH, consumeAiChatDraft, saveAiChatDraft } from "@/lib/auth-next";
 
 type ChatBubble = CareAiChatMessage & {
   medicalAdvice?: string;
@@ -81,6 +83,9 @@ function AiSection({
 
 export function CareAiTestsPage() {
   const { lang } = useI18n();
+  const { session, isAnonymous } = useAuth();
+  const navigate = useNavigate();
+  const isGuest = !session || isAnonymous;
   const [aiConfig, setAiConfig] = useState<CareAiPublicConfig | null>(null);
   const [messages, setMessages] = useState<ChatBubble[]>([]);
   const [input, setInput] = useState("");
@@ -104,6 +109,11 @@ export function CareAiTestsPage() {
       })
       .catch((e) => toast.error((e as Error).message));
   }, [lang]);
+
+  useEffect(() => {
+    const draft = consumeAiChatDraft(AI_CHAT_RESUME_PATH);
+    if (draft) setInput(draft);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -136,6 +146,11 @@ export function CareAiTestsPage() {
   ) {
     const t = text.trim();
     if (!t || busy) return;
+    if (isGuest) {
+      saveAiChatDraft(AI_CHAT_RESUME_PATH, opts?.displayText ?? t);
+      void navigate({ to: "/auth", search: { next: AI_CHAT_RESUME_PATH } as never });
+      return;
+    }
     setInput("");
     setActiveFollowUp(null);
     const bubbleText = opts?.displayText ?? t;
@@ -221,6 +236,10 @@ export function CareAiTestsPage() {
   async function openBundle() {
     const ids = cart.length ? cart : cards.map((c) => c.catalogId);
     if (!ids.length) return toast.error(lang === "bn" ? "আগে টেস্ট বেছে নিন" : "Select tests first");
+    if (isGuest) {
+      void navigate({ to: "/auth", search: { next: AI_CHAT_RESUME_PATH } as never });
+      return;
+    }
     setBookBusy(true);
     try {
       const packed = await loadBundlePlan(ids, district?.id);
@@ -260,7 +279,8 @@ export function CareAiTestsPage() {
       <div
         className="flex-1 px-3 py-3 max-w-2xl mx-auto w-full space-y-3"
         style={{
-          paddingBottom: "calc(var(--care-ai-composer-h, 9rem) + env(safe-area-inset-bottom, 0px))",
+          paddingBottom:
+            "calc(var(--care-ai-composer-h, 7rem) + var(--app-bottom-nav-h, 0px) + 0.5rem)",
         }}
       >
         <DistrictTypeahead value={district} onChange={setDistrict} />

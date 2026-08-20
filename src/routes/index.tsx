@@ -58,24 +58,37 @@ export const Route = createFileRoute("/")({
     const seo = loaderData?.seo ?? DEFAULT_SEO_SETTINGS;
     const settings = loaderData?.settings ?? DEFAULT_LANDING_SETTINGS;
     const { meta, links } = buildHead(seo, "bn");
+    const gridOn = settings.hero?.feature_grid?.enabled !== false;
     const heroLcp =
       ensureHeroSlides(settings.hero?.background_images, settings.hero?.background_url)[0] ||
       LANDING_MEDIA.hero;
     const preload = heroLcpPreload(heroLcp);
+    const logo = settings.nav?.logo_url || LANDING_MEDIA.logo;
     return {
       meta,
       links: [
         LANDING_STYLESHEET,
         ...links,
-        {
-          rel: "preload",
-          as: "image",
-          href: preload.href,
-          fetchPriority: "high",
-          ...(preload.imageSrcSet
-            ? { imageSrcSet: preload.imageSrcSet, imageSizes: preload.imageSizes }
-            : {}),
-        },
+        ...(gridOn
+          ? [
+              {
+                rel: "preload" as const,
+                as: "image" as const,
+                href: logo,
+                fetchPriority: "high" as const,
+              },
+            ]
+          : [
+              {
+                rel: "preload" as const,
+                as: "image" as const,
+                href: preload.href,
+                fetchPriority: "high" as const,
+                ...(preload.imageSrcSet
+                  ? { imageSrcSet: preload.imageSrcSet, imageSizes: preload.imageSizes }
+                  : {}),
+              },
+            ]),
       ],
     };
   },

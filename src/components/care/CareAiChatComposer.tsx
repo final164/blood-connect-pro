@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
-import { Send } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 const MAX_HEIGHT_PX = 120;
@@ -32,12 +32,14 @@ export function CareAiChatComposer({
   const keyboardInset = useKeyboardInset();
   const wrapRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const canSend = !busy && !disabled && !!value.trim();
+  const keyboardOpen = keyboardInset > 0;
 
   const syncHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    const next = Math.min(el.scrollHeight, MAX_HEIGHT_PX);
+    const next = Math.min(Math.max(el.scrollHeight, 24), MAX_HEIGHT_PX);
     el.style.height = `${next}px`;
     el.style.overflowY = el.scrollHeight > MAX_HEIGHT_PX ? "auto" : "hidden";
   }, []);
@@ -54,19 +56,22 @@ export function CareAiChatComposer({
     });
     ro.observe(wrap);
     document.documentElement.style.setProperty("--care-ai-composer-h", `${wrap.offsetHeight}px`);
-    return () => ro.disconnect();
-  }, [topSlot, hint, value]);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--care-ai-composer-h");
+    };
+  }, [topSlot, hint, value, keyboardOpen]);
 
   useEffect(() => {
-    if (keyboardInset > 0) {
+    if (keyboardOpen) {
       textareaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
-  }, [keyboardInset]);
+  }, [keyboardOpen, keyboardInset]);
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!busy && value.trim()) onSend();
+      if (canSend) onSend();
     }
   }
 
@@ -79,16 +84,21 @@ export function CareAiChatComposer({
   return (
     <div
       ref={wrapRef}
-      className={`fixed inset-x-0 z-40 border-t bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 ${className}`}
-      style={{
-        bottom: keyboardInset,
-        paddingBottom: keyboardInset > 0 ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))",
-      }}
+      className={`care-ai-composer fixed inset-x-0 z-50 border-t border-border/60 bg-background/95 backdrop-blur-xl supports-backdrop-filter:bg-background/85 ${
+        keyboardOpen ? "" : "bottom-[var(--app-bottom-nav-h,0px)] md:bottom-0"
+      } ${className}`}
+      style={keyboardOpen ? { bottom: keyboardInset } : undefined}
     >
-      <div className="max-w-2xl mx-auto px-3 py-2 space-y-2">
+      <div
+        className="max-w-2xl mx-auto w-full px-3 pt-2.5 space-y-2"
+        style={{ paddingBottom: "0.5rem" }}
+      >
         {topSlot}
-        <div className="flex gap-2 items-end">
-          <div className="flex-1 min-w-0 rounded-xl border bg-card focus-within:ring-2 focus-within:ring-primary/30">
+        <div className="flex items-end gap-2">
+          <label
+            htmlFor={id}
+            className="group relative flex min-w-0 flex-1 items-end gap-2 rounded-2xl border border-border/70 bg-muted/35 pl-3.5 pr-1.5 py-1.5 shadow-sm transition-[border-color,box-shadow,background-color] focus-within:border-primary/40 focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/15"
+          >
             <textarea
               id={id}
               ref={textareaRef}
@@ -100,20 +110,27 @@ export function CareAiChatComposer({
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               enterKeyHint="send"
-              className="w-full resize-none bg-transparent px-3 py-2.5 text-sm outline-none leading-relaxed min-h-[44px] max-h-[120px]"
+              aria-label={placeholder}
+              className="min-h-7 max-h-30 w-full flex-1 resize-none bg-transparent py-2 text-[15px] leading-snug text-foreground outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
             />
-            {hint && <p className="px-3 pb-1.5 text-[10px] text-muted-foreground">{hint}</p>}
-          </div>
-          <button
-            type="button"
-            disabled={busy || !value.trim() || disabled}
-            onClick={onSend}
-            aria-label="Send"
-            className="h-11 w-11 shrink-0 rounded-xl bg-primary text-primary-foreground grid place-items-center disabled:opacity-50 mb-0.5"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              disabled={!canSend}
+              onClick={onSend}
+              aria-label="Send"
+              className="mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm transition enabled:active:scale-95 disabled:bg-muted disabled:text-muted-foreground/50 disabled:shadow-none"
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 translate-x-px" strokeWidth={2.25} />
+              )}
+            </button>
+          </label>
         </div>
+        {hint ? (
+          <p className="px-1 pb-0.5 text-[10px] leading-snug text-muted-foreground/75">{hint}</p>
+        ) : null}
       </div>
     </div>
   );

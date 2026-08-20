@@ -1,7 +1,8 @@
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { isSafeNextPath } from "@/lib/auth-next";
 import { clampPhoneDigits, isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
 import {
   authErrorMessage,
@@ -14,10 +15,26 @@ import { Droplet, Loader2, Shield } from "lucide-react";
 
 type Mode = "login" | "signup" | "admin";
 
+const authRoute = getRouteApi("/auth");
+
+function resumePath(next: string | undefined, fallback: "/home" | "/admin") {
+  if (next && isSafeNextPath(next)) {
+    const [path, qs = ""] = next.split("?");
+    const search: Record<string, string> = {};
+    if (qs)
+      new URLSearchParams(qs).forEach((v, k) => {
+        search[k] = v;
+      });
+    return { to: path as never, search: Object.keys(search).length ? (search as never) : undefined };
+  }
+  return { to: fallback as never, search: undefined };
+}
+
 export function AuthPage() {
   const { t, lang, setLang } = useI18n();
   const { session, loading, isAnonymous, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { next } = authRoute.useSearch();
   const [mode, setMode] = useState<Mode>("login");
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
@@ -27,8 +44,9 @@ export function AuthPage() {
 
   useEffect(() => {
     if (loading || !session || isAnonymous) return;
-    navigate({ to: isAdmin || mode === "admin" ? "/admin" : "/home" });
-  }, [session, loading, isAnonymous, isAdmin, mode, navigate]);
+    const dest = resumePath(next, isAdmin || mode === "admin" ? "/admin" : "/home");
+    void navigate(dest);
+  }, [session, loading, isAnonymous, isAdmin, mode, navigate, next]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,18 +86,18 @@ export function AuthPage() {
               ? "অ্যাকাউন্ট তৈরি হয়েছে"
               : "Account created",
         );
-        navigate({ to: "/home" });
+        void navigate(resumePath(next, "/home"));
         return;
       }
 
       if (mode === "admin") {
         await loginAsDefaultAdmin({ phone: normalized, pin });
-        navigate({ to: "/admin" });
+        void navigate(resumePath(next, "/admin"));
         return;
       }
 
       await loginWithPhonePin({ phone: normalized, pin });
-      navigate({ to: "/home" });
+      void navigate(resumePath(next, "/home"));
     } catch (err) {
       const raw = (err as Error)?.message || String(err);
       toast.error(authErrorMessage(raw, lang));

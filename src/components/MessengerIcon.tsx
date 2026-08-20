@@ -5,7 +5,8 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { useChatUnreadOptional } from "@/lib/chat-unread-context";
 import { prefetchChatList } from "@/lib/chat-store";
-import { useNotifications } from "@/lib/notifications-context";
+import { useNotificationsOptional } from "@/lib/notifications-context";
+import { authWithNext } from "@/lib/auth-next";
 
 /** Instagram / Messenger-style bubble + lightning */
 export function MessengerIcon({ className }: { className?: string }) {
@@ -37,18 +38,32 @@ export function ChatHeaderButton({
   size?: "md" | "lg";
 }) {
   const { t, lang } = useI18n();
-  const { user } = useAuth();
+  const { user, session, isAnonymous } = useAuth();
   const queryClient = useQueryClient();
   const chatUnread = useChatUnreadOptional();
   const count = badge ?? chatUnread?.unread ?? 0;
   const showBadge = count > 0;
   const tap = size === "lg" ? "h-10 w-10" : "h-8 w-8";
   const icon = size === "lg" ? "h-5 w-5" : "h-[18px] w-[18px]";
+  const isGuest = !session || isAnonymous;
 
   const warm = () => {
     if (!user?.id) return;
     void prefetchChatList(queryClient, user.id, lang);
   };
+
+  if (isGuest) {
+    return (
+      <a
+        href={authWithNext("/chat")}
+        title={t("chat")}
+        aria-label={t("chat")}
+        className={`relative ${tap} rounded-xl text-foreground hover:bg-muted grid place-items-center transition ${className}`}
+      >
+        <MessengerIcon className={icon} />
+      </a>
+    );
+  }
 
   return (
     <Link
@@ -80,11 +95,26 @@ export function AlertsHeaderButton({
   size?: "md" | "lg";
 }) {
   const { t } = useI18n();
-  const { unread } = useNotifications();
-  const count = badge ?? unread;
+  const { session, isAnonymous } = useAuth();
+  const notif = useNotificationsOptional();
+  const count = badge ?? notif?.unread ?? 0;
   const showBadge = count > 0;
   const tap = size === "lg" ? "h-10 w-10" : "h-8 w-8";
   const icon = size === "lg" ? "h-5 w-5" : "h-[18px] w-[18px]";
+  const isGuest = !session || isAnonymous;
+
+  if (isGuest) {
+    return (
+      <a
+        href={authWithNext("/notifications")}
+        title={t("notifications")}
+        aria-label={t("notifications")}
+        className={`relative ${tap} rounded-xl text-foreground hover:bg-muted grid place-items-center transition ${className}`}
+      >
+        <Bell className={icon} strokeWidth={1.9} />
+      </a>
+    );
+  }
 
   return (
     <Link

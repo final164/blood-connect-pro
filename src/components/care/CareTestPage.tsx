@@ -4,6 +4,7 @@ import { ArrowLeft, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
 import { locName } from "@/lib/care-cms";
 import {
   fetchLabCalendars,
@@ -21,6 +22,7 @@ function isoDate(d: Date) {
 
 export function CareTestPage({ offeringId }: { offeringId: string }) {
   const { lang } = useI18n();
+  const { session, isAnonymous } = useAuth();
   const navigate = useNavigate();
   const [off, setOff] = useState<CareOffering | null>(null);
   const [cals, setCals] = useState<CareLabCalendar[]>([]);
@@ -55,6 +57,13 @@ export function CareTestPage({ offeringId }: { offeringId: string }) {
 
   async function book(cal: CareLabCalendar) {
     if (remainingSeats(cal) <= 0) return;
+    if (!session || isAnonymous) {
+      void navigate({
+        to: "/auth",
+        search: { next: `/care/test/${offeringId}` } as never,
+      });
+      return;
+    }
     setBusy(cal.id);
     try {
       const booking = await reserveLabSlot({ calendarId: cal.id, source: "app" });

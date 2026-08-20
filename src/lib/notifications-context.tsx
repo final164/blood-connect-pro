@@ -214,3 +214,7 @@ export function useNotifications() {
   if (!ctx) throw new Error("useNotifications outside provider");
   return ctx;
 }
+
+export function useNotificationsOptional(): Ctx | null {
+  return useContext(NotifContext);
+}

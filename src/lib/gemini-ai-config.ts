@@ -378,7 +378,9 @@ export function buildJsonSchema(features: GeminiAiFeatures): string {
     fields.push('"questions":["string"]');
   }
   if (features.test_suggestions) {
-    fields.push('"suggested_tests":[{"catalog_id":"uuid","code":"CODE","reason":"why"}]');
+    fields.push(
+      '"suggested_tests":[{"catalog_id":"uuid","code":"CODE","reason":"why"},{"catalog_id":"uuid","code":"CODE","reason":"why"}] — prefer 3–6 relevant catalog tests when symptoms are clear',
+    );
   }
   if (features.bundle_offer && features.test_suggestions) {
     fields.push('"offer_bundle":boolean');
@@ -408,8 +410,8 @@ export function buildChatSystemPrompt(settings: GeminiSettingsExtended, lang: "b
   if (settings.features.test_suggestions) {
     featureLines.push(
       lang === "bn"
-        ? `- suggested_tests: শুধু ক্যাটালগ থেকে, সর্বোচ্চ ${settings.max_suggestions}টি।`
-        : `- suggested_tests: catalog only, max ${settings.max_suggestions}.`,
+        ? `- suggested_tests: শুধু ক্যাটালগ থেকে; লক্ষণ পরিষ্কার হলে সাধারণত ৩–${Math.min(6, Math.max(3, settings.max_suggestions))}টি (সর্বোচ্চ ${settings.max_suggestions})। প্রতিটিতে catalog_id+code দিন। একটাই দিবেন না যদি একাধিক প্রাসঙ্গিক থাকে।`
+        : `- suggested_tests: catalog only; when symptoms are clear usually return 3–${Math.min(6, Math.max(3, settings.max_suggestions))} (max ${settings.max_suggestions}). Include catalog_id+code each. Do not return only one if several are relevant.`,
     );
   } else {
     featureLines.push(lang === "bn" ? "- suggested_tests: []" : "- suggested_tests: []");

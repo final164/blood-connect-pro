@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { optionalSupabaseAuth } from "@/lib/optional-supabase-auth";
 import {
   buildChatSystemPrompt,
   getPublicAiConfig,
@@ -107,6 +107,30 @@ function resolveAgainstCatalog(raw: unknown, catalog: CatalogRow[], max: number)
     byName.set(c.name_en.trim().toLowerCase(), c);
     byName.set(c.name_bn.trim().toLowerCase(), c);
   }
+
+  function fuzzyName(name: string): CatalogRow | undefined {
+    const n = name.trim().toLowerCase();
+    if (!n || n.length < 2) return undefined;
+    const exact = byName.get(n);
+    if (exact) return exact;
+    let best: CatalogRow | undefined;
+    let bestScore = 0;
+    for (const c of catalog) {
+      const en = c.name_en.trim().toLowerCase();
+      const bn = c.name_bn.trim().toLowerCase();
+      const code = c.code.trim().toLowerCase();
+      if (en === n || bn === n || code === n) return c;
+      if (en.includes(n) || n.includes(en) || bn.includes(n) || n.includes(bn) || code.includes(n) || n.includes(code)) {
+        const score = Math.min(en.length, n.length) / Math.max(en.length, n.length, 1);
+        if (score > bestScore) {
+          bestScore = score;
+          best = c;
+        }
+      }
+    }
+    return bestScore >= 0.35 ? best : undefined;
+  }
+
   const items = Array.isArray(raw) ? raw : [];
   const out: CareAiSuggestedTest[] = [];
   const seen = new Set<string>();
@@ -114,11 +138,13 @@ function resolveAgainstCatalog(raw: unknown, catalog: CatalogRow[], max: number)
     const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
     const id = asString(row.catalog_id);
     const code = asString(row.code);
-    const name = asString(row.name);
+    const name = asString(row.name) || asString(row.test_name) || asString(row.title);
     const hit =
       byId.get(id) ||
-      byCode.get(code.toLowerCase()) ||
-      (name ? byName.get(name.toLowerCase()) : undefined);
+      (code ? byCode.get(code.toLowerCase()) : undefined) ||
+      (name ? byName.get(name.toLowerCase()) : undefined) ||
+      (name ? fuzzyName(name) : undefined) ||
+      (code ? fuzzyName(code) : undefined);
     if (!hit || seen.has(hit.id)) continue;
     seen.add(hit.id);
     out.push({
@@ -133,6 +159,27 @@ function resolveAgainstCatalog(raw: unknown, catalog: CatalogRow[], max: number)
 async function fetchSettingsRaw(sb: SupabaseClient): Promise<unknown> {
   const { data } = await sb.from("app_settings").select("gemini_settings").eq("id", 1).maybeSingle();
   return (data as { gemini_settings?: unknown } | null)?.gemini_settings;
+}
+
+async function fetchSettingsForAi(sb: SupabaseClient, isGuest: boolean): Promise<unknown> {
+  if (!isGuest) return fetchSettingsRaw(sb);
+  try {
+    const { fetchSettingsRaw: adminFetch } = await import("@/lib/gemini-rotate.server");
+    const { adminClient } = await import("@/lib/gemini-rotate.server");
+    return adminFetch(adminClient());
+  } catch {
+    return fetchSettingsRaw(sb);
+  }
+}
+
+async function loadCatalogForAi(sb: SupabaseClient, limit: number, isGuest: boolean): Promise<CatalogRow[]> {
+  if (!isGuest) return loadCatalog(sb, limit);
+  try {
+    const { adminClient } = await import("@/lib/gemini-rotate.server");
+    return loadCatalog(adminClient() as unknown as SupabaseClient, limit);
+  } catch {
+    return loadCatalog(sb, limit);
+  }
 }
 
 async function matchFuzzy(unresolved: unknown[], catalog: CatalogRow[], prompt: string, max: number): Promise<CareAiSuggestedTest[]> {
@@ -153,17 +200,19 @@ async function matchFuzzy(unresolved: unknown[], catalog: CatalogRow[], prompt: 
 }
 
 export const fetchCareAiPublicConfig = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([optionalSupabaseAuth])
   .validator((data: { lang?: "bn" | "en" }) => ({
     lang: data?.lang === "en" ? ("en" as const) : ("bn" as const),
   }))
   .handler(async ({ context, data }): Promise<CareAiPublicConfig> => {
-    const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(context.supabase));
+    const settings = normalizeGeminiSettingsExtended(
+      await fetchSettingsForAi(context.supabase, context.isGuest),
+    );
     return getPublicAiConfig(settings, data.lang);
   });
 
 export const careAiTestChat = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([optionalSupabaseAuth])
   .validator((data: { messages: CareAiChatMessage[]; lang?: "bn" | "en" }) => {
     const messages = Array.isArray(data?.messages) ? data.messages : [];
     const cleaned: CareAiChatMessage[] = messages
@@ -177,9 +226,11 @@ export const careAiTestChat = createServerFn({ method: "POST" })
     return { messages: cleaned, lang: data?.lang === "en" ? ("en" as const) : ("bn" as const) };
   })
   .handler(async ({ context, data }): Promise<CareAiChatResult> => {
-    const settings = normalizeGeminiSettingsExtended(await fetchSettingsRaw(context.supabase));
+    const settings = normalizeGeminiSettingsExtended(
+      await fetchSettingsForAi(context.supabase, context.isGuest),
+    );
     const { features } = settings;
-    const catalog = await loadCatalog(context.supabase, settings.max_catalog_items);
+    const catalog = await loadCatalogForAi(context.supabase, settings.max_catalog_items, context.isGuest);
     if (!catalog.length) {
       return {
         reply:
@@ -226,19 +277,33 @@ export const careAiTestChat = createServerFn({ method: "POST" })
     let suggested = features.test_suggestions
       ? resolveAgainstCatalog(parsed.suggested_tests, catalog, settings.max_suggestions)
       : [];
+    const rawSuggestions = Array.isArray(parsed.suggested_tests) ? (parsed.suggested_tests as unknown[]) : [];
+    const wantMin = Math.min(3, settings.max_suggestions);
     if (
-      features.match_fallback &&
       features.test_suggestions &&
-      !suggested.length &&
-      Array.isArray(parsed.suggested_tests) &&
-      parsed.suggested_tests.length
+      rawSuggestions.length > suggested.length &&
+      (suggested.length < wantMin || features.match_fallback)
     ) {
-      suggested = await matchFuzzy(
-        parsed.suggested_tests as unknown[],
-        catalog,
-        settings.prompt_match,
-        settings.max_suggestions,
-      );
+      const have = new Set(suggested.map((s) => s.catalog_id));
+      const unresolved = rawSuggestions.filter((item) => {
+        const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        const id = asString(row.catalog_id);
+        return !id || !have.has(id);
+      });
+      if (unresolved.length) {
+        const extra = await matchFuzzy(
+          unresolved,
+          catalog,
+          settings.prompt_match,
+          settings.max_suggestions - suggested.length,
+        );
+        for (const e of extra) {
+          if (have.has(e.catalog_id)) continue;
+          have.add(e.catalog_id);
+          suggested.push(e);
+          if (suggested.length >= settings.max_suggestions) break;
+        }
+      }
     }
 
     const questions =

@@ -78,6 +78,44 @@ export type LandingHeroYoutube = {
   autoplay_on_click: boolean;
 };
 
+/** Lucide icon keys for MyGP-style landing feature grid. */
+export type LandingFeatureIcon =
+  | "droplet"
+  | "heart_pulse"
+  | "sparkles"
+  | "ambulance"
+  | "stethoscope"
+  | "flask"
+  | "users"
+  | "message"
+  | "calendar"
+  | "store"
+  | "user"
+  | "settings";
+
+export type LandingFeatureTile = {
+  id: string;
+  label_bn: string;
+  label_en: string;
+  href: string;
+  icon: LandingFeatureIcon;
+  /** If true, guests go to /auth?next=… */
+  requires_auth: boolean;
+  /** Shown only after “See more” expands */
+  more?: boolean;
+};
+
+export type LandingFeatureGrid = {
+  enabled: boolean;
+  title_bn: string;
+  title_en: string;
+  see_more_bn: string;
+  see_more_en: string;
+  see_less_bn: string;
+  see_less_en: string;
+  tiles: LandingFeatureTile[];
+};
+
 export type LandingHero = {
   brand_bn: string;
   brand_en: string;
@@ -98,6 +136,122 @@ export type LandingHero = {
   slideshow: LandingHeroSlideshow;
   background_video_url: string;
   youtube: LandingHeroYoutube;
+  /** MyGP-style utility icon grid (first viewport when enabled) */
+  feature_grid: LandingFeatureGrid;
+};
+
+export const DEFAULT_FEATURE_GRID_TILES: LandingFeatureTile[] = [
+  {
+    id: "request_blood",
+    label_bn: "রক্ত চান",
+    label_en: "Request blood",
+    href: "/home?compose=true",
+    icon: "droplet",
+    requires_auth: true,
+  },
+  {
+    id: "live_requests",
+    label_bn: "জরুরি রিকোয়েস্ট",
+    label_en: "Live requests",
+    href: "/home",
+    icon: "heart_pulse",
+    requires_auth: true,
+  },
+  {
+    id: "ai_health",
+    label_bn: "AI স্বাস্থ্য",
+    label_en: "AI health",
+    href: "/care/ai-tests",
+    icon: "sparkles",
+    requires_auth: false,
+  },
+  {
+    id: "ambulance",
+    label_bn: "অ্যাম্বুলেন্স",
+    label_en: "Ambulance",
+    href: "/ambulance",
+    icon: "ambulance",
+    requires_auth: false,
+  },
+  {
+    id: "doctors",
+    label_bn: "ডাক্তার",
+    label_en: "Doctors",
+    href: "/care?tab=doctors",
+    icon: "stethoscope",
+    requires_auth: false,
+  },
+  {
+    id: "lab_tests",
+    label_bn: "ল্যাব টেস্ট",
+    label_en: "Lab tests",
+    href: "/care?tab=tests",
+    icon: "flask",
+    requires_auth: false,
+  },
+  {
+    id: "community",
+    label_bn: "কমিউনিটি",
+    label_en: "Community",
+    href: "/community",
+    icon: "users",
+    requires_auth: true,
+  },
+  {
+    id: "chat",
+    label_bn: "চ্যাট",
+    label_en: "Chat",
+    href: "/chat",
+    icon: "message",
+    requires_auth: true,
+  },
+  {
+    id: "bookings",
+    label_bn: "বুকিং",
+    label_en: "Bookings",
+    href: "/care?tab=bookings",
+    icon: "calendar",
+    requires_auth: true,
+    more: true,
+  },
+  {
+    id: "vendor",
+    label_bn: "Care ভেন্ডর",
+    label_en: "Care vendor",
+    href: "/care/auth?mode=register",
+    icon: "store",
+    requires_auth: false,
+    more: true,
+  },
+  {
+    id: "profile",
+    label_bn: "প্রোফাইল",
+    label_en: "Profile",
+    href: "/profile",
+    icon: "user",
+    requires_auth: true,
+    more: true,
+  },
+  {
+    id: "settings",
+    label_bn: "সেটিংস",
+    label_en: "Settings",
+    href: "/settings",
+    icon: "settings",
+    requires_auth: true,
+    more: true,
+  },
+];
+
+export const DEFAULT_FEATURE_GRID: LandingFeatureGrid = {
+  enabled: true,
+  title_bn: "সেবাসমূহ",
+  title_en: "Services",
+  see_more_bn: "আরো দেখুন",
+  see_more_en: "See more",
+  see_less_bn: "কম দেখুন",
+  see_less_en: "See less",
+  tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t })),
 };
 
 export const DEFAULT_HERO_SLIDESHOW: LandingHeroSlideshow = {
@@ -383,6 +537,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     slideshow: { ...DEFAULT_HERO_SLIDESHOW },
     background_video_url: "",
     youtube: { ...DEFAULT_HERO_YOUTUBE },
+    feature_grid: { ...DEFAULT_FEATURE_GRID, tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t })) },
   },
   islamic: {
     title_bn: "ইসলামে জীবন রক্ষা ও সাহায্য",
@@ -629,6 +784,59 @@ function normalizeHeroSlideshow(raw: unknown, d: LandingHeroSlideshow): LandingH
   };
 }
 
+const FEATURE_ICONS = new Set<LandingFeatureIcon>([
+  "droplet",
+  "heart_pulse",
+  "sparkles",
+  "ambulance",
+  "stethoscope",
+  "flask",
+  "users",
+  "message",
+  "calendar",
+  "store",
+  "user",
+  "settings",
+]);
+
+function normalizeFeatureGrid(raw: unknown, d: LandingFeatureGrid): LandingFeatureGrid {
+  const g = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const tilesRaw = Array.isArray(g.tiles) ? g.tiles : null;
+  let tiles: LandingFeatureTile[];
+  if (tilesRaw && tilesRaw.length >= 4) {
+    tiles = tilesRaw
+      .map((item, i) => {
+        const t = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        const fb = d.tiles[i] ?? d.tiles[0];
+        const icon = FEATURE_ICONS.has(t.icon as LandingFeatureIcon)
+          ? (t.icon as LandingFeatureIcon)
+          : fb.icon;
+        return {
+          id: str(t.id, fb.id || `tile_${i}`),
+          label_bn: str(t.label_bn, fb.label_bn),
+          label_en: str(t.label_en, fb.label_en),
+          href: str(t.href, fb.href),
+          icon,
+          requires_auth: t.requires_auth === true || (t.requires_auth !== false && fb.requires_auth),
+          more: t.more === true || fb.more === true,
+        };
+      })
+      .filter((t) => t.label_bn || t.label_en);
+  } else {
+    tiles = d.tiles.map((t) => ({ ...t }));
+  }
+  return {
+    enabled: g.enabled !== false,
+    title_bn: str(g.title_bn, d.title_bn),
+    title_en: str(g.title_en, d.title_en),
+    see_more_bn: str(g.see_more_bn, d.see_more_bn),
+    see_more_en: str(g.see_more_en, d.see_more_en),
+    see_less_bn: str(g.see_less_bn, d.see_less_bn),
+    see_less_en: str(g.see_less_en, d.see_less_en),
+    tiles,
+  };
+}
+
 export function normalizeLandingSettings(raw: unknown): LandingSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_LANDING_SETTINGS;
@@ -776,6 +984,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
         slideshow,
         background_video_url: str(heroRaw.background_video_url, ""),
         youtube: normalizeHeroYoutube(heroRaw.youtube, d.hero.youtube),
+        feature_grid: normalizeFeatureGrid(heroRaw.feature_grid, d.hero.feature_grid),
       };
     })(),
     islamic: {

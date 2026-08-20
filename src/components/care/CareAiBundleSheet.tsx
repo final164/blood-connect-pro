@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { locName } from "@/lib/care-cms";
+import { useAuth } from "@/lib/auth-context";
 import { bookBundlePlan, type BundleBookResult, type BundlePlan } from "@/lib/care-ai-bundle";
 
 export function CareAiBundleSheet({
@@ -27,9 +28,14 @@ export function CareAiBundleSheet({
   setBusy: (v: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const { session, isAnonymous } = useAuth();
 
   async function confirm() {
     if (!plan?.groups.length || busy) return;
+    if (!session || isAnonymous) {
+      void navigate({ to: "/auth", search: { next: "/care/ai-tests" } as never });
+      return;
+    }
     setBusy(true);
     try {
       const results: BundleBookResult[] = await bookBundlePlan(plan);
