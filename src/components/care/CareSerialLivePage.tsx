@@ -8,6 +8,7 @@ import {
   fetchSerial,
   fetchSession,
   fetchSessionQueue,
+  isSerialPendingApproval,
   queueAhead,
   setSerialStatus,
   subscribeSession,
@@ -43,7 +44,8 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
     });
   }, [ticket?.session_id, reload]);
 
-  const ahead = ticket ? queueAhead(ticket.serial_no, queue) : 0;
+  const pending = ticket ? isSerialPendingApproval(ticket) : false;
+  const ahead = ticket && !pending ? queueAhead(ticket.serial_no, queue) : 0;
   const now = session?.now_serving ?? 0;
 
   async function cancel() {
@@ -77,16 +79,50 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
           <>
             <div className="text-center space-y-4 max-w-md mx-auto">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              {lang === "bn" ? "আপনার নম্বর" : "Your number"}
+              {pending
+                ? lang === "bn"
+                  ? "অনলাইন সিরিয়াল · অনুমোদন বাকি"
+                  : "Online serial · awaiting approval"
+                : lang === "bn"
+                  ? "চেম্বার সিরিয়াল নম্বর"
+                  : "Chamber serial number"}
             </p>
-            <p className="text-6xl font-black tabular-nums text-primary">{ticket.serial_no}</p>
+            {pending ? (
+              <>
+                <p className="font-black tabular-nums text-sky-800 text-6xl">
+                  {ticket.online_serial_no ?? "—"}
+                </p>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-wide text-amber-700">
+                    {lang === "bn" ? "চেম্বার সিরিয়াল" : "Chamber serial"}
+                  </p>
+                  <p className="text-3xl font-black text-amber-600 mt-1">
+                    {lang === "bn" ? "পেন্ডিং" : "PENDING"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {lang === "bn"
+                      ? "অ্যাপ্রুভ করে নম্বর দিলে এখানে দেখা যাবে।"
+                      : "Shows here after approval with a serial number."}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="font-black tabular-nums text-primary text-6xl">{ticket.serial_no}</p>
+            )}
             <p className="text-sm text-muted-foreground font-mono">{ticket.claim_code}</p>
+              {ticket.online_serial_no != null && !pending && ticket.source === "app" && (
+                <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1 justify-center">
+                  <Receipt className="h-3 w-3" />
+                  {lang === "bn" ? "অনলাইন সিরিয়াল" : "Online serial"}: {ticket.online_serial_no}
+                </p>
+              )}
               {ticket.invoice_no && (
                 <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1 justify-center">
                   <Receipt className="h-3 w-3" />
-                  {ticket.invoice_no}
+                  {lang === "bn" ? "ইনভয়েস" : "Invoice"}: {ticket.invoice_no}
                 </p>
               )}
+            {pending ? null : (
             <div className="rounded-2xl border bg-card p-4 grid grid-cols-3 gap-2 text-center">
               <div>
                 <p className="text-[10px] text-muted-foreground">{lang === "bn" ? "এখন চলছে" : "Now"}</p>
@@ -101,10 +137,16 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
                 <p className="text-xl font-bold tabular-nums">{session?.last_issued ?? "—"}</p>
               </div>
             </div>
+            )}
             <p className="text-xs text-muted-foreground">
-              {session?.session_date} · {session?.status} · {ticket.status}
+              {session?.session_date} · {session?.status} ·{" "}
+              {pending
+                ? lang === "bn"
+                  ? "অনুমোদন বাকি"
+                  : "pending approval"
+                : ticket.status}
             </p>
-            {ticket.status === "booked" && (
+            {(ticket.status === "booked" || ticket.status === "pending_approval") && (
               <button
                 type="button"
                 disabled={busy}
@@ -121,7 +163,7 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
                 <Receipt className="h-3.5 w-3.5" />
                 {lang === "bn" ? "ইনভয়েস" : "Invoice"}
               </p>
-              <CareSerialInvoiceCard serialId={serialId} />
+              <CareSerialInvoiceCard serialId={ticket.id} />
             </div>
           </>
         )}

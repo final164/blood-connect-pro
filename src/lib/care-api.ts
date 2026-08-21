@@ -21,6 +21,8 @@ export type CareDoctorListItem = {
     district_id: string | null;
     upazila: string | null;
     fee_amount: number | null;
+    second_visit_discount_type?: "percent" | "fixed" | null;
+    second_visit_discount_value?: number | null;
   }[];
 };
 
@@ -51,24 +53,78 @@ export type CareSessionRow = {
   start_number: number;
   last_issued: number;
   now_serving: number | null;
+  /** From joined care_schedules when selected */
+  start_time?: string | null;
+  end_time?: string | null;
 };
 
 export type CareSerialRow = {
   id: string;
   session_id: string;
-  serial_no: number;
+  serial_no: number | null;
   patient_id: string | null;
   guest_name: string | null;
   guest_phone: string | null;
+  guest_age?: number | null;
+  guest_address?: string | null;
   source: string;
   status: string;
   claim_code: string;
   invoice_no?: string | null;
   fee_amount?: number | null;
+  fee_original?: number | null;
+  is_second_visit?: boolean;
+  /** App booking order within this chamber/doctor session (1, 2, 3…) */
+  online_serial_no?: number | null;
   payment_status?: "pending" | "paid" | "waived";
   called_at: string | null;
   created_at: string;
 };
+
+const CARE_SERIAL_COLS =
+  "id, session_id, serial_no, patient_id, guest_name, guest_phone, guest_age, guest_address, source, status, claim_code, invoice_no, fee_amount, fee_original, is_second_visit, online_serial_no, payment_status, called_at, created_at";
+const SESSION_EMBED =
+  "id, schedule_id, org_id, location_id, doctor_id, session_date, status, max_serial, start_number, last_issued, now_serving, care_schedules(start_time, end_time)";
+const CARE_SERIAL_WITH_SESSION = `${CARE_SERIAL_COLS}, care_sessions(${SESSION_EMBED})`;
+const CARE_SERIAL_WITH_SESSION_INNER = `${CARE_SERIAL_COLS}, care_sessions!inner(${SESSION_EMBED})`;
+
+/** Format DB time "18:00:00" / "18:00" → "6:00 PM" */
+export function formatTimeAmPm(time: string | null | undefined, lang: "bn" | "en" = "en"): string {
+  if (!time) return "";
+  const raw = String(time).slice(0, 5);
+  const [hs, ms] = raw.split(":").map((x) => Number(x));
+  if (!Number.isFinite(hs) || !Number.isFinite(ms)) return raw;
+  const h24 = hs!;
+  const m = ms!;
+  const ampm = h24 >= 12 ? (lang === "bn" ? "PM" : "PM") : lang === "bn" ? "AM" : "AM";
+  const h12 = h24 % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+export function applySecondVisitDiscount(
+  fee: number,
+  type: "percent" | "fixed" | null | undefined,
+  value: number | null | undefined,
+): number {
+  if (!type || value == null || value <= 0 || !Number.isFinite(fee)) return fee;
+  if (type === "percent") return Math.max(0, Math.round((fee - (fee * Math.min(value, 100)) / 100) * 100) / 100);
+  return Math.max(0, Math.round((fee - value) * 100) / 100);
+}
+
+function mapSessionEmbed(raw: Record<string, unknown> | null | undefined): CareSessionRow | null {
+  if (!raw) return null;
+  const schRaw = raw.care_schedules as
+    | { start_time?: string; end_time?: string }
+    | { start_time?: string; end_time?: string }[]
+    | null;
+  const sch = Array.isArray(schRaw) ? schRaw[0] : schRaw;
+  const { care_schedules: _drop, ...rest } = raw;
+  return {
+    ...(rest as unknown as CareSessionRow),
+    start_time: sch?.start_time ?? null,
+    end_time: sch?.end_time ?? null,
+  };
+}
 
 function missing(error: { message?: string } | null) {
   return !!error && /does not exist|schema cache|relation/i.test(error.message ?? "");
@@ -87,7 +143,7 @@ export async function searchCareDoctors(opts: {
       id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, specialty_id,
       care_specialties ( name_bn, name_en ),
       care_affiliations (
-        id, fee_amount, is_active, org_id, location_id,
+        id, fee_amount, second_visit_discount_type, second_visit_discount_value, is_active, org_id, location_id,
         care_orgs ( id, name, name_bn, is_verified, is_listed, is_active, district_id ),
         care_locations ( id, name, name_bn, district_id, upazila )
       )
@@ -146,6 +202,12 @@ export async function searchCareDoctors(opts: {
         district_id: loc?.district_id ?? org.district_id ?? null,
         upazila: loc?.upazila ?? null,
         fee_amount: a.fee_amount != null ? Number(a.fee_amount) : null,
+        second_visit_discount_type:
+          a.second_visit_discount_type === "percent" || a.second_visit_discount_type === "fixed"
+            ? a.second_visit_discount_type
+            : null,
+        second_visit_discount_value:
+          a.second_visit_discount_value != null ? Number(a.second_visit_discount_value) : null,
       });
     }
     if (!chambers.length) continue;
@@ -256,26 +318,47 @@ export async function fetchSessionByScheduleDate(scheduleId: string, date: strin
 
 export async function issueCareSerial(params: {
   sessionId: string;
-  source?: "app" | "walk_in";
+  source?: "app" | "walk_in" | "desk_manual";
   guestName?: string;
   guestPhone?: string;
+  guestAge?: number | null;
+  guestAddress?: string;
+  isSecondVisit?: boolean;
 }): Promise<CareSerialRow> {
   const { data, error } = await supabase.rpc("care_issue_serial", {
     _session_id: params.sessionId,
     _guest_name: params.guestName ?? null,
     _guest_phone: params.guestPhone ?? null,
+    _guest_age: params.guestAge ?? null,
+    _guest_address: params.guestAddress ?? null,
+    _is_second_visit: params.isSecondVisit ?? false,
     _source: params.source ?? "app",
   } as never);
   if (error) throw new Error(error.message);
   return data as CareSerialRow;
 }
 
+/** Chamber assigns serial_no and moves pending_approval → booked */
+export async function approveCareSerial(params: {
+  serialId: string;
+  serialNo?: number | null;
+}): Promise<CareSerialRow> {
+  const { data, error } = await supabase.rpc("care_approve_serial", {
+    _serial_id: params.serialId,
+    _serial_no: params.serialNo ?? null,
+  } as never);
+  if (error) throw new Error(error.message);
+  return data as CareSerialRow;
+}
+
+export function isSerialPendingApproval(ticket: Pick<CareSerialRow, "status" | "serial_no">) {
+  return ticket.status === "pending_approval";
+}
+
 export async function fetchMySerials(): Promise<(CareSerialRow & { session?: CareSessionRow | null })[]> {
   const { data, error } = await supabase
     .from("care_serials")
-    .select(
-      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, invoice_no, fee_amount, payment_status, called_at, created_at, care_sessions(id, schedule_id, org_id, location_id, doctor_id, session_date, status, max_serial, start_number, last_issued, now_serving)",
-    )
+    .select(CARE_SERIAL_WITH_SESSION)
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) {
@@ -284,16 +367,14 @@ export async function fetchMySerials(): Promise<(CareSerialRow & { session?: Car
   }
   return ((data as Record<string, unknown>[]) ?? []).map((row) => ({
     ...(row as unknown as CareSerialRow),
-    session: (row.care_sessions as CareSessionRow) ?? null,
+    session: mapSessionEmbed(row.care_sessions as Record<string, unknown> | null),
   }));
 }
 
 export async function fetchSerial(id: string) {
   const { data, error } = await supabase
     .from("care_serials")
-    .select(
-      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, invoice_no, fee_amount, payment_status, called_at, created_at",
-    )
+    .select(CARE_SERIAL_COLS)
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -303,13 +384,80 @@ export async function fetchSerial(id: string) {
 export async function fetchSessionQueue(sessionId: string): Promise<CareSerialRow[]> {
   const { data, error } = await supabase
     .from("care_serials")
-    .select(
-      "id, session_id, serial_no, patient_id, guest_name, guest_phone, source, status, claim_code, invoice_no, fee_amount, payment_status, called_at, created_at",
-    )
+    .select(CARE_SERIAL_COLS)
     .eq("session_id", sessionId)
-    .order("serial_no");
+    .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data as CareSerialRow[]) ?? [];
+  const rows = (data as CareSerialRow[]) ?? [];
+  return rows.slice().sort((a, b) => {
+    const ap = a.status === "pending_approval" ? 0 : 1;
+    const bp = b.status === "pending_approval" ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    if (a.serial_no == null && b.serial_no == null) {
+      return a.created_at.localeCompare(b.created_at);
+    }
+    if (a.serial_no == null) return -1;
+    if (b.serial_no == null) return 1;
+    return a.serial_no - b.serial_no;
+  });
+}
+
+/** Serials for an org by request/booking day (created_at), not session_date. */
+export async function fetchOrgSerialsByRequest(
+  orgId: string,
+  opts?: {
+    requestedOn?: string | null;
+    sessionId?: string | null;
+    statuses?: string[];
+    /** Default true = FIFO (earliest booking first). */
+    ascending?: boolean;
+  },
+): Promise<(CareSerialRow & { session?: CareSessionRow | null })[]> {
+  const ascending = opts?.ascending !== false;
+  let q = supabase
+    .from("care_serials")
+    .select(CARE_SERIAL_WITH_SESSION_INNER)
+    .eq("care_sessions.org_id", orgId)
+    .order("created_at", { ascending })
+    .limit(200);
+
+  const statuses = opts?.statuses?.length ? opts.statuses : undefined;
+  if (statuses?.length === 1) {
+    q = q.eq("status", statuses[0]!);
+  } else if (statuses && statuses.length > 1) {
+    q = q.in("status", statuses);
+  }
+
+  if (opts?.sessionId) {
+    q = q.eq("session_id", opts.sessionId);
+  }
+
+  if (opts?.requestedOn) {
+    const day = opts.requestedOn;
+    const start = `${day}T00:00:00+06:00`;
+    const next = new Date(`${day}T12:00:00+06:00`);
+    next.setDate(next.getDate() + 1);
+    const end = `${next.toISOString().slice(0, 10)}T00:00:00+06:00`;
+    q = q.gte("created_at", start).lt("created_at", end);
+  }
+
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return ((data as Record<string, unknown>[]) ?? []).map((row) => ({
+    ...(row as unknown as CareSerialRow),
+    session: mapSessionEmbed(row.care_sessions as Record<string, unknown> | null),
+  }));
+}
+
+/** @deprecated use fetchOrgSerialsByRequest */
+export async function fetchOrgPendingApprovals(
+  orgId: string,
+  opts?: { requestedOn?: string | null; sessionId?: string | null },
+): Promise<(CareSerialRow & { session?: CareSessionRow | null })[]> {
+  return fetchOrgSerialsByRequest(orgId, {
+    ...opts,
+    statuses: ["pending_approval"],
+  });
 }
 
 export async function setSessionStatus(sessionId: string, status: string) {
@@ -340,7 +488,7 @@ export async function fetchOrgDoctors(orgId: string) {
   const { data, error } = await supabase
     .from("care_affiliations")
     .select(
-      "id, doctor_id, location_id, fee_amount, is_active, care_doctors(id, full_name, full_name_bn, bmdc_no, specialty_id), care_locations(id, name, name_bn)",
+      "id, doctor_id, location_id, fee_amount, second_visit_discount_type, second_visit_discount_value, is_active, care_doctors(id, full_name, full_name_bn, bmdc_no, specialty_id), care_locations(id, name, name_bn)",
     )
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
@@ -358,15 +506,30 @@ export async function fetchOrgLocations(orgId: string) {
   return data ?? [];
 }
 
-export async function fetchOrgSessions(orgId: string, date: string) {
-  const { data, error } = await supabase
+export async function fetchOrgSessions(orgId: string, date?: string | null) {
+  let q = supabase
     .from("care_sessions")
     .select(
       "id, schedule_id, org_id, location_id, doctor_id, session_date, status, max_serial, start_number, last_issued, now_serving",
     )
     .eq("org_id", orgId)
-    .eq("session_date", date)
-    .order("created_at");
+    .order("session_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (date) {
+    q = q.eq("session_date", date);
+  } else {
+    const from = new Date();
+    from.setDate(from.getDate() - 14);
+    const to = new Date();
+    to.setDate(to.getDate() + 7);
+    q = q
+      .gte("session_date", from.toISOString().slice(0, 10))
+      .lte("session_date", to.toISOString().slice(0, 10))
+      .limit(80);
+  }
+
+  const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data as CareSessionRow[]) ?? [];
 }
@@ -388,9 +551,11 @@ export function nextDatesForWeekday(weekday: number, count = 4): string[] {
 export const WEEKDAY_BN = ["রবি", "সোম", "মঙ্গল", "বুধ", "বৃহস্পতি", "শুক্র", "শনি"];
 export const WEEKDAY_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export function queueAhead(serialNo: number, tickets: CareSerialRow[]) {
+export function queueAhead(serialNo: number | null | undefined, tickets: CareSerialRow[]) {
+  if (serialNo == null) return 0;
   return tickets.filter(
     (t) =>
+      t.serial_no != null &&
       t.serial_no < serialNo &&
       ["booked", "checked_in", "called", "in_consult"].includes(t.status),
   ).length;

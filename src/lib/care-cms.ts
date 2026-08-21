@@ -81,6 +81,16 @@ export type CareFeatureFlags = {
   reviews: boolean;
   payment: boolean;
   report_vault: boolean;
+  /** Platform default: app bookings wait for chamber approval */
+  desk_serial_approval: boolean;
+  /** Allow desk to create serial from patient name/phone/address */
+  desk_manual_patient_serial: boolean;
+  /** Chambers may override serial approval / fields / manual form */
+  desk_allow_org_serial_settings: boolean;
+  desk_booking_field_name: boolean;
+  desk_booking_field_phone: boolean;
+  desk_booking_field_age: boolean;
+  desk_booking_field_address: boolean;
 };
 
 export type CareVendorFieldKey =
@@ -207,6 +217,13 @@ const DEFAULT_FLAGS: CareFeatureFlags = {
   reviews: false,
   payment: false,
   report_vault: false,
+  desk_serial_approval: false,
+  desk_manual_patient_serial: true,
+  desk_allow_org_serial_settings: true,
+  desk_booking_field_name: true,
+  desk_booking_field_phone: true,
+  desk_booking_field_age: true,
+  desk_booking_field_address: true,
 };
 
 function missingTable(error: { message?: string } | null) {

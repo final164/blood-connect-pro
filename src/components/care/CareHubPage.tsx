@@ -500,11 +500,21 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                   className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
                 >
                   <p className="text-sm font-semibold">
-                    {lang === "bn" ? "সিরিয়াল" : "Serial"} #{s.serial_no} · {s.status}
+                    {s.status === "pending_approval" || s.serial_no == null
+                      ? lang === "bn"
+                        ? `অনলাইন #${s.online_serial_no ?? "—"} · অনুমোদন বাকি`
+                        : `Online #${s.online_serial_no ?? "—"} · pending approval`
+                      : lang === "bn"
+                        ? `সিরিয়াল #${s.serial_no} · ${s.status}`
+                        : `Serial #${s.serial_no} · ${s.status}`}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     {s.session?.session_date} · {s.claim_code}
-                    {s.invoice_no ? ` · ${s.invoice_no}` : ""}
+                    {s.online_serial_no != null && s.serial_no != null
+                      ? lang === "bn"
+                        ? ` · অনলাইন #${s.online_serial_no}`
+                        : ` · online #${s.online_serial_no}`
+                      : ""}
                     {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
                   </p>
                 </Link>

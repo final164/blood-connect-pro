@@ -27,6 +27,13 @@ import {
   type CareVendorOnboardingSettings,
   type CareVendorType,
 } from "@/lib/care-cms";
+import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm";
+import {
+  bookingFieldsFromFlags,
+  parseOrgSettings,
+  saveOrgSerialSettings,
+  type CareOrgSerialSettings,
+} from "@/lib/care-org-settings";
 
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40";
@@ -105,12 +112,13 @@ function OrgsPanel({ canKyc, lang }: { canKyc: boolean; lang: "bn" | "en" }) {
   const [kindId, setKindId] = useState("");
   const [filter, setFilter] = useState<"all" | "draft" | "pending" | "verified">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [platformFlags, setPlatformFlags] = useState<CareFeatureFlags | null>(null);
 
   async function reload() {
     const { data, error } = await supabase
       .from("care_orgs")
       .select(
-        "id, name, name_bn, phone, email, upazila, address, is_active, is_verified, is_listed, kyc_status, kyc_notes, featured, org_kind_id, profile_completed, profile_submitted_at, created_at, districts(name_bn, name_en)",
+        "id, name, name_bn, phone, email, upazila, address, is_active, is_verified, is_listed, kyc_status, kyc_notes, featured, org_kind_id, profile_completed, profile_submitted_at, settings, created_at, districts(name_bn, name_en)",
       )
       .order("created_at", { ascending: false });
     if (error) toast.error(error.message);
@@ -137,6 +145,7 @@ function OrgsPanel({ canKyc, lang }: { canKyc: boolean; lang: "bn" | "en" }) {
       setKinds(k);
       if (k[0]) setKindId(k[0].id);
     });
+    void fetchCarePolicies().then((r) => setPlatformFlags(r.flags));
   }, []);
 
   async function create() {
@@ -239,12 +248,78 @@ function OrgsPanel({ canKyc, lang }: { canKyc: boolean; lang: "bn" | "en" }) {
                       <label className="inline-flex items-center gap-1"><input type="checkbox" checked={!!r.is_active} onChange={(e) => void patch(id, { is_active: e.target.checked })} />active</label>
                     </div>
                   )}
+                  {platformFlags && (
+                    <OrgSerialAdminBlock
+                      orgId={id}
+                      lang={lang}
+                      canEdit={canKyc}
+                      rawSettings={r.settings}
+                      flags={platformFlags}
+                      onSaved={() => void reload()}
+                    />
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function OrgSerialAdminBlock({
+  orgId,
+  lang,
+  canEdit,
+  rawSettings,
+  flags,
+  onSaved,
+}: {
+  orgId: string;
+  lang: "bn" | "en";
+  canEdit: boolean;
+  rawSettings: unknown;
+  flags: CareFeatureFlags;
+  onSaved: () => void;
+}) {
+  const parsed = parseOrgSettings(rawSettings);
+  const [serial, setSerial] = useState<CareOrgSerialSettings>(parsed.serial ?? {});
+  useEffect(() => {
+    setSerial(parseOrgSettings(rawSettings).serial ?? {});
+  }, [rawSettings, orgId]);
+
+  return (
+    <div className="space-y-2 pt-2 border-t border-slate-800">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        {lang === "bn" ? "সিরিয়াল / ডেস্ক সেটিংস" : "Serial / desk settings"}
+      </p>
+      <CareSerialSettingsForm
+        lang={lang}
+        variant="admin"
+        value={serial}
+        onChange={setSerial}
+        disabled={!canEdit}
+        platformApproval={flags.desk_serial_approval}
+        platformManual={flags.desk_manual_patient_serial}
+        platformFields={bookingFieldsFromFlags(flags)}
+      />
+      {canEdit && (
+        <button
+          type="button"
+          className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white"
+          onClick={() =>
+            void saveOrgSerialSettings(orgId, serial, parsed)
+              .then(() => {
+                toast.success(lang === "bn" ? "সিরিয়াল সেটিংস সেভ" : "Serial settings saved");
+                onSaved();
+              })
+              .catch((e) => toast.error((e as Error).message))
+          }
+        >
+          {lang === "bn" ? "সিরিয়াল সেটিংস সেভ" : "Save serial settings"}
+        </button>
+      )}
     </div>
   );
 }
@@ -622,6 +697,30 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
     });
   }, []);
   if (!policies || !flags) return null;
+
+  const flagLabel: Record<keyof CareFeatureFlags, { bn: string; en: string }> = {
+    home_collection: { bn: "হোম কালেকশন", en: "Home collection" },
+    reviews: { bn: "রিভিউ", en: "Reviews" },
+    payment: { bn: "পেমেন্ট", en: "Payment" },
+    report_vault: { bn: "রিপোর্ট ভল্ট", en: "Report vault" },
+    desk_serial_approval: {
+      bn: "সিরিয়াল — প্ল্যাটফর্ম ডিফল্ট: ডেস্ক অ্যাপ্রুভাল",
+      en: "Serial — platform default: desk approval",
+    },
+    desk_manual_patient_serial: {
+      bn: "Create Serial ট্যাব — নাম/মোবাইল/বয়স/ঠিকানা দিয়ে ডেস্ক সিরিয়াল",
+      en: "Create Serial tab — desk serials by name/mobile/age/address",
+    },
+    desk_allow_org_serial_settings: {
+      bn: "চেম্বার ডেস্ক সেটিংস থেকে সিরিয়াল কন্ট্রোল",
+      en: "Allow chamber desk to control serial settings",
+    },
+    desk_booking_field_name: { bn: "বুকিং ফিল্ড: নাম", en: "Booking field: name" },
+    desk_booking_field_phone: { bn: "বুকিং ফিল্ড: মোবাইল", en: "Booking field: mobile" },
+    desk_booking_field_age: { bn: "বুকিং ফিল্ড: বয়স", en: "Booking field: age" },
+    desk_booking_field_address: { bn: "বুকিং ফিল্ড: ঠিকানা", en: "Booking field: address" },
+  };
+
   return (
     <div className="space-y-3 max-w-md">
       {(Object.keys(policies) as (keyof CareBookingPolicies)[]).map((k) => (
@@ -644,9 +743,17 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
         </label>
       ))}
       {(Object.keys(flags) as (keyof CareFeatureFlags)[]).map((k) => (
-        <label key={k} className="flex items-center justify-between gap-3 text-xs text-slate-200">
-          <span>flag: {k}</span>
-          <input type="checkbox" checked={flags[k]} onChange={(e) => setFlags({ ...flags, [k]: e.target.checked })} />
+        <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
+          <span className="leading-snug">
+            <span className="block font-medium">{lang === "bn" ? flagLabel[k].bn : flagLabel[k].en}</span>
+            <span className="text-[10px] text-slate-500">flag: {k}</span>
+          </span>
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={flags[k]}
+            onChange={(e) => setFlags({ ...flags, [k]: e.target.checked })}
+          />
         </label>
       ))}
       {canEdit && (

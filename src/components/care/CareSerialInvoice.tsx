@@ -11,6 +11,7 @@ import {
   invoicePatientName,
   invoicePatientPhone,
   invoiceScheduleLine,
+  isInvoiceAwaitingSerial,
   paymentStatusLabel,
   printCareSerialInvoice,
   downloadCareSerialInvoicePdf,
@@ -73,7 +74,9 @@ export function CareSerialInvoiceCard({
     if (!invoice) return;
     setDownloading(true);
     try {
-      await downloadCareSerialInvoicePdf(printRootId, `${invoice.invoice_no}-serial-${invoice.serial_no}`);
+      const serialPart =
+        invoice.serial_no != null ? `serial-${invoice.serial_no}` : "pending";
+      await downloadCareSerialInvoicePdf(printRootId, `${invoice.invoice_no}-${serialPart}`);
       toast.success(lang === "bn" ? "PDF ডাউনলোড হয়েছে" : "PDF downloaded");
     } catch (e) {
       toast.error((e as Error).message);
@@ -128,6 +131,7 @@ export function CareSerialInvoiceCard({
   const phone = invoicePatientPhone(invoice);
   const location = invoiceLocationLine(invoice, lang);
   const specialty = lang === "bn" ? invoice.specialty_bn || invoice.specialty_en : invoice.specialty_en || invoice.specialty_bn;
+  const awaitingSerial = isInvoiceAwaitingSerial(invoice);
   const issued = new Date(invoice.created_at).toLocaleString(lang === "bn" ? "bn-BD" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -159,7 +163,7 @@ export function CareSerialInvoiceCard({
           <Printer className="h-3.5 w-3.5" />
           {lang === "bn" ? "প্রিন্ট" : "Print"}
         </button>
-        {canManagePayment && invoice.payment_status === "pending" && (
+        {canManagePayment && !awaitingSerial && invoice.payment_status === "pending" && (
           <>
             <button
               type="button"
@@ -228,13 +232,48 @@ export function CareSerialInvoiceCard({
         </div>
 
         <div className="serial-box text-center py-5 border-b bg-white">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            {lang === "bn" ? "আপনার সিরিয়াল" : "Your serial number"}
-          </p>
-          <p className="serial-num text-5xl sm:text-6xl font-black tabular-nums text-red-700 leading-none mt-1">
-            {invoice.serial_no}
-          </p>
-          <p className="font-mono text-xs text-muted-foreground mt-2">{invoice.claim_code}</p>
+          {awaitingSerial ? (
+            <>
+              <p className="text-[10px] uppercase tracking-widest text-sky-700/80">
+                {lang === "bn" ? "অনলাইন সিরিয়াল" : "Online serial"}
+              </p>
+              <p className="serial-num text-5xl sm:text-6xl font-black tabular-nums text-sky-800 leading-none mt-2">
+                {invoice.online_serial_no ?? "—"}
+              </p>
+              <div className="mt-3 mx-auto max-w-xs rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-widest text-amber-700/80">
+                  {lang === "bn" ? "চেম্বার সিরিয়াল নম্বর" : "Chamber serial no."}
+                </p>
+                <p className="text-2xl font-black text-amber-600 leading-none mt-1">
+                  {lang === "bn" ? "পেন্ডিং" : "PENDING"}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                  {lang === "bn"
+                    ? "চেম্বার অ্যাপ্রুভ করে serial_no দিলে এখানে দেখা যাবে।"
+                    : "Appears here after the chamber approves with a serial number."}
+                </p>
+              </div>
+              <p className="font-mono text-[10px] text-muted-foreground mt-2">{invoice.claim_code}</p>
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                {lang === "bn" ? "চেম্বার সিরিয়াল নম্বর" : "Chamber serial number"}
+              </p>
+              <p className="serial-num text-5xl sm:text-6xl font-black tabular-nums text-red-700 leading-none mt-1">
+                {invoice.serial_no}
+              </p>
+              {invoice.source === "app" && invoice.online_serial_no != null && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  <span className="font-semibold text-sky-800">
+                    {lang === "bn" ? "অনলাইন সিরিয়াল" : "Online serial"}:
+                  </span>{" "}
+                  <span className="tabular-nums font-bold">{invoice.online_serial_no}</span>
+                </p>
+              )}
+              <p className="font-mono text-xs text-muted-foreground mt-1">{invoice.claim_code}</p>
+            </>
+          )}
         </div>
 
         <section className="px-4 py-3 sm:px-6 border-b space-y-1">
@@ -252,6 +291,16 @@ export function CareSerialInvoiceCard({
           <div className="row flex justify-between text-sm">
             <span>{lang === "bn" ? "উৎস" : "Source"}</span>
             <span>{invoice.source === "walk_in" ? (lang === "bn" ? "ওয়াক-ইন" : "Walk-in") : (lang === "bn" ? "অ্যাপ" : "App")}</span>
+          </div>
+          <div className="row flex justify-between text-sm">
+            <span>{lang === "bn" ? "স্ট্যাটাস" : "Status"}</span>
+            <span className="font-semibold">
+              {awaitingSerial
+                ? lang === "bn"
+                  ? "অনুমোদন বাকি"
+                  : "Pending approval"
+                : invoice.status}
+            </span>
           </div>
         </section>
 
@@ -305,9 +354,13 @@ export function CareSerialInvoiceCard({
         </section>
 
         <footer className="foot px-4 py-3 sm:px-6 text-[11px] text-muted-foreground leading-relaxed bg-muted/30">
-          {lang === "bn"
-            ? "এই ইনভয়েস BloodLink Care প্ল্যাটফর্মে সিরিয়াল নিশ্চিত হওয়ার সাথে সাথে তৈরি হয়েছে। চেম্বারে উপস্থিত হয়ে সিরিয়াল নম্বর দেখান।"
-            : "This invoice was generated when your serial was confirmed on BloodLink Care. Present this serial number at the chamber."}
+          {awaitingSerial
+            ? lang === "bn"
+              ? "এই ইনভয়েস অনুরোধ হিসেবে তৈরি হয়েছে। চেম্বার অনুমোদন ও সিরিয়াল নম্বর দেওয়ার আগে এটি পেন্ডিং থাকবে।"
+              : "This invoice was created as a booking request. It stays pending until the chamber approves and assigns a serial number."
+            : lang === "bn"
+              ? "এই ইনভয়েস BloodLink Care প্ল্যাটফর্মে সিরিয়াল নিশ্চিত হওয়ার সাথে সাথে তৈরি হয়েছে। চেম্বারে উপস্থিত হয়ে সিরিয়াল নম্বর দেখান।"
+              : "This invoice was generated when your serial was confirmed on BloodLink Care. Present this serial number at the chamber."}
         </footer>
       </article>
     </div>

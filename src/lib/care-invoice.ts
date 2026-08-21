@@ -3,7 +3,8 @@ import { fetchSerial, fetchSession } from "@/lib/care-api";
 
 export type CareSerialInvoice = {
   serial_id: string;
-  serial_no: number;
+  serial_no: number | null;
+  online_serial_no: number | null;
   claim_code: string;
   invoice_no: string;
   fee_amount: number;
@@ -37,6 +38,10 @@ export type CareSerialInvoice = {
   location_address: string | null;
   location_phone: string | null;
 };
+
+export function isInvoiceAwaitingSerial(inv: Pick<CareSerialInvoice, "status" | "serial_no">) {
+  return inv.status === "pending_approval" || (inv.serial_no == null && inv.status !== "cancelled");
+}
 
 function num(v: unknown): number {
   if (v == null) return 0;
@@ -128,6 +133,7 @@ export async function fetchCareSerialInvoice(serialId: string): Promise<CareSeri
   return {
     serial_id: serial.id,
     serial_no: serial.serial_no,
+    online_serial_no: serial.online_serial_no ?? null,
     claim_code: serial.claim_code,
     invoice_no: serial.invoice_no || `BLC-${serial.id.slice(0, 8).toUpperCase()}`,
     fee_amount: serial.fee_amount != null ? num(serial.fee_amount) : feeFromAff,
@@ -138,8 +144,8 @@ export async function fetchCareSerialInvoice(serialId: string): Promise<CareSeri
     session_date: sess.session_date,
     schedule_start: sch?.start_time ?? null,
     schedule_end: sch?.end_time ?? null,
-    patient_name: profile?.full_name ?? null,
-    patient_phone: profile?.phone ?? null,
+    patient_name: serial.guest_name || profile?.full_name || null,
+    patient_phone: serial.guest_phone || profile?.phone || null,
     guest_name: serial.guest_name,
     guest_phone: serial.guest_phone,
     doctor_name: str(doc?.full_name),
