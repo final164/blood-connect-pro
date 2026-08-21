@@ -30,11 +30,37 @@ function resumePath(next: string | undefined, fallback: "/home" | "/admin") {
   return { to: fallback as never, search: undefined };
 }
 
+function authContinueHint(next: string | undefined, lang: "bn" | "en"): string | null {
+  if (!next || !isSafeNextPath(next)) return null;
+  const path = next.split("?")[0] || "";
+  const qs = next.includes("?") ? new URLSearchParams(next.split("?")[1]) : null;
+  const tab = qs?.get("tab") || "";
+  if (path === "/ambulance" || path.startsWith("/ambulance/")) {
+    return lang === "bn"
+      ? "লগইন করুন — তারপর অ্যাম্বুলেন্স বুকিংয়ে ফিরে যাবেন।"
+      : "Sign in to continue to ambulance booking.";
+  }
+  if (path.startsWith("/care/doctor") || ((path === "/care" || path === "/care/") && (!tab || tab === "doctors"))) {
+    return lang === "bn"
+      ? "লগইন করুন — তারপর ডাক্তার সিরিয়ালে ফিরে যাবেন।"
+      : "Sign in to continue to doctor serial booking.";
+  }
+  if ((path === "/care" || path === "/care/") && tab === "bookings") {
+    return lang === "bn"
+      ? "লগইন করুন — তারপর আপনার বুকিং দেখতে পারবেন।"
+      : "Sign in to view your bookings.";
+  }
+  return lang === "bn"
+    ? "লগইন করুন — কাজ শেষে আগের পেজে ফিরে যাবেন।"
+    : "Sign in to continue where you left off.";
+}
+
 export function AuthPage() {
   const { t, lang, setLang } = useI18n();
   const { session, loading, isAnonymous, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { next } = authRoute.useSearch();
+  const continueHint = authContinueHint(next, lang);
   const [mode, setMode] = useState<Mode>("login");
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
@@ -118,6 +144,11 @@ export function AuthPage() {
             </div>
             <h1 className="text-2xl font-bold tracking-tight">{t("appName")}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("tagline")}</p>
+            {continueHint ? (
+              <p className="mt-3 max-w-xs text-xs leading-relaxed text-primary/90 bg-primary/8 border border-primary/15 rounded-xl px-3 py-2">
+                {continueHint}
+              </p>
+            ) : null}
           </div>
 
           <div className="rounded-3xl border border-border/80 bg-card/90 backdrop-blur p-5 shadow-xl shadow-primary/5">

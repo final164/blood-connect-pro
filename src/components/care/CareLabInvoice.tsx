@@ -294,9 +294,25 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
               <tr className="border-t">
                 <td className="py-3">
                   {lang === "bn" ? "ডায়াগনস্টিক টেস্ট ফি" : "Diagnostic test fee"}
+                  {invoice.discount_percent != null && invoice.discount_percent > 0 ? (
+                    <span className="ml-2 text-[10px] font-bold text-rose-600">
+                      −{invoice.discount_percent}%
+                    </span>
+                  ) : null}
                 </td>
                 <td className="py-3 text-right font-medium tabular-nums">
-                  {formatCareMoney(invoice.price, lang)}
+                  {invoice.price_original != null && invoice.price_original > invoice.price ? (
+                    <span className="block space-y-0.5">
+                      <span className="block text-xs text-muted-foreground line-through">
+                        {formatCareMoney(invoice.price_original, lang)}
+                      </span>
+                      <span className="block font-bold text-emerald-700 dark:text-emerald-400">
+                        {formatCareMoney(invoice.price, lang)}
+                      </span>
+                    </span>
+                  ) : (
+                    formatCareMoney(invoice.price, lang)
+                  )}
                 </td>
               </tr>
               <tr className="border-t">

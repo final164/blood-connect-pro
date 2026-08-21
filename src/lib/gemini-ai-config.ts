@@ -11,6 +11,12 @@ export type GeminiAiFeatures = {
   follow_up_questions: boolean;
   bundle_offer: boolean;
   match_fallback: boolean;
+  /** Suggest which Care specialty / specialist to see */
+  specialty_suggestions: boolean;
+  /** Structured expert-style symptom analysis (urgency, red flags, systems) */
+  expert_analysis: boolean;
+  /** Home / primary first-aid steps behind a UI button */
+  first_aid: boolean;
 };
 
 export type GeminiUiCopy = {
@@ -30,6 +36,16 @@ export type GeminiUiCopy = {
   suggestions_heading_en: string;
   bundle_cta_bn: string;
   bundle_cta_en: string;
+  specialty_heading_bn: string;
+  specialty_heading_en: string;
+  expert_heading_bn: string;
+  expert_heading_en: string;
+  specialty_cta_bn: string;
+  specialty_cta_en: string;
+  first_aid_heading_bn: string;
+  first_aid_heading_en: string;
+  first_aid_button_bn: string;
+  first_aid_button_en: string;
 };
 
 export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
@@ -39,17 +55,20 @@ export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
   follow_up_questions: true,
   bundle_offer: true,
   match_fallback: false,
+  specialty_suggestions: true,
+  expert_analysis: true,
+  first_aid: true,
 };
 
 export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
   welcome_bn:
-    "আপনার লক্ষণ বা সমস্যা লিখুন। আমি সাধারণ স্বাস্থ্য তথ্য, ক্যাটালগ-ভিত্তিক টেস্ট ব্যাখ্যা এবং বুকিং সাজেশন দেব। চিকিৎসকের বিকল্প নয় — জরুরি হলে হাসপাতালে যান।",
+    "আপনার লক্ষণ বা সমস্যা লিখুন। আমি বিশ্লেষণ করে সম্ভাব্য বিশেষজ্ঞ, সাধারণ স্বাস্থ্য তথ্য এবং ক্যাটালগ-ভিত্তিক টেস্ট সাজেশন দেব। চিকিৎসকের বিকল্প নয় — জরুরি হলে হাসপাতালে যান।",
   welcome_en:
-    "Describe your symptoms or concern. I will share general health information, catalog-based test guidance, and booking suggestions. Not a substitute for a doctor — seek emergency care when needed.",
+    "Describe your symptoms or concern. I will analyze and suggest likely specialists, general health guidance, and catalog-based tests. Not a substitute for a doctor — seek emergency care when needed.",
   disclaimer_bn: "তথ্যমূলক সহায়তা; চিকিৎসকের পরামর্শের বিকল্প নয়।",
   disclaimer_en: "Informational support only — not a substitute for professional medical care.",
-  thinking_bn: "আপনার জন্য তথ্য প্রস্তুত করছি…",
-  thinking_en: "Preparing your guidance…",
+  thinking_bn: "আপনার জন্য expert বিশ্লেষণ প্রস্তুত করছি…",
+  thinking_en: "Preparing expert-level guidance…",
   page_title_bn: "AI স্বাস্থ্য ও টেস্ট সহায়ক",
   page_title_en: "AI health & test assistant",
   medical_heading_bn: "স্বাস্থ্য তথ্য",
@@ -60,6 +79,16 @@ export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
   suggestions_heading_en: "Suggested tests",
   bundle_cta_bn: "এই টেস্টগুলো সবচেয়ে ভালো ও কম টাকায় বুক করব?",
   bundle_cta_en: "Book these tests at the best price together?",
+  specialty_heading_bn: "কোন বিশেষজ্ঞ দেখাবেন",
+  specialty_heading_en: "Which specialist to see",
+  expert_heading_bn: "বিশেষজ্ঞ-পর্যায়ের বিশ্লেষণ",
+  expert_heading_en: "Expert-level analysis",
+  specialty_cta_bn: "ডাক্তার খুঁজুন",
+  specialty_cta_en: "Find doctors",
+  first_aid_heading_bn: "প্রাথমিক চিকিৎসা",
+  first_aid_heading_en: "Primary first aid",
+  first_aid_button_bn: "প্রাথমিক চিকিৎসা",
+  first_aid_button_en: "Primary first aid",
 };
 
 export type GeminiSettingsExtended = GeminiSettings & {
@@ -68,6 +97,9 @@ export type GeminiSettingsExtended = GeminiSettings & {
   follow_up: GeminiFollowUpSettings;
   max_questions: number;
   max_suggestions: number;
+  max_specialties: number;
+  /** Days to keep AI chat in the user's browser (localStorage). No server storage. */
+  chat_persist_days: number;
 };
 
 export type FollowUpKind = "duration" | "yes_no" | "age" | "severity" | "text";
@@ -339,6 +371,9 @@ export function normalizeGeminiFeatures(raw: unknown): GeminiAiFeatures {
     follow_up_questions: pickBool(r, "follow_up_questions", DEFAULT_GEMINI_FEATURES.follow_up_questions),
     bundle_offer: pickBool(r, "bundle_offer", DEFAULT_GEMINI_FEATURES.bundle_offer),
     match_fallback: pickBool(r, "match_fallback", DEFAULT_GEMINI_FEATURES.match_fallback),
+    specialty_suggestions: pickBool(r, "specialty_suggestions", DEFAULT_GEMINI_FEATURES.specialty_suggestions),
+    expert_analysis: pickBool(r, "expert_analysis", DEFAULT_GEMINI_FEATURES.expert_analysis),
+    first_aid: pickBool(r, "first_aid", DEFAULT_GEMINI_FEATURES.first_aid),
   };
 }
 
@@ -363,13 +398,25 @@ export function extendGeminiSettings(base: GeminiSettings, raw: unknown): Gemini
     match_enabled: features.match_fallback,
     max_questions: Math.min(6, Math.max(0, Number(r.max_questions ?? 4))),
     max_suggestions: Math.min(12, Math.max(0, Number(r.max_suggestions ?? 8))),
+    max_specialties: Math.min(6, Math.max(0, Number(r.max_specialties ?? 3))),
+    chat_persist_days: Math.min(90, Math.max(1, Number(r.chat_persist_days ?? 7) || 7)),
   };
 }
+
+export type CareAiUrgency = "routine" | "soon" | "urgent" | "emergency";
 
 export function buildJsonSchema(features: GeminiAiFeatures): string {
   const fields = ['"reply":"string — short friendly summary"'];
   if (features.medical_advice) {
     fields.push('"medical_advice":"string — general wellness guidance, not diagnosis, no prescription"');
+  }
+  if (features.expert_analysis) {
+    fields.push(
+      '"urgency":"routine|soon|urgent|emergency"',
+      '"red_flags":["string"] — warning signs that need prompt care',
+      '"likely_systems":["string"] — body systems / clinical domains involved',
+      '"analysis_summary":"string — expert-style structured reasoning (educational, not diagnosis)"',
+    );
   }
   if (features.catalog_notes) {
     fields.push('"catalog_notes":"string — formatted notes using ONLY catalog tests (names, prep, why relevant)"');
@@ -382,13 +429,28 @@ export function buildJsonSchema(features: GeminiAiFeatures): string {
       '"suggested_tests":[{"catalog_id":"uuid","code":"CODE","reason":"why"},{"catalog_id":"uuid","code":"CODE","reason":"why"}] — prefer 3–6 relevant catalog tests when symptoms are clear',
     );
   }
+  if (features.specialty_suggestions) {
+    fields.push(
+      '"suggested_specialties":[{"specialty_id":"uuid","slug":"slug","reason":"why this specialist"}] — ONLY from SPECIALTIES list',
+    );
+  }
+  if (features.first_aid) {
+    fields.push(
+      '"first_aid":["string"] — 3–7 practical home / primary first-aid steps for this concern (no prescription drugs or doses; include when to seek care)',
+    );
+  }
   if (features.bundle_offer && features.test_suggestions) {
     fields.push('"offer_bundle":boolean');
   }
   return `{${fields.join(",")}}`;
 }
 
-export function buildChatSystemPrompt(settings: GeminiSettingsExtended, lang: "bn" | "en", catalog: string) {
+export function buildChatSystemPrompt(
+  settings: GeminiSettingsExtended,
+  lang: "bn" | "en",
+  catalog: string,
+  specialties = "(none)",
+) {
   const template = lang === "bn" ? settings.prompt_chat_bn : settings.prompt_chat_en;
   const featureLines: string[] = [];
   if (settings.features.medical_advice) {
@@ -399,6 +461,13 @@ export function buildChatSystemPrompt(settings: GeminiSettingsExtended, lang: "b
     );
   } else {
     featureLines.push(lang === "bn" ? "- medical_advice ফিল্ড খালি রাখুন বা omit করুন।" : "- omit medical_advice.");
+  }
+  if (settings.features.expert_analysis) {
+    featureLines.push(
+      lang === "bn"
+        ? "- expert analysis: urgency, red_flags, likely_systems, analysis_summary পূরণ করুন — শিক্ষামূলক reasoning; রোগের নাম দিয়ে নির্ণয় নয়। জীবন-হুমকি লক্ষণে urgency=emergency।"
+        : "- expert analysis: fill urgency, red_flags, likely_systems, analysis_summary — educational reasoning; never name a definitive diagnosis. Life-threatening signs → urgency=emergency.",
+    );
   }
   if (settings.features.catalog_notes) {
     featureLines.push(
@@ -415,6 +484,24 @@ export function buildChatSystemPrompt(settings: GeminiSettingsExtended, lang: "b
     );
   } else {
     featureLines.push(lang === "bn" ? "- suggested_tests: []" : "- suggested_tests: []");
+  }
+  if (settings.features.specialty_suggestions) {
+    featureLines.push(
+      lang === "bn"
+        ? `- suggested_specialties: বাধ্যতামূলক যখন লক্ষণ/সমস্যা আছে। শুধু SPECIALTIES তালিকা থেকে; সর্বোচ্চ ${settings.max_specialties}টি। প্রতিটিতে specialty_id (uuid) + slug + reason। খালি [] দিবেন না যদি লক্ষণ পরিষ্কার হয়।`
+        : `- suggested_specialties: REQUIRED when symptoms/concerns are present. ONLY from SPECIALTIES list; max ${settings.max_specialties}. Each needs specialty_id (uuid) + slug + reason. Do not return [] when symptoms are clear.`,
+    );
+  } else {
+    featureLines.push(lang === "bn" ? "- suggested_specialties: []" : "- suggested_specialties: []");
+  }
+  if (settings.features.first_aid) {
+    featureLines.push(
+      lang === "bn"
+        ? "- first_aid: লক্ষণ/সমস্যা থাকলে ৩–৭টি প্রাথমিক/ঘরোয়া যত্নের ধাপ (বিশ্রাম, পানি, ঠান্ডা সেঁক ইত্যাদি)। ওষুধের নাম/ডোজ দিবেন না। কখন ডাক্তার/হাসপাতালে যেতে হবে এক ধাপে লিখুন।"
+        : "- first_aid: when symptoms/concerns are present, return 3–7 practical home/primary care steps (rest, fluids, cold compress, etc.). Never name prescription drugs or doses. Include one step on when to see a doctor/ER.",
+    );
+  } else {
+    featureLines.push(lang === "bn" ? "- first_aid: [] বা omit।" : "- omit first_aid or return [].");
   }
   if (settings.features.follow_up_questions) {
     featureLines.push(
@@ -433,7 +520,20 @@ export function buildChatSystemPrompt(settings: GeminiSettingsExtended, lang: "b
       ? `\n\nENABLED OUTPUT (JSON only):\n${schema}\n\nFeature rules:\n${featureLines.join("\n")}`
       : `\n\nENABLED OUTPUT (JSON only):\n${schema}\n\nFeature rules:\n${featureLines.join("\n")}`;
 
-  return fillPrompt(template, { catalog, lang }) + addon;
+  let prompt = fillPrompt(template, { catalog, specialties, lang }) + addon;
+
+  // Custom DB prompts often omit {{specialties}} — always inject the live list when enabled.
+  if (settings.features.specialty_suggestions) {
+    const marker = "SPECIALTIES (id|slug|name_bn|name_en)";
+    if (!prompt.includes(marker) || !prompt.includes(specialties.split("\n")[0] ?? "\0")) {
+      prompt +=
+        lang === "bn"
+          ? `\n\n${marker} — suggested_specialties শুধু এখান থেকে (specialty_id + slug বাধ্যতামূলক):\n${specialties}\nলক্ষণ থাকলে অবশ্যই ১–${Math.max(1, settings.max_specialties)}টি বিশেষজ্ঞ দিন।`
+          : `\n\n${marker} — suggested_specialties MUST use only these rows (specialty_id + slug required):\n${specialties}\nWhen symptoms are described, ALWAYS return 1–${Math.max(1, settings.max_specialties)} specialties.`;
+    }
+  }
+
+  return prompt;
 }
 
 export function getPublicAiConfig(settings: GeminiSettingsExtended, lang: "bn" | "en") {
@@ -441,6 +541,7 @@ export function getPublicAiConfig(settings: GeminiSettingsExtended, lang: "bn" |
   return {
     enabled: settings.enabled,
     features: settings.features,
+    chatPersistDays: settings.chat_persist_days,
     followUp: resolveFollowUpForLang(settings.follow_up, lang),
     ui: {
       welcome: lang === "bn" ? ui.welcome_bn : ui.welcome_en,
@@ -451,6 +552,11 @@ export function getPublicAiConfig(settings: GeminiSettingsExtended, lang: "bn" |
       catalogHeading: lang === "bn" ? ui.catalog_heading_bn : ui.catalog_heading_en,
       suggestionsHeading: lang === "bn" ? ui.suggestions_heading_bn : ui.suggestions_heading_en,
       bundleCta: lang === "bn" ? ui.bundle_cta_bn : ui.bundle_cta_en,
+      specialtyHeading: lang === "bn" ? ui.specialty_heading_bn : ui.specialty_heading_en,
+      expertHeading: lang === "bn" ? ui.expert_heading_bn : ui.expert_heading_en,
+      specialtyCta: lang === "bn" ? ui.specialty_cta_bn : ui.specialty_cta_en,
+      firstAidHeading: lang === "bn" ? ui.first_aid_heading_bn : ui.first_aid_heading_en,
+      firstAidButton: lang === "bn" ? ui.first_aid_button_bn : ui.first_aid_button_en,
     },
   };
 }
@@ -464,7 +570,16 @@ export function normalizeGeminiSettingsExtended(raw: unknown): GeminiSettingsExt
 
 /** Persist extended settings to app_settings.gemini_settings JSONB. */
 export function packGeminiSettingsForDb(ext: GeminiSettingsExtended): Record<string, unknown> {
-  const { features, ui, follow_up, max_questions, max_suggestions, ...rest } = ext;
+  const {
+    features,
+    ui,
+    follow_up,
+    max_questions,
+    max_suggestions,
+    max_specialties,
+    chat_persist_days,
+    ...rest
+  } = ext;
   return {
     ...rest,
     match_enabled: features.match_fallback,
@@ -473,5 +588,7 @@ export function packGeminiSettingsForDb(ext: GeminiSettingsExtended): Record<str
     follow_up,
     max_questions,
     max_suggestions,
+    max_specialties,
+    chat_persist_days,
   };
 }

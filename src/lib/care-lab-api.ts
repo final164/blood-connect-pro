@@ -1,11 +1,20 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  clampDiscountPercent,
+  offeringHasDiscount,
+  offeringListPrice,
+  offeringSalePrice,
+} from "@/lib/care-lab-price";
 
 export type CareOffering = {
   id: string;
   org_id: string;
   location_id: string;
   catalog_id: string;
+  /** List / MRP price */
   price: number;
+  /** 0–100; sale = price × (1 − discount/100) */
+  discount_percent: number;
   booking_mode: string;
   default_capacity: number;
   home_collection: boolean;
@@ -23,6 +32,13 @@ export type CareOffering = {
   } | null;
   org?: { id: string; name: string; name_bn: string | null; district_id: string | null } | null;
   location?: { id: string; name: string; name_bn: string | null; upazila: string | null; district_id: string | null } | null;
+};
+
+export {
+  clampDiscountPercent,
+  offeringHasDiscount,
+  offeringListPrice,
+  offeringSalePrice,
 };
 
 export type CareLabCalendar = {
@@ -52,6 +68,8 @@ export type CareLabBooking = {
   invoice_no?: string | null;
   payment_status?: "pending" | "paid" | "waived";
   price: number;
+  price_original?: number | null;
+  discount_percent?: number | null;
   created_at: string;
 };
 
@@ -66,19 +84,28 @@ export async function searchTestOfferings(opts: {
   categoryId?: string;
   catalogIds?: string[];
 }): Promise<CareOffering[]> {
-  let qy = supabase
-    .from("care_test_offerings")
-    .select(
-      `
+  const selectWithDisc = `
+      id, org_id, location_id, catalog_id, price, discount_percent, booking_mode, default_capacity, home_collection, is_active,
+      care_test_catalog ( code, name_bn, name_en, prep_bn, prep_en, fasting_notes_bn, fasting_notes_en, sample_type, category_id ),
+      care_orgs ( id, name, name_bn, district_id, is_verified, is_listed, is_active ),
+      care_locations ( id, name, name_bn, upazila, district_id )
+    `;
+  const selectNoDisc = `
       id, org_id, location_id, catalog_id, price, booking_mode, default_capacity, home_collection, is_active,
       care_test_catalog ( code, name_bn, name_en, prep_bn, prep_en, fasting_notes_bn, fasting_notes_en, sample_type, category_id ),
       care_orgs ( id, name, name_bn, district_id, is_verified, is_listed, is_active ),
       care_locations ( id, name, name_bn, upazila, district_id )
-    `,
-    )
-    .eq("is_active", true);
+    `;
+  let qy = supabase.from("care_test_offerings").select(selectWithDisc).eq("is_active", true);
   if (opts.catalogIds?.length) qy = qy.in("catalog_id", opts.catalogIds);
-  const { data, error } = await qy.limit(opts.catalogIds?.length ? 500 : 120);
+  let { data, error } = await qy.limit(opts.catalogIds?.length ? 500 : 120);
+  if (error && /discount_percent/i.test(error.message)) {
+    let q2 = supabase.from("care_test_offerings").select(selectNoDisc).eq("is_active", true);
+    if (opts.catalogIds?.length) q2 = q2.in("catalog_id", opts.catalogIds);
+    const retry = await q2.limit(opts.catalogIds?.length ? 500 : 120);
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) {
     if (missing(error)) return [];
     throw new Error(error.message);
@@ -111,6 +138,7 @@ export async function searchTestOfferings(opts: {
       location_id: String(row.location_id),
       catalog_id: String(row.catalog_id),
       price: Number(row.price ?? 0),
+      discount_percent: clampDiscountPercent(row.discount_percent),
       booking_mode: String(row.booking_mode ?? "day_quota"),
       default_capacity: Number(row.default_capacity ?? 40),
       home_collection: !!row.home_collection,
@@ -120,6 +148,8 @@ export async function searchTestOfferings(opts: {
       location: loc,
     });
   }
+  // Prefer cheapest sale price for stable UX
+  out.sort((a, b) => offeringSalePrice(a) - offeringSalePrice(b));
   return out;
 }
 
@@ -173,7 +203,7 @@ export async function fetchMyLabBookings(): Promise<(CareLabBooking & { offering
   const { data, error } = await supabase
     .from("care_lab_bookings")
     .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
+      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -194,7 +224,7 @@ export async function fetchLabBooking(id: string) {
   const { data, error } = await supabase
     .from("care_lab_bookings")
     .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at",
+      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -215,11 +245,25 @@ export async function fetchOrgOfferings(orgId: string) {
   const { data, error } = await supabase
     .from("care_test_offerings")
     .select(
-      "id, org_id, location_id, catalog_id, price, booking_mode, default_capacity, home_collection, is_active, care_test_catalog(code, name_bn, name_en), care_locations(name, name_bn)",
+      "id, org_id, location_id, catalog_id, price, discount_percent, booking_mode, default_capacity, home_collection, is_active, care_test_catalog(code, name_bn, name_en), care_locations(name, name_bn)",
     )
     .eq("org_id", orgId)
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Graceful fallback before migration is applied
+    if (/discount_percent/i.test(error.message)) {
+      const retry = await supabase
+        .from("care_test_offerings")
+        .select(
+          "id, org_id, location_id, catalog_id, price, booking_mode, default_capacity, home_collection, is_active, care_test_catalog(code, name_bn, name_en), care_locations(name, name_bn)",
+        )
+        .eq("org_id", orgId)
+        .order("created_at", { ascending: false });
+      if (retry.error) throw new Error(retry.error.message);
+      return (retry.data ?? []).map((r) => ({ ...r, discount_percent: 0 }));
+    }
+    throw new Error(error.message);
+  }
   return data ?? [];
 }
 
@@ -234,12 +278,26 @@ export async function fetchOrgLabBookings(orgId: string, date: string) {
   const { data, error } = await supabase
     .from("care_lab_bookings")
     .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
+      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
     )
     .eq("org_id", orgId)
     .in("calendar_id", ids)
     .order("created_at");
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (/price_original|discount_percent/i.test(error.message)) {
+      const retry = await supabase
+        .from("care_lab_bookings")
+        .select(
+          "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))",
+        )
+        .eq("org_id", orgId)
+        .in("calendar_id", ids)
+        .order("created_at");
+      if (retry.error) throw new Error(retry.error.message);
+      return retry.data ?? [];
+    }
+    throw new Error(error.message);
+  }
   return data ?? [];
 }
 

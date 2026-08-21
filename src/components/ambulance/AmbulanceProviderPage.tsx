@@ -6,6 +6,8 @@ import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchOrgOfferings } from "@/lib/ambulance-api";
 import { fetchAmbulanceServiceTypes } from "@/lib/ambulance-cms";
+import { computeAmbulanceFare } from "@/lib/ambulance-price";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 
 export function AmbulanceProviderPage({ orgId }: { orgId: string }) {
   const { lang } = useI18n();
@@ -44,11 +46,30 @@ export function AmbulanceProviderPage({ orgId }: { orgId: string }) {
         </div>
         {offerings.length > 0 && (
           <ul className="space-y-2">
-            {offerings.map((o) => {
+            {offerings.filter((o) => o.is_active).map((o) => {
               const t = types.find((x) => x.id === o.service_type_id);
+              const sample = computeAmbulanceFare({
+                base_price: o.base_price,
+                per_km_price: o.per_km_price,
+                min_fare: o.min_fare,
+                discount_percent: o.discount_percent,
+                distance_km: 10,
+              });
               return (
-                <li key={o.id} className="rounded-xl border px-3 py-2 text-sm">
-                  {lang === "bn" ? t?.name_bn : t?.name_en} · ৳{o.base_price} + ৳{o.per_km_price}/km
+                <li key={o.id} className="rounded-xl border px-3 py-2.5 text-sm space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold">{lang === "bn" ? t?.name_bn : t?.name_en}</span>
+                    <CareLabPriceDisplay
+                      listPrice={sample.list_fare}
+                      salePrice={sample.sale_fare}
+                      discountPercent={o.discount_percent}
+                      lang={lang}
+                      variant="inline"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground tabular-nums">
+                    ৳{o.base_price} + ৳{o.per_km_price}/km · {lang === "bn" ? "১০ কিমি নমুনা" : "10 km sample"}
+                  </p>
                 </li>
               );
             })}

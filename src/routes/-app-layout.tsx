@@ -44,7 +44,10 @@ export function AppLayout() {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [profileGate, setProfileGate] = useState<"checking" | "incomplete" | "ok">("checking");
   const onOnboarding = location.pathname === "/onboarding";
-  const guestBrowse = isGuestBrowsePath(location.pathname);
+  const guestBrowse = isGuestBrowsePath(
+    location.pathname,
+    location.search as Record<string, unknown>,
+  );
   const isGuest = !session || isAnonymous;
 
   useEffect(() => {

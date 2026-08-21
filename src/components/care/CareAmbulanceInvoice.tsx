@@ -133,9 +133,33 @@ export function CareAmbulanceInvoiceCard({ requestId, canManagePayment = false, 
         <section className="px-4 py-3">
           <table className="w-full text-sm">
             <tbody>
+              {invoice.fare_original != null && invoice.discount_percent != null && invoice.fare_original > fare && (
+                <>
+                  <tr>
+                    <td className="py-1.5 text-muted-foreground">{lang === "bn" ? "লিস্ট ভাড়া" : "List fare"}</td>
+                    <td className="py-1.5 text-right tabular-nums text-muted-foreground line-through">
+                      {formatCareMoney(invoice.fare_original, lang)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 text-muted-foreground">
+                      {lang === "bn" ? "ডিস্কাউন্ট" : "Discount"} (−{invoice.discount_percent}%)
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums text-rose-600">
+                      −{formatCareMoney(invoice.fare_original - fare, lang)}
+                    </td>
+                  </tr>
+                </>
+              )}
+              {invoice.distance_km != null && (
+                <tr>
+                  <td className="py-1.5 text-muted-foreground">{lang === "bn" ? "দূরত্ব" : "Distance"}</td>
+                  <td className="py-1.5 text-right tabular-nums">{invoice.distance_km} km</td>
+                </tr>
+              )}
               <tr className="border-t">
-                <td className="py-3">{lang === "bn" ? "অ্যাম্বুলেন্স ফি" : "Ambulance fee"}</td>
-                <td className="py-3 text-right font-black tabular-nums">{formatCareMoney(fare, lang)}</td>
+                <td className="py-3 font-semibold">{lang === "bn" ? "পরিশোধযোগ্য" : "Amount due"}</td>
+                <td className="py-3 text-right font-black tabular-nums text-emerald-700">{formatCareMoney(fare, lang)}</td>
               </tr>
             </tbody>
           </table>

@@ -171,7 +171,7 @@ export const DEFAULT_FEATURE_GRID_TILES: LandingFeatureTile[] = [
     label_en: "Ambulance",
     href: "/ambulance",
     icon: "ambulance",
-    requires_auth: false,
+    requires_auth: true,
   },
   {
     id: "doctors",
@@ -179,7 +179,7 @@ export const DEFAULT_FEATURE_GRID_TILES: LandingFeatureTile[] = [
     label_en: "Doctors",
     href: "/care?tab=doctors",
     icon: "stethoscope",
-    requires_auth: false,
+    requires_auth: true,
   },
   {
     id: "lab_tests",
@@ -811,13 +811,19 @@ function normalizeFeatureGrid(raw: unknown, d: LandingFeatureGrid): LandingFeatu
         const icon = FEATURE_ICONS.has(t.icon as LandingFeatureIcon)
           ? (t.icon as LandingFeatureIcon)
           : fb.icon;
+        const id = str(t.id, fb.id || `tile_${i}`);
         return {
-          id: str(t.id, fb.id || `tile_${i}`),
+          id,
           label_bn: str(t.label_bn, fb.label_bn),
           label_en: str(t.label_en, fb.label_en),
           href: str(t.href, fb.href),
           icon,
-          requires_auth: t.requires_auth === true || (t.requires_auth !== false && fb.requires_auth),
+          requires_auth:
+            id === "ambulance" ||
+            id === "doctors" ||
+            id === "bookings" ||
+            t.requires_auth === true ||
+            (t.requires_auth !== false && fb.requires_auth),
           more: t.more === true || fb.more === true,
         };
       })

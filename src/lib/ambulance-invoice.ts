@@ -11,6 +11,8 @@ export type AmbulanceInvoice = {
   payment_status: "pending" | "paid" | "waived";
   estimated_fare: number;
   final_fare: number;
+  fare_original: number | null;
+  discount_percent: number | null;
   distance_km: number | null;
   created_at: string;
   patient_name: string | null;
@@ -68,6 +70,8 @@ export async function fetchAmbulanceInvoice(requestId: string): Promise<Ambulanc
   const profile = profileRes.data as { full_name?: string; phone?: string } | null;
 
   const fare = num(req.final_fare ?? req.estimated_fare);
+  const disc = req.discount_percent != null ? Number(req.discount_percent) : null;
+  const original = req.fare_original != null ? num(req.fare_original) : null;
 
   return {
     request_id: req.id,
@@ -78,6 +82,8 @@ export async function fetchAmbulanceInvoice(requestId: string): Promise<Ambulanc
     payment_status: req.payment_status,
     estimated_fare: num(req.estimated_fare),
     final_fare: fare,
+    fare_original: original != null && disc != null && disc > 0 ? original : null,
+    discount_percent: disc != null && disc > 0 ? disc : null,
     distance_km: req.distance_km,
     created_at: req.created_at,
     patient_name: profile?.full_name ?? null,

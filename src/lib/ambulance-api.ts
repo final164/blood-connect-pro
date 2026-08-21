@@ -19,6 +19,8 @@ export type AmbulanceRequest = {
   payment_status: "pending" | "paid" | "waived";
   estimated_fare: number | null;
   final_fare: number | null;
+  fare_original?: number | null;
+  discount_percent?: number | null;
   distance_km: number | null;
   source: string;
   notes: string | null;
@@ -68,6 +70,7 @@ export type AmbulanceOffering = {
   base_price: number;
   per_km_price: number;
   min_fare: number;
+  discount_percent: number;
   home_pickup: boolean;
   is_active: boolean;
 };
@@ -108,6 +111,9 @@ export type CreateAmbulanceRequestPayload = {
 };
 
 const REQUEST_SELECT =
+  "id, org_id, patient_id, guest_name, guest_phone, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, estimated_fare, final_fare, fare_original, discount_percent, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
+
+const REQUEST_SELECT_LEGACY =
   "id, org_id, patient_id, guest_name, guest_phone, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, estimated_fare, final_fare, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
 
 function missing(err: { message?: string; code?: string }) {
@@ -121,42 +127,77 @@ export async function createAmbulanceRequest(payload: CreateAmbulanceRequestPayl
 }
 
 export async function fetchAmbulanceRequest(id: string): Promise<AmbulanceRequest | null> {
-  const { data, error } = await supabase.from("ambulance_requests").select(REQUEST_SELECT).eq("id", id).maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data as AmbulanceRequest) ?? null;
+  const primary = await supabase.from("ambulance_requests").select(REQUEST_SELECT).eq("id", id).maybeSingle();
+  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+    const legacy = await supabase.from("ambulance_requests").select(REQUEST_SELECT_LEGACY).eq("id", id).maybeSingle();
+    if (legacy.error) throw new Error(legacy.error.message);
+    return (legacy.data as AmbulanceRequest) ?? null;
+  }
+  if (primary.error) throw new Error(primary.error.message);
+  return (primary.data as AmbulanceRequest) ?? null;
 }
 
 export async function fetchMyAmbulanceRequests(): Promise<AmbulanceRequest[]> {
-  const { data, error } = await supabase
+  const primary = await supabase
     .from("ambulance_requests")
     .select(REQUEST_SELECT)
     .order("created_at", { ascending: false })
     .limit(50);
-  if (error) {
-    if (missing(error)) return [];
-    throw new Error(error.message);
+  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+    const legacy = await supabase
+      .from("ambulance_requests")
+      .select(REQUEST_SELECT_LEGACY)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (legacy.error) {
+      if (missing(legacy.error)) return [];
+      throw new Error(legacy.error.message);
+    }
+    return (legacy.data ?? []) as AmbulanceRequest[];
   }
-  return (data ?? []) as AmbulanceRequest[];
+  if (primary.error) {
+    if (missing(primary.error)) return [];
+    throw new Error(primary.error.message);
+  }
+  return (primary.data ?? []) as AmbulanceRequest[];
 }
 
 export async function fetchOrgAmbulanceRequests(orgId: string, statusFilter?: string[]): Promise<AmbulanceRequest[]> {
   let q = supabase.from("ambulance_requests").select(REQUEST_SELECT).eq("org_id", orgId).order("created_at", { ascending: false }).limit(100);
   if (statusFilter?.length) q = q.in("status", statusFilter);
-  const { data, error } = await q;
-  if (error) throw new Error(error.message);
-  return (data ?? []) as AmbulanceRequest[];
+  const primary = await q;
+  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+    let q2 = supabase.from("ambulance_requests").select(REQUEST_SELECT_LEGACY).eq("org_id", orgId).order("created_at", { ascending: false }).limit(100);
+    if (statusFilter?.length) q2 = q2.in("status", statusFilter);
+    const legacy = await q2;
+    if (legacy.error) throw new Error(legacy.error.message);
+    return (legacy.data ?? []) as AmbulanceRequest[];
+  }
+  if (primary.error) throw new Error(primary.error.message);
+  return (primary.data ?? []) as AmbulanceRequest[];
 }
 
 export async function fetchOpenAmbulancePool(): Promise<AmbulanceRequest[]> {
-  const { data, error } = await supabase
+  const primary = await supabase
     .from("ambulance_requests")
     .select(REQUEST_SELECT)
     .is("org_id", null)
     .eq("status", "requested")
     .order("created_at", { ascending: false })
     .limit(50);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as AmbulanceRequest[];
+  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+    const legacy = await supabase
+      .from("ambulance_requests")
+      .select(REQUEST_SELECT_LEGACY)
+      .is("org_id", null)
+      .eq("status", "requested")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (legacy.error) throw new Error(legacy.error.message);
+    return (legacy.data ?? []) as AmbulanceRequest[];
+  }
+  if (primary.error) throw new Error(primary.error.message);
+  return (primary.data ?? []) as AmbulanceRequest[];
 }
 
 export async function acceptAmbulanceRequest(requestId: string, orgId: string): Promise<AmbulanceRequest> {
@@ -197,13 +238,62 @@ export async function setAmbulanceRequestStatus(
 }
 
 export async function calculateAmbulanceFare(orgId: string, serviceTypeId: string, distanceKm = 5): Promise<number | null> {
-  const { data, error } = await supabase.rpc("ambulance_calculate_fare", {
+  const breakdown = await fetchAmbulanceFareBreakdown(orgId, serviceTypeId, distanceKm);
+  return breakdown?.sale_fare ?? null;
+}
+
+export async function fetchAmbulanceFareBreakdown(
+  orgId: string,
+  serviceTypeId: string,
+  distanceKm = 5,
+): Promise<import("@/lib/ambulance-price").AmbulanceFareBreakdown | null> {
+  const { data, error } = await supabase.rpc("ambulance_fare_breakdown", {
     _org_id: orgId,
     _service_type_id: serviceTypeId,
     _distance_km: distanceKm,
   } as never);
-  if (error) throw new Error(error.message);
-  return data != null ? Number(data) : null;
+  if (!error && data && typeof data === "object") {
+    const d = data as Record<string, unknown>;
+    return {
+      base_price: Number(d.base_price) || 0,
+      per_km_price: Number(d.per_km_price) || 0,
+      min_fare: Number(d.min_fare) || 0,
+      distance_km: Number(d.distance_km) || distanceKm,
+      discount_percent: Number(d.discount_percent) || 0,
+      list_fare: Number(d.list_fare) || 0,
+      sale_fare: Number(d.sale_fare) || 0,
+      saved: Number(d.saved) || 0,
+    };
+  }
+  const offerings = await fetchOrgOfferings(orgId);
+  const off = offerings.find((o) => o.service_type_id === serviceTypeId && o.is_active);
+  if (!off) {
+    const { data: sale, error: e2 } = await supabase.rpc("ambulance_calculate_fare", {
+      _org_id: orgId,
+      _service_type_id: serviceTypeId,
+      _distance_km: distanceKm,
+    } as never);
+    if (e2 || sale == null) return null;
+    const n = Number(sale);
+    return {
+      base_price: 0,
+      per_km_price: 0,
+      min_fare: 0,
+      distance_km: distanceKm,
+      discount_percent: 0,
+      list_fare: n,
+      sale_fare: n,
+      saved: 0,
+    };
+  }
+  const { computeAmbulanceFare } = await import("@/lib/ambulance-price");
+  return computeAmbulanceFare({
+    base_price: off.base_price,
+    per_km_price: off.per_km_price,
+    min_fare: off.min_fare,
+    discount_percent: off.discount_percent,
+    distance_km: distanceKm,
+  });
 }
 
 export async function setAmbulancePayment(requestId: string, paymentStatus: AmbulanceRequest["payment_status"]) {
@@ -236,12 +326,26 @@ export async function fetchOrgDrivers(orgId: string): Promise<AmbulanceDriver[]>
 }
 
 export async function fetchOrgOfferings(orgId: string): Promise<AmbulanceOffering[]> {
-  const { data, error } = await supabase
+  const primary = await supabase
     .from("ambulance_service_offerings")
-    .select("id, org_id, service_type_id, base_price, per_km_price, min_fare, home_pickup, is_active")
+    .select("id, org_id, service_type_id, base_price, per_km_price, min_fare, discount_percent, home_pickup, is_active")
     .eq("org_id", orgId);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as AmbulanceOffering[];
+  if (primary.error && /discount_percent/i.test(primary.error.message ?? "")) {
+    const legacy = await supabase
+      .from("ambulance_service_offerings")
+      .select("id, org_id, service_type_id, base_price, per_km_price, min_fare, home_pickup, is_active")
+      .eq("org_id", orgId);
+    if (legacy.error) throw new Error(legacy.error.message);
+    return ((legacy.data ?? []) as Omit<AmbulanceOffering, "discount_percent">[]).map((o) => ({
+      ...o,
+      discount_percent: 0,
+    }));
+  }
+  if (primary.error) throw new Error(primary.error.message);
+  return ((primary.data ?? []) as AmbulanceOffering[]).map((o) => ({
+    ...o,
+    discount_percent: Number(o.discount_percent) || 0,
+  }));
 }
 
 export async function fetchOrgCoverage(orgId: string): Promise<AmbulanceCoverageArea[]> {

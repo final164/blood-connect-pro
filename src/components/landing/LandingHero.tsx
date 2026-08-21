@@ -9,6 +9,7 @@ import {
 import { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGrid";
 import { LandingAiHealthPanel } from "@/components/landing/LandingAiHealthPanel";
 import { parseYoutubeId } from "@/lib/youtube";
+import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
 
 const LandingYoutubePlayer = lazy(() =>
   import("@/components/landing/LandingYoutubePlayer").then((m) => ({
@@ -78,6 +79,14 @@ export function LandingHref({
       <Link to={path || "/care/portal"} className={className} style={style}>
         {children}
       </Link>
+    );
+  }
+
+  if (hrefRequiresLogin(h)) {
+    return (
+      <a href={authWithNext(h)} className={className} style={style}>
+        {children}
+      </a>
     );
   }
 

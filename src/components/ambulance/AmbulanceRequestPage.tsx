@@ -7,11 +7,13 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
 import {
-  calculateAmbulanceFare,
   createAmbulanceRequest,
+  fetchAmbulanceFareBreakdown,
   fetchListedAmbulanceProviders,
   type CreateAmbulanceRequestPayload,
 } from "@/lib/ambulance-api";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import type { AmbulanceFareBreakdown } from "@/lib/ambulance-price";
 import { fetchAmbulanceFormFields, fetchAmbulanceServiceTypes } from "@/lib/ambulance-cms";
 import { fetchAmbulanceSettings } from "@/lib/ambulance-settings";
 
@@ -40,7 +42,7 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
   const [notes, setNotes] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
   const [distanceKm, setDistanceKm] = useState("5");
-  const [estimate, setEstimate] = useState<number | null>(null);
+  const [estimate, setEstimate] = useState<AmbulanceFareBreakdown | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
 
   useEffect(() => {
     if (selectedOrg && serviceTypeId) {
-      void calculateAmbulanceFare(selectedOrg, serviceTypeId, Number(distanceKm) || 5).then(setEstimate);
+      void fetchAmbulanceFareBreakdown(selectedOrg, serviceTypeId, Number(distanceKm) || 5).then(setEstimate);
     } else setEstimate(null);
   }, [selectedOrg, serviceTypeId, distanceKm]);
 
@@ -154,7 +156,25 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
         )}
         <input type="number" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder={lang === "bn" ? "দূরত্ব (কিমি)" : "Distance km"} className="w-full rounded-xl border px-3 py-2 text-sm" />
         {estimate != null && (
-          <p className="text-sm font-semibold text-center">{lang === "bn" ? "আনুমানিক ভাড়া" : "Estimated fare"}: ৳{estimate}</p>
+          <div className="rounded-2xl border bg-orange-50/60 border-orange-100 px-4 py-3 text-center space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-orange-800/70">
+              {lang === "bn" ? "আনুমানিক ভাড়া" : "Estimated fare"}
+            </p>
+            <div className="flex justify-center">
+              <CareLabPriceDisplay
+                listPrice={estimate.list_fare}
+                salePrice={estimate.sale_fare}
+                discountPercent={estimate.discount_percent}
+                lang={lang}
+                variant="card"
+              />
+            </div>
+            {estimate.saved > 0 && (
+              <p className="text-[11px] text-emerald-700">
+                {lang === "bn" ? "সাশ্রয়" : "You save"} ৳{estimate.saved}
+              </p>
+            )}
+          </div>
         )}
         <button type="button" disabled={busy} onClick={() => void submit()} className="w-full rounded-xl bg-orange-600 text-white py-3 text-sm font-bold disabled:opacity-60">
           {busy ? (lang === "bn" ? "পাঠানো…" : "Submitting…") : lang === "bn" ? "রিকোয়েস্ট পাঠান" : "Submit request"}

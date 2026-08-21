@@ -14,16 +14,56 @@ export function authWithNext(nextPath: string): string {
   return `/auth?next=${encodeURIComponent(next)}`;
 }
 
+function careHubTab(search?: Record<string, unknown> | null): string {
+  if (!search || typeof search !== "object") return "";
+  const tab = search.tab;
+  return typeof tab === "string" ? tab.trim() : "";
+}
+
+/**
+ * True when this in-app href must be behind phone login
+ * (landing tiles + soft gate), regardless of CMS `requires_auth` flags.
+ */
+export function hrefRequiresLogin(href: string): boolean {
+  const raw = (href || "").trim();
+  if (!raw || raw.startsWith("#") || raw.startsWith("http") || raw.startsWith("tel:") || raw.startsWith("mailto:")) {
+    return false;
+  }
+  const [pathPart, qs = ""] = raw.split("?");
+  const pathname = pathPart || "/";
+  const search: Record<string, unknown> = {};
+  if (qs) {
+    new URLSearchParams(qs).forEach((v, k) => {
+      search[k] = v;
+    });
+  }
+  return !isGuestBrowsePath(pathname, search);
+}
+
 /** Paths guests may browse without a session (soft gate in AppLayout). */
-export function isGuestBrowsePath(pathname: string): boolean {
+export function isGuestBrowsePath(
+  pathname: string,
+  search?: Record<string, unknown> | null,
+): boolean {
+  // Ambulance booking always requires a real account
+  if (pathname === "/ambulance" || pathname.startsWith("/ambulance/")) return false;
+
   if (pathname === "/care" || pathname.startsWith("/care/")) {
     if (pathname.startsWith("/care/portal") || pathname.startsWith("/care/auth")) return false;
     if (pathname.startsWith("/care/serial") || pathname.startsWith("/care/lab-booking")) return false;
     if (pathname.startsWith("/care/desk") || pathname === "/care/lab" || pathname.startsWith("/care/lab/"))
       return false;
+    // Doctor profiles + booking
+    if (pathname.startsWith("/care/doctor")) return false;
+    // Care hub: default tab is doctors; doctors/bookings need login
+    if (pathname === "/care" || pathname === "/care/") {
+      const tab = careHubTab(search);
+      if (!tab || tab === "doctors" || tab === "bookings") return false;
+      return true;
+    }
+    // AI health / individual test pages remain publicly browsable
     return true;
   }
-  if (pathname === "/ambulance" || pathname.startsWith("/ambulance/provider/")) return true;
   return false;
 }
 

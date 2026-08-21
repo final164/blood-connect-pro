@@ -400,7 +400,20 @@ function FeaturesPanel({ lang, canEdit }: { lang: "bn" | "en"; canEdit: boolean 
           {lang === "bn" ? "কমিশন %" : "Commission %"}
           <input type="number" disabled={!canEdit} value={settings.pricing.platform_commission_pct} onChange={(e) => setSettings((s) => ({ ...s, pricing: { ...s.pricing, platform_commission_pct: Number(e.target.value) } }))} className={ainp + " mt-1"} />
         </label>
+        <label className="text-xs">
+          {lang === "bn" ? "মিন ফেয়ার ক্যাপ (০=বন্ধ)" : "Min fare cap (0=off)"}
+          <input type="number" disabled={!canEdit} value={settings.pricing.min_fare_cap} onChange={(e) => setSettings((s) => ({ ...s, pricing: { ...s.pricing, min_fare_cap: Number(e.target.value) } }))} className={ainp + " mt-1"} />
+        </label>
+        <label className="text-xs">
+          {lang === "bn" ? "ম্যাক্স ফেয়ার ক্যাপ (০=বন্ধ)" : "Max fare cap (0=off)"}
+          <input type="number" disabled={!canEdit} value={settings.pricing.max_fare_cap} onChange={(e) => setSettings((s) => ({ ...s, pricing: { ...s.pricing, max_fare_cap: Number(e.target.value) } }))} className={ainp + " mt-1"} />
+        </label>
       </div>
+      <p className="text-[11px] text-slate-500">
+        {lang === "bn"
+          ? "প্রতি-অর্গ ডিস্কাউন্ট % অ্যাম্বুলেন্স ডেস্ক → রেট ও ডিস্কাউন্ট থেকে নিয়ন্ত্রণ করুন। প্ল্যাটফর্ম ক্যাপ সব ভাড়ায় প্রয়োগ হয়।"
+          : "Per-org discount % is controlled on Ambulance desk → Rates & offers. Platform caps apply to all fares."}
+      </p>
       {canEdit && (
         <button type="button" onClick={() => void save()} className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white">
           {lang === "bn" ? "সেভ" : "Save settings"}

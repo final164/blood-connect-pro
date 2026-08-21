@@ -8,6 +8,7 @@ import {
   type CareLabCalendar,
   type CareOffering,
 } from "@/lib/care-lab-api";
+import { offeringSalePrice } from "@/lib/care-lab-price";
 
 export type BundleItem = {
   catalogId: string;
@@ -58,7 +59,7 @@ function cheapestPerCatalog(offerings: CareOffering[]) {
   const map = new Map<string, CareOffering>();
   for (const o of offerings) {
     const prev = map.get(o.catalog_id);
-    if (!prev || o.price < prev.price) map.set(o.catalog_id, o);
+    if (!prev || offeringSalePrice(o) < offeringSalePrice(prev)) map.set(o.catalog_id, o);
   }
   return map;
 }
@@ -81,7 +82,7 @@ export function packCheapestSameClinic(catalogIds: string[], offerings: CareOffe
       const cheap = cheapestPerCatalog(rows.filter((r) => remaining.has(r.catalog_id)));
       const picks = [...cheap.values()];
       if (!picks.length) continue;
-      const sum = picks.reduce((n, p) => n + p.price, 0);
+      const sum = picks.reduce((n, p) => n + offeringSalePrice(p), 0);
       if (
         !best ||
         picks.length > best.picks.length ||

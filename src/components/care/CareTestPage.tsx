@@ -15,6 +15,7 @@ import {
   type CareLabCalendar,
   type CareOffering,
 } from "@/lib/care-lab-api";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 
 function isoDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -108,13 +109,21 @@ export function CareTestPage({ offeringId }: { offeringId: string }) {
               <span className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center">
                 <FlaskConical className="h-5 w-5" />
               </span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="font-bold">{title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[off.catalog?.code, locName(off.org ?? {}, lang), locName(off.location ?? {}, lang), `৳${off.price}`]
+                  {[off.catalog?.code, locName(off.org ?? {}, lang), locName(off.location ?? {}, lang)]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
+                <div className="mt-2">
+                  <CareLabPriceDisplay
+                    listPrice={off.price}
+                    discountPercent={off.discount_percent}
+                    lang={lang}
+                    variant="card"
+                  />
+                </div>
               </div>
             </div>
             {prep && (

@@ -6,6 +6,8 @@ export type CareLabInvoice = {
   reference_code: string;
   invoice_no: string;
   price: number;
+  price_original: number | null;
+  discount_percent: number | null;
   payment_status: "pending" | "paid" | "waived";
   source: string;
   status: string;
@@ -103,6 +105,14 @@ export async function fetchCareLabInvoice(bookingId: string): Promise<CareLabInv
     reference_code: booking.reference_code,
     invoice_no: booking.invoice_no || `BLT-${booking.id.slice(0, 8).toUpperCase()}`,
     price: num(booking.price),
+    price_original:
+      booking.price_original != null && Number(booking.price_original) > Number(booking.price)
+        ? num(booking.price_original)
+        : null,
+    discount_percent:
+      booking.discount_percent != null && Number(booking.discount_percent) > 0
+        ? num(booking.discount_percent)
+        : null,
     payment_status: (booking.payment_status || "pending") as CareLabInvoice["payment_status"],
     source: booking.source,
     status: booking.status,

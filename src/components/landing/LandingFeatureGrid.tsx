@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { LandingFeatureGrid, LandingFeatureIcon, LandingFeatureTile } from "@/lib/landing-settings";
-import { authWithNext } from "@/lib/auth-next";
+import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
 import { useAuth } from "@/lib/auth-context";
 
 const ICON_MAP: Record<LandingFeatureIcon, LucideIcon> = {
@@ -61,7 +61,7 @@ export function useSmartLandingNav() {
       window.location.assign(href);
       return;
     }
-    if (tile.requires_auth && !loggedIn) {
+    if ((tile.requires_auth || hrefRequiresLogin(href)) && !loggedIn) {
       void navigate({ to: "/auth", search: { next: href } as never });
       return;
     }
@@ -167,7 +167,7 @@ export function LandingFeatureGridGuest({
       return;
     }
     const href = (tile.href || "/").trim() || "/";
-    if (tile.requires_auth) {
+    if (tile.requires_auth || hrefRequiresLogin(href)) {
       window.location.assign(authWithNext(href));
       return;
     }

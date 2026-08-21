@@ -11,6 +11,8 @@ import {
 import { locName } from "@/lib/care-cms";
 import { useAuth } from "@/lib/auth-context";
 import { bookBundlePlan, type BundleBookResult, type BundlePlan } from "@/lib/care-ai-bundle";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { formatCareMoney } from "@/lib/care-invoice";
 
 export function CareAiBundleSheet({
   open,
@@ -100,12 +102,18 @@ export function CareAiBundleSheet({
                           ? item.offering.catalog?.name_bn || item.offering.catalog?.code
                           : item.offering.catalog?.name_en || item.offering.catalog?.code}
                       </span>
-                      <span className="tabular-nums shrink-0">৳{item.offering.price}</span>
+                      <CareLabPriceDisplay
+                        listPrice={item.offering.price}
+                        discountPercent={item.offering.discount_percent}
+                        lang={lang}
+                        variant="inline"
+                        className="shrink-0 justify-end"
+                      />
                     </li>
                   ))}
                 </ul>
                 <p className="text-xs text-right text-muted-foreground tabular-nums">
-                  {lang === "bn" ? "সাবটোটাল" : "Subtotal"} ৳{g.subtotal}
+                  {lang === "bn" ? "সাবটোটাল" : "Subtotal"} {formatCareMoney(g.subtotal, lang)}
                 </p>
               </div>
             ))}
@@ -117,7 +125,7 @@ export function CareAiBundleSheet({
               </p>
             )}
             <p className="text-base font-bold text-right tabular-nums">
-              {lang === "bn" ? "মোট" : "Total"} ৳{plan.total}
+              {lang === "bn" ? "মোট" : "Total"} {formatCareMoney(plan.total, lang)}
             </p>
           </div>
         )}

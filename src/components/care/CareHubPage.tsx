@@ -26,6 +26,7 @@ import {
   type CareDoctorListItem,
 } from "@/lib/care-api";
 import { searchTestOfferings, fetchMyLabBookings, type CareOffering } from "@/lib/care-lab-api";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -40,7 +41,13 @@ const ICONS: Record<string, typeof Stethoscope> = {
   Sparkles,
 };
 
-export function CareHubPage({ initialTab }: { initialTab?: string }) {
+export function CareHubPage({
+  initialTab,
+  initialSpecialtyId,
+}: {
+  initialTab?: string;
+  initialSpecialtyId?: string;
+}) {
   const { lang, t } = useI18n();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -183,18 +190,24 @@ export function CareHubPage({ initialTab }: { initialTab?: string }) {
         ) : tab === "ambulance" ? (
           <AmbulanceTabPanel lang={lang} />
         ) : (
-          <DoctorsPanel lang={lang} />
+          <DoctorsPanel lang={lang} initialSpecialtyId={initialSpecialtyId} />
         )}
       </div>
     </div>
   );
 }
 
-function DoctorsPanel({ lang }: { lang: "bn" | "en" }) {
+function DoctorsPanel({
+  lang,
+  initialSpecialtyId,
+}: {
+  lang: "bn" | "en";
+  initialSpecialtyId?: string;
+}) {
   const [q, setQ] = useState("");
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
-  const [specialtyId, setSpecialtyId] = useState("");
+  const [specialtyId, setSpecialtyId] = useState(initialSpecialtyId || "");
   const [specialties, setSpecialties] = useState<{ id: string; name_bn: string; name_en: string }[]>([]);
   const [rows, setRows] = useState<CareDoctorListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,6 +215,10 @@ function DoctorsPanel({ lang }: { lang: "bn" | "en" }) {
   useEffect(() => {
     void fetchCareSpecialties().then(setSpecialties);
   }, []);
+
+  useEffect(() => {
+    if (initialSpecialtyId) setSpecialtyId(initialSpecialtyId);
+  }, [initialSpecialtyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -416,8 +433,16 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
                     {lang === "bn" ? o.catalog?.name_bn : o.catalog?.name_en}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {[o.catalog?.code, locName(o.org ?? {}, lang), `৳${o.price}`].filter(Boolean).join(" · ")}
+                    {[o.catalog?.code, locName(o.org ?? {}, lang)].filter(Boolean).join(" · ")}
                   </p>
+                  <div className="mt-1.5">
+                    <CareLabPriceDisplay
+                      listPrice={o.price}
+                      discountPercent={o.discount_percent}
+                      lang={lang}
+                      variant="inline"
+                    />
+                  </div>
                 </div>
               </Link>
             </li>

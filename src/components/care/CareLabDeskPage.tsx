@@ -16,6 +16,11 @@ import {
   reserveLabSlot,
   setLabBookingStatus,
 } from "@/lib/care-lab-api";
+import {
+  clampDiscountPercent,
+  offeringSalePrice,
+} from "@/lib/care-lab-price";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { fetchOrgLocations } from "@/lib/care-api";
 import { supabase } from "@/integrations/supabase/client";
 import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
@@ -235,7 +240,19 @@ function TodayPanel({
               ) : null}
               <span className="flex-1 truncate">{lang === "bn" ? cat?.name_bn : cat?.name_en}</span>
               {r.price != null ? (
-                <span className="text-[11px] text-muted-foreground tabular-nums">৳{String(r.price)}</span>
+                <CareLabPriceDisplay
+                  listPrice={
+                    (r as { price_original?: number | null }).price_original != null &&
+                    Number((r as { price_original?: number }).price_original) > Number(r.price)
+                      ? Number((r as { price_original?: number }).price_original)
+                      : Number(r.price)
+                  }
+                  salePrice={Number(r.price)}
+                  discountPercent={(r as { discount_percent?: number | null }).discount_percent}
+                  lang={lang}
+                  variant="inline"
+                  className="text-[11px]"
+                />
               ) : null}
               <span className="text-[11px] text-muted-foreground">{String(r.status)}</span>
               <button
@@ -303,8 +320,13 @@ function OfferingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
   const [catalogId, setCatalogId] = useState("");
   const [locId, setLocId] = useState("");
   const [price, setPrice] = useState("");
+  const [discount, setDiscount] = useState("");
   const [cap, setCap] = useState("40");
   const [mode, setMode] = useState("day_quota");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState("");
+  const [editDisc, setEditDisc] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   async function reload() {
     setRows((await fetchOrgOfferings(orgId)) as Record<string, unknown>[]);
@@ -322,18 +344,32 @@ function OfferingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
+  const previewSale = offeringSalePrice({
+    price: Number(price) || 0,
+    discount_percent: clampDiscountPercent(discount),
+  });
+
   async function add() {
+    const list = Number(price);
+    if (!Number.isFinite(list) || list < 0) {
+      toast.error(lang === "bn" ? "সঠিক দাম দিন" : "Enter a valid price");
+      return;
+    }
+    const disc = clampDiscountPercent(discount);
     const { error } = await supabase.from("care_test_offerings").insert({
       org_id: orgId,
       location_id: locId,
       catalog_id: catalogId,
-      price: Number(price) || 0,
+      price: list,
+      discount_percent: disc,
       booking_mode: mode,
       default_capacity: Number(cap) || 40,
     } as never);
     if (error) toast.error(error.message);
     else {
-      toast.success(lang === "bn" ? "অফার যোগ" : "Offering added");
+      toast.success(lang === "bn" ? "অফার যোগ হয়েছে" : "Offering added");
+      setPrice("");
+      setDiscount("");
       await reload();
     }
   }
@@ -344,45 +380,206 @@ function OfferingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
     else await reload();
   }
 
+  function startEdit(r: Record<string, unknown>) {
+    setEditingId(String(r.id));
+    setEditPrice(String(r.price ?? ""));
+    setEditDisc(String(Number(r.discount_percent ?? 0) || ""));
+  }
+
+  async function saveEdit(id: string) {
+    const list = Number(editPrice);
+    if (!Number.isFinite(list) || list < 0) {
+      toast.error(lang === "bn" ? "সঠিক দাম দিন" : "Enter a valid price");
+      return;
+    }
+    const disc = clampDiscountPercent(editDisc);
+    setSavingId(id);
+    const { error } = await supabase
+      .from("care_test_offerings")
+      .update({ price: list, discount_percent: disc } as never)
+      .eq("id", id);
+    setSavingId(null);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(lang === "bn" ? "দাম ও ছাড় সেভ" : "Price & discount saved");
+      setEditingId(null);
+      await reload();
+    }
+  }
+
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border p-3 grid gap-2 sm:grid-cols-2">
-        <select value={catalogId} onChange={(e) => setCatalogId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
-          {catalog.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.code} · {lang === "bn" ? c.name_bn : c.name_en}
-            </option>
-          ))}
-        </select>
-        <select value={locId} onChange={(e) => setLocId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
-          {locs.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={lang === "bn" ? "দাম" : "Price"} className="rounded-xl border px-3 py-2 text-sm" />
-        <input value={cap} onChange={(e) => setCap(e.target.value)} placeholder="capacity" className="rounded-xl border px-3 py-2 text-sm" />
-        <select value={mode} onChange={(e) => setMode(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
-          <option value="day_quota">{lang === "bn" ? "দৈনিক কোটা" : "Day quota"}</option>
-          <option value="slot">{lang === "bn" ? "সময় স্লট" : "Time slot"}</option>
-        </select>
-        <button type="button" onClick={() => void add()} className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold">
+      <div className="rounded-2xl border bg-card p-3 space-y-2">
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+          {lang === "bn" ? "নতুন টেস্ট অফার" : "New test offering"}
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <select value={catalogId} onChange={(e) => setCatalogId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
+            {catalog.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code} · {lang === "bn" ? c.name_bn : c.name_en}
+              </option>
+            ))}
+          </select>
+          <select value={locId} onChange={(e) => setLocId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
+            {locs.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold text-muted-foreground">
+              {lang === "bn" ? "মূল দাম (MRP) ৳" : "List price (MRP) ৳"}
+            </span>
+            <input
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              inputMode="decimal"
+              placeholder="500"
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold text-muted-foreground">
+              {lang === "bn" ? "ছাড় %" : "Discount %"}
+            </span>
+            <input
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              inputMode="decimal"
+              placeholder="0–100"
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+            />
+          </label>
+          <input value={cap} onChange={(e) => setCap(e.target.value)} placeholder="capacity" className="rounded-xl border px-3 py-2 text-sm" />
+          <select value={mode} onChange={(e) => setMode(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
+            <option value="day_quota">{lang === "bn" ? "দৈনিক কোটা" : "Day quota"}</option>
+            <option value="slot">{lang === "bn" ? "সময় স্লট" : "Time slot"}</option>
+          </select>
+        </div>
+        {(Number(price) > 0 || clampDiscountPercent(discount) > 0) && (
+          <div className="rounded-xl border border-dashed bg-muted/30 px-3 py-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {lang === "bn" ? "রোগী দেখবে" : "Patient sees"}
+            </span>
+            <CareLabPriceDisplay
+              listPrice={Number(price) || 0}
+              salePrice={previewSale}
+              discountPercent={clampDiscountPercent(discount)}
+              lang={lang}
+              variant="inline"
+            />
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => void add()}
+          className="w-full sm:w-auto rounded-xl bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold"
+        >
           {lang === "bn" ? "অফার যোগ" : "Add offering"}
         </button>
       </div>
+
       <ul className="space-y-2">
         {rows.map((r) => {
           const cat = r.care_test_catalog as { name_bn?: string; name_en?: string; code?: string } | null;
+          const list = Number(r.price ?? 0);
+          const disc = clampDiscountPercent(r.discount_percent);
+          const isEditing = editingId === String(r.id);
           return (
-            <li key={String(r.id)} className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2">
-              <FlaskConical className="h-4 w-4 text-primary" />
-              <span className="flex-1">
-                {cat?.code} · {lang === "bn" ? cat?.name_bn : cat?.name_en} · ৳{String(r.price)}
-              </span>
-              <button type="button" className="text-xs font-semibold" onClick={() => void toggle(String(r.id), !!r.is_active)}>
-                {r.is_active ? (lang === "bn" ? "বন্ধ" : "Off") : lang === "bn" ? "চালু" : "On"}
-              </button>
+            <li key={String(r.id)} className="rounded-xl border px-3 py-2.5 text-sm space-y-2">
+              <div className="flex items-start gap-2">
+                <FlaskConical className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold truncate">
+                    {cat?.code} · {lang === "bn" ? cat?.name_bn : cat?.name_en}
+                  </p>
+                  {!isEditing ? (
+                    <div className="mt-1">
+                      <CareLabPriceDisplay
+                        listPrice={list}
+                        discountPercent={disc}
+                        lang={lang}
+                        variant="inline"
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <label className="block space-y-1">
+                        <span className="text-[10px] font-semibold text-muted-foreground">
+                          {lang === "bn" ? "মূল দাম ৳" : "List ৳"}
+                        </span>
+                        <input
+                          value={editPrice}
+                          onChange={(e) => setEditPrice(e.target.value)}
+                          className="w-full rounded-lg border px-2.5 py-1.5 text-sm"
+                        />
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-[10px] font-semibold text-muted-foreground">
+                          {lang === "bn" ? "ছাড় %" : "Discount %"}
+                        </span>
+                        <input
+                          value={editDisc}
+                          onChange={(e) => setEditDisc(e.target.value)}
+                          className="w-full rounded-lg border px-2.5 py-1.5 text-sm"
+                        />
+                      </label>
+                      <div className="sm:col-span-2">
+                        <CareLabPriceDisplay
+                          listPrice={Number(editPrice) || 0}
+                          discountPercent={clampDiscountPercent(editDisc)}
+                          lang={lang}
+                          variant="inline"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-primary hover:underline"
+                      onClick={() => startEdit(r)}
+                    >
+                      {lang === "bn" ? "দাম/ছাড়" : "Price/%"}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={savingId === String(r.id)}
+                        className="text-[11px] font-semibold text-emerald-700"
+                        onClick={() => void saveEdit(String(r.id))}
+                      >
+                        {savingId === String(r.id)
+                          ? lang === "bn"
+                            ? "সেভ…"
+                            : "Saving…"
+                          : lang === "bn"
+                            ? "সেভ"
+                            : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground"
+                        onClick={() => setEditingId(null)}
+                      >
+                        {lang === "bn" ? "বাতিল" : "Cancel"}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="text-[11px] font-semibold"
+                    onClick={() => void toggle(String(r.id), !!r.is_active)}
+                  >
+                    {r.is_active ? (lang === "bn" ? "বন্ধ" : "Off") : lang === "bn" ? "চালু" : "On"}
+                  </button>
+                </div>
+              </div>
             </li>
           );
         })}

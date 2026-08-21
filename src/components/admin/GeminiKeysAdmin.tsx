@@ -149,8 +149,21 @@ const UI_FIELDS: Record<UiTab, (keyof GeminiUiCopy)[]> = {
     "catalog_heading_en",
     "suggestions_heading_bn",
     "suggestions_heading_en",
+    "specialty_heading_bn",
+    "specialty_heading_en",
+    "expert_heading_bn",
+    "expert_heading_en",
+    "first_aid_heading_bn",
+    "first_aid_heading_en",
   ],
-  cta: ["bundle_cta_bn", "bundle_cta_en"],
+  cta: [
+    "bundle_cta_bn",
+    "bundle_cta_en",
+    "specialty_cta_bn",
+    "specialty_cta_en",
+    "first_aid_button_bn",
+    "first_aid_button_en",
+  ],
 };
 
 const UI_LABELS: Record<keyof GeminiUiCopy, { bn: string; en: string }> = {
@@ -170,6 +183,16 @@ const UI_LABELS: Record<keyof GeminiUiCopy, { bn: string; en: string }> = {
   suggestions_heading_en: { bn: "সাজেশন হেডিং (English)", en: "Suggestions heading (English)" },
   bundle_cta_bn: { bn: "বান্ডেল CTA (বাংলা)", en: "Bundle CTA (Bangla)" },
   bundle_cta_en: { bn: "বান্ডেল CTA (English)", en: "Bundle CTA (English)" },
+  specialty_heading_bn: { bn: "বিশেষজ্ঞ হেডিং (বাংলা)", en: "Specialty heading (Bangla)" },
+  specialty_heading_en: { bn: "বিশেষজ্ঞ হেডিং (English)", en: "Specialty heading (English)" },
+  expert_heading_bn: { bn: "এক্সপার্ট হেডিং (বাংলা)", en: "Expert heading (Bangla)" },
+  expert_heading_en: { bn: "এক্সপার্ট হেডিং (English)", en: "Expert heading (English)" },
+  specialty_cta_bn: { bn: "বিশেষজ্ঞ CTA (বাংলা)", en: "Specialty CTA (Bangla)" },
+  specialty_cta_en: { bn: "বিশেষজ্ঞ CTA (English)", en: "Specialty CTA (English)" },
+  first_aid_heading_bn: { bn: "প্রাথমিক চিকিৎসা হেডিং (বাংলা)", en: "First-aid heading (Bangla)" },
+  first_aid_heading_en: { bn: "প্রাথমিক চিকিৎসা হেডিং (English)", en: "First-aid heading (English)" },
+  first_aid_button_bn: { bn: "প্রাথমিক চিকিৎসা বাটন (বাংলা)", en: "First-aid button (Bangla)" },
+  first_aid_button_en: { bn: "প্রাথমিক চিকিৎসা বাটন (English)", en: "First-aid button (English)" },
 };
 
 function defaultExtended(): GeminiSettingsExtended {
@@ -180,6 +203,8 @@ function defaultExtended(): GeminiSettingsExtended {
     follow_up: { ...DEFAULT_GEMINI_FOLLOWUP },
     max_questions: 4,
     max_suggestions: 8,
+    max_specialties: 3,
+    chat_persist_days: 7,
   };
 }
 
@@ -617,8 +642,35 @@ export function GeminiKeysAdmin() {
                   : "Second call when IDs miss — slower but accurate."
               }
             />
+            <FeatureToggle
+              field="specialty_suggestions"
+              label={lang === "bn" ? "বিশেষজ্ঞ সাজেশন" : "Specialist suggestions"}
+              hint={
+                lang === "bn"
+                  ? "লক্ষণ বিশ্লেষণ করে কোন স্পেশালিটির ডাক্তার দেখাবেন।"
+                  : "Suggest which specialty doctor to see from symptoms."
+              }
+            />
+            <FeatureToggle
+              field="expert_analysis"
+              label={lang === "bn" ? "এক্সপার্ট বিশ্লেষণ" : "Expert analysis"}
+              hint={
+                lang === "bn"
+                  ? "urgency, লাল পতাকা, সম্ভাব্য সিস্টেম — শিক্ষামূলক।"
+                  : "Urgency, red flags, likely systems — educational only."
+              }
+            />
+            <FeatureToggle
+              field="first_aid"
+              label={lang === "bn" ? "প্রাথমিক চিকিৎসা" : "Primary first aid"}
+              hint={
+                lang === "bn"
+                  ? "বাটনে ক্লিক করলে ঘরোয়া/প্রাথমিক যত্নের ধাপ দেখায় (ওষুধ নয়)।"
+                  : "Button expands home/primary care steps (no prescriptions)."
+              }
+            />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 pt-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-2">
             <label className="block space-y-1">
               <span className="text-[11px] font-semibold text-slate-300">
                 {lang === "bn" ? "সর্বোচ্চ প্রশ্ন" : "Max questions"}
@@ -635,7 +687,7 @@ export function GeminiKeysAdmin() {
             </label>
             <label className="block space-y-1">
               <span className="text-[11px] font-semibold text-slate-300">
-                {lang === "bn" ? "সর্বোচ্চ সাজেশন" : "Max suggestions"}
+                {lang === "bn" ? "সর্বোচ্চ টেস্ট" : "Max tests"}
               </span>
               <input
                 type="number"
@@ -646,6 +698,44 @@ export function GeminiKeysAdmin() {
                 onChange={(e) => setSettings((s) => ({ ...s, max_suggestions: Number(e.target.value) || 0 }))}
                 className={ainp}
               />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold text-slate-300">
+                {lang === "bn" ? "সর্বোচ্চ বিশেষজ্ঞ" : "Max specialists"}
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={6}
+                value={settings.max_specialties}
+                disabled={!canEdit}
+                onChange={(e) => setSettings((s) => ({ ...s, max_specialties: Number(e.target.value) || 0 }))}
+                className={ainp}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold text-slate-300">
+                {lang === "bn" ? "চ্যাট সেভ (দিন)" : "Chat keep (days)"}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={settings.chat_persist_days}
+                disabled={!canEdit}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    chat_persist_days: Math.min(90, Math.max(1, Number(e.target.value) || 7)),
+                  }))
+                }
+                className={ainp}
+              />
+              <span className="text-[10px] text-slate-500">
+                {lang === "bn"
+                  ? "শুধু ব্রাউজার localStorage — সার্ভার খরচ নেই (১–৯০)।"
+                  : "Browser localStorage only — no server cost (1–90)."}
+              </span>
             </label>
           </div>
           <SaveBar />
@@ -791,8 +881,8 @@ export function GeminiKeysAdmin() {
         <section className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-3">
           <p className="text-[11px] text-slate-400">
             {lang === "bn"
-              ? "ট্যাব ক্লিক করে প্রম্পট দেখুন/এডিট করুন। {{catalog}} ও {{lang}} প্লেসহোল্ডার। AI ফিচার অনুযায়ী JSON স키মা স্বয়ংক্রিয় যোগ হয়।"
-              : "Click a tab to view/edit each prompt. Placeholders: {{catalog}}, {{lang}}. JSON schema is appended based on enabled features."}
+              ? "ট্যাব ক্লিক করে প্রম্পট দেখুন/এডিট করুন। {{catalog}}, {{specialties}}, {{lang}} প্লেসহোল্ডার। AI ফিচার অনুযায়ী JSON স키মা স্বয়ংক্রিয় যোগ হয়।"
+              : "Click a tab to view/edit each prompt. Placeholders: {{catalog}}, {{specialties}}, {{lang}}. JSON schema is appended based on enabled features."}
           </p>
           <SubNav items={PROMPT_TABS} active={promptTab} onChange={setPromptTab} lang={lang} />
           <textarea

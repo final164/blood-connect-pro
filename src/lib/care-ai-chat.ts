@@ -14,12 +14,30 @@ export type CareAiChatMessage = { role: "user" | "assistant"; text: string };
 
 export type CareAiSuggestedTest = { catalog_id: string; code: string; reason: string };
 
+export type CareAiSuggestedSpecialty = {
+  specialty_id: string;
+  slug: string;
+  name_bn: string;
+  name_en: string;
+  reason: string;
+};
+
+export type CareAiExpertAnalysis = {
+  urgency: "routine" | "soon" | "urgent" | "emergency";
+  red_flags: string[];
+  likely_systems: string[];
+  analysis_summary: string;
+};
+
 export type CareAiChatResult = {
   reply: string;
   medical_advice: string;
   catalog_notes: string;
   questions: string[];
   suggested_tests: CareAiSuggestedTest[];
+  suggested_specialties: CareAiSuggestedSpecialty[];
+  expert_analysis: CareAiExpertAnalysis | null;
+  first_aid: string[];
   offer_bundle: boolean;
 };
 
@@ -29,6 +47,13 @@ type CatalogRow = {
   name_bn: string;
   name_en: string;
   category_id: string | null;
+};
+
+type SpecialtyRow = {
+  id: string;
+  slug: string;
+  name_bn: string;
+  name_en: string;
 };
 
 function parseJsonObject(raw: string): Record<string, unknown> {
@@ -97,6 +122,123 @@ async function loadCatalog(sb: SupabaseClient, limit: number): Promise<CatalogRo
 
 function compactCatalog(catalog: CatalogRow[]) {
   return catalog.map((c) => `${c.id}|${c.code}|${c.name_bn}|${c.name_en}`).join("\n");
+}
+
+function compactSpecialties(rows: SpecialtyRow[]) {
+  if (!rows.length) return "(none)";
+  return rows.map((s) => `${s.id}|${s.slug}|${s.name_bn}|${s.name_en}`).join("\n");
+}
+
+async function loadSpecialties(sb: SupabaseClient): Promise<SpecialtyRow[]> {
+  const { data, error } = await sb
+    .from("care_specialties")
+    .select("id, slug, name_bn, name_en")
+    .eq("is_active", true)
+    .order("sort_order")
+    .limit(80);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as SpecialtyRow[];
+}
+
+async function loadSpecialtiesForAi(sb: SupabaseClient, _isGuest: boolean): Promise<SpecialtyRow[]> {
+  // Prefer service role so RLS never blanks the specialty list used in prompts.
+  try {
+    const { adminClient } = await import("@/lib/gemini-rotate.server");
+    return loadSpecialties(adminClient() as unknown as SupabaseClient);
+  } catch {
+    return loadSpecialties(sb);
+  }
+}
+
+function resolveAgainstSpecialties(
+  raw: unknown,
+  specialties: SpecialtyRow[],
+  max: number,
+): CareAiSuggestedSpecialty[] {
+  const byId = new Map(specialties.map((s) => [s.id, s]));
+  const bySlug = new Map(specialties.map((s) => [s.slug.trim().toLowerCase(), s]));
+  const byName = new Map<string, SpecialtyRow>();
+  for (const s of specialties) {
+    byName.set(s.name_en.trim().toLowerCase(), s);
+    byName.set(s.name_bn.trim().toLowerCase(), s);
+  }
+
+  function fuzzyName(name: string): SpecialtyRow | undefined {
+    const n = name.trim().toLowerCase();
+    if (!n || n.length < 2) return undefined;
+    const exact = byName.get(n);
+    if (exact) return exact;
+    // common aliases
+    const aliases: Record<string, string[]> = {
+      cardiology: ["কার্ডিও", "হার্ট", "হৃদ", "cardio", "heart"],
+      medicine: ["মেডিসিন", "ইন্টারনাল", "general medicine", "মেডিকেল"],
+      gynecology: ["গাইনি", "স্ত্রী", "গর্ভ", "obgyn", "gynae", "gyne"],
+      pediatrics: ["পেডিয়া", "শিশু", "child", "kids"],
+      ent: ["নাক কান গলা", "নাক-কান", "otorhinolaryngology"],
+      orthopedics: ["অর্থো", "হাড়", "joint", "ortho", "হাড়"],
+      dermatology: ["ডার্মা", "চর্ম", "skin", "চুল"],
+      general: ["জেনারেল", "সাধারণ", "gp", "family"],
+    };
+    for (const s of specialties) {
+      const slug = s.slug.trim().toLowerCase();
+      const en = s.name_en.trim().toLowerCase();
+      const bn = s.name_bn.trim().toLowerCase();
+      if (en.includes(n) || n.includes(en) || bn.includes(n) || n.includes(bn) || slug.includes(n) || n.includes(slug)) {
+        return s;
+      }
+      const al = aliases[slug];
+      if (al?.some((a) => n.includes(a) || a.includes(n))) return s;
+    }
+    return undefined;
+  }
+
+  const items = Array.isArray(raw) ? raw : [];
+  const out: CareAiSuggestedSpecialty[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const id = asString(row.specialty_id) || asString(row.id);
+    const slug = asString(row.slug);
+    const name =
+      asString(row.name) ||
+      asString(row.name_en) ||
+      asString(row.name_bn) ||
+      asString(row.specialty) ||
+      asString(row.title);
+    const hit =
+      byId.get(id) ||
+      (slug ? bySlug.get(slug.toLowerCase()) : undefined) ||
+      (name ? byName.get(name.toLowerCase()) : undefined) ||
+      (slug ? fuzzyName(slug) : undefined) ||
+      (name ? fuzzyName(name) : undefined);
+    if (!hit || seen.has(hit.id)) continue;
+    seen.add(hit.id);
+    out.push({
+      specialty_id: hit.id,
+      slug: hit.slug,
+      name_bn: hit.name_bn,
+      name_en: hit.name_en,
+      reason: asString(row.reason).slice(0, 280) || hit.name_en || hit.name_bn,
+    });
+  }
+  return out.slice(0, max);
+}
+
+function parseExpertAnalysis(raw: Record<string, unknown>): CareAiExpertAnalysis | null {
+  const urgencyRaw = asString(raw.urgency).toLowerCase();
+  const urgency =
+    urgencyRaw === "emergency" || urgencyRaw === "urgent" || urgencyRaw === "soon" || urgencyRaw === "routine"
+      ? urgencyRaw
+      : "soon";
+  const red_flags = Array.isArray(raw.red_flags)
+    ? raw.red_flags.map(asString).filter(Boolean).slice(0, 8)
+    : [];
+  const likely_systems = Array.isArray(raw.likely_systems)
+    ? raw.likely_systems.map(asString).filter(Boolean).slice(0, 8)
+    : [];
+  const analysis_summary = asString(raw.analysis_summary).slice(0, 1600);
+  if (!analysis_summary && !red_flags.length && !likely_systems.length && urgencyRaw === "") return null;
+  return { urgency, red_flags, likely_systems, analysis_summary };
 }
 
 function resolveAgainstCatalog(raw: unknown, catalog: CatalogRow[], max: number): CareAiSuggestedTest[] {
@@ -199,16 +341,24 @@ async function matchFuzzy(unresolved: unknown[], catalog: CatalogRow[], prompt: 
   }
 }
 
+type AiAuthContext = {
+  supabase: SupabaseClient;
+  isGuest: boolean;
+};
+
 export const fetchCareAiPublicConfig = createServerFn({ method: "POST" })
   .middleware([optionalSupabaseAuth])
   .validator((data: { lang?: "bn" | "en" }) => ({
     lang: data?.lang === "en" ? ("en" as const) : ("bn" as const),
   }))
-  .handler(async ({ context, data }): Promise<CareAiPublicConfig> => {
+  // Follow-up config includes RegExp; ServerFn JSON typing is overly strict here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .handler(async (opts: any) => {
+    const context = opts.context as AiAuthContext;
     const settings = normalizeGeminiSettingsExtended(
       await fetchSettingsForAi(context.supabase, context.isGuest),
     );
-    return getPublicAiConfig(settings, data.lang);
+    return getPublicAiConfig(settings, opts.data.lang) as CareAiPublicConfig;
   });
 
 export const careAiTestChat = createServerFn({ method: "POST" })
@@ -225,12 +375,25 @@ export const careAiTestChat = createServerFn({ method: "POST" })
     if (!cleaned.length) throw new Error("Message required");
     return { messages: cleaned, lang: data?.lang === "en" ? ("en" as const) : ("bn" as const) };
   })
-  .handler(async ({ context, data }): Promise<CareAiChatResult> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .handler(async (opts: any): Promise<CareAiChatResult> => {
+    const context = opts.context as AiAuthContext;
+    const data = opts.data as { messages: CareAiChatMessage[]; lang: "bn" | "en" };
     const settings = normalizeGeminiSettingsExtended(
       await fetchSettingsForAi(context.supabase, context.isGuest),
     );
     const { features } = settings;
-    const catalog = await loadCatalogForAi(context.supabase, settings.max_catalog_items, context.isGuest);
+    const emptyExtra = {
+      suggested_specialties: [] as CareAiSuggestedSpecialty[],
+      expert_analysis: null as CareAiExpertAnalysis | null,
+      first_aid: [] as string[],
+    };
+    const [catalog, specialties] = await Promise.all([
+      loadCatalogForAi(context.supabase, settings.max_catalog_items, context.isGuest),
+      features.specialty_suggestions
+        ? loadSpecialtiesForAi(context.supabase, context.isGuest)
+        : Promise.resolve([] as SpecialtyRow[]),
+    ]);
     if (!catalog.length) {
       return {
         reply:
@@ -242,11 +405,13 @@ export const careAiTestChat = createServerFn({ method: "POST" })
         questions: [],
         suggested_tests: [],
         offer_bundle: false,
+        ...emptyExtra,
       };
     }
 
     const catalogText = compactCatalog(catalog);
-    const systemText = buildChatSystemPrompt(settings, data.lang, catalogText);
+    const specialtiesText = compactSpecialties(specialties);
+    const systemText = buildChatSystemPrompt(settings, data.lang, catalogText, specialtiesText);
 
     const history = data.messages
       .map((m) => `${m.role === "assistant" ? "ASSISTANT" : "USER"}: ${m.text}`)
@@ -306,6 +471,47 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       }
     }
 
+    let suggested_specialties =
+      features.specialty_suggestions && specialties.length
+        ? resolveAgainstSpecialties(
+            parsed.suggested_specialties ?? parsed.specialists ?? parsed.suggested_doctors,
+            specialties,
+            Math.max(1, settings.max_specialties || 3),
+          )
+        : [];
+
+    // If model skipped IDs but returned clinical content, ensure at least one specialty card
+    const looksClinical =
+      asString(parsed.medical_advice).length > 24 ||
+      asString(parsed.analysis_summary).length > 24 ||
+      (Array.isArray(parsed.suggested_tests) && parsed.suggested_tests.length > 0) ||
+      suggested.length > 0;
+    if (
+      features.specialty_suggestions &&
+      specialties.length &&
+      suggested_specialties.length === 0 &&
+      looksClinical
+    ) {
+      const fallback =
+        specialties.find((s) => s.slug === "medicine") ||
+        specialties.find((s) => s.slug === "general") ||
+        specialties[0];
+      if (fallback) {
+        suggested_specialties = [
+          {
+            specialty_id: fallback.id,
+            slug: fallback.slug,
+            name_bn: fallback.name_bn,
+            name_en: fallback.name_en,
+            reason:
+              data.lang === "bn"
+                ? "লক্ষণ অনুযায়ী প্রথমে এই বিভাগের ডাক্তার দেখানো যায়।"
+                : "A reasonable first specialist based on your symptoms.",
+          },
+        ];
+      }
+    }
+
     const questions =
       features.follow_up_questions && Array.isArray(parsed.questions)
         ? parsed.questions.map(asString).filter(Boolean).slice(0, settings.max_questions)
@@ -317,6 +523,18 @@ export const careAiTestChat = createServerFn({ method: "POST" })
         : "Tell me a bit more about the symptoms so I can suggest catalog tests.");
     const medical_advice = features.medical_advice ? asString(parsed.medical_advice).slice(0, 1200) : "";
     const catalog_notes = features.catalog_notes ? asString(parsed.catalog_notes).slice(0, 1600) : "";
+    const expert_analysis = features.expert_analysis ? parseExpertAnalysis(parsed) : null;
+    const first_aid =
+      features.first_aid && Array.isArray(parsed.first_aid)
+        ? parsed.first_aid.map(asString).filter(Boolean).slice(0, 8).map((s) => s.slice(0, 280))
+        : features.first_aid && typeof parsed.first_aid === "string" && asString(parsed.first_aid)
+          ? asString(parsed.first_aid)
+              .split(/\n+/)
+              .map((s) => s.replace(/^[\s*•\-\d.)]+/, "").trim())
+              .filter(Boolean)
+              .slice(0, 8)
+              .map((s) => s.slice(0, 280))
+          : [];
     const offer_bundle =
       features.bundle_offer && features.test_suggestions && parsed.offer_bundle === true && suggested.length >= 2;
 
@@ -326,6 +544,9 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       catalog_notes,
       questions,
       suggested_tests: suggested,
+      suggested_specialties,
+      expert_analysis,
+      first_aid,
       offer_bundle,
     };
   });

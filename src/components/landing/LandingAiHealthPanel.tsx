@@ -6,17 +6,35 @@ import {
   careAiTestChat,
   fetchCareAiPublicConfig,
   type CareAiChatMessage,
+  type CareAiExpertAnalysis,
   type CareAiPublicConfig,
+  type CareAiSuggestedSpecialty,
   type CareAiSuggestedTest,
 } from "@/lib/care-ai-chat";
+import { CareAiExpertBlock, CareAiFirstAidBlock, CareAiSpecialtyCards } from "@/components/care/CareAiInsightBlocks";
 import { fetchTestCatalog } from "@/lib/care-cms";
 import { searchTestOfferings, type CareOffering } from "@/lib/care-lab-api";
+import { offeringSalePrice } from "@/lib/care-lab-price";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { authWithNext, AI_CHAT_RESUME_PATH, saveAiChatDraft } from "@/lib/auth-next";
 import { supabase } from "@/integrations/supabase/client";
+import { CareAiChatHistoryNav } from "@/components/care/CareAiChatHistoryNav";
+import {
+  deleteCareAiChatThread,
+  listCareAiChatThreads,
+  loadCareAiChat,
+  saveCareAiChat,
+  startCareAiNewChat,
+  switchCareAiChat,
+  type CareAiChatThreadSummary,
+} from "@/lib/care-ai-chat-store";
 
 type Bubble = CareAiChatMessage & {
   medicalAdvice?: string;
   catalogNotes?: string;
+  specialties?: CareAiSuggestedSpecialty[];
+  expertAnalysis?: CareAiExpertAnalysis | null;
+  firstAid?: string[];
   offerBundle?: boolean;
 };
 
@@ -27,6 +45,8 @@ type CatalogCard = {
   nameBn: string;
   nameEn: string;
   cheapest: number | null;
+  listPrice: number | null;
+  discountPercent: number;
   clinicCount: number;
   cheapestOfferingId: string | null;
 };
@@ -43,7 +63,7 @@ function buildCards(
   const catMap = new Map(catalog.map((c) => [c.id, c]));
   return suggestions.map((s) => {
     const rows = offerings.filter((o) => o.catalog_id === s.catalog_id);
-    const cheapest = rows.slice().sort((a, b) => a.price - b.price)[0];
+    const cheapest = rows.slice().sort((a, b) => offeringSalePrice(a) - offeringSalePrice(b))[0];
     const clinics = new Set(rows.map((r) => r.org_id));
     const sample = cheapest?.catalog || catMap.get(s.catalog_id);
     return {
@@ -52,7 +72,9 @@ function buildCards(
       reason: s.reason,
       nameBn: sample?.name_bn || s.code,
       nameEn: sample?.name_en || s.code,
-      cheapest: cheapest ? cheapest.price : null,
+      cheapest: cheapest ? offeringSalePrice(cheapest) : null,
+      listPrice: cheapest ? cheapest.price : null,
+      discountPercent: cheapest?.discount_percent ?? 0,
       clinicCount: clinics.size,
       cheapestOfferingId: cheapest?.id ?? null,
     };
@@ -77,23 +99,94 @@ export function LandingAiHealthPanel({
   const [cards, setCards] = useState<CatalogCard[]>([]);
   const [cart, setCart] = useState<string[]>([]);
   const [offerBundle, setOfferBundle] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadList, setThreadList] = useState<CareAiChatThreadSummary[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const threadIdRef = useRef<string | null>(null);
+  const persistDays = cfg?.chatPersistDays ?? 7;
+
+  const didHydrateRef = useRef(false);
+
+  function refreshThreadList() {
+    setThreadList(listCareAiChatThreads(null, persistDays));
+  }
+
+  function persistChat(nextMessages: Bubble[], nextCards = cards, nextCart = cart) {
+    const id = saveCareAiChat({
+      lang,
+      messages: nextMessages,
+      cards: nextCards,
+      cart: nextCart,
+      threadId: threadIdRef.current,
+      persistDays,
+    });
+    if (id) {
+      threadIdRef.current = id;
+      setThreadId(id);
+    }
+    setThreadList(listCareAiChatThreads(null, persistDays));
+    return id;
+  }
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void fetchCareAiPublicConfig({ data: { lang } })
-      .then((c) => {
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      const uid = data.session?.user?.id ?? null;
+      if (cancelled) return;
+      setUserId(uid);
+      try {
+        const c = (await fetchCareAiPublicConfig({ data: { lang } })) as CareAiPublicConfig;
         if (cancelled) return;
         setCfg(c);
-        setMessages((prev) => (prev.length ? prev : [{ role: "assistant", text: c.ui.welcome }]));
-      })
-      .catch((e) => toast.error((e as Error).message));
+        const days = c.chatPersistDays ?? 7;
+        if (!didHydrateRef.current) {
+          const saved = loadCareAiChat(null, days);
+          if (saved?.messages?.length) {
+            setMessages(saved.messages as Bubble[]);
+            setCards((saved.cards as CatalogCard[]) ?? []);
+            setCart(saved.cart ?? []);
+            threadIdRef.current = saved.threadId ?? null;
+            setThreadId(saved.threadId ?? null);
+          } else {
+            setMessages([{ role: "assistant", text: c.ui.welcome }]);
+            setCards([]);
+            setCart([]);
+            threadIdRef.current = null;
+            setThreadId(null);
+          }
+          didHydrateRef.current = true;
+          setHydrated(true);
+        }
+        setThreadList(listCareAiChatThreads(null, days));
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, [open, lang]);
+
+  useEffect(() => {
+    if (!open || !hydrated || !cfg) return;
+    persistChat(messages, cards, cart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, hydrated, cfg, lang, messages, cards, cart, persistDays]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    if (messages.some((m) => m.role === "user" && m.text.trim())) {
+      persistChat(messages, cards, cart);
+    }
+    setThreadList(listCareAiChatThreads(null, persistDays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen, persistDays]);
 
   useEffect(() => {
     if (open) requestAnimationFrame(() => taRef.current?.focus());
@@ -110,6 +203,58 @@ export function LandingAiHealthPanel({
     el.style.height = `${Math.min(el.scrollHeight, MAX_H)}px`;
   }, [input]);
 
+  function startNewChat() {
+    startCareAiNewChat(null, persistDays);
+    threadIdRef.current = null;
+    setThreadId(null);
+    setMessages([
+      {
+        role: "assistant",
+        text: cfg?.ui.welcome ?? pick(lang, "আপনার লক্ষণ লিখুন।", "Describe your symptoms."),
+      },
+    ]);
+    setCards([]);
+    setCart([]);
+    setOfferBundle(false);
+    setInput("");
+    refreshThreadList();
+  }
+
+  function openThread(id: string) {
+    const snap = switchCareAiChat(null, id, persistDays);
+    if (!snap) return;
+    threadIdRef.current = snap.threadId ?? id;
+    setThreadId(snap.threadId ?? id);
+    setMessages((snap.messages as Bubble[]) ?? []);
+    setCards((snap.cards as CatalogCard[]) ?? []);
+    setCart(snap.cart ?? []);
+    refreshThreadList();
+  }
+
+  function removeThread(id: string) {
+    const next = deleteCareAiChatThread(null, id, persistDays);
+    refreshThreadList();
+    if (id !== threadIdRef.current) return;
+    if (next?.messages?.length) {
+      threadIdRef.current = next.threadId ?? null;
+      setThreadId(next.threadId ?? null);
+      setMessages(next.messages as Bubble[]);
+      setCards((next.cards as CatalogCard[]) ?? []);
+      setCart(next.cart ?? []);
+    } else {
+      threadIdRef.current = null;
+      setThreadId(null);
+      setMessages([
+        {
+          role: "assistant",
+          text: cfg?.ui.welcome ?? pick(lang, "আপনার লক্ষণ লিখুন।", "Describe your symptoms."),
+        },
+      ]);
+      setCards([]);
+      setCart([]);
+    }
+  }
+
   async function send() {
     const t = input.trim();
     if (!t || busy) return;
@@ -124,6 +269,7 @@ export function LandingAiHealthPanel({
     setInput("");
     const next: Bubble[] = [...messages, { role: "user", text: t }];
     setMessages(next);
+    persistChat(next);
     setBusy(true);
     try {
       const res = await careAiTestChat({
@@ -132,16 +278,18 @@ export function LandingAiHealthPanel({
           messages: next.map((m) => ({ role: m.role, text: m.text })),
         },
       });
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: res.reply,
-          medicalAdvice: res.medical_advice,
-          catalogNotes: res.catalog_notes,
-          offerBundle: res.offer_bundle,
-        },
-      ]);
+      const assistant: Bubble = {
+        role: "assistant",
+        text: res.reply,
+        medicalAdvice: res.medical_advice,
+        catalogNotes: res.catalog_notes,
+        specialties: res.suggested_specialties,
+        expertAnalysis: res.expert_analysis,
+        firstAid: res.first_aid,
+        offerBundle: res.offer_bundle,
+      };
+      const withAssistant = [...next, assistant];
+      setMessages(withAssistant);
       setOfferBundle(res.offer_bundle === true);
       if (res.suggested_tests.length && cfg?.features.test_suggestions !== false) {
         const ids = res.suggested_tests.map((s) => s.catalog_id);
@@ -149,11 +297,14 @@ export function LandingAiHealthPanel({
           searchTestOfferings({ catalogIds: ids }),
           fetchTestCatalog(),
         ]);
-        setCards(buildCards(res.suggested_tests, offerings, catalog));
+        const built = buildCards(res.suggested_tests, offerings, catalog);
+        setCards(built);
         setCart([]);
+        persistChat(withAssistant, built, []);
       } else {
         setCards([]);
         setCart([]);
+        persistChat(withAssistant, [], []);
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -218,6 +369,23 @@ export function LandingAiHealthPanel({
               pick(lang, "তথ্যমূলক; চিকিৎসকের পরামর্শ নয়", "Informational only")}
           </p>
         </div>
+        <CareAiChatHistoryNav
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          threads={threadList}
+          lang={lang}
+          onSelect={openThread}
+          onDelete={removeThread}
+          onNewChat={startNewChat}
+          variant="landing"
+        />
+        <button
+          type="button"
+          onClick={startNewChat}
+          className="text-[11px] font-semibold px-2 py-1 rounded-lg hover:bg-black/5 text-black/50"
+        >
+          {pick(lang, "নতুন", "New")}
+        </button>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -247,6 +415,31 @@ export function LandingAiHealthPanel({
                   </p>
                   <p className="text-xs whitespace-pre-wrap leading-relaxed text-black/75">{m.medicalAdvice}</p>
                 </div>
+              ) : null}
+              {cfg?.features.expert_analysis !== false ? (
+                <CareAiExpertBlock
+                  analysis={m.expertAnalysis}
+                  title={cfg?.ui.expertHeading ?? pick(lang, "এক্সপার্ট বিশ্লেষণ", "Expert analysis")}
+                  lang={lang}
+                />
+              ) : null}
+              {cfg?.features.specialty_suggestions !== false ? (
+                <CareAiSpecialtyCards
+                  items={m.specialties}
+                  title={
+                    cfg?.ui.specialtyHeading ?? pick(lang, "কোন বিশেষজ্ঞ দেখাবেন", "Which specialist to see")
+                  }
+                  cta={cfg?.ui.specialtyCta ?? pick(lang, "ডাক্তার খুঁজুন", "Find doctors")}
+                  lang={lang}
+                />
+              ) : null}
+              {cfg?.features.first_aid !== false ? (
+                <CareAiFirstAidBlock
+                  steps={m.firstAid}
+                  buttonLabel={cfg?.ui.firstAidButton ?? pick(lang, "প্রাথমিক চিকিৎসা", "Primary first aid")}
+                  heading={cfg?.ui.firstAidHeading ?? pick(lang, "প্রাথমিক চিকিৎসা", "Primary first aid")}
+                  lang={lang}
+                />
               ) : null}
               {m.catalogNotes?.trim() ? (
                 <div className="mt-2 rounded-xl border border-sky-500/25 bg-sky-500/5 px-2 py-1.5">
@@ -298,7 +491,6 @@ export function LandingAiHealthPanel({
                         <p className="text-[11px] text-black/45">
                           {[
                             c.code,
-                            c.cheapest != null ? `৳${c.cheapest}` : null,
                             c.clinicCount
                               ? `${c.clinicCount} ${lang === "bn" ? "ক্লিনিক" : "clinics"}`
                               : null,
@@ -306,6 +498,17 @@ export function LandingAiHealthPanel({
                             .filter(Boolean)
                             .join(" · ")}
                         </p>
+                        {c.listPrice != null ? (
+                          <div className="mt-1">
+                            <CareLabPriceDisplay
+                              listPrice={c.listPrice}
+                              salePrice={c.cheapest}
+                              discountPercent={c.discountPercent}
+                              lang={lang}
+                              variant="inline"
+                            />
+                          </div>
+                        ) : null}
                         {c.reason ? <p className="text-xs text-black/55 mt-0.5 leading-snug">{c.reason}</p> : null}
                       </div>
                     </div>

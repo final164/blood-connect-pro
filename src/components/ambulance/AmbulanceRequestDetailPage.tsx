@@ -6,6 +6,8 @@ import { useI18n } from "@/lib/i18n";
 import { fetchAmbulanceRequest, fetchRequestEvents, subscribeAmbulanceRequest } from "@/lib/ambulance-api";
 import { fetchAmbulanceRequestStatuses } from "@/lib/ambulance-cms";
 import { CareAmbulanceInvoiceCard } from "@/components/care/CareAmbulanceInvoice";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { formatCareMoney } from "@/lib/care-invoice";
 
 export function AmbulanceRequestDetailPage({ requestId }: { requestId: string }) {
   const { lang } = useI18n();
@@ -48,7 +50,23 @@ export function AmbulanceRequestDetailPage({ requestId }: { requestId: string })
               <p className="text-xs uppercase text-muted-foreground">{lang === "bn" ? "রেফারেন্স" : "Reference"}</p>
               <p className="text-3xl font-black tracking-widest text-orange-700">{row.reference_code}</p>
               <p className="text-sm">{statusLabel(row.status)} · {row.mode}</p>
-              {row.estimated_fare != null && <p className="text-sm tabular-nums">৳{row.final_fare ?? row.estimated_fare}</p>}
+              {(row.final_fare ?? row.estimated_fare) != null && (
+                <div className="flex justify-center pt-1">
+                  {row.fare_original != null && row.discount_percent != null && Number(row.discount_percent) > 0 ? (
+                    <CareLabPriceDisplay
+                      listPrice={Number(row.fare_original)}
+                      salePrice={Number(row.final_fare ?? row.estimated_fare)}
+                      discountPercent={Number(row.discount_percent)}
+                      lang={lang}
+                      variant="card"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCareMoney(Number(row.final_fare ?? row.estimated_fare), lang)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="rounded-2xl border bg-card p-4 space-y-2 text-sm">
               <p><span className="text-muted-foreground">Pickup:</span> {row.pickup_address || "—"}</p>

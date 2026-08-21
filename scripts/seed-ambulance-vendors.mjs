@@ -36,10 +36,10 @@ const VENDORS = [
     description_bn: "ঢাকায় ২৪/৭ জরুরি ও আইসিইউ অ্যাম্বুলেন্স। নিওনেটাল ও ফ্রিজার ভ্যান আছে।",
     featured: true,
     offerings: {
-      basic: { base: 800, perKm: 35, min: 500 },
-      icu: { base: 2500, perKm: 80, min: 2000 },
-      freezer: { base: 1800, perKm: 50, min: 1500 },
-      neonatal: { base: 3200, perKm: 90, min: 2800 },
+      basic: { base: 800, perKm: 35, min: 500, discount: 10 },
+      icu: { base: 2500, perKm: 80, min: 2000, discount: 15 },
+      freezer: { base: 1800, perKm: 50, min: 1500, discount: 12 },
+      neonatal: { base: 3200, perKm: 90, min: 2800, discount: 18 },
     },
     coverage: [
       { district: "Dhaka", upazilas: ["Dhanmondi", "Mirpur", "Gulshan", "Motijheel", "Uttara"], radius: 40 },
@@ -71,9 +71,9 @@ const VENDORS = [
     description_bn: "বন্দর শহরের জরুরি ডিসপ্যাচ ও আইসিইউ। আগ্রাবাদ, পাঁচলাইশ ও হালিশহর কভার।",
     featured: true,
     offerings: {
-      basic: { base: 700, perKm: 30, min: 450 },
-      icu: { base: 2200, perKm: 70, min: 1800 },
-      freezer: { base: 1600, perKm: 45, min: 1300 },
+      basic: { base: 700, perKm: 30, min: 450, discount: 10 },
+      icu: { base: 2200, perKm: 70, min: 1800, discount: 15 },
+      freezer: { base: 1600, perKm: 45, min: 1300, discount: 12 },
     },
     coverage: [
       { district: "Chattogram", upazilas: ["Kotwali", "Panchlaish", "Halishahar", "Double Mooring"], radius: 35 },
@@ -103,8 +103,8 @@ const VENDORS = [
     description_bn: "রাজশাহী শহর ও আশপাশের উপজেলার আঞ্চলিক অ্যাম্বুলেন্স। বেসিক ও আইসিইউ ফ্লিট।",
     featured: false,
     offerings: {
-      basic: { base: 600, perKm: 28, min: 400 },
-      icu: { base: 1800, perKm: 60, min: 1500 },
+      basic: { base: 600, perKm: 28, min: 400, discount: 8 },
+      icu: { base: 1800, perKm: 60, min: 1500, discount: 12 },
     },
     coverage: [
       { district: "Rajshahi", upazilas: ["Boalia", "Rajpara", "Paba", "Puthia"], radius: 45 },
@@ -134,9 +134,9 @@ const VENDORS = [
     description_bn: "পাহাড়ি জেলার জরুরি রান ও ঢাকায় নিওনেটাল ট্রান্সফার। ২৪/৭ ডিসপ্যাচার।",
     featured: true,
     offerings: {
-      basic: { base: 750, perKm: 32, min: 500 },
-      icu: { base: 2400, perKm: 75, min: 2000 },
-      neonatal: { base: 3500, perKm: 95, min: 3000 },
+      basic: { base: 750, perKm: 32, min: 500, discount: 10 },
+      icu: { base: 2400, perKm: 75, min: 2000, discount: 15 },
+      neonatal: { base: 3500, perKm: 95, min: 3000, discount: 18 },
     },
     coverage: [
       { district: "Sylhet", upazilas: ["Sylhet Sadar", "South Surma", "Bishwanath"], radius: 50 },
@@ -166,9 +166,9 @@ const VENDORS = [
     description_bn: "খুলনা মেট্রো ও উপকূলীয় ট্রান্সফার। বেসিক, আইসিইউ ও ফ্রিজার ভ্যান।",
     featured: false,
     offerings: {
-      basic: { base: 650, perKm: 28, min: 400 },
-      icu: { base: 2000, perKm: 65, min: 1600 },
-      freezer: { base: 1500, perKm: 42, min: 1200 },
+      basic: { base: 650, perKm: 28, min: 400, discount: 10 },
+      icu: { base: 2000, perKm: 65, min: 1600, discount: 14 },
+      freezer: { base: 1500, perKm: 42, min: 1200, discount: 12 },
     },
     coverage: [
       { district: "Khulna", upazilas: ["Khulna Sadar", "Khalishpur", "Daulatpur", "Sonadanga"], radius: 40 },
@@ -350,16 +350,21 @@ async function main() {
     for (const [slug, price] of Object.entries(v.offerings)) {
       const typeId = typeBySlug[slug];
       if (!typeId) continue;
+      const disc = Number(price.discount) || 0;
       await must(
-        await sb.from("ambulance_service_offerings").insert({
-          org_id: orgId,
-          service_type_id: typeId,
-          base_price: price.base,
-          per_km_price: price.perKm,
-          min_fare: price.min,
-          home_pickup: true,
-          is_active: true,
-        }),
+        await sb.from("ambulance_service_offerings").upsert(
+          {
+            org_id: orgId,
+            service_type_id: typeId,
+            base_price: price.base,
+            per_km_price: price.perKm,
+            min_fare: price.min,
+            discount_percent: disc,
+            home_pickup: true,
+            is_active: true,
+          },
+          { onConflict: "org_id,service_type_id" },
+        ),
         `offering ${slug}`,
       );
     }
@@ -443,6 +448,83 @@ async function main() {
     console.log(
       `✓ ${v.name}\n    phone ${v.phone}  PIN ${v.pin}\n    ${v.vehicles.length} vehicles · ${v.drivers.length} drivers · ${Object.keys(v.offerings).join(", ")}`,
     );
+
+    // Demo active board for LifeLine Dhaka (first featured vendor)
+    if (v.phone === "01766666666" && typeBySlug.basic) {
+      const demos = [
+        {
+          guest_name: "Fatema Begum",
+          guest_phone: "01911112222",
+          pickup_address: "House 12, Road 27, Dhanmondi",
+          dropoff_address: "Square Hospital, Panthapath",
+          distance_km: 6,
+          service_type_id: typeBySlug.basic,
+          mode: "emergency",
+          status: "requested",
+          patient_condition: "Chest pain — oxygen ready",
+        },
+        {
+          guest_name: "Karim Hossain",
+          guest_phone: "01822223333",
+          pickup_address: "Gulshan 2, Road 55",
+          dropoff_address: "United Hospital",
+          distance_km: 4,
+          service_type_id: typeBySlug.icu || typeBySlug.basic,
+          mode: "emergency",
+          status: "accepted",
+          patient_condition: "ICU transfer",
+        },
+        {
+          guest_name: "Nusrat Jahan",
+          guest_phone: "01733334444",
+          pickup_address: "Mirpur 10 Bus Stand",
+          dropoff_address: "National Heart Foundation",
+          distance_km: 11,
+          service_type_id: typeBySlug.basic,
+          mode: "scheduled",
+          status: "dispatched",
+          patient_condition: "Dialysis appointment",
+        },
+      ];
+
+      for (const d of demos) {
+        let list = null;
+        let sale = null;
+        let disc = 0;
+        const { data: br } = await sb.rpc("ambulance_fare_breakdown", {
+          _org_id: orgId,
+          _service_type_id: d.service_type_id,
+          _distance_km: d.distance_km,
+        });
+        if (br && typeof br === "object") {
+          list = Number(br.list_fare);
+          sale = Number(br.sale_fare);
+          disc = Number(br.discount_percent) || 0;
+        }
+        const { error: reqErr } = await sb.from("ambulance_requests").insert({
+          org_id: orgId,
+          guest_name: d.guest_name,
+          guest_phone: d.guest_phone,
+          mode: d.mode,
+          service_type_id: d.service_type_id,
+          status: d.status,
+          source: "phone",
+          pickup_address: d.pickup_address,
+          dropoff_address: d.dropoff_address,
+          patient_condition: d.patient_condition,
+          distance_km: d.distance_km,
+          estimated_fare: sale,
+          fare_original: disc > 0 ? list : null,
+          discount_percent: disc > 0 ? disc : null,
+          payment_status: "pending",
+          invoice_no: `BLA-DEMO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        });
+        if (reqErr && !/duplicate|already/i.test(reqErr.message)) {
+          console.warn(`  demo request skip: ${reqErr.message}`);
+        }
+      }
+      console.log("    + demo dispatch board (3 sample trips)");
+    }
   }
 
   console.log("\nLogin: /care/auth  →  /care/portal/ambulance\n");

@@ -9,13 +9,18 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import type { District } from "@/lib/api";
 import { fetchTestCatalog } from "@/lib/care-cms";
 import { searchTestOfferings, type CareOffering } from "@/lib/care-lab-api";
+import { offeringSalePrice } from "@/lib/care-lab-price";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import {
   careAiTestChat,
   fetchCareAiPublicConfig,
   type CareAiChatMessage,
+  type CareAiExpertAnalysis,
   type CareAiPublicConfig,
+  type CareAiSuggestedSpecialty,
   type CareAiSuggestedTest,
 } from "@/lib/care-ai-chat";
+import { CareAiExpertBlock, CareAiFirstAidBlock, CareAiSpecialtyCards } from "@/components/care/CareAiInsightBlocks";
 import { loadBundlePlan, type BundlePlan } from "@/lib/care-ai-bundle";
 import { CareAiBundleSheet } from "@/components/care/CareAiBundleSheet";
 import { CareAiFollowUpPanel } from "@/components/care/CareAiFollowUpPanel";
@@ -29,12 +34,25 @@ import {
   type FollowUpQuestion,
 } from "@/lib/care-ai-followup";
 import { AI_CHAT_RESUME_PATH, consumeAiChatDraft, saveAiChatDraft } from "@/lib/auth-next";
+import { CareAiChatHistoryNav } from "@/components/care/CareAiChatHistoryNav";
+import {
+  deleteCareAiChatThread,
+  listCareAiChatThreads,
+  loadCareAiChat,
+  saveCareAiChat,
+  startCareAiNewChat,
+  switchCareAiChat,
+  type CareAiChatThreadSummary,
+} from "@/lib/care-ai-chat-store";
 
 type ChatBubble = CareAiChatMessage & {
   medicalAdvice?: string;
   catalogNotes?: string;
   questions?: string[];
   suggestions?: CareAiSuggestedTest[];
+  specialties?: CareAiSuggestedSpecialty[];
+  expertAnalysis?: CareAiExpertAnalysis | null;
+  firstAid?: string[];
   offerBundle?: boolean;
   /** Text sent to Gemini (may differ from bubble display for follow-ups). */
   apiText?: string;
@@ -50,6 +68,8 @@ type CatalogCard = {
   nameBn: string;
   nameEn: string;
   cheapest: number | null;
+  listPrice: number | null;
+  discountPercent: number;
   clinicCount: number;
   cheapestOfferingId: string | null;
 };
@@ -83,9 +103,10 @@ function AiSection({
 
 export function CareAiTestsPage() {
   const { lang } = useI18n();
-  const { session, isAnonymous } = useAuth();
+  const { session, isAnonymous, user } = useAuth();
   const navigate = useNavigate();
   const isGuest = !session || isAnonymous;
+  const userId = user?.id ?? null;
   const [aiConfig, setAiConfig] = useState<CareAiPublicConfig | null>(null);
   const [messages, setMessages] = useState<ChatBubble[]>([]);
   const [input, setInput] = useState("");
@@ -98,16 +119,78 @@ export function CareAiTestsPage() {
   const [bookBusy, setBookBusy] = useState(false);
   const [activeFollowUp, setActiveFollowUp] = useState<FollowUpQuestion | null>(null);
   const [answeredFollowUps, setAnsweredFollowUps] = useState<Set<string>>(() => new Set());
+  const [hydrated, setHydrated] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadList, setThreadList] = useState<CareAiChatThreadSummary[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastQuestionKeyRef = useRef("");
+  const threadIdRef = useRef<string | null>(null);
+  const didHydrateRef = useRef(false);
+  const persistDays = aiConfig?.chatPersistDays ?? 7;
+
+  function refreshThreadList() {
+    setThreadList(listCareAiChatThreads(null, persistDays));
+  }
+
+  function persistChat(
+    nextMessages: ChatBubble[],
+    nextCards = cards,
+    nextCart = cart,
+    idOverride: string | null = threadIdRef.current,
+  ) {
+    const id = saveCareAiChat({
+      lang,
+      messages: nextMessages,
+      cards: nextCards,
+      cart: nextCart,
+      threadId: idOverride,
+      persistDays,
+    });
+    if (id) {
+      threadIdRef.current = id;
+      setThreadId(id);
+    }
+    setThreadList(listCareAiChatThreads(null, persistDays));
+    return id;
+  }
 
   useEffect(() => {
+    let cancelled = false;
     void fetchCareAiPublicConfig({ data: { lang } })
       .then((cfg) => {
-        setAiConfig(cfg);
-        setMessages([welcomeBubble(cfg.ui.welcome)]);
+        if (cancelled) return;
+        const config = cfg as CareAiPublicConfig;
+        setAiConfig(config);
+        const days = config.chatPersistDays ?? 7;
+
+        // Only restore conversation once per page visit (avoid wipe when auth userId settles).
+        if (!didHydrateRef.current) {
+          const saved = loadCareAiChat(null, days);
+          if (saved?.messages?.length) {
+            setMessages(saved.messages as ChatBubble[]);
+            setCards((saved.cards as CatalogCard[]) ?? []);
+            setCart(saved.cart ?? []);
+            const tid = saved.threadId ?? null;
+            threadIdRef.current = tid;
+            setThreadId(tid);
+          } else {
+            setMessages([welcomeBubble(config.ui.welcome)]);
+            setCards([]);
+            setCart([]);
+            threadIdRef.current = null;
+            setThreadId(null);
+          }
+          didHydrateRef.current = true;
+          setHydrated(true);
+        }
+
+        setThreadList(listCareAiChatThreads(null, days));
       })
       .catch((e) => toast.error((e as Error).message));
+    return () => {
+      cancelled = true;
+    };
   }, [lang]);
 
   useEffect(() => {
@@ -116,8 +199,80 @@ export function CareAiTestsPage() {
   }, []);
 
   useEffect(() => {
+    if (!hydrated || !aiConfig) return;
+    persistChat(messages, cards, cart, threadIdRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist on chat content changes only
+  }, [hydrated, aiConfig, lang, messages, cards, cart, persistDays]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    // Flush current conversation into history before listing.
+    if (messages.some((m) => m.role === "user" && m.text.trim())) {
+      persistChat(messages, cards, cart, threadIdRef.current);
+    }
+    setThreadList(listCareAiChatThreads(null, persistDays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen, persistDays]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, cards.length, activeFollowUp?.text]);
+
+  function startNewChat() {
+    startCareAiNewChat(null, persistDays);
+    threadIdRef.current = null;
+    setThreadId(null);
+    setMessages([
+      welcomeBubble(
+        aiConfig?.ui.welcome ?? (lang === "bn" ? "আপনার লক্ষণ লিখুন।" : "Describe your symptoms."),
+      ),
+    ]);
+    setCards([]);
+    setCart([]);
+    setActiveFollowUp(null);
+    setAnsweredFollowUps(new Set());
+    setInput("");
+    refreshThreadList();
+  }
+
+  function openThread(id: string) {
+    const snap = switchCareAiChat(null, id, persistDays);
+    if (!snap) return;
+    const tid = snap.threadId ?? id;
+    threadIdRef.current = tid;
+    setThreadId(tid);
+    setMessages((snap.messages as ChatBubble[]) ?? []);
+    setCards((snap.cards as CatalogCard[]) ?? []);
+    setCart(snap.cart ?? []);
+    setActiveFollowUp(null);
+    setAnsweredFollowUps(new Set());
+    refreshThreadList();
+  }
+
+  function removeThread(id: string) {
+    const next = deleteCareAiChatThread(null, id, persistDays);
+    refreshThreadList();
+    if (id === threadIdRef.current) {
+      if (next?.messages?.length) {
+        const tid = next.threadId ?? null;
+        threadIdRef.current = tid;
+        setThreadId(tid);
+        setMessages(next.messages as ChatBubble[]);
+        setCards((next.cards as CatalogCard[]) ?? []);
+        setCart(next.cart ?? []);
+      } else {
+        threadIdRef.current = null;
+        setThreadId(null);
+        setMessages([
+          welcomeBubble(
+            aiConfig?.ui.welcome ?? (lang === "bn" ? "আপনার লক্ষণ লিখুন।" : "Describe your symptoms."),
+          ),
+        ]);
+        setCards([]);
+        setCart([]);
+      }
+    }
+  }
 
   const features = aiConfig?.features;
   const ui = aiConfig?.ui;
@@ -163,6 +318,7 @@ export function CareAiTestsPage() {
     };
     const nextMsgs: ChatBubble[] = [...messages, userBubble];
     setMessages(nextMsgs);
+    persistChat(nextMsgs);
     if (opts?.followUp) {
       setAnsweredFollowUps((prev) => new Set(prev).add(opts.followUp!.text));
     }
@@ -181,18 +337,21 @@ export function CareAiTestsPage() {
           messages: nextMsgs.map((m) => ({ role: m.role, text: m.apiText ?? m.text })),
         },
       });
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: res.reply,
-          medicalAdvice: res.medical_advice,
-          catalogNotes: res.catalog_notes,
-          questions: res.questions,
-          suggestions: res.suggested_tests,
-          offerBundle: res.offer_bundle,
-        },
-      ]);
+      const assistantBubble: ChatBubble = {
+        role: "assistant",
+        text: res.reply,
+        medicalAdvice: res.medical_advice,
+        catalogNotes: res.catalog_notes,
+        questions: res.questions,
+        suggestions: res.suggested_tests,
+        specialties: res.suggested_specialties,
+        expertAnalysis: res.expert_analysis,
+        firstAid: res.first_aid,
+        offerBundle: res.offer_bundle,
+      };
+      const withAssistant = [...nextMsgs, assistantBubble];
+      setMessages(withAssistant);
+      persistChat(withAssistant);
       setAnsweredFollowUps(new Set());
       setActiveFollowUp(null);
       if (res.suggested_tests.length) {
@@ -201,7 +360,9 @@ export function CareAiTestsPage() {
           searchTestOfferings({ catalogIds: ids, districtId: district?.id }),
           fetchTestCatalog(),
         ]);
-        setCards(buildCards(res.suggested_tests, offerings, catalog));
+        const built = buildCards(res.suggested_tests, offerings, catalog);
+        setCards(built);
+        persistChat(withAssistant, built, cart);
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -273,6 +434,22 @@ export function CareAiTestsPage() {
               {ui?.disclaimer ?? (lang === "bn" ? "তথ্যমূলক; চিকিৎসকের পরামর্শ নয়" : "Informational only")}
             </p>
           </div>
+          <CareAiChatHistoryNav
+            open={historyOpen}
+            onOpenChange={setHistoryOpen}
+            threads={threadList}
+            lang={lang}
+            onSelect={openThread}
+            onDelete={removeThread}
+            onNewChat={startNewChat}
+          />
+          <button
+            type="button"
+            onClick={startNewChat}
+            className="shrink-0 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted"
+          >
+            {lang === "bn" ? "নতুন চ্যাট" : "New chat"}
+          </button>
         </div>
       </AutoHideHeader>
 
@@ -301,6 +478,36 @@ export function CareAiTestsPage() {
                       title={ui?.medicalHeading ?? (lang === "bn" ? "স্বাস্থ্য তথ্য" : "Health guidance")}
                       body={m.medicalAdvice ?? ""}
                       accent="border-emerald-500/30 bg-emerald-500/5"
+                    />
+                  )}
+                  {features?.expert_analysis !== false && (
+                    <CareAiExpertBlock
+                      analysis={m.expertAnalysis}
+                      title={ui?.expertHeading ?? (lang === "bn" ? "এক্সপার্ট বিশ্লেষণ" : "Expert analysis")}
+                      lang={lang}
+                    />
+                  )}
+                  {features?.specialty_suggestions !== false && (
+                    <CareAiSpecialtyCards
+                      items={m.specialties}
+                      title={
+                        ui?.specialtyHeading ??
+                        (lang === "bn" ? "কোন বিশেষজ্ঞ দেখাবেন" : "Which specialist to see")
+                      }
+                      cta={ui?.specialtyCta ?? (lang === "bn" ? "ডাক্তার খুঁজুন" : "Find doctors")}
+                      lang={lang}
+                    />
+                  )}
+                  {features?.first_aid !== false && (
+                    <CareAiFirstAidBlock
+                      steps={m.firstAid}
+                      buttonLabel={
+                        ui?.firstAidButton ?? (lang === "bn" ? "প্রাথমিক চিকিৎসা" : "Primary first aid")
+                      }
+                      heading={
+                        ui?.firstAidHeading ?? (lang === "bn" ? "প্রাথমিক চিকিৎসা" : "Primary first aid")
+                      }
+                      lang={lang}
                     />
                   )}
                   {features?.catalog_notes !== false && (
@@ -367,10 +574,21 @@ export function CareAiTestsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold truncate">{lang === "bn" ? c.nameBn : c.nameEn}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {[c.code, c.cheapest != null ? `৳${c.cheapest}` : null, c.clinicCount ? `${c.clinicCount} ${lang === "bn" ? "ক্লিনিক" : "clinics"}` : null]
+                          {[c.code, c.clinicCount ? `${c.clinicCount} ${lang === "bn" ? "ক্লিনিক" : "clinics"}` : null]
                             .filter(Boolean)
                             .join(" · ")}
                         </p>
+                        {c.listPrice != null ? (
+                          <div className="mt-1">
+                            <CareLabPriceDisplay
+                              listPrice={c.listPrice}
+                              salePrice={c.cheapest}
+                              discountPercent={c.discountPercent}
+                              lang={lang}
+                              variant="inline"
+                            />
+                          </div>
+                        ) : null}
                         {c.reason && <p className="text-xs text-muted-foreground mt-1">{c.reason}</p>}
                       </div>
                     </div>
@@ -450,7 +668,7 @@ function buildCards(
   const catMap = new Map(catalog.map((c) => [c.id, c]));
   return suggestions.map((s) => {
     const rows = offerings.filter((o) => o.catalog_id === s.catalog_id);
-    const cheapest = rows.slice().sort((a, b) => a.price - b.price)[0];
+    const cheapest = rows.slice().sort((a, b) => offeringSalePrice(a) - offeringSalePrice(b))[0];
     const clinics = new Set(rows.map((r) => r.org_id));
     const sample = cheapest?.catalog || catMap.get(s.catalog_id);
     return {
@@ -459,7 +677,9 @@ function buildCards(
       reason: s.reason,
       nameBn: sample?.name_bn || s.code,
       nameEn: sample?.name_en || s.code,
-      cheapest: cheapest ? cheapest.price : null,
+      cheapest: cheapest ? offeringSalePrice(cheapest) : null,
+      listPrice: cheapest ? cheapest.price : null,
+      discountPercent: cheapest?.discount_percent ?? 0,
       clinicCount: clinics.size,
       cheapestOfferingId: cheapest?.id ?? null,
     };
