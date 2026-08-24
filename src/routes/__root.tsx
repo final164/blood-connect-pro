@@ -101,7 +101,9 @@ function RootComponent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    void import("@/lib/native-app").then((m) => m.initNativeApp());
+    void import("@/lib/native-app")
+      .then((m) => m.initNativeApp())
+      .catch(() => {});
   }, []);
 
   useEffect(() => {

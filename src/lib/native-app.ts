@@ -86,9 +86,13 @@ export async function nativePrefGet(key: string): Promise<string | null> {
       return null;
     }
   }
-  const { Preferences } = await import("@capacitor/preferences");
-  const { value } = await Preferences.get({ key });
-  return value;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key });
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 export async function nativePrefSet(key: string, value: string) {
@@ -100,104 +104,123 @@ export async function nativePrefSet(key: string, value: string) {
     }
     return;
   }
-  const { Preferences } = await import("@capacitor/preferences");
-  await Preferences.set({ key, value });
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key, value });
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
  * Boot native chrome once per session. Call from root (client).
+ * Never throws — splash always hides; bad plugins must not blank the shell.
  */
 export async function initNativeApp(): Promise<void> {
   if (!isNativeApp()) return;
   if ((window as unknown as { __blNativeReady?: boolean }).__blNativeReady) return;
   (window as unknown as { __blNativeReady?: boolean }).__blNativeReady = true;
 
-  const [{ SplashScreen }, { StatusBar, Style }, { App }, { Keyboard }] = await Promise.all([
-    import("@capacitor/splash-screen"),
-    import("@capacitor/status-bar"),
-    import("@capacitor/app"),
-    import("@capacitor/keyboard"),
-  ]);
+  let SplashScreen: Awaited<typeof import("@capacitor/splash-screen")>["SplashScreen"] | null =
+    null;
 
-  try {
-    await StatusBar.setStyle({ style: Style.Dark });
-    await StatusBar.setBackgroundColor({ color: "#c1121f" });
-  } catch {
-    /* webview / older OS */
-  }
-
-  try {
-    await Keyboard.setScroll({ isDisabled: false });
-  } catch {
-    /* iOS/Android differences */
-  }
-
-  // Hide splash after first paint of remote web content
   const hideSplash = () => {
-    void SplashScreen.hide({ fadeOutDuration: 280 });
+    if (!SplashScreen) return;
+    void SplashScreen.hide({ fadeOutDuration: 280 }).catch(() => {});
   };
-  if (document.readyState === "complete") hideSplash();
-  else window.addEventListener("load", hideSplash, { once: true });
-  window.setTimeout(hideSplash, 4000);
-
-  // Android hardware back → history, else minimize
-  App.addListener("backButton", ({ canGoBack }) => {
-    if (canGoBack || window.history.length > 1) {
-      window.history.back();
-    } else {
-      void App.minimizeApp();
-    }
-  });
-
-  App.addListener("appStateChange", ({ isActive }) => {
-    if (isActive) {
-      try {
-        void StatusBar.setBackgroundColor({ color: "#c1121f" });
-      } catch {
-        /* ignore */
-      }
-    }
-  });
-
-  // Deep links: bloodlink://path and https://blood.pgdiary.cloud/...
-  const navigateDeep = (raw: string) => {
-    const path = pathFromAppUrl(raw);
-    if (!path) return;
-    if (path !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-      window.location.assign(path);
-    }
-  };
-
-  App.addListener("appUrlOpen", ({ url }) => navigateDeep(url));
 
   try {
-    const launch = await App.getLaunchUrl();
-    if (launch?.url) navigateDeep(launch.url);
-  } catch {
-    /* no launch url */
-  }
+    const mods = await Promise.all([
+      import("@capacitor/splash-screen"),
+      import("@capacitor/status-bar"),
+      import("@capacitor/app"),
+      import("@capacitor/keyboard"),
+    ]);
+    SplashScreen = mods[0].SplashScreen;
+    const { StatusBar, Style } = mods[1];
+    const { App } = mods[2];
+    const { Keyboard } = mods[3];
 
-  // External http(s) links → in-app browser (Play/App policy friendly)
-  document.addEventListener(
-    "click",
-    (ev) => {
-      const t = ev.target as HTMLElement | null;
-      const a = t?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!a?.href) return;
-      let u: URL;
-      try {
-        u = new URL(a.href, window.location.href);
-      } catch {
+    try {
+      await StatusBar.setStyle({ style: Style.Dark });
+      await StatusBar.setBackgroundColor({ color: "#c1121f" });
+    } catch {
+      /* webview / older OS */
+    }
+
+    try {
+      await Keyboard.setScroll({ isDisabled: false });
+    } catch {
+      /* iOS/Android differences */
+    }
+
+    if (document.readyState === "complete") hideSplash();
+    else window.addEventListener("load", hideSplash, { once: true });
+    window.setTimeout(hideSplash, 2500);
+
+    // Only trust Capacitor WebView canGoBack — history.length is unreliable and
+    // was sending first-launch back into a blank entry (app looked like it closed).
+    let lastBackAt = 0;
+    App.addListener("backButton", ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back();
         return;
       }
-      if (u.protocol !== "http:" && u.protocol !== "https:") return;
-      if (sameAppHost(u)) return;
-      ev.preventDefault();
-      void nativeOpenExternal(u.toString());
-    },
-    true,
-  );
+      const now = Date.now();
+      if (now - lastBackAt < 1800) {
+        void App.minimizeApp();
+        return;
+      }
+      lastBackAt = now;
+    });
 
-  document.documentElement.classList.add("native-capacitor");
-  document.documentElement.dataset.nativePlatform = nativePlatform();
+    App.addListener("appStateChange", ({ isActive }) => {
+      if (!isActive) return;
+      void StatusBar.setBackgroundColor({ color: "#c1121f" }).catch(() => {});
+    });
+
+    const navigateDeep = (raw: string) => {
+      const path = pathFromAppUrl(raw);
+      if (!path) return;
+      const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (path === here || path === "/" || path === "") return;
+      // In-app path change without leaving the Capacitor origin
+      window.location.assign(path);
+    };
+
+    App.addListener("appUrlOpen", ({ url }) => navigateDeep(url));
+
+    try {
+      const launch = await App.getLaunchUrl();
+      if (launch?.url) navigateDeep(launch.url);
+    } catch {
+      /* no launch url */
+    }
+
+    document.addEventListener(
+      "click",
+      (ev) => {
+        const t = ev.target as HTMLElement | null;
+        const a = t?.closest?.("a[href]") as HTMLAnchorElement | null;
+        if (!a?.href) return;
+        let u: URL;
+        try {
+          u = new URL(a.href, window.location.href);
+        } catch {
+          return;
+        }
+        if (u.protocol !== "http:" && u.protocol !== "https:") return;
+        if (sameAppHost(u)) return;
+        ev.preventDefault();
+        void nativeOpenExternal(u.toString());
+      },
+      true,
+    );
+
+    document.documentElement.classList.add("native-capacitor");
+    document.documentElement.dataset.nativePlatform = nativePlatform();
+  } catch {
+    hideSplash();
+    window.setTimeout(hideSplash, 500);
+  }
 }

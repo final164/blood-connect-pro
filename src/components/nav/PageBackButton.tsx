@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ type FallbackTo =
   | { to: string; search?: Record<string, unknown> };
 
 type PageBackButtonProps = {
-  /** Prefer history.back(); if no history, go here (default /home). */
+  /** Prefer router history; if none, go here (default /home). */
   fallbackTo?: FallbackTo;
   /** Force a fixed destination (no history.back). */
   to?: FallbackTo;
@@ -32,7 +32,8 @@ function navigateFallback(
 
 /**
  * Professional app-wide back control.
- * Uses history when possible; otherwise falls back to a safe route.
+ * Uses TanStack history when possible — never trusts window.history.length alone
+ * (Android WebView often reports length>1 on first paint and blanks the app).
  */
 export function PageBackButton({
   fallbackTo = "/home",
@@ -42,6 +43,7 @@ export function PageBackButton({
   size = "md",
 }: PageBackButtonProps) {
   const navigate = useNavigate();
+  const router = useRouter();
   const { lang } = useI18n();
   const dim = size === "sm" ? "h-8 w-8" : "h-9 w-9";
   const icon = size === "sm" ? "h-4 w-4" : "h-5 w-5";
@@ -53,9 +55,13 @@ export function PageBackButton({
       navigateFallback(navigate, to);
       return;
     }
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      window.history.back();
-      return;
+    try {
+      if (router.history.canGoBack()) {
+        router.history.back();
+        return;
+      }
+    } catch {
+      /* fall through */
     }
     navigateFallback(navigate, fallbackTo);
   }
