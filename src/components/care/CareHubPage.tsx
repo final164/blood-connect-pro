@@ -10,6 +10,7 @@ import {
   Microscope,
   Ambulance,
   Sparkles,
+  Building2,
 } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
@@ -26,8 +27,9 @@ import {
   fetchMySerials,
   type CareDoctorListItem,
 } from "@/lib/care-api";
-import { searchTestOfferings, fetchMyLabBookings, type CareOffering } from "@/lib/care-lab-api";
+import { searchTestOfferings, searchLabFacilities, fetchMyLabBookings, type CareOffering, type CareLabFacility } from "@/lib/care-lab-api";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { formatCareMoney } from "@/lib/care-invoice";
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -334,6 +336,8 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
   const [district, setDistrict] = useState<District | null>(null);
   const [categoryId, setCategoryId] = useState("");
   const [cats, setCats] = useState<{ id: string; name_bn: string; name_en: string }[]>([]);
+  const [view, setView] = useState<"labs" | "tests">("labs");
+  const [facilities, setFacilities] = useState<CareLabFacility[]>([]);
   const [rows, setRows] = useState<CareOffering[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -345,16 +349,31 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
     let cancelled = false;
     setLoading(true);
     const t = setTimeout(() => {
-      void searchTestOfferings({
+      const opts = {
         q,
         districtId: district?.id,
         categoryId: categoryId || undefined,
-      })
-        .then((list) => {
-          if (!cancelled) setRows(list);
-        })
+      };
+      const job =
+        view === "labs"
+          ? searchLabFacilities(opts).then((list) => {
+              if (!cancelled) {
+                setFacilities(list);
+                setRows([]);
+              }
+            })
+          : searchTestOfferings(opts).then((list) => {
+              if (!cancelled) {
+                setRows(list);
+                setFacilities([]);
+              }
+            });
+      void job
         .catch(() => {
-          if (!cancelled) setRows([]);
+          if (!cancelled) {
+            setFacilities([]);
+            setRows([]);
+          }
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -364,7 +383,7 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q, district?.id, categoryId]);
+  }, [q, district?.id, categoryId, view]);
 
   return (
     <div className="space-y-3">
@@ -384,12 +403,38 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
           </p>
         </div>
       </Link>
+
+      <div className="grid grid-cols-2 gap-1 rounded-xl border bg-muted/40 p-1">
+        <button
+          type="button"
+          onClick={() => setView("labs")}
+          className={`rounded-lg px-2 py-2 text-xs font-bold ${view === "labs" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+        >
+          {lang === "bn" ? "ক্লিনিক / হাসপাতাল" : "Clinics / labs"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("tests")}
+          className={`rounded-lg px-2 py-2 text-xs font-bold ${view === "tests" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"}`}
+        >
+          {lang === "bn" ? "সব টেস্ট" : "All tests"}
+        </button>
+      </div>
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={lang === "bn" ? "টেস্ট / প্যাকেজ খুঁজুন…" : "Search tests / packages…"}
+          placeholder={
+            view === "labs"
+              ? lang === "bn"
+                ? "ক্লিনিক / হাসপাতাল / ল্যাব খুঁজুন…"
+                : "Search clinic / hospital / lab…"
+              : lang === "bn"
+                ? "টেস্ট / প্যাকেজ খুঁজুন…"
+                : "Search tests / packages…"
+          }
           className="w-full rounded-xl border bg-card pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
@@ -408,7 +453,51 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
           ))}
         </select>
       </div>
-      {loading ? (
+
+      {view === "labs" ? (
+        loading ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="h-20 rounded-2xl border bg-muted/40 animate-pulse" />
+            ))}
+          </div>
+        ) : facilities.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-12">
+            {lang === "bn" ? "ক্লিনিক/ল্যাব যোগ হবে — ভেরিফায়েড তালিকা শীঘ্রই।" : "Verified labs will appear here."}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {facilities.map((f) => {
+              const name = lang === "bn" ? f.name_bn || f.name : f.name;
+              const kind = lang === "bn" ? f.kind_name_bn || f.kind_name_en : f.kind_name_en || f.kind_name_bn;
+              return (
+                <li key={f.id}>
+                  <Link
+                    to="/care/labs/$orgId"
+                    params={{ orgId: f.id }}
+                    className="flex items-start gap-3 rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
+                  >
+                    <span className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                      <Building2 className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate">{name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {[kind, f.upazila].filter(Boolean).join(" · ")}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {lang === "bn"
+                          ? `${f.offering_count}টি টেস্ট · শুরু ${formatCareMoney(f.from_price, lang)}`
+                          : `${f.offering_count} tests · from ${formatCareMoney(f.from_price, lang)}`}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      ) : loading ? (
         <div className="space-y-2">
           {[0, 1].map((i) => (
             <div key={i} className="h-20 rounded-2xl border bg-muted/40 animate-pulse" />
@@ -416,15 +505,15 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
         </div>
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-12">
-          {lang === "bn" ? "ক্লিনিক/ল্যাব যোগ হবে — ভেরিফায়েড তালিকা শীঘ্রই।" : "Verified labs will appear here."}
+          {lang === "bn" ? "কোনো টেস্ট পাওয়া যায়নি" : "No tests found"}
         </p>
       ) : (
         <ul className="space-y-2">
           {rows.map((o) => (
             <li key={o.id}>
               <Link
-                to="/care/test/$id"
-                params={{ id: o.id }}
+                to="/care/labs/$orgId"
+                params={{ orgId: o.org_id }}
                 className="flex items-start gap-3 rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
               >
                 <span className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
@@ -553,27 +642,48 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
       {labs.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-            {lang === "bn" ? "টেস্ট" : "Tests"}
+            {lang === "bn" ? "টেস্ট ইনভয়েস" : "Test invoices"}
           </h2>
           <ul className="space-y-2">
-            {labs.map((b) => (
-              <li key={b.id}>
-                <Link
-                  to="/care/lab-booking/$id"
-                  params={{ id: b.id }}
-                  className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
-                >
-                  <p className="text-sm font-semibold">
-                    {lang === "bn" ? b.offering?.name_bn : b.offering?.name_en} · {b.status}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {b.reference_code}
-                    {b.invoice_no ? ` · ${b.invoice_no}` : ""}
-                    {b.price != null ? ` · ৳${b.price}` : ""}
-                  </p>
-                </Link>
-              </li>
-            ))}
+            {groupLabBookings(labs).map((g) => {
+              const primary = g.items[0];
+              const title =
+                g.items.length > 1
+                  ? lang === "bn"
+                    ? `${g.items.length}টি টেস্ট`
+                    : `${g.items.length} tests`
+                  : lang === "bn"
+                    ? primary.offering?.name_bn || primary.offering?.name_en || "টেস্ট"
+                    : primary.offering?.name_en || primary.offering?.name_bn || "Test";
+              return (
+                <li key={g.key}>
+                  <Link
+                    to="/care/lab-booking/$id"
+                    params={{ id: primary.id }}
+                    className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
+                  >
+                    <p className="text-sm font-semibold">
+                      {title} · {primary.status}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {g.items.length > 1
+                        ? primary.invoice_no || primary.reference_code
+                        : primary.reference_code}
+                      {primary.invoice_no && g.items.length === 1 ? ` · ${primary.invoice_no}` : ""}
+                      {` · ${formatCareMoney(g.total, lang)}`}
+                    </p>
+                    {g.items.length > 1 && (
+                      <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                        {g.items
+                          .map((b) => (lang === "bn" ? b.offering?.name_bn : b.offering?.name_en) || b.reference_code)
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -604,6 +714,21 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
       )}
     </div>
   );
+}
+
+function groupLabBookings(labs: Awaited<ReturnType<typeof fetchMyLabBookings>>) {
+  const map = new Map<string, typeof labs>();
+  for (const b of labs) {
+    const key = b.invoice_group_id || b.invoice_no || b.id;
+    const list = map.get(key) ?? [];
+    list.push(b);
+    map.set(key, list);
+  }
+  return [...map.entries()].map(([key, items]) => ({
+    key,
+    items: items.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at)),
+    total: items.reduce((n, b) => n + Number(b.price ?? 0), 0),
+  }));
 }
 
 function AmbulanceTabPanel({ lang }: { lang: "bn" | "en" }) {

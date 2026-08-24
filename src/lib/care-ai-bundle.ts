@@ -2,6 +2,7 @@ import {
   ensurePatientLabDay,
   fetchLabCalendars,
   remainingSeats,
+  reserveLabBundle,
   reserveLabSlot,
   searchTestOfferings,
   type CareLabBooking,
@@ -133,26 +134,67 @@ async function firstOpenCalendar(offering: CareOffering): Promise<CareLabCalenda
 export async function bookBundlePlan(plan: BundlePlan): Promise<BundleBookResult[]> {
   const results: BundleBookResult[] = [];
   for (const group of plan.groups) {
-    for (const item of group.items) {
-      const name = item.offering.catalog?.name_en || item.offering.catalog?.code || item.catalogId;
-      try {
+    try {
+      const calendarIds: string[] = [];
+      for (const item of group.items) {
         const cal = await firstOpenCalendar(item.offering);
-        const booking = await reserveLabSlot({ calendarId: cal.id, source: "app" });
-        results.push({
-          catalogId: item.catalogId,
-          offeringId: item.offering.id,
-          name,
-          ok: true,
-          booking,
-        });
-      } catch (e) {
-        results.push({
-          catalogId: item.catalogId,
-          offeringId: item.offering.id,
-          name,
-          ok: false,
-          error: (e as Error).message,
-        });
+        calendarIds.push(cal.id);
+      }
+      const bundle = await reserveLabBundle({ calendarIds, source: "app" });
+      const byOffering = new Map(bundle.bookings.map((b) => [b.offering_id, b]));
+      for (let i = 0; i < group.items.length; i++) {
+        const item = group.items[i];
+        const name = item.offering.catalog?.name_en || item.offering.catalog?.code || item.catalogId;
+        const booking = byOffering.get(item.offering.id) ?? bundle.bookings[i];
+        if (booking) {
+          results.push({
+            catalogId: item.catalogId,
+            offeringId: item.offering.id,
+            name,
+            ok: true,
+            booking,
+          });
+        } else {
+          results.push({
+            catalogId: item.catalogId,
+            offeringId: item.offering.id,
+            name,
+            ok: false,
+            error: "Booking missing from bundle response",
+          });
+        }
+      }
+    } catch (e) {
+      // Fallback: reserve one-by-one if bundle RPC unavailable
+      const msg = (e as Error).message;
+      const useFallback = /Multi-test invoice is not enabled|care_reserve_lab_bundle/i.test(msg);
+      if (!useFallback) {
+        for (const item of group.items) {
+          results.push({
+            catalogId: item.catalogId,
+            offeringId: item.offering.id,
+            name: item.offering.catalog?.name_en || item.offering.catalog?.code || item.catalogId,
+            ok: false,
+            error: msg,
+          });
+        }
+        continue;
+      }
+      for (const item of group.items) {
+        const name = item.offering.catalog?.name_en || item.offering.catalog?.code || item.catalogId;
+        try {
+          const cal = await firstOpenCalendar(item.offering);
+          const booking = await reserveLabSlot({ calendarId: cal.id, source: "app" });
+          results.push({ catalogId: item.catalogId, offeringId: item.offering.id, name, ok: true, booking });
+        } catch (err) {
+          results.push({
+            catalogId: item.catalogId,
+            offeringId: item.offering.id,
+            name,
+            ok: false,
+            error: (err as Error).message,
+          });
+        }
       }
     }
   }

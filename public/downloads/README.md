@@ -1,8 +1,14 @@
 ﻿# Android APK for website download
 
-1. Build: `cd android && .\\gradlew.bat assembleDebug`
-2. Copy:
-   `Copy-Item android\\app\\build\\outputs\\apk\\debug\\app-debug.apk public\\downloads\\BloodLink.apk`
-3. Deploy web so `https://blood.pgdiary.cloud/downloads/BloodLink.apk` serves the file.
+APK is **gitignored** (`public/downloads/*.apk`). Nitro only serves files that exist at **build time**.
 
-Optional env: `VITE_ANDROID_APK_URL=https://...` overrides the path.
+## Local / VPS upload
+
+1. Build: `npm run cap:apk` (or `cd android && ./gradlew assembleDebug`)
+2. Copy to:
+   - Local: `public/downloads/BloodLink.apk`
+   - VPS (persistent, survives `git reset`): `/var/www/blood-assets/downloads/BloodLink.apk`
+3. Nginx serves `https://blood.pgdiary.cloud/downloads/BloodLink.apk` from that assets path.
+4. `scripts/vps-redeploy.sh` also copies the assets APK into `public/downloads/` **before** `npm run build` so Node can serve it after rebuild.
+
+Optional: `VITE_ANDROID_APK_URL=https://...` overrides the download URL.

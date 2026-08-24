@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
@@ -126,6 +126,15 @@ export function CareTestPage({ offeringId }: { offeringId: string }) {
                     variant="card"
                   />
                 </div>
+                {off.org_id && (
+                  <Link
+                    to="/care/labs/$orgId"
+                    params={{ orgId: off.org_id }}
+                    className="inline-flex mt-2 text-xs font-semibold text-primary"
+                  >
+                    {lang === "bn" ? "এই ল্যাবের সব টেস্ট দেখুন →" : "See all tests at this lab →"}
+                  </Link>
+                )}
               </div>
             </div>
             {prep && (

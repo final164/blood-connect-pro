@@ -18,8 +18,24 @@ npm install \
   @tailwindcss/oxide-linux-x64-gnu \
   --no-save --no-audit --no-fund
 
+echo "=== Restore Android APK into public (Nitro only serves build-time assets) ==="
+APK_SRC="/var/www/blood-assets/downloads/BloodLink.apk"
+mkdir -p public/downloads
+if [[ -f "$APK_SRC" ]]; then
+  cp -f "$APK_SRC" public/downloads/BloodLink.apk
+  ls -lh public/downloads/BloodLink.apk
+else
+  echo "WARN: $APK_SRC missing — website download will 404 until uploaded"
+fi
+
 echo "=== Build ==="
 npm run build
+
+# Keep nginx alias target in sync after builds that also emit the APK
+if [[ -f .output/public/downloads/BloodLink.apk ]]; then
+  mkdir -p /var/www/blood-assets/downloads
+  cp -f .output/public/downloads/BloodLink.apk /var/www/blood-assets/downloads/BloodLink.apk
+fi
 
 echo "=== Restart ==="
 set -a

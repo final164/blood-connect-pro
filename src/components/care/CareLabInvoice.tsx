@@ -10,6 +10,7 @@ import {
 } from "@/lib/care-invoice";
 import {
   fetchCareLabInvoice,
+  labInvoiceLineName,
   labInvoiceLocationLine,
   labInvoiceOrgName,
   labInvoicePatientName,
@@ -119,7 +120,6 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
   const patient = labInvoicePatientName(invoice, lang);
   const phone = labInvoicePatientPhone(invoice);
   const location = labInvoiceLocationLine(invoice, lang);
-  const prep = lang === "bn" ? invoice.prep_bn || invoice.prep_en : invoice.prep_en || invoice.prep_bn;
   const issued = new Date(invoice.created_at).toLocaleString(lang === "bn" ? "bn-BD" : "en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -221,13 +221,25 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
 
         <div className="serial-box text-center py-5 border-b bg-white">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            {lang === "bn" ? "রেফারেন্স কোড" : "Reference code"}
+            {invoice.line_count > 1
+              ? lang === "bn"
+                ? "ইনভয়েস / বান্ডেল"
+                : "Invoice / bundle"
+              : lang === "bn"
+                ? "রেফারেন্স কোড"
+                : "Reference code"}
           </p>
           <p className="serial-num text-3xl sm:text-4xl font-black tracking-widest text-teal-700 leading-none mt-1">
-            {invoice.reference_code}
+            {invoice.line_count > 1 ? invoice.invoice_no.replace(/^BLT-/, "") : invoice.reference_code}
           </p>
-          {invoice.test_code && (
-            <p className="font-mono text-xs text-muted-foreground mt-2">{invoice.test_code}</p>
+          {invoice.line_count > 1 ? (
+            <p className="text-xs text-muted-foreground mt-2">
+              {lang === "bn" ? `${invoice.line_count}টি টেস্ট · এক ইনভয়েস` : `${invoice.line_count} tests · one invoice`}
+            </p>
+          ) : (
+            invoice.test_code && (
+              <p className="font-mono text-xs text-muted-foreground mt-2">{invoice.test_code}</p>
+            )
           )}
         </div>
 
@@ -262,23 +274,14 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
             {lang === "bn" ? "ল্যাব টেস্ট" : "Lab test"}
           </h2>
           <div className="row flex justify-between text-sm gap-3">
-            <span>{lang === "bn" ? "টেস্ট" : "Test"}</span>
+            <span>{lang === "bn" ? "সারাংশ" : "Summary"}</span>
             <span className="font-semibold text-right">{testName}</span>
           </div>
-          {invoice.sample_type && (
-            <div className="row flex justify-between text-sm">
-              <span>{lang === "bn" ? "নমুনা" : "Sample"}</span>
-              <span>{invoice.sample_type}</span>
-            </div>
-          )}
           {invoice.home_collection && (
             <div className="row flex justify-between text-sm">
               <span>{lang === "bn" ? "হোম কালেকশন" : "Home collection"}</span>
               <span>{lang === "bn" ? "হ্যাঁ" : "Yes"}</span>
             </div>
-          )}
-          {prep && (
-            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">{prep}</p>
           )}
         </section>
 
@@ -291,34 +294,48 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
               </tr>
             </thead>
             <tbody>
+              {invoice.lines.map((line) => (
+                <tr key={line.booking_id} className="border-t align-top">
+                  <td className="py-3 pr-2">
+                    <p className="font-medium leading-snug">{labInvoiceLineName(line, lang)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                      {[line.test_code, line.reference_code, line.test_date].filter(Boolean).join(" · ")}
+                    </p>
+                    {line.discount_percent != null && line.discount_percent > 0 ? (
+                      <span className="inline-block mt-1 text-[10px] font-bold text-rose-600">
+                        −{line.discount_percent}%
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-3 text-right font-medium tabular-nums whitespace-nowrap">
+                    {line.price_original != null && line.price_original > line.price ? (
+                      <span className="block space-y-0.5">
+                        <span className="block text-xs text-muted-foreground line-through">
+                          {formatCareMoney(line.price_original, lang)}
+                        </span>
+                        <span className="block font-bold text-emerald-700 dark:text-emerald-400">
+                          {formatCareMoney(line.price, lang)}
+                        </span>
+                      </span>
+                    ) : (
+                      formatCareMoney(line.price, lang)
+                    )}
+                  </td>
+                </tr>
+              ))}
               <tr className="border-t">
-                <td className="py-3">
-                  {lang === "bn" ? "ডায়াগনস্টিক টেস্ট ফি" : "Diagnostic test fee"}
-                  {invoice.discount_percent != null && invoice.discount_percent > 0 ? (
-                    <span className="ml-2 text-[10px] font-bold text-rose-600">
-                      −{invoice.discount_percent}%
-                    </span>
-                  ) : null}
-                </td>
-                <td className="py-3 text-right font-medium tabular-nums">
+                <td className="py-3 total font-bold">{lang === "bn" ? "মোট" : "Total"}</td>
+                <td className="py-3 text-right total font-black tabular-nums text-base">
                   {invoice.price_original != null && invoice.price_original > invoice.price ? (
                     <span className="block space-y-0.5">
-                      <span className="block text-xs text-muted-foreground line-through">
+                      <span className="block text-xs text-muted-foreground line-through font-semibold">
                         {formatCareMoney(invoice.price_original, lang)}
                       </span>
-                      <span className="block font-bold text-emerald-700 dark:text-emerald-400">
-                        {formatCareMoney(invoice.price, lang)}
-                      </span>
+                      <span>{formatCareMoney(invoice.price, lang)}</span>
                     </span>
                   ) : (
                     formatCareMoney(invoice.price, lang)
                   )}
-                </td>
-              </tr>
-              <tr className="border-t">
-                <td className="py-3 total font-bold">{lang === "bn" ? "মোট" : "Total"}</td>
-                <td className="py-3 text-right total font-black tabular-nums text-base">
-                  {formatCareMoney(invoice.price, lang)}
                 </td>
               </tr>
             </tbody>
@@ -327,8 +344,12 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
 
         <footer className="foot px-4 py-3 sm:px-6 text-[11px] text-muted-foreground leading-relaxed bg-muted/30">
           {lang === "bn"
-            ? "এই ইনভয়েস BloodLink Care-এ টেস্ট বুকিং নিশ্চিত হওয়ার সাথে সাথে তৈরি হয়েছে। ল্যাবে উপস্থিত হয়ে রেফারেন্স কোড দেখান।"
-            : "This invoice was generated when your lab test was booked on BloodLink Care. Present this reference code at the lab."}
+            ? invoice.line_count > 1
+              ? "এই ইনভয়েসে একাধিক টেস্ট একসাথে বুক হয়েছে। ল্যাবে উপস্থিত হয়ে ইনভয়েস নম্বর বা যেকোনো রেফারেন্স কোড দেখান।"
+              : "এই ইনভয়েস BloodLink Care-এ টেস্ট বুকিং নিশ্চিত হওয়ার সাথে সাথে তৈরি হয়েছে। ল্যাবে উপস্থিত হয়ে রেফারেন্স কোড দেখান।"
+            : invoice.line_count > 1
+              ? "Multiple tests were booked on this single invoice. Present the invoice number or any reference code at the lab."
+              : "This invoice was generated when your lab test was booked on BloodLink Care. Present this reference code at the lab."}
         </footer>
       </article>
     </div>
