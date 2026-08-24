@@ -19,6 +19,14 @@ type NotifRecord = {
   data?: { kind?: string; request_id?: string; actor_id?: string } | null;
 };
 
+type SubRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string | null;
+  auth: string | null;
+  platform?: string | null;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: cors });
@@ -37,15 +45,21 @@ Deno.serve(async (req) => {
 
     const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY");
     const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY");
-    if (!vapidPublic || !vapidPrivate) {
-      return json({ error: "VAPID keys not configured" }, 503);
+    const fcmServerKey = Deno.env.get("FCM_SERVER_KEY");
+    const hasWeb = !!(vapidPublic && vapidPrivate);
+    const hasFcm = !!fcmServerKey;
+
+    if (!hasWeb && !hasFcm) {
+      return json({ error: "No push transport configured (VAPID or FCM_SERVER_KEY)" }, 503);
     }
 
-    webpush.setVapidDetails(
-      Deno.env.get("VAPID_SUBJECT") || "mailto:admin@bloodlink.app",
-      vapidPublic,
-      vapidPrivate,
-    );
+    if (hasWeb) {
+      webpush.setVapidDetails(
+        Deno.env.get("VAPID_SUBJECT") || "mailto:admin@bloodlink.app",
+        vapidPublic!,
+        vapidPrivate!,
+      );
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -81,13 +95,12 @@ Deno.serve(async (req) => {
 
     const { data: subs } = await supabase
       .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
+      .select("id, endpoint, p256dh, auth, platform")
       .eq("user_id", record.user_id);
 
-    const valid = (subs ?? []).filter(
-      (s) => s.endpoint && s.p256dh && s.auth && !String(s.endpoint).startsWith("local:"),
-    );
-    if (!valid.length) return json({ sent: 0, reason: "no subscriptions" });
+    const rows = (subs ?? []) as SubRow[];
+    const usable = rows.filter((s) => s.endpoint && !String(s.endpoint).startsWith("local:"));
+    if (!usable.length) return json({ sent: 0, reason: "no subscriptions" });
 
     const requestId = record.request_id ?? record.data?.request_id;
     const url = requestId ? `/?requestId=${encodeURIComponent(requestId)}` : "/";
@@ -97,12 +110,25 @@ Deno.serve(async (req) => {
     let sent = 0;
     const expired: string[] = [];
 
-    for (const sub of valid) {
+    for (const sub of usable) {
+      const ep = String(sub.endpoint);
+      const isNative = ep.startsWith("fcm:") || ep.startsWith("apns:") || sub.p256dh === "native";
+
+      if (isNative) {
+        if (!hasFcm) continue;
+        const token = ep.replace(/^fcm:/, "").replace(/^apns:/, "");
+        const ok = await sendFcmLegacy(fcmServerKey!, token, title, body, url, record.id);
+        if (ok === "ok") sent++;
+        else if (ok === "gone") expired.push(sub.id);
+        continue;
+      }
+
+      if (!hasWeb || !sub.p256dh || !sub.auth || sub.p256dh === "native") continue;
       try {
         await webpush.sendNotification(
           {
             endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh!, auth: sub.auth! },
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
           },
           pushBody,
         );
@@ -123,6 +149,40 @@ Deno.serve(async (req) => {
     return json({ error: String(e) }, 500);
   }
 });
+
+/** Legacy FCM HTTP API (FCM_SERVER_KEY). Works for Android FCM tokens; iOS if via Firebase. */
+async function sendFcmLegacy(
+  serverKey: string,
+  token: string,
+  title: string,
+  body: string,
+  url: string,
+  tag: string,
+): Promise<"ok" | "gone" | "fail"> {
+  try {
+    const res = await fetch("https://fcm.googleapis.com/fcm/send", {
+      method: "POST",
+      headers: {
+        Authorization: `key=${serverKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        to: token,
+        priority: "high",
+        notification: { title, body, tag, sound: "default" },
+        data: { url, tag, title, body },
+      }),
+    });
+    if (res.status === 404 || res.status === 410) return "gone";
+    if (!res.ok) return "fail";
+    const data = (await res.json()) as { failure?: number; results?: { error?: string }[] };
+    if (data.failure && data.results?.[0]?.error === "NotRegistered") return "gone";
+    if (data.failure) return "fail";
+    return "ok";
+  } catch {
+    return "fail";
+  }
+}
 
 function displayCopy(record: NotifRecord, kind: string) {
   if (kind === "new_request" || record.type === "request_match") {

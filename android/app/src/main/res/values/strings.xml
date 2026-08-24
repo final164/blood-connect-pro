@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BloodLink</string>
+    <string name="title_activity_main">BloodLink</string>
+    <string name="package_name">app.bloodlink.care</string>
+    <string name="custom_url_scheme">app.bloodlink.care</string>
+</resources>

@@ -100,10 +100,19 @@ function RootComponent() {
   const isLanding = pathname === "/" || pathname === "";
 
   useEffect(() => {
-    if (isLanding || typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    if (typeof window === "undefined") return;
+    void import("@/lib/native-app").then((m) => m.initNativeApp());
+  }, []);
+
+  useEffect(() => {
+    if (isLanding || typeof window === "undefined") return;
     const register = () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-      void import("@/lib/device-push").then((m) => m.setupNotificationClickHandler());
+      void import("@/lib/native-app").then(async ({ isNativeApp }) => {
+        if (!isNativeApp() && "serviceWorker" in navigator) {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        }
+        void import("@/lib/device-push").then((m) => m.setupNotificationClickHandler());
+      });
     };
     if (typeof requestIdleCallback === "function") {
       const id = requestIdleCallback(register, { timeout: 8000 });

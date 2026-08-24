@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#c1121f" />
+    <title>BloodLink</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #c1121f;
+        color: #fff;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+      }
+      .mark {
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        font-size: 1.25rem;
+      }
+      .sub {
+        opacity: 0.85;
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Fallback shell if server.url is unreachable; production uses live HTTPS. -->
+    <div>
+      <div class="mark">BloodLink</div>
+      <div class="sub">Loading…</div>
+    </div>
+    <script>
+      // Prefer live app when opened as local asset
+      try {
+        if (location.protocol === "capacitor:" || location.protocol === "https:") {
+          /* Capacitor server.url handles primary load */
+        }
+      } catch (e) {}
+    </script>
+  </body>
+</html>

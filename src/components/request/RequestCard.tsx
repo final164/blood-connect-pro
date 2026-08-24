@@ -225,6 +225,11 @@ function RequestCardInner({
     }
 
     try {
+      const { nativeShare, isNativeApp } = await import("@/lib/native-app");
+      if (isNativeApp()) {
+        const ok = await nativeShare({ title: "BloodLink", text: payload, url: window.location.origin });
+        if (ok) return;
+      }
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         try {
           await navigator.share({ title: "BloodLink", text: payload });
