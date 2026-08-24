@@ -300,9 +300,11 @@ export function CommunityContactGateSheet({
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
     });
     if (user?.id) {
-      void getProfile(user.id).then((p) => {
-        setMyPhone((p?.phone as string | null) ?? null);
-      });
+      void getProfile(user.id)
+        .then((p) => {
+          setMyPhone((p?.phone as string | null) ?? null);
+        })
+        .catch(() => {});
     }
   }, [open, defaultDistrict, lang, donor?.blood_group, user?.id]);
 

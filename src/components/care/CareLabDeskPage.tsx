@@ -4,6 +4,7 @@ import { FlaskConical, LogOut, Microscope } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { careHasPermission, fetchMyCareMemberships, type CareMembership } from "@/lib/care-access";
 import type { CarePermissionKey } from "@/lib/care-permissions";
 import { fetchTestCatalog } from "@/lib/care-cms";
@@ -55,14 +56,14 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: authPath });
+      void navigate({ to: authPath, search: {} } as never);
       return;
     }
     void fetchMyCareMemberships().then((rows) => {
       const active = rows.filter((r) => r.care_orgs?.is_active !== false);
       if (!active.length) {
         toast.error(lang === "bn" ? "ল্যাব মেম্বারশিপ নেই" : "No lab membership");
-        void navigate({ to: portalMode ? "/care/auth" : "/care" });
+        void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
         return;
       }
       setMemberships(active);
@@ -73,7 +74,7 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
 
   async function handleSignOut() {
     await signOut();
-    void navigate({ to: authPath });
+    void navigate({ to: authPath, search: {} } as never);
   }
 
   const membership = useMemo(() => memberships.find((m) => m.org_id === orgId) ?? null, [memberships, orgId]);
@@ -100,6 +101,7 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
     <div className="min-h-dvh bg-background">
       <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+          <PageBackButton fallbackTo={homePath} shape="xl" />
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
             <Microscope className="h-5 w-5" />
           </div>

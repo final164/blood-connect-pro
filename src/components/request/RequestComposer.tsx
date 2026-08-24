@@ -79,17 +79,19 @@ export function RequestComposer({
     if (!user) return;
     // Do not auto-fill upazila — leave blank until hospital pick or manual select.
     if (defaultDistrict) return;
-    getProfile(user.id).then((p) => {
-      if (!p?.district_id) return;
-      void supabase
-        .from("districts")
-        .select("id,name_bn,name_en,slug,is_active,sort_order")
-        .eq("id", p.district_id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) setDistrict(data as District);
-        });
-    });
+    getProfile(user.id)
+      .then((p) => {
+        if (!p?.district_id) return;
+        void supabase
+          .from("districts")
+          .select("id,name_bn,name_en,slug,is_active,sort_order")
+          .eq("id", p.district_id)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) setDistrict(data as District);
+          });
+      })
+      .catch(() => {});
   }, [user?.id, defaultDistrict]);
   useEffect(() => {
     fetchRequestFormOptions().then(setOpts);

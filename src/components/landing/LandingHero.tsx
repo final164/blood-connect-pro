@@ -52,7 +52,7 @@ export function LandingHref({
 
   if (h === "/auth" || h.startsWith("/auth?") || h.startsWith("/auth/")) {
     return (
-      <Link to="/auth" className={className} style={style}>
+      <Link to="/auth" search={{}} className={className} style={style}>
         {children}
       </Link>
     );

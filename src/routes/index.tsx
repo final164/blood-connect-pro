@@ -165,7 +165,7 @@ function LandingPage() {
   }, [navigate]);
 
   useEffect(() => {
-    if (settings.enabled === false) void navigate({ to: "/auth" });
+    if (settings.enabled === false) void navigate({ to: "/auth", search: {} });
   }, [settings.enabled, navigate]);
 
   if (settings.enabled === false) return null;

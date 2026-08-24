@@ -1,4 +1,5 @@
 import { Link, type LinkProps } from "@tanstack/react-router";
+import type { MouseEventHandler, PointerEventHandler, TouchEventHandler } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -8,6 +9,12 @@ type Props = Omit<LinkProps, "to" | "params" | "search"> & {
   peerId: string;
   fromRequestId?: string;
   children?: React.ReactNode;
+  className?: string;
+  title?: string;
+  "aria-label"?: string;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
+  onPointerEnter?: PointerEventHandler<HTMLAnchorElement>;
+  onTouchStart?: TouchEventHandler<HTMLAnchorElement>;
 };
 
 /** Chat deep-link with hover/touch prefetch — opens without a loading flash. */

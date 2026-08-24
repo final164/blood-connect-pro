@@ -229,7 +229,8 @@ export async function fetchLabBooking(id: string) {
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data as CareLabBooking) ?? null;
+  if (!data) return null;
+  return data as CareLabBooking;
 }
 
 export async function setLabBookingStatus(id: string, status: string) {

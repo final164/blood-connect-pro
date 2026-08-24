@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Ambulance, ArrowLeft, Siren, CalendarClock } from "lucide-react";
+import { Ambulance, Siren, CalendarClock } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
@@ -35,9 +36,10 @@ export function AmbulanceHubPage() {
     <div className="w-full">
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
-          <Link to="/care" search={{ tab: "ambulance" }} className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <PageBackButton
+            fallbackTo={{ to: "/care", search: { tab: "ambulance" } }}
+            shape="xl"
+          />
           <h1 className="text-sm font-bold">{labels ? (lang === "bn" ? labels.hub_title_bn : labels.hub_title_en) : lang === "bn" ? "অ্যাম্বুলেন্স" : "Ambulance"}</h1>
         </div>
       </AutoHideHeader>

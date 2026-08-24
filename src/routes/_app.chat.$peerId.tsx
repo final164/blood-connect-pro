@@ -7,7 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Avatar } from "@/components/Avatar";
 import { conversationSecret, encryptMessage, decryptMessage } from "@/lib/e2ee";
-import { ArrowLeft, Check, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { Check, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { fetchProfileForViewer } from "@/lib/profile-lock";
 import { useChatUnread } from "@/lib/chat-unread-context";
 import {
@@ -397,18 +398,18 @@ function Thread() {
         ) : (
           <div className="flex items-center gap-2 px-3 py-2.5">
             {fromRequestId ? (
-              <Link
-                to="/home"
-                search={{ requestId: fromRequestId }}
-                className="p-1.5 rounded-lg hover:bg-muted"
-                aria-label={lang === "bn" ? "পোস্টে ফিরুন" : "Back to post"}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
+              <PageBackButton
+                to={{ to: "/home", search: { requestId: fromRequestId } }}
+                size="sm"
+                shape="xl"
+              />
             ) : (
-              <Link to="/chat" className="p-1.5 rounded-lg hover:bg-muted md:hidden">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
+              <PageBackButton
+                to="/chat"
+                size="sm"
+                shape="xl"
+                className="md:hidden"
+              />
             )}
             <Link
               to="/profile/$userId"

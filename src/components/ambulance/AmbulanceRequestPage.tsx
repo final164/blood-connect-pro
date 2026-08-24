@@ -1,8 +1,8 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
@@ -101,9 +101,7 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
     <div className="w-full">
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
-          <Link to="/ambulance" className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <PageBackButton fallbackTo="/ambulance" shape="xl" />
           <h1 className="text-sm font-bold">{lang === "bn" ? "অ্যাম্বুলেন্স রিকোয়েস্ট" : "Ambulance request"}</h1>
         </div>
       </AutoHideHeader>

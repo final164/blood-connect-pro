@@ -65,6 +65,7 @@ export function LandingNav({
           )}
           <Link
             to="/auth"
+            search={{}}
             className="hidden sm:inline-flex text-xs font-semibold px-3 py-2 rounded-xl border border-black/10"
           >
             {lang === "bn" ? nav.cta_login_bn : nav.cta_login_en}

@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
@@ -84,6 +85,7 @@ export function CareHubPage({
       <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2">
           <div className="flex items-center gap-2 min-w-0">
+            <PageBackButton fallbackTo="/home" />
             <UserMenuTrigger />
             <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
               <LayoutGrid className="h-4 w-4" />

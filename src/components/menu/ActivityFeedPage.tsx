@@ -1,13 +1,14 @@
 import { useCallback, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Building2, Phone, BadgeCheck } from "lucide-react";
+import { Building2, Phone, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import {
   ACTIVITY_VIEWS,
   loadActivityRequests,
@@ -123,14 +124,8 @@ export function ActivityFeedPage({ view }: { view: ActivityView }) {
     <div className="w-full">
       <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
         <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
+          <PageBackButton fallbackTo="/home" />
           <UserMenuTrigger />
-          <Link
-            to="/home"
-            className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-muted grid place-items-center"
-            aria-label={t("feed")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
           <h1 className="flex-1 min-w-0 text-sm font-bold truncate">{title}</h1>
           <ProfileHeaderButton size="lg" />
           <AlertsHeaderButton size="lg" />

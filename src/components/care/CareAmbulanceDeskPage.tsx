@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { careHasPermission, fetchMyCareMemberships, type CareMembership } from "@/lib/care-access";
 import type { CarePermissionKey } from "@/lib/care-permissions";
 import {
@@ -102,14 +103,14 @@ export function CareAmbulanceDeskPage({ portalMode = false }: CareAmbulanceDeskP
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: authPath });
+      void navigate({ to: authPath, search: {} } as never);
       return;
     }
     void fetchMyCareMemberships().then((rows) => {
       const active = rows.filter((r) => r.care_orgs?.is_active !== false);
       if (!active.length) {
         toast.error(lang === "bn" ? "মেম্বারশিপ নেই" : "No membership");
-        void navigate({ to: portalMode ? "/care/auth" : "/care" });
+        void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
         return;
       }
       setMemberships(active);
@@ -125,7 +126,7 @@ export function CareAmbulanceDeskPage({ portalMode = false }: CareAmbulanceDeskP
 
   async function handleSignOut() {
     await signOut();
-    void navigate({ to: authPath });
+    void navigate({ to: authPath, search: {} } as never);
   }
 
   if (!ready || !orgId || !membership) {
@@ -148,6 +149,7 @@ export function CareAmbulanceDeskPage({ portalMode = false }: CareAmbulanceDeskP
     <div className="min-h-dvh bg-[radial-gradient(ellipse_at_top,_#fff7ed_0%,_hsl(var(--background))_52%)]">
       <header className="sticky top-0 z-20 border-b border-orange-900/10 bg-card/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+          <PageBackButton fallbackTo={homePath} shape="xl" />
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-orange-600 to-amber-600 text-white shadow-sm shadow-orange-600/30">
             <Ambulance className="h-5 w-5" />
           </div>

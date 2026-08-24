@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyCareMemberships } from "@/lib/care-access";
 import { useI18n } from "@/lib/i18n";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { clampPhoneDigits, isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
 import {
   authErrorMessage,
@@ -96,7 +97,7 @@ export function CareAuthPage() {
 
         void navigate({
           to: "/care/portal/onboarding",
-          search: { welcome: true, next: undefined, mode: undefined },
+          search: { welcome: true },
         });
         return;
       }
@@ -178,11 +179,14 @@ export function CareAuthPage() {
       <main className="flex flex-1 flex-col items-center justify-center px-5 py-10">
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center justify-between gap-3">
-            <div className="lg:hidden">
-              <h2 className="text-xl font-bold">{copy.title}</h2>
-              <p className="text-xs text-muted-foreground">{copy.subtitle}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <PageBackButton fallbackTo="/home" shape="xl" />
+              <div className="lg:hidden min-w-0">
+                <h2 className="text-xl font-bold">{copy.title}</h2>
+                <p className="text-xs text-muted-foreground">{copy.subtitle}</p>
+              </div>
             </div>
-            <div className="ml-auto flex rounded-xl border p-0.5 text-xs">
+            <div className="ml-auto flex rounded-xl border p-0.5 text-xs shrink-0">
               {(["bn", "en"] as const).map((l) => (
                 <button
                   key={l}
@@ -278,7 +282,7 @@ export function CareAuthPage() {
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
             {lang === "bn" ? "রক্তদান বা রোগী অ্যাকাউন্ট?" : "Blood donation or patient account?"}{" "}
-            <Link to="/auth" className="font-semibold text-teal-700 hover:underline">
+            <Link to="/auth" search={{}} className="font-semibold text-teal-700 hover:underline">
               {copy.patientLink}
             </Link>
           </p>

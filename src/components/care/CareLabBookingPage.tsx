@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { fetchLabBooking, setLabBookingStatus } from "@/lib/care-lab-api";
 import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
 
 export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
   const { lang } = useI18n();
-  const [row, setRow] = useState<Awaited<ReturnType<typeof fetchLabBooking>>>(null);
+  const [row, setRow] = useState<Awaited<ReturnType<typeof fetchLabBooking>> | null>(null);
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
@@ -38,9 +38,10 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
     <div className="w-full">
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
-          <Link to="/care" search={{ tab: "bookings" }} className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <PageBackButton
+            fallbackTo={{ to: "/care", search: { tab: "bookings" } }}
+            shape="xl"
+          />
           <h1 className="text-sm font-bold">{lang === "bn" ? "টেস্ট বুকিং" : "Test booking"}</h1>
         </div>
       </AutoHideHeader>

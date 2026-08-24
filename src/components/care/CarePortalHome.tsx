@@ -16,6 +16,7 @@ import { careHasPermission, fetchMyCareMemberships, type CareMembership } from "
 import { fetchCareVendorTypes, type CareVendorType } from "@/lib/care-cms";
 import { useI18n } from "@/lib/i18n";
 import { careOrgKycLabel } from "@/lib/care-vendor-auth";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 
 export function CarePortalHome() {
   const { user, loading, signOut } = useAuth();
@@ -29,7 +30,7 @@ export function CarePortalHome() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: "/care/auth" });
+      void navigate({ to: "/care/auth", search: { mode: undefined, next: undefined } });
       return;
     }
     void Promise.all([fetchMyCareMemberships(), fetchCareVendorTypes()])
@@ -41,7 +42,7 @@ export function CarePortalHome() {
               ? "কেয়ার ভেন্ডর অ্যাকাউন্ট নেই — নিবন্ধন করুন"
               : "No care vendor account — please register",
           );
-          void navigate({ to: "/care/auth", search: { mode: "register" } });
+          void navigate({ to: "/care/auth", search: { mode: "register", next: undefined } });
           return;
         }
         setMemberships(active);
@@ -51,7 +52,7 @@ export function CarePortalHome() {
       })
       .catch((e) => {
         toast.error((e as Error).message);
-        void navigate({ to: "/care/auth" });
+        void navigate({ to: "/care/auth", search: { mode: undefined, next: undefined } });
       });
   }, [loading, user, navigate, lang]);
 
@@ -86,7 +87,7 @@ export function CarePortalHome() {
 
   async function handleSignOut() {
     await signOut();
-    void navigate({ to: "/care/auth" });
+    void navigate({ to: "/care/auth", search: { mode: undefined, next: undefined } });
   }
 
   if (!ready || !membership) {
@@ -106,6 +107,7 @@ export function CarePortalHome() {
     <div className="min-h-dvh bg-gradient-to-b from-teal-50/40 to-background dark:from-teal-950/20">
       <header className="border-b bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4">
+          <PageBackButton fallbackTo="/home" shape="xl" />
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-600 text-white">
             <Building2 className="h-5 w-5" />
           </div>
@@ -175,6 +177,7 @@ export function CarePortalHome() {
               {(needsProfile || org?.kyc_status === "rejected") && (
                 <Link
                   to="/care/portal/onboarding"
+                  search={{ welcome: true }}
                   className="mt-3 inline-flex rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white"
                 >
                   {lang === "bn" ? "প্রোফাইল সম্পূর্ণ করুন" : "Complete profile"}
@@ -244,6 +247,7 @@ export function CarePortalHome() {
         <div className="flex flex-wrap gap-2 pt-2">
           <Link
             to="/care/portal/onboarding"
+            search={{}}
             className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium"
           >
             <Building2 className="h-3.5 w-3.5" />

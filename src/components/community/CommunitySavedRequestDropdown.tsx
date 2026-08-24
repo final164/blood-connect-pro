@@ -178,16 +178,18 @@ function CommunityRequestDraftSheet({
       setSetDateTime(true);
       setForm(emptyForm());
       if (user?.id) {
-        void getProfile(user.id).then((p) => {
-          const phone = (p?.phone as string | null)?.trim() || "";
-          if (phone) {
-            setForm((f) => ({
-              ...f,
-              contact_phone: f.contact_phone || phone,
-              whatsapp_phone: f.whatsapp_phone || phone,
-            }));
-          }
-        });
+        void getProfile(user.id)
+          .then((p) => {
+            const phone = (p?.phone as string | null)?.trim() || "";
+            if (phone) {
+              setForm((f) => ({
+                ...f,
+                contact_phone: f.contact_phone || phone,
+                whatsapp_phone: f.whatsapp_phone || phone,
+              }));
+            }
+          })
+          .catch(() => {});
       }
     }
     void fetchRequestFormOptions().then(setOpts);

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { enableDeviceNotifications, disableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
 import { hasWebPushConfigured } from "@/lib/push-config";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 
 type SettingsSearch = {
   report?: boolean;
@@ -108,8 +109,9 @@ function SettingsPage() {
   return (
     <div className="w-full">
       <AutoHideHeader className="z-30 glass border-b safe-top">
-        <div className="px-4 py-3">
-          <h1 className="text-base font-bold">{t("settings")}</h1>
+        <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5">
+          <PageBackButton fallbackTo="/home" />
+          <h1 className="text-base font-bold tracking-tight">{t("settings")}</h1>
         </div>
       </AutoHideHeader>
 

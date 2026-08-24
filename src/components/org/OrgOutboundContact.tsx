@@ -53,9 +53,11 @@ export function OrgOutboundContact({
       return;
     }
     setSavedDraft(loadCommunityRequestDraft(user.id));
-    void getProfile(user.id).then((p) => {
-      setViewerGender((p?.gender as string | null | undefined)?.trim().toLowerCase() ?? null);
-    });
+    void getProfile(user.id)
+      .then((p) => {
+        setViewerGender((p?.gender as string | null | undefined)?.trim().toLowerCase() ?? null);
+      })
+      .catch(() => {});
   }, [user?.id]);
 
   useEffect(() => {

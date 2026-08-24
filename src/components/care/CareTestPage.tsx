@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, FlaskConical } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { locName } from "@/lib/care-cms";
@@ -94,9 +95,10 @@ export function CareTestPage({ offeringId }: { offeringId: string }) {
     <div className="w-full">
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
-          <Link to="/care" search={{ tab: "tests" }} className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <PageBackButton
+            fallbackTo={{ to: "/care", search: { tab: "tests" } }}
+            shape="xl"
+          />
           <h1 className="text-sm font-bold truncate">{title}</h1>
         </div>
       </AutoHideHeader>

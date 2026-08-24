@@ -1,7 +1,6 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   Building2,
   CheckCircle2,
   Loader2,
@@ -12,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaTypeahead } from "@/components/district/UpazilaTypeahead";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useAuth } from "@/lib/auth-context";
 import type { District } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,7 +57,7 @@ export function CareVendorOnboardingPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: "/care/auth" });
+      void navigate({ to: "/care/auth", search: { mode: undefined, next: undefined } });
       return;
     }
     void (async () => {
@@ -200,9 +200,7 @@ export function CareVendorOnboardingPage() {
     <div className="min-h-dvh bg-gradient-to-b from-teal-50/50 to-background dark:from-teal-950/20">
       <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <Link to="/care/portal" className="grid h-9 w-9 place-items-center rounded-xl border">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          <PageBackButton fallbackTo="/care/portal" shape="xl" className="border" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               {lang === "bn" ? "ভেন্ডর প্রোফাইল" : "Vendor profile"}

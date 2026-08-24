@@ -49,6 +49,7 @@ import { MessengerIcon, AlertsHeaderButton } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { supabase } from "@/integrations/supabase/client";
@@ -402,9 +403,10 @@ function CommunityPage() {
 
   return (
     <div className="w-full">
-      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-4 py-3 space-y-3">
+      <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top px-3 sm:px-4 py-3 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <PageBackButton fallbackTo="/home" />
             <UserMenuTrigger />
             <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
               <Users className="h-4 w-4" />

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,8 @@ import {
   type ChatConversation,
 } from "@/lib/chat-store";
 import { queryKeys } from "@/lib/query-client";
-import { ArrowLeft, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 
 export const Route = createFileRoute("/_app/chat")({
   head: () => ({ meta: [{ title: "Chat — BloodLink" }] }),
@@ -85,7 +86,6 @@ function ChatLayout() {
 function ChatList({ activePeerId }: { activePeerId?: string }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { byConversation } = useChatUnread();
   const [query, setQuery] = useState("");
@@ -125,14 +125,6 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
 
   const convos = convosQuery.data ?? [];
 
-  function goBack() {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-    void navigate({ to: "/home" });
-  }
-
   const filtered = query.trim()
     ? convos.filter((c) => {
         const name = (c.peer?.full_name ?? "").toLowerCase();
@@ -146,14 +138,7 @@ function ChatList({ activePeerId }: { activePeerId?: string }) {
     <>
       <header className="shrink-0 border-b border-border/60 bg-card/95 backdrop-blur-xl safe-top">
         <div className="px-3 pt-2.5 pb-2 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={goBack}
-            className="h-9 w-9 rounded-full grid place-items-center text-foreground hover:bg-muted transition shrink-0"
-            aria-label={lang === "bn" ? "ফিরে যান" : "Go back"}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          <PageBackButton fallbackTo="/home" />
           <div className="min-w-0 flex-1">
             <h1 className="text-[17px] font-bold tracking-tight leading-tight">{t("chat")}</h1>
           </div>

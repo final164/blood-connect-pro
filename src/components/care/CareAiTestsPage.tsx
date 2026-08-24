@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, FlaskConical, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
+import { FlaskConical, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
@@ -422,9 +423,10 @@ export function CareAiTestsPage() {
     <div className="w-full min-h-dvh flex flex-col">
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
-          <Link to="/care" search={{ tab: "tests" }} className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <PageBackButton
+            fallbackTo={{ to: "/care", search: { tab: "tests" } }}
+            shape="xl"
+          />
           <Sparkles className="h-4 w-4 text-primary shrink-0" />
           <div className="min-w-0 flex-1">
             <h1 className="text-sm font-bold truncate">

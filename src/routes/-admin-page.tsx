@@ -28,6 +28,7 @@ import { AmbulanceAdmin } from "@/components/admin/AmbulanceAdmin";
 import { UsersAdmin } from "@/components/admin/UsersAdmin";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { BLOOD_GROUPS } from "@/lib/format";
 import { BANGLADESH_HOSPITALS } from "@/data/bangladesh-hospitals";
 import { ARCHITECTURE_MARKDOWN } from "@/lib/architecture-doc";
@@ -173,7 +174,7 @@ function AdminPageInner() {
   useEffect(() => {
     if (loading || aclLoading) return;
     if (!user) {
-      navigate({ to: "/auth" });
+      navigate({ to: "/auth", search: {} });
       return;
     }
     const timer = setTimeout(() => {
@@ -416,13 +417,16 @@ function AdminPageInner() {
           }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <h1
-              className={`text-sm sm:text-base font-semibold truncate ${
-                dark ? "text-slate-100" : "text-slate-900"
-              }`}
-            >
-              {tabs.find((x) => x.id === tab)?.label}
-            </h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <PageBackButton fallbackTo="/home" shape="xl" size="sm" />
+              <h1
+                className={`text-sm sm:text-base font-semibold truncate ${
+                  dark ? "text-slate-100" : "text-slate-900"
+                }`}
+              >
+                {tabs.find((x) => x.id === tab)?.label}
+              </h1>
+            </div>
             <button
               type="button"
               onClick={toggleTheme}

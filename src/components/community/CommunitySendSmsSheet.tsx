@@ -173,7 +173,9 @@ export function CommunitySendSmsSheet({
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
     });
     if (user?.id) {
-      void getProfile(user.id).then((p) => setMyPhone((p?.phone as string | null) ?? null));
+      void getProfile(user.id)
+        .then((p) => setMyPhone((p?.phone as string | null) ?? null))
+        .catch(() => {});
     }
   }, [open, defaultDistrict, defaultUpazila, lang, user?.id]);
 

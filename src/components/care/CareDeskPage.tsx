@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import {
   careHasPermission,
   fetchCareOrgRoles,
@@ -86,7 +87,7 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: authPath });
+      void navigate({ to: authPath, search: {} } as never);
       return;
     }
     void fetchMyCareMemberships()
@@ -94,7 +95,7 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
         const active = rows.filter((r) => r.care_orgs?.is_active !== false);
         if (!active.length) {
           toast.error(lang === "bn" ? "চেম্বার মেম্বারশিপ নেই" : "No chamber membership");
-          void navigate({ to: portalMode ? "/care/auth" : "/care" });
+          void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
           return;
         }
         setMemberships(active);
@@ -103,7 +104,7 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
       })
       .catch((e) => {
         toast.error((e as Error).message);
-        void navigate({ to: portalMode ? "/care/auth" : "/care" });
+        void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
       });
   }, [loading, user, navigate, lang, authPath, portalMode]);
 
@@ -119,7 +120,7 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
 
   async function handleSignOut() {
     await signOut();
-    void navigate({ to: authPath });
+    void navigate({ to: authPath, search: {} } as never);
   }
 
   const membership = useMemo(
@@ -155,6 +156,7 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
     <div className="min-h-dvh bg-background">
       <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+          <PageBackButton fallbackTo={homePath} shape="xl" />
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
             <ClipboardList className="h-5 w-5" />
           </div>

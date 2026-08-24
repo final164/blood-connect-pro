@@ -18,6 +18,7 @@ import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
 import { OrgOutboundContact } from "@/components/org/OrgOutboundContact";
 import { OrgRequestsInbox } from "@/components/org/OrgRequestsInbox";
 import { OrgRolesManager } from "@/components/org/OrgRolesManager";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useAuth } from "@/lib/auth-context";
 import { fetchAllDistricts, type District } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -57,7 +58,7 @@ export function OrgPortalPage() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      void navigate({ to: "/auth" });
+      void navigate({ to: "/auth", search: {} });
       return;
     }
     let cancelled = false;
@@ -184,6 +185,7 @@ export function OrgPortalPage() {
     <div className="min-h-dvh bg-linear-to-b from-rose-50/80 via-background to-background dark:from-rose-950/20">
       <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+          <PageBackButton fallbackTo="/home" shape="xl" />
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
             <Building2 className="h-5 w-5" />
           </div>

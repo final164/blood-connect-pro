@@ -7,8 +7,9 @@ import { useI18n } from "@/lib/i18n";
 import { fetchProfileForViewer } from "@/lib/profile-lock";
 import { ageFromDateOfBirth } from "@/lib/onboarding";
 import { ProfileFacebookLayout } from "@/components/profile/ProfileFacebookLayout";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import type { District } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-client";
@@ -87,11 +88,9 @@ function PublicProfilePage() {
   return (
     <div className="w-full min-h-screen bg-background">
       <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
-            <button type="button" onClick={() => window.history.back()} className="p-1.5 rounded-lg hover:bg-muted">
-              <ArrowLeft className="h-4 w-4" />
-            </button>
+            <PageBackButton fallbackTo="/home" />
             <h1 className="text-base font-bold truncate">{(profile.full_name as string) ?? t("profile")}</h1>
           </div>
           {user && user.id !== userId && (

@@ -23,6 +23,7 @@ import { Settings as SettingsIcon, Shield } from "lucide-react";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import {
   linkOrgDonorHistoryToProfile,
   restoreExpiredDonorAvailability,
@@ -218,10 +219,11 @@ function ProfilePage() {
   return (
     <div className="w-full min-h-screen bg-background">
       <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
+            <PageBackButton fallbackTo="/home" />
             <UserMenuTrigger />
-            <h1 className="text-base font-bold">{t("profile")}</h1>
+            <h1 className="text-base font-bold truncate">{t("profile")}</h1>
           </div>
           <div className="flex items-center gap-1">
             <AlertsHeaderButton />

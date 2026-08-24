@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { Bell, ThumbsUp, MessageSquare, Share2, Megaphone, CheckCheck, Droplets, Stethoscope } from "lucide-react";
 import { ChatHeaderButton } from "@/components/MessengerIcon";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/notifications")({
@@ -19,9 +20,10 @@ function NotificationsPage() {
 
   return (
     <div className="min-h-full">
-      <AutoHideHeader className="z-20 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between gap-3 safe-top">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="h-9 w-9 rounded-xl bg-muted grid place-items-center">
+      <AutoHideHeader className="z-20 border-b bg-background/90 backdrop-blur px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3 safe-top">
+        <div className="flex items-center gap-2 min-w-0">
+          <PageBackButton fallbackTo="/home" />
+          <div className="h-9 w-9 rounded-xl bg-muted grid place-items-center shrink-0">
             <Bell className="h-4 w-4 text-foreground" />
           </div>
           <div className="min-w-0">

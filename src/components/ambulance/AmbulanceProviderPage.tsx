@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Ambulance } from "lucide-react";
+import { Ambulance } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchOrgOfferings } from "@/lib/ambulance-api";
@@ -27,9 +28,7 @@ export function AmbulanceProviderPage({ orgId }: { orgId: string }) {
     <div className="w-full">
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
-          <Link to="/ambulance" className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <PageBackButton fallbackTo="/ambulance" shape="xl" />
           <h1 className="text-sm font-bold truncate">{name}</h1>
         </div>
       </AutoHideHeader>
