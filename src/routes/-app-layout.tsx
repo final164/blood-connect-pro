@@ -105,14 +105,19 @@ export function AppLayout() {
 
   useEffect(() => {
     if (!user || !canUseDeviceNotifications()) return;
-    supabase
-      .from("user_settings")
-      .select("notif_push")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.notif_push) void enableDeviceNotifications(user.id);
-      });
+    // Defer so login navigation finishes; never block first paint.
+    const t = window.setTimeout(() => {
+      void supabase
+        .from("user_settings")
+        .select("notif_push")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.notif_push) void enableDeviceNotifications(user.id).catch(() => {});
+        })
+        .catch(() => {});
+    }, 2500);
+    return () => window.clearTimeout(t);
   }, [user?.id]);
 
   if (loading && !session) {

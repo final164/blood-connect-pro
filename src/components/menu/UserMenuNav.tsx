@@ -19,8 +19,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { AppDownloadButton } from "@/components/AppDownloadButton";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { isNativeApp } from "@/lib/native-app";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DEFAULT_USER_MENU_SETTINGS,
@@ -191,6 +193,10 @@ export function UserMenuNav({
       )}
 
       <ThemeLangControls />
+
+      {!isNativeApp() && (
+        <AppDownloadButton lang={lang} variant="menu" force />
+      )}
 
       <nav className="space-y-0.5">
         {primary.map((item) => {

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { LandingSettings } from "@/lib/landing-settings";
 import { activeIslamicCards } from "@/lib/landing-settings";
+import { AppDownloadButton } from "@/components/AppDownloadButton";
 import type {
   LandingCampaign,
   LandingCard,
@@ -618,6 +619,7 @@ export function LandingCtaBand({ settings, lang }: { settings: LandingSettings; 
           >
             {pick(lang, c.secondary_bn, c.secondary_en)}
           </LandingHref>
+          <AppDownloadButton lang={lang} variant="full" force />
         </div>
       </div>
     </section>
@@ -634,6 +636,9 @@ export function LandingFooter({ settings, lang }: { settings: LandingSettings; l
             {pick(lang, settings.hero.brand_bn, settings.hero.brand_en)}
           </p>
           <p className="mt-2 text-xs leading-relaxed">{pick(lang, f.copyright_bn, f.copyright_en)}</p>
+          <div className="mt-3">
+            <AppDownloadButton lang={lang} variant="full" force className="!rounded-xl !py-2.5 !text-xs" />
+          </div>
           {f.hotline && (
             <a
               href={`tel:${f.hotline.replace(/\s/g, "")}`}

@@ -36,6 +36,9 @@ ios/DerivedData/
 google-services.json
 GoogleService-Info.plist
 dist-mobile/
+public/downloads/*.apk
+!public/downloads/.gitkeep
+!public/downloads/README.md
 
 # Wrangler / Cloudflare
 .wrangler/

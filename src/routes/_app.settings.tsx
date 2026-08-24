@@ -6,12 +6,14 @@ import { useI18n } from "@/lib/i18n";
 import { ProfileToggle as Toggle } from "@/components/profile/ProfileToggle";
 import { ChangePinSheet } from "@/components/settings/ChangePinSheet";
 import { ReportProblemSheet } from "@/components/settings/ReportProblemSheet";
-import { ShieldCheck, Globe, Bell, LogOut, KeyRound, ChevronRight, Flag } from "lucide-react";
+import { ShieldCheck, Globe, Bell, LogOut, KeyRound, ChevronRight, Flag, Download } from "lucide-react";
 import { toast } from "sonner";
-import { enableDeviceNotifications, disableDeviceNotifications, canUseDeviceNotifications } from "@/lib/device-push";
+import { enableDeviceNotifications, disableDeviceNotifications, canUseDeviceNotifications, isNativePushConfigured } from "@/lib/device-push";
 import { hasWebPushConfigured } from "@/lib/push-config";
+import { isNativeApp } from "@/lib/native-app";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
+import { AppDownloadButton } from "@/components/AppDownloadButton";
 
 type SettingsSearch = {
   report?: boolean;
@@ -135,13 +137,19 @@ function SettingsPage() {
         </Section>
 
         <Section title={t("notifications")} icon={<Bell className="h-4 w-4" />}>
-          {!hasWebPushConfigured() && (
+          {isNativeApp() && !isNativePushConfigured() ? (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 px-1">
+              {lang === "bn"
+                ? "নেটিভ পুশ এখনো সেটআপ হয়নি (Firebase)। অ্যাপ খোলা থাকলে ইন-অ্যাপ নোটিফিকেশন কাজ করবে।"
+                : "Native push is not configured yet (Firebase). In-app alerts still work while open."}
+            </p>
+          ) : !hasWebPushConfigured() && !isNativeApp() ? (
             <p className="text-[10px] text-amber-600 dark:text-amber-400 px-1">
               {lang === "bn"
                 ? "VITE_VAPID_PUBLIC_KEY সেট না থাকলে শুধু অ্যাপ খোলা থাকলে নোটিফিকেশন কাজ করবে।"
                 : "Without VITE_VAPID_PUBLIC_KEY, notifications only work while the app is open."}
             </p>
-          )}
+          ) : null}
           <Toggle
             label={lang === "bn" ? "ডিভাইস নোটিফিকেশন" : "Device push"}
             checked={!!s.notif_push}
@@ -150,6 +158,17 @@ function SettingsPage() {
           <Toggle label="Email" checked={!!s.notif_email} onChange={(v) => setS({ ...s, notif_email: v })} />
           <Toggle label={lang === "bn" ? "নতুন রিকোয়েস্ট" : "New requests"} checked={!!s.notif_new_request} onChange={(v) => setS({ ...s, notif_new_request: v })} />
         </Section>
+
+        {!isNativeApp() && (
+          <Section title={lang === "bn" ? "মোবাইল অ্যাপ" : "Mobile app"} icon={<Download className="h-4 w-4" />}>
+            <AppDownloadButton lang={lang} variant="full" force className="w-full" />
+            <p className="text-[10px] text-muted-foreground px-1">
+              {lang === "bn"
+                ? "অ্যান্ড্রয়েড APK ডাউনলোড করুন (সাইডলোড)। Play Store শীঘ্রই আসছে।"
+                : "Download the Android APK (sideload). Play Store coming soon."}
+            </p>
+          </Section>
+        )}
 
         <Section title={t("privacy")} icon={<ShieldCheck className="h-4 w-4" />}>
           <Toggle

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { LandingSettings } from "@/lib/landing-settings";
+import { AppDownloadButton } from "@/components/AppDownloadButton";
 
 export function LandingNav({
   settings,
@@ -63,6 +64,7 @@ export function LandingNav({
               {lang === "bn" ? "EN" : "বাং"}
             </button>
           )}
+          <AppDownloadButton lang={lang} variant="nav" force />
           <Link
             to="/auth"
             search={{}}

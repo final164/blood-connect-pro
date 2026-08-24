@@ -20,7 +20,8 @@
     "cap:android": "npx cap open android",
     "cap:ios": "npx cap open ios",
     "cap:add:android": "npx cap add android",
-    "cap:add:ios": "npx cap add ios"
+    "cap:add:ios": "npx cap add ios",
+    "cap:apk": "npx cap sync android && cd android && gradlew.bat assembleDebug && cd .. && node -e \"const fs=require('fs');const p='android/app/build/outputs/apk/debug/app-debug.apk';fs.mkdirSync('public/downloads',{recursive:true});fs.copyFileSync(p,'public/downloads/BloodLink.apk');console.log('Wrote public/downloads/BloodLink.apk',fs.statSync('public/downloads/BloodLink.apk').size)\""
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

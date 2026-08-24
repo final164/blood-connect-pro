@@ -20,14 +20,26 @@ npm run cap:add:ios       # Mac required to build/sign
 npm run cap:sync
 ```
 
-### Firebase (native push)
+## Firebase (native push)
 
 1. Create Firebase project → add Android app `app.bloodlink.care`
 2. Download `google-services.json` → `android/app/google-services.json` (gitignored)
 3. iOS: `GoogleService-Info.plist` → `ios/App/App/`
-4. Supabase Edge secret: `FCM_SERVER_KEY` (Firebase Cloud Messaging legacy server key)  
-   Redeploy: `supabase functions deploy send-push`
-5. Apply migration: `20260824100000_native_push_platform.sql`
+4. Set web env **`VITE_NATIVE_PUSH=1`** and rebuild/redeploy the site (APK loads remote URL).
+   Without this flag the app **never** calls `PushNotifications.register()` — calling it without Firebase hard-crashes Android after login.
+5. Supabase Edge secret: `FCM_SERVER_KEY` … Redeploy: `supabase functions deploy send-push`
+6. Apply migration: `20260824100000_native_push_platform.sql`
+
+## Website APK download
+
+```bash
+npm run cap:apk
+# → public/downloads/BloodLink.apk
+# Live URL: https://blood.pgdiary.cloud/downloads/BloodLink.apk
+```
+
+Landing nav / CTA / footer / Settings / menu show **Get app** when not inside the native shell.
+
 
 ### Deep links (Android App Links)
 

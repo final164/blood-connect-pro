@@ -10,9 +10,20 @@ export type DeviceNotificationPayload = {
   tag?: string;
 };
 
+/**
+ * Native FCM/APNs only when the APK was built with Firebase
+ * (google-services.json) AND VITE_NATIVE_PUSH=1.
+ * Calling PushNotifications.register() without Firebase hard-crashes Android.
+ */
+export function isNativePushConfigured(): boolean {
+  if (!isNativeApp()) return false;
+  const flag = String(import.meta.env.VITE_NATIVE_PUSH ?? "").toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
+}
+
 export function canUseDeviceNotifications() {
   if (typeof window === "undefined") return false;
-  if (isNativeApp()) return true;
+  if (isNativeApp()) return isNativePushConfigured();
   return "Notification" in window && "serviceWorker" in navigator;
 }
 
@@ -28,47 +39,56 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 async function enableNativePush(userId: string): Promise<boolean> {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
-  const perm = await PushNotifications.requestPermissions();
-  if (perm.receive !== "granted") return false;
+  if (!isNativePushConfigured()) return false;
 
-  await PushNotifications.register();
+  try {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    const perm = await PushNotifications.requestPermissions();
+    if (perm.receive !== "granted") return false;
 
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      resolve(ok);
-    };
+    await PushNotifications.register();
 
-    const timer = window.setTimeout(() => finish(false), 15000);
+    return await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(ok);
+      };
 
-    void PushNotifications.addListener("registration", async (token) => {
-      window.clearTimeout(timer);
-      const platform = nativePlatform() === "ios" ? "ios" : "android";
-      const endpoint = platform === "ios" ? `apns:${token.value}` : `fcm:${token.value}`;
-      const { error } = await supabase.from("push_subscriptions").upsert(
-        {
-          user_id: userId,
-          endpoint,
-          p256dh: "native",
-          auth: platform,
-          user_agent: `BloodLink-Capacitor/${platform}/${Capacitor.getPlatform()}`,
-          platform,
-        } as never,
-        { onConflict: "user_id,endpoint" },
-      );
-      // Drop stale web-local placeholders for this user on native
-      await supabase.from("push_subscriptions").delete().eq("user_id", userId).like("endpoint", "local:%");
-      finish(!error);
+      const timer = window.setTimeout(() => finish(false), 15000);
+
+      void PushNotifications.addListener("registration", async (token) => {
+        window.clearTimeout(timer);
+        try {
+          const platform = nativePlatform() === "ios" ? "ios" : "android";
+          const endpoint = platform === "ios" ? `apns:${token.value}` : `fcm:${token.value}`;
+          const { error } = await supabase.from("push_subscriptions").upsert(
+            {
+              user_id: userId,
+              endpoint,
+              p256dh: "native",
+              auth: platform,
+              user_agent: `BloodLink-Capacitor/${platform}/${Capacitor.getPlatform()}`,
+              platform,
+            } as never,
+            { onConflict: "user_id,endpoint" },
+          );
+          await supabase.from("push_subscriptions").delete().eq("user_id", userId).like("endpoint", "local:%");
+          finish(!error);
+        } catch {
+          finish(false);
+        }
+      });
+
+      void PushNotifications.addListener("registrationError", () => {
+        window.clearTimeout(timer);
+        finish(false);
+      });
     });
-
-    void PushNotifications.addListener("registrationError", () => {
-      window.clearTimeout(timer);
-      finish(false);
-    });
-  });
+  } catch {
+    return false;
+  }
 }
 
 /** Request OS permission and register Web Push or native FCM/APNs */
@@ -79,60 +99,66 @@ export async function enableDeviceNotifications(userId: string): Promise<boolean
     return enableNativePush(userId);
   }
 
-  const perm = await Notification.requestPermission();
-  if (perm !== "granted") return false;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return false;
 
-  const reg = await navigator.serviceWorker.ready;
-  const vapidKey = getVapidPublicKey();
+    const reg = await navigator.serviceWorker.ready;
+    const vapidKey = getVapidPublicKey();
 
-  if (vapidKey && "pushManager" in reg) {
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      try {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
-      } catch {
-        return false;
+    if (vapidKey && "pushManager" in reg) {
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        try {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          });
+        } catch {
+          return false;
+        }
       }
+      const json = sub.toJSON();
+      const { error } = await supabase.from("push_subscriptions").upsert(
+        {
+          user_id: userId,
+          endpoint: sub.endpoint,
+          p256dh: json.keys?.p256dh ?? null,
+          auth: json.keys?.auth ?? null,
+          user_agent: navigator.userAgent,
+          platform: "web",
+        } as never,
+        { onConflict: "user_id,endpoint" },
+      );
+      if (error) throw error;
+      await supabase.from("push_subscriptions").delete().eq("user_id", userId).like("endpoint", "local:%");
+      return true;
     }
-    const json = sub.toJSON();
-    const { error } = await supabase.from("push_subscriptions").upsert(
+
+    await supabase.from("push_subscriptions").upsert(
       {
         user_id: userId,
-        endpoint: sub.endpoint,
-        p256dh: json.keys?.p256dh ?? null,
-        auth: json.keys?.auth ?? null,
+        endpoint: `local:${userId}:${navigator.userAgent.slice(0, 40)}`,
         user_agent: navigator.userAgent,
         platform: "web",
       } as never,
       { onConflict: "user_id,endpoint" },
     );
-    if (error) throw error;
-    await supabase.from("push_subscriptions").delete().eq("user_id", userId).like("endpoint", "local:%");
     return true;
+  } catch {
+    return false;
   }
-
-  await supabase.from("push_subscriptions").upsert(
-    {
-      user_id: userId,
-      endpoint: `local:${userId}:${navigator.userAgent.slice(0, 40)}`,
-      user_agent: navigator.userAgent,
-      platform: "web",
-    } as never,
-    { onConflict: "user_id,endpoint" },
-  );
-  return true;
 }
 
 export async function disableDeviceNotifications(userId: string) {
   if (isNativeApp()) {
-    try {
-      const { PushNotifications } = await import("@capacitor/push-notifications");
-      await PushNotifications.removeAllListeners();
-    } catch {
-      /* ignore */
+    if (isNativePushConfigured()) {
+      try {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        await PushNotifications.removeAllListeners();
+      } catch {
+        /* ignore */
+      }
     }
     await supabase.from("push_subscriptions").delete().eq("user_id", userId);
     return;
@@ -152,7 +178,6 @@ export async function disableDeviceNotifications(userId: string) {
 
 export async function showDeviceNotification(payload: DeviceNotificationPayload) {
   if (isNativeApp()) {
-    // Native OS shows via PushNotifications; local display not needed when server push works
     return;
   }
   if (!canUseDeviceNotifications()) return;
@@ -184,22 +209,25 @@ export async function showDeviceNotification(payload: DeviceNotificationPayload)
 
 export function setupNotificationClickHandler() {
   if (isNativeApp()) {
-    void import("@capacitor/push-notifications").then(({ PushNotifications }) => {
-      void PushNotifications.addListener("pushNotificationActionPerformed", (event) => {
-        const data = event.notification.data as Record<string, unknown> | undefined;
-        const url = typeof data?.url === "string" ? data.url : "/";
-        if (url.startsWith("http")) {
-          try {
-            const u = new URL(url);
-            window.location.assign(`${u.pathname}${u.search}${u.hash}`);
-            return;
-          } catch {
-            /* fall through */
+    if (!isNativePushConfigured()) return;
+    void import("@capacitor/push-notifications")
+      .then(({ PushNotifications }) => {
+        void PushNotifications.addListener("pushNotificationActionPerformed", (event) => {
+          const data = event.notification.data as Record<string, unknown> | undefined;
+          const url = typeof data?.url === "string" ? data.url : "/";
+          if (url.startsWith("http")) {
+            try {
+              const u = new URL(url);
+              window.location.assign(`${u.pathname}${u.search}${u.hash}`);
+              return;
+            } catch {
+              /* fall through */
+            }
           }
-        }
-        window.location.assign(url.startsWith("/") ? url : `/${url}`);
-      });
-    });
+          window.location.assign(url.startsWith("/") ? url : `/${url}`);
+        });
+      })
+      .catch(() => {});
     return;
   }
 
@@ -213,6 +241,7 @@ export function setupNotificationClickHandler() {
 
 export async function hasActiveWebPushSubscription(): Promise<boolean> {
   if (isNativeApp()) {
+    if (!isNativePushConfigured()) return false;
     try {
       const {
         data: { user },
