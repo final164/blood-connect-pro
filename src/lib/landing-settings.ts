@@ -64,6 +64,49 @@ export type LandingHeroSlideshow = {
   show_dots: boolean;
 };
 
+/** Glass card styling for hero feature grid + AI health panel (admin-controlled). */
+export type LandingHeroOverlayStyle = {
+  /** White card fill opacity 0–100 */
+  bg_opacity: number;
+  /** Backdrop blur in px */
+  blur_px: number;
+  /** Border opacity 0–100 */
+  border_opacity: number;
+  /** Drop shadow opacity 0–100 */
+  shadow_opacity: number;
+  /** light = glass on dark hero; dark = lighter card + dark text */
+  text_tone: "light" | "dark";
+  /** Primary tint behind icons 0–100 */
+  icon_tint_opacity: number;
+  /** Tile/button hover highlight 0–100 */
+  hover_opacity: number;
+  /** Chat bubbles & test cards 0–100 */
+  inner_bg_opacity: number;
+  /** AI panel footer strip 0–100 */
+  footer_bg_opacity: number;
+  /** Section title opacity 0–100 */
+  title_opacity: number;
+  /** Body text opacity 0–100 */
+  body_opacity: number;
+  /** Secondary/muted text opacity 0–100 */
+  muted_opacity: number;
+};
+
+export const DEFAULT_HERO_OVERLAY_STYLE: LandingHeroOverlayStyle = {
+  bg_opacity: 6,
+  blur_px: 12,
+  border_opacity: 15,
+  shadow_opacity: 20,
+  text_tone: "light",
+  icon_tint_opacity: 18,
+  hover_opacity: 10,
+  inner_bg_opacity: 6,
+  footer_bg_opacity: 4,
+  title_opacity: 70,
+  body_opacity: 95,
+  muted_opacity: 60,
+};
+
 export type LandingHeroYoutube = {
   enabled: boolean;
   /** Full YouTube URL or 11-char video id */
@@ -138,6 +181,8 @@ export type LandingHero = {
   youtube: LandingHeroYoutube;
   /** MyGP-style utility icon grid (first viewport when enabled) */
   feature_grid: LandingFeatureGrid;
+  /** Glass styling for feature grid + AI health cards on hero */
+  overlay_cards: LandingHeroOverlayStyle;
 };
 
 export const DEFAULT_FEATURE_GRID_TILES: LandingFeatureTile[] = [
@@ -538,6 +583,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     background_video_url: "",
     youtube: { ...DEFAULT_HERO_YOUTUBE },
     feature_grid: { ...DEFAULT_FEATURE_GRID, tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t })) },
+    overlay_cards: { ...DEFAULT_HERO_OVERLAY_STYLE },
   },
   islamic: {
     title_bn: "ইসলামে জীবন রক্ষা ও সাহায্য",
@@ -784,6 +830,28 @@ function normalizeHeroSlideshow(raw: unknown, d: LandingHeroSlideshow): LandingH
   };
 }
 
+function normalizeHeroOverlayStyle(
+  raw: unknown,
+  d: LandingHeroOverlayStyle = DEFAULT_HERO_OVERLAY_STYLE,
+): LandingHeroOverlayStyle {
+  const s = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const text_tone = s.text_tone === "dark" ? "dark" : "light";
+  return {
+    bg_opacity: num(s.bg_opacity, d.bg_opacity, 0, 100),
+    blur_px: num(s.blur_px, d.blur_px, 0, 32),
+    border_opacity: num(s.border_opacity, d.border_opacity, 0, 100),
+    shadow_opacity: num(s.shadow_opacity, d.shadow_opacity, 0, 100),
+    text_tone,
+    icon_tint_opacity: num(s.icon_tint_opacity, d.icon_tint_opacity, 0, 100),
+    hover_opacity: num(s.hover_opacity, d.hover_opacity, 0, 100),
+    inner_bg_opacity: num(s.inner_bg_opacity, d.inner_bg_opacity, 0, 100),
+    footer_bg_opacity: num(s.footer_bg_opacity, d.footer_bg_opacity, 0, 100),
+    title_opacity: num(s.title_opacity, d.title_opacity, 0, 100),
+    body_opacity: num(s.body_opacity, d.body_opacity, 0, 100),
+    muted_opacity: num(s.muted_opacity, d.muted_opacity, 0, 100),
+  };
+}
+
 const FEATURE_ICONS = new Set<LandingFeatureIcon>([
   "droplet",
   "heart_pulse",
@@ -991,6 +1059,7 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
         background_video_url: str(heroRaw.background_video_url, ""),
         youtube: normalizeHeroYoutube(heroRaw.youtube, d.hero.youtube),
         feature_grid: normalizeFeatureGrid(heroRaw.feature_grid, d.hero.feature_grid),
+        overlay_cards: normalizeHeroOverlayStyle(heroRaw.overlay_cards, d.hero.overlay_cards),
       };
     })(),
     islamic: {
@@ -1121,5 +1190,27 @@ export function landingCssVars(settings: LandingSettings): Record<string, string
     "--landing-fg": c.foreground,
     "--landing-muted": c.muted,
     "--landing-glass": c.glass,
+    ...heroOverlayCssVars(settings.hero.overlay_cards ?? DEFAULT_HERO_OVERLAY_STYLE),
+  };
+}
+
+export function heroOverlayCssVars(style: LandingHeroOverlayStyle): Record<string, string> {
+  const light = style.text_tone !== "dark";
+  const cardRgb = "255,255,255";
+  const fgRgb = light ? "255,255,255" : "26,26,26";
+  return {
+    "--hero-card-rgb": cardRgb,
+    "--hero-card-fg-rgb": fgRgb,
+    "--hero-card-bg-a": String(style.bg_opacity / 100),
+    "--hero-card-blur": `${style.blur_px}px`,
+    "--hero-card-border-a": String(style.border_opacity / 100),
+    "--hero-card-shadow-a": String(style.shadow_opacity / 100),
+    "--hero-card-icon-tint": `${style.icon_tint_opacity}%`,
+    "--hero-card-hover-a": String(style.hover_opacity / 100),
+    "--hero-card-inner-bg-a": String(style.inner_bg_opacity / 100),
+    "--hero-card-footer-bg-a": String(style.footer_bg_opacity / 100),
+    "--hero-card-title-a": String(style.title_opacity / 100),
+    "--hero-card-body-a": String(style.body_opacity / 100),
+    "--hero-card-muted-a": String(style.muted_opacity / 100),
   };
 }

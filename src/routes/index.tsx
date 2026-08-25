@@ -69,26 +69,25 @@ export const Route = createFileRoute("/")({
       links: [
         LANDING_STYLESHEET,
         ...links,
+        {
+          rel: "preload" as const,
+          as: "image" as const,
+          href: preload.href,
+          fetchPriority: "high" as const,
+          ...(preload.imageSrcSet
+            ? { imageSrcSet: preload.imageSrcSet, imageSizes: preload.imageSizes }
+            : {}),
+        },
         ...(gridOn
           ? [
               {
                 rel: "preload" as const,
                 as: "image" as const,
                 href: logo,
-                fetchPriority: "high" as const,
+                fetchPriority: "low" as const,
               },
             ]
-          : [
-              {
-                rel: "preload" as const,
-                as: "image" as const,
-                href: preload.href,
-                fetchPriority: "high" as const,
-                ...(preload.imageSrcSet
-                  ? { imageSrcSet: preload.imageSrcSet, imageSizes: preload.imageSizes }
-                  : {}),
-              },
-            ]),
+          : []),
       ],
     };
   },

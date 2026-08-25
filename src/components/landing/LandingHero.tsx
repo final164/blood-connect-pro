@@ -132,46 +132,60 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
 
   if (gridOn) {
     return (
-      <section id="top" className="landing-hero relative flex flex-col overflow-x-hidden">
-        <div
-          className="relative flex flex-col justify-end"
-          style={{
-            background:
-              "linear-gradient(165deg, color-mix(in srgb, var(--landing-primary) 88%, #1a0505) 0%, color-mix(in srgb, var(--landing-primary) 55%, #0d0d0d) 55%, #120808 100%)",
-          }}
-        >
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.12]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 20%, #fff 0%, transparent 45%), radial-gradient(circle at 80% 0%, #fff 0%, transparent 35%)",
-            }}
-          />
-          <div className={`relative z-10 ${shell} pb-6 pt-24`}>
-            <p className="landing-brand text-3xl sm:text-4xl md:text-5xl font-semibold text-white tracking-tight">
+      <section
+        id="top"
+        className="landing-hero relative flex flex-col overflow-x-hidden min-h-[min(88dvh,820px)]"
+      >
+        <div className="absolute inset-0">
+          {h.background_video_url ? (
+            <video
+              className="h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster={lcpSrc || undefined}
+              src={h.background_video_url}
+            />
+          ) : (
+            <HeroBackgroundSlideshow
+              images={slides}
+              slideshow={slideshow}
+              overlayOpacity={overlay}
+            />
+          )}
+          {h.background_video_url && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/35" />
+          )}
+        </div>
+
+        <div className={`relative z-10 ${shell} flex flex-1 flex-col justify-end pb-8 pt-24`}>
+          <div className="pb-4">
+            <p className="landing-brand text-3xl sm:text-4xl md:text-5xl font-semibold text-white tracking-tight drop-shadow-sm">
               {pick(lang, h.brand_bn, h.brand_en)}
             </p>
-            <p className="mt-2 text-sm sm:text-base text-white/80 max-w-xl leading-relaxed">
+            <p className="mt-2 text-sm sm:text-base text-white/85 max-w-xl leading-relaxed drop-shadow-sm">
               {pick(lang, h.sub_bn, h.sub_en)}
             </p>
           </div>
-        </div>
 
-        <div className={`${shell} -mt-5 relative z-20 space-y-3 pb-8`}>
-          <LandingFeatureGridGuest
-            grid={grid}
-            lang={lang}
-            onAiHealth={() => {
-              setAiOpen(true);
-              requestAnimationFrame(() => {
-                document.getElementById("landing-ai-health")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "nearest",
+          <div className="space-y-3">
+            <LandingFeatureGridGuest
+              grid={grid}
+              lang={lang}
+              onAiHealth={() => {
+                setAiOpen(true);
+                requestAnimationFrame(() => {
+                  document.getElementById("landing-ai-health")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
                 });
-              });
-            }}
-          />
-          <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
+              }}
+            />
+            <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
+          </div>
         </div>
       </section>
     );

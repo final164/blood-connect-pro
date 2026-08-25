@@ -9,6 +9,8 @@ export type CareAiPendingImage = {
   mimeType: string;
   data: string;
   previewUrl: string;
+  /** Smaller data URL for localStorage thread restore */
+  storagePreviewUrl: string;
 };
 
 type Props = {

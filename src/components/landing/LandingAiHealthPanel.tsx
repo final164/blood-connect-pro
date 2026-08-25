@@ -330,22 +330,16 @@ export function LandingAiHealthPanel({
         type="button"
         id="landing-ai-health"
         onClick={() => onOpenChange(true)}
-        className="w-full rounded-2xl border border-black/5 bg-white/95 shadow-lg shadow-black/10 px-4 py-3.5 flex items-center gap-3 text-left transition hover:bg-white active:scale-[0.99]"
+        className="landing-hero-card landing-hero-card-tile w-full px-4 py-3.5 flex items-center gap-3 text-left active:scale-[0.99]"
       >
-        <span
-          className="h-11 w-11 rounded-2xl grid place-items-center shrink-0"
-          style={{
-            color: "var(--landing-primary)",
-            background: "color-mix(in srgb, var(--landing-primary) 12%, transparent)",
-          }}
-        >
+        <span className="landing-hero-card-icon h-11 w-11 rounded-2xl grid place-items-center shrink-0">
           <Sparkles className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-black/90">
+          <p className="landing-hero-card-body text-sm font-semibold">
             {pick(lang, "AI স্বাস্থ্য — লক্ষণ লিখুন", "AI health — describe symptoms")}
           </p>
-          <p className="text-[11px] text-black/50 truncate">
+          <p className="landing-hero-card-muted text-[11px] truncate">
             {pick(lang, "সাজেশন ও বুকিং · চ্যাটে লগইন লাগবে", "Suggestions & booking · login to chat")}
           </p>
         </div>
@@ -356,15 +350,15 @@ export function LandingAiHealthPanel({
   return (
     <div
       id="landing-ai-health"
-      className="w-full rounded-2xl border border-black/5 bg-white/95 shadow-lg shadow-black/10 overflow-hidden flex flex-col max-h-[min(72dvh,640px)]"
+      className="landing-hero-card w-full overflow-hidden flex flex-col max-h-[min(72dvh,640px)]"
     >
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-black/5 shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b landing-hero-card-divider shrink-0">
         <Sparkles className="h-4 w-4 shrink-0" style={{ color: "var(--landing-primary)" }} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-black/90 truncate">
+          <p className="landing-hero-card-body text-sm font-semibold truncate">
             {cfg?.ui.pageTitle ?? pick(lang, "AI স্বাস্থ্য", "AI health")}
           </p>
-          <p className="text-[10px] text-black/45 truncate">
+          <p className="landing-hero-card-muted text-[10px] truncate">
             {cfg?.ui.disclaimer ??
               pick(lang, "তথ্যমূলক; চিকিৎসকের পরামর্শ নয়", "Informational only")}
           </p>
@@ -382,14 +376,14 @@ export function LandingAiHealthPanel({
         <button
           type="button"
           onClick={startNewChat}
-          className="text-[11px] font-semibold px-2 py-1 rounded-lg hover:bg-black/5 text-black/50"
+          className="landing-hero-card-btn-muted text-[11px] font-semibold px-2 py-1 rounded-lg"
         >
           {pick(lang, "নতুন", "New")}
         </button>
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="text-[11px] font-semibold px-2 py-1 rounded-lg hover:bg-black/5 text-black/50"
+          className="landing-hero-card-btn-muted text-[11px] font-semibold px-2 py-1 rounded-lg"
         >
           {pick(lang, "বন্ধ", "Close")}
         </button>
@@ -400,9 +394,7 @@ export function LandingAiHealthPanel({
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm ${
-                m.role === "user"
-                  ? "text-white"
-                  : "border border-black/8 bg-black/[0.02] text-black/85"
+                m.role === "user" ? "text-white" : "landing-hero-card-inner landing-hero-card-body"
               }`}
               style={m.role === "user" ? { background: "var(--landing-primary)" } : undefined}
             >
@@ -455,7 +447,7 @@ export function LandingAiHealthPanel({
         ))}
 
         {busy && (
-          <p className="text-xs text-black/45 animate-pulse flex items-center gap-1.5">
+          <p className="landing-hero-card-muted text-xs animate-pulse flex items-center gap-1.5">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             {cfg?.ui.thinking ?? pick(lang, "ভাবছি…", "Thinking…")}
           </p>
@@ -463,32 +455,23 @@ export function LandingAiHealthPanel({
 
         {showSuggestions && !busy && (
           <div className="space-y-2 pt-1">
-            <p className="text-[11px] font-semibold text-black/50 px-0.5">
+            <p className="landing-hero-card-title text-[11px] font-semibold px-0.5">
               {cfg?.ui.suggestionsHeading ?? pick(lang, "সাজেস্টেড টেস্ট / বুকিং", "Suggested tests / booking")}
             </p>
             <ul className="space-y-2">
               {cards.map((c) => {
                 const inCart = cart.includes(c.catalogId);
                 return (
-                  <li
-                    key={c.catalogId}
-                    className="rounded-xl border border-black/8 bg-black/[0.015] px-2.5 py-2.5 space-y-1.5"
-                  >
+                  <li key={c.catalogId} className="landing-hero-card-inner px-2.5 py-2.5 space-y-1.5">
                     <div className="flex items-start gap-2.5">
-                      <span
-                        className="h-9 w-9 rounded-xl grid place-items-center shrink-0"
-                        style={{
-                          color: "var(--landing-primary)",
-                          background: "color-mix(in srgb, var(--landing-primary) 12%, transparent)",
-                        }}
-                      >
+                      <span className="landing-hero-card-icon h-9 w-9 rounded-xl grid place-items-center shrink-0">
                         <FlaskConical className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-black/90 truncate">
+                        <p className="landing-hero-card-body text-sm font-semibold truncate">
                           {lang === "bn" ? c.nameBn : c.nameEn}
                         </p>
-                        <p className="text-[11px] text-black/45">
+                        <p className="landing-hero-card-muted text-[11px]">
                           {[
                             c.code,
                             c.clinicCount
@@ -509,7 +492,9 @@ export function LandingAiHealthPanel({
                             />
                           </div>
                         ) : null}
-                        {c.reason ? <p className="text-xs text-black/55 mt-0.5 leading-snug">{c.reason}</p> : null}
+                        {c.reason ? (
+                          <p className="landing-hero-card-muted text-xs mt-0.5 leading-snug">{c.reason}</p>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -517,7 +502,7 @@ export function LandingAiHealthPanel({
                         <Link
                           to="/care/test/$id"
                           params={{ id: c.cheapestOfferingId }}
-                          className="rounded-lg border border-black/10 px-2.5 py-1.5 text-[11px] font-semibold text-black/75"
+                          className="landing-hero-card-outline-btn rounded-lg px-2.5 py-1.5 text-[11px] font-semibold"
                         >
                           {lang === "bn" ? "বিস্তারিত" : "Details"}
                         </Link>
@@ -530,7 +515,7 @@ export function LandingAiHealthPanel({
                           )
                         }
                         className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
-                          inCart ? "text-white" : "border border-black/10 text-black/75"
+                          inCart ? "text-white" : "landing-hero-card-outline-btn"
                         }`}
                         style={inCart ? { background: "var(--landing-primary)" } : undefined}
                       >
@@ -557,7 +542,7 @@ export function LandingAiHealthPanel({
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-black/5 px-3 py-2.5 space-y-2 bg-white">
+      <div className="landing-hero-card-footer shrink-0 px-3 py-2.5 space-y-2">
         {showBundle && (
           <button
             type="button"
@@ -593,7 +578,7 @@ export function LandingAiHealthPanel({
             }}
             placeholder={pick(lang, "লক্ষণ বা প্রশ্ন লিখুন…", "Describe symptoms or ask…")}
             enterKeyHint="send"
-            className="flex-1 resize-none rounded-xl border border-black/10 bg-black/[0.02] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[color:var(--landing-primary)]/30 min-h-[44px] max-h-[100px] leading-relaxed text-black/90"
+            className="landing-hero-card-input flex-1 resize-none rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-white/25 min-h-[44px] max-h-[100px] leading-relaxed"
           />
           <button
             type="button"
@@ -607,14 +592,10 @@ export function LandingAiHealthPanel({
           </button>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] text-black/40">
+          <p className="landing-hero-card-muted text-[10px]">
             {pick(lang, "চ্যাট ও বুকিংয়ে লগইন লাগবে", "Login required for chat & booking")}
           </p>
-          <Link
-            to="/care/ai-tests"
-            className="text-[10px] font-semibold"
-            style={{ color: "var(--landing-primary)" }}
-          >
+          <Link to="/care/ai-tests" className="landing-hero-card-body text-[10px] font-semibold">
             {pick(lang, "পূর্ণ পেজ →", "Full page →")}
           </Link>
         </div>

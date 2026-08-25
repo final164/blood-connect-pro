@@ -15,6 +15,7 @@ import {
   DEFAULT_LANDING_SETTINGS,
   DEFAULT_HERO_SLIDESHOW,
   DEFAULT_HERO_YOUTUBE,
+  DEFAULT_HERO_OVERLAY_STYLE,
   DEFAULT_ISLAMIC_CARDS,
   THEME_PRESETS,
   fetchLandingSettings,
@@ -24,6 +25,7 @@ import {
   type LandingSectionId,
   type LandingSettings,
   type LandingTheme,
+  type LandingHeroOverlayStyle,
 } from "@/lib/landing-settings";
 import {
   landingAdmin,
@@ -66,6 +68,7 @@ const SECTION_LABELS: Record<LandingSectionId, { bn: string; en: string }> = {
   islamic_carousel: { bn: "ইসলামিক কার্ড", en: "Islamic cards" },
   campaigns: { bn: "ক্যাম্পেইন", en: "Campaigns" },
   community: { bn: "কমিউনিটি", en: "Community" },
+  care_vendor: { bn: "Care ভেন্ডর", en: "Care vendor" },
   gallery: { bn: "গ্যালারি", en: "Gallery" },
   stories_carousel: { bn: "গল্প স্লাইডার", en: "Stories" },
   faq: { bn: "FAQ", en: "FAQ" },
@@ -524,6 +527,98 @@ export function LandingAdmin() {
               {lang === "bn"
                 ? "টাইল রুট/আইকন কোড-ডিফল্ট; গ্রিড চালু থাকলে প্রথম স্ক্রিনে দেখাবে।"
                 : "Tile routes/icons are code defaults; when enabled, grid leads the first viewport."}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-200">
+                {lang === "bn"
+                  ? "হিরো কার্ড স্টাইল (সেবাসমূহ · AI · টেস্ট)"
+                  : "Hero card style (services · AI · tests)"}
+              </p>
+              <button
+                type="button"
+                className="text-[10px] font-semibold text-rose-400/90 hover:text-rose-300"
+                onClick={() =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: { ...p.hero, overlay_cards: { ...DEFAULT_HERO_OVERLAY_STYLE } },
+                  }))
+                }
+              >
+                {lang === "bn" ? "ডিফল্ট" : "Reset defaults"}
+              </button>
+            </div>
+            <Field label={lang === "bn" ? "টেক্সট টোন" : "Text tone"}>
+              <select
+                className={ainp}
+                value={cfg.hero.overlay_cards?.text_tone ?? DEFAULT_HERO_OVERLAY_STYLE.text_tone}
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      overlay_cards: {
+                        ...(p.hero.overlay_cards ?? DEFAULT_HERO_OVERLAY_STYLE),
+                        text_tone: e.target.value as LandingHeroOverlayStyle["text_tone"],
+                      },
+                    },
+                  }))
+                }
+              >
+                <option value="light">{lang === "bn" ? "হালকা (গ্লাস)" : "Light (glass)"}</option>
+                <option value="dark">{lang === "bn" ? "গাঢ় (অopaque)" : "Dark (opaque)"}</option>
+              </select>
+            </Field>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {(
+                [
+                  ["bg_opacity", lang === "bn" ? "কার্ড ব্যাকগ্রাউন্ড %" : "Card background %", 0, 100],
+                  ["blur_px", lang === "bn" ? "Blur (px)" : "Blur (px)", 0, 32],
+                  ["border_opacity", lang === "bn" ? "বর্ডার %" : "Border %", 0, 100],
+                  ["shadow_opacity", lang === "bn" ? "ছায়া %" : "Shadow %", 0, 100],
+                  ["icon_tint_opacity", lang === "bn" ? "আইকন টিন্ট %" : "Icon tint %", 0, 100],
+                  ["hover_opacity", lang === "bn" ? "হোভার %" : "Hover %", 0, 100],
+                  ["inner_bg_opacity", lang === "bn" ? "ভিতরের কার্ড %" : "Inner cards %", 0, 100],
+                  ["footer_bg_opacity", lang === "bn" ? "ফুটার %" : "Footer %", 0, 100],
+                  ["title_opacity", lang === "bn" ? "শিরোনাম টেক্সট %" : "Title text %", 0, 100],
+                  ["body_opacity", lang === "bn" ? "বডি টেক্সট %" : "Body text %", 0, 100],
+                  ["muted_opacity", lang === "bn" ? "মিউটেড টেক্সট %" : "Muted text %", 0, 100],
+                ] as const
+              ).map(([key, label, min, max]) => {
+                const overlay = cfg.hero.overlay_cards ?? DEFAULT_HERO_OVERLAY_STYLE;
+                const val = overlay[key];
+                return (
+                  <Field key={key} label={`${label} (${val})`}>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={key === "blur_px" ? 1 : 1}
+                      className="w-full accent-rose-500"
+                      value={val}
+                      onChange={(e) =>
+                        setCfg((p) => ({
+                          ...p,
+                          hero: {
+                            ...p.hero,
+                            overlay_cards: {
+                              ...(p.hero.overlay_cards ?? DEFAULT_HERO_OVERLAY_STYLE),
+                              [key]: Math.min(max, Math.max(min, Number(e.target.value))),
+                            },
+                          },
+                        }))
+                      }
+                    />
+                  </Field>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-500">
+              {lang === "bn"
+                ? "সেবাসমূহ গ্রিড, AI স্বাস্থ্য ও টেস্ট সাজেশন কার্ড — সব একই স্টাইল ব্যবহার করে।"
+                : "Feature grid, AI health, and test suggestion cards share this style."}
             </p>
           </div>
 

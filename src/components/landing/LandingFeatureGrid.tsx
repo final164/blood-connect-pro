@@ -98,9 +98,9 @@ export function LandingFeatureGridPanel({
   const visible = expanded ? [...primary, ...extra] : primary;
 
   return (
-    <div className="landing-feature-grid w-full rounded-2xl bg-white/95 text-[color:var(--landing-foreground,#1a1a1a)] shadow-lg shadow-black/10 border border-black/5 px-3 pt-3 pb-2 sm:px-4">
+    <div className="landing-feature-grid landing-hero-card w-full px-3 pt-3 pb-2 sm:px-4">
       {grid.title_bn || grid.title_en ? (
-        <p className="text-xs font-semibold text-black/55 px-1 mb-2">
+        <p className="landing-hero-card-title text-xs font-semibold px-1 mb-2">
           {pick(lang, grid.title_bn, grid.title_en)}
         </p>
       ) : null}
@@ -112,15 +112,12 @@ export function LandingFeatureGridPanel({
               key={tile.id}
               type="button"
               onClick={() => go(tile)}
-              className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition active:scale-[0.97] hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--landing-primary)]"
+              className="landing-hero-card-tile flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
-              <span
-                className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl grid place-items-center"
-                style={{ color: "var(--landing-primary)", background: "color-mix(in srgb, var(--landing-primary) 12%, transparent)" }}
-              >
+              <span className="landing-hero-card-icon h-11 w-11 sm:h-12 sm:w-12 rounded-2xl grid place-items-center">
                 <Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" strokeWidth={1.75} />
               </span>
-              <span className="text-[10px] sm:text-[11px] font-medium leading-tight text-black/80 max-w-[4.75rem] line-clamp-2">
+              <span className="landing-hero-card-label text-[10px] sm:text-[11px] font-medium leading-tight max-w-[4.75rem] line-clamp-2">
                 {pick(lang, tile.label_bn, tile.label_en)}
               </span>
             </button>
@@ -132,8 +129,7 @@ export function LandingFeatureGridPanel({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-xs font-semibold py-2 px-3"
-            style={{ color: "var(--landing-primary)" }}
+            className="landing-hero-card-body text-xs font-semibold py-2 px-3"
           >
             {expanded
               ? pick(lang, grid.see_less_bn, grid.see_less_en)
@@ -175,9 +171,9 @@ export function LandingFeatureGridGuest({
   }
 
   return (
-    <div className="landing-feature-grid w-full rounded-2xl bg-white/95 text-[color:var(--landing-foreground,#1a1a1a)] shadow-lg shadow-black/10 border border-black/5 px-3 pt-3 pb-2 sm:px-4">
+    <div className="landing-feature-grid landing-hero-card w-full px-3 pt-3 pb-2 sm:px-4">
       {grid.title_bn || grid.title_en ? (
-        <p className="text-xs font-semibold text-black/55 px-1 mb-2">
+        <p className="landing-hero-card-title text-xs font-semibold px-1 mb-2">
           {pick(lang, grid.title_bn, grid.title_en)}
         </p>
       ) : null}
@@ -189,18 +185,12 @@ export function LandingFeatureGridGuest({
               key={tile.id}
               type="button"
               onClick={() => go(tile)}
-              className="flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition active:scale-[0.97] hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--landing-primary)]"
+              className="landing-hero-card-tile flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
-              <span
-                className="h-11 w-11 sm:h-12 sm:w-12 rounded-2xl grid place-items-center"
-                style={{
-                  color: "var(--landing-primary)",
-                  background: "color-mix(in srgb, var(--landing-primary) 12%, transparent)",
-                }}
-              >
+              <span className="landing-hero-card-icon h-11 w-11 sm:h-12 sm:w-12 rounded-2xl grid place-items-center">
                 <Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" strokeWidth={1.75} />
               </span>
-              <span className="text-[10px] sm:text-[11px] font-medium leading-tight text-black/80 max-w-[4.75rem] line-clamp-2">
+              <span className="landing-hero-card-label text-[10px] sm:text-[11px] font-medium leading-tight max-w-[4.75rem] line-clamp-2">
                 {pick(lang, tile.label_bn, tile.label_en)}
               </span>
             </button>
@@ -212,8 +202,7 @@ export function LandingFeatureGridGuest({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-xs font-semibold py-2 px-3"
-            style={{ color: "var(--landing-primary)" }}
+            className="landing-hero-card-body text-xs font-semibold py-2 px-3"
           >
             {expanded
               ? pick(lang, grid.see_less_bn, grid.see_less_en)

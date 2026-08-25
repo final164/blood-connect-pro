@@ -35,7 +35,7 @@ export function CareAiChatHistoryNav({
         onClick={() => onOpenChange(true)}
         className={
           variant === "landing"
-            ? "text-[11px] font-semibold px-2 py-1 rounded-lg hover:bg-black/5 text-black/50 inline-flex items-center gap-1"
+            ? "landing-hero-card-btn-muted text-[11px] font-semibold px-2 py-1 rounded-lg inline-flex items-center gap-1"
             : "shrink-0 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted inline-flex items-center gap-1"
         }
         aria-label={lang === "bn" ? "চ্যাট তালিকা" : "Chat list"}

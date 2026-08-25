@@ -7,6 +7,27 @@ const DEFAULT_MAX_AGE_DAYS = 7;
 const MAX_MESSAGES = 40;
 const MAX_CHARS = 120_000;
 const MAX_THREADS = 30;
+const MAX_IMAGES_PER_MESSAGE = 2;
+/** ~60 KB per preview keeps a few threads within typical localStorage quota. */
+const MAX_IMAGE_PREVIEW_CHARS = 60_000;
+
+function trimImagePreviews(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const out: string[] = [];
+  let total = 0;
+  for (const src of raw.slice(0, MAX_IMAGES_PER_MESSAGE)) {
+    const s = String(src ?? "");
+    if (!s.startsWith("data:image/")) continue;
+    if (total + s.length > MAX_IMAGE_PREVIEW_CHARS) break;
+    out.push(s);
+    total += s.length;
+  }
+  return out.length ? out : undefined;
+}
+
+function stripMessageImages(messages: CareAiChatStoredMessage[]): CareAiChatStoredMessage[] {
+  return messages.map((m) => ({ ...m, imagePreviews: undefined }));
+}
 
 export type CareAiChatStoredMessage = {
   role: "user" | "assistant";
@@ -33,6 +54,9 @@ export type CareAiChatStoredMessage = {
   offerBundle?: boolean;
   followUpQuestion?: string;
   followUpBatch?: boolean;
+  /** Data URLs for attached prescription / symptom photos (persisted for thread restore). */
+  imagePreviews?: string[];
+  fromPrescription?: boolean;
 };
 
 export type CareAiChatStoredCard = {
@@ -100,7 +124,13 @@ function emptyLibrary(): CareAiChatLibrary {
 }
 
 function isMeaningful(messages: CareAiChatStoredMessage[]) {
-  if (messages.some((m) => m.role === "user" && String(m.text ?? "").trim())) return true;
+  if (
+    messages.some(
+      (m) => m.role === "user" && (String(m.text ?? "").trim() || Boolean(m.imagePreviews?.length)),
+    )
+  ) {
+    return true;
+  }
   return messages.some(
     (m) =>
       m.role === "assistant" &&
@@ -125,9 +155,23 @@ export function generateCareAiChatTopic(
   const fallback = lang === "bn" ? "স্বাস্থ্য আলোচনা" : "Health chat";
 
   const primaryUser = messages.find(
-    (m) => m.role === "user" && m.text.trim() && !isFollowUpOnlyMessage(m),
+    (m) =>
+      m.role === "user" &&
+      (m.text.trim() || m.imagePreviews?.length) &&
+      !isFollowUpOnlyMessage(m),
   );
   let raw = primaryUser?.text?.trim() ?? "";
+
+  if (!raw && primaryUser?.imagePreviews?.length) {
+    const n = primaryUser.imagePreviews.length;
+    return lang === "bn"
+      ? n > 1
+        ? `প্রেসক্রিপশন ছবি (${n})`
+        : "প্রেসক্রিপশন ছবি"
+      : n > 1
+        ? `Prescription photos (${n})`
+        : "Prescription photo";
+  }
 
   raw = raw
     .replace(/^(উত্তর|Answer)\s*[:：]\s*/i, "")
@@ -171,11 +215,24 @@ export function generateCareAiChatTopic(
   return fallback;
 }
 
-function previewFromMessages(messages: CareAiChatStoredMessage[]) {
+function previewFromMessages(messages: CareAiChatStoredMessage[], lang: "bn" | "en" = "en") {
   const firstAsk = messages.find(
-    (m) => m.role === "user" && m.text.trim() && !isFollowUpOnlyMessage(m),
+    (m) =>
+      m.role === "user" &&
+      (m.text.trim() || m.imagePreviews?.length) &&
+      !isFollowUpOnlyMessage(m),
   );
   if (firstAsk) {
+    if (!firstAsk.text.trim() && firstAsk.imagePreviews?.length) {
+      const n = firstAsk.imagePreviews.length;
+      return lang === "bn"
+        ? n > 1
+          ? `প্রেসক্রিপশন ছবি (${n})`
+          : "প্রেসক্রিপশন ছবি"
+        : n > 1
+          ? `Prescription photos (${n})`
+          : "Prescription photo";
+    }
     const t = firstAsk.text.trim().replace(/\s+/g, " ");
     return t.length > 72 ? `${t.slice(0, 70)}…` : t;
   }
@@ -199,6 +256,8 @@ function trimMessages(messages: CareAiChatStoredMessage[]): CareAiChatStoredMess
     offerBundle: m.offerBundle,
     followUpQuestion: m.followUpQuestion,
     followUpBatch: m.followUpBatch,
+    imagePreviews: trimImagePreviews(m.imagePreviews),
+    fromPrescription: m.fromPrescription,
   }));
   let json = JSON.stringify(sliced);
   while (json.length > MAX_CHARS && sliced.length > 4) {
@@ -343,21 +402,31 @@ function clearLegacyKeys() {
 
 function writeLibrary(lib: CareAiChatLibrary) {
   const payload: CareAiChatLibrary = { ...lib, userId: "device", v: VERSION };
-  try {
-    localStorage.setItem(DEVICE_KEY, JSON.stringify(payload));
-  } catch {
+  const attempts: CareAiChatLibrary[] = [
+    payload,
+    {
+      ...payload,
+      threads: payload.threads.slice(0, 10).map((t) => ({
+        ...t,
+        messages: trimMessages(t.messages.slice(-10)),
+        cards: [],
+      })),
+    },
+    {
+      ...payload,
+      threads: payload.threads.slice(0, 6).map((t) => ({
+        ...t,
+        messages: trimMessages(stripMessageImages(t.messages.slice(-8))),
+        cards: [],
+      })),
+    },
+  ];
+  for (const attempt of attempts) {
     try {
-      const slim: CareAiChatLibrary = {
-        ...payload,
-        threads: payload.threads.slice(0, 10).map((t) => ({
-          ...t,
-          messages: trimMessages(t.messages.slice(-10)),
-          cards: [],
-        })),
-      };
-      localStorage.setItem(DEVICE_KEY, JSON.stringify(slim));
+      localStorage.setItem(DEVICE_KEY, JSON.stringify(attempt));
+      return;
     } catch {
-      /* quota / private mode */
+      /* try slimmer payload */
     }
   }
 }
@@ -399,7 +468,7 @@ export function listCareAiChatThreads(
       topic,
       title: topic,
       updatedAt: t.updatedAt,
-      preview: previewFromMessages(t.messages),
+      preview: previewFromMessages(t.messages, t.lang),
       active: t.id === lib.activeId,
     };
   });

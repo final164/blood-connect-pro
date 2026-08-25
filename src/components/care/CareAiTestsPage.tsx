@@ -215,7 +215,7 @@ export function CareAiTestsPage() {
   useEffect(() => {
     if (!historyOpen) return;
     // Flush current conversation into history before listing.
-    if (messages.some((m) => m.role === "user" && m.text.trim())) {
+    if (messages.some((m) => m.role === "user" && (m.text.trim() || m.imagePreviews?.length))) {
       persistChat(messages, cards, cart, threadIdRef.current);
     }
     setThreadList(listCareAiChatThreads(null, persistDays));
@@ -333,7 +333,7 @@ export function CareAiTestsPage() {
       apiText: opts?.followUp || opts?.followUpBatch?.length ? t : t || undefined,
       followUpQuestion: opts?.followUp?.text,
       followUpBatch: !!opts?.followUpBatch?.length,
-      imagePreviews: images.map((i) => i.previewUrl),
+      imagePreviews: images.map((i) => i.storagePreviewUrl || i.previewUrl),
     };
     const nextMsgs: ChatBubble[] = [...messages, userBubble];
     setMessages(nextMsgs);
@@ -421,11 +421,13 @@ export function CareAiTestsPage() {
       for (const file of Array.from(files).slice(0, room)) {
         if (!file.type.startsWith("image/")) continue;
         const compressed = await compressImageForAi(file, maxPx);
+        const storage = await compressImageForAi(file, 480, 0.62);
         next.push({
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           mimeType: compressed.mimeType,
           data: compressed.data,
           previewUrl: compressed.previewUrl,
+          storagePreviewUrl: storage.previewUrl,
         });
       }
       setPendingImages(next);
