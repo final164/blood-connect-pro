@@ -17,15 +17,18 @@ import {
   fetchCareAiPublicConfig,
   type CareAiChatMessage,
   type CareAiExpertAnalysis,
+  type CareAiMedicine,
   type CareAiPublicConfig,
   type CareAiSuggestedSpecialty,
   type CareAiSuggestedTest,
 } from "@/lib/care-ai-chat";
 import { CareAiExpertBlock, CareAiFirstAidBlock, CareAiSpecialtyCards } from "@/components/care/CareAiInsightBlocks";
+import { CareAiMedicineBlock } from "@/components/care/CareAiMedicineBlock";
 import { loadBundlePlan, type BundlePlan } from "@/lib/care-ai-bundle";
 import { CareAiBundleSheet } from "@/components/care/CareAiBundleSheet";
 import { CareAiFollowUpPanel } from "@/components/care/CareAiFollowUpPanel";
-import { CareAiChatComposer } from "@/components/care/CareAiChatComposer";
+import { CareAiChatComposer, type CareAiPendingImage } from "@/components/care/CareAiChatComposer";
+import { compressImageForAi } from "@/lib/care-ai-image";
 import {
   displayAnswerBubble,
   displayBatchAnswerBubble,
@@ -54,7 +57,10 @@ type ChatBubble = CareAiChatMessage & {
   specialties?: CareAiSuggestedSpecialty[];
   expertAnalysis?: CareAiExpertAnalysis | null;
   firstAid?: string[];
+  medicines?: CareAiMedicine[];
+  fromPrescription?: boolean;
   offerBundle?: boolean;
+  imagePreviews?: string[];
   /** Text sent to Gemini (may differ from bubble display for follow-ups). */
   apiText?: string;
   /** Display-only: user answered a follow-up question */
@@ -118,6 +124,7 @@ export function CareAiTestsPage() {
   const [plan, setPlan] = useState<BundlePlan | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [bookBusy, setBookBusy] = useState(false);
+  const [pendingImages, setPendingImages] = useState<CareAiPendingImage[]>([]);
   const [activeFollowUp, setActiveFollowUp] = useState<FollowUpQuestion | null>(null);
   const [answeredFollowUps, setAnsweredFollowUps] = useState<Set<string>>(() => new Set());
   const [hydrated, setHydrated] = useState(false);
@@ -298,24 +305,35 @@ export function CareAiTestsPage() {
       followUp?: FollowUpQuestion;
       followUpBatch?: FollowUpQuestion[];
       displayText?: string;
+      images?: CareAiPendingImage[];
     },
   ) {
+    const images = opts?.images ?? pendingImages;
     const t = text.trim();
-    if (!t || busy) return;
+    if ((!t && !images.length) || busy) return;
     if (isGuest) {
       saveAiChatDraft(AI_CHAT_RESUME_PATH, opts?.displayText ?? t);
       void navigate({ to: "/auth", search: { next: AI_CHAT_RESUME_PATH } as never });
       return;
     }
     setInput("");
+    setPendingImages([]);
     setActiveFollowUp(null);
-    const bubbleText = opts?.displayText ?? t;
+    const bubbleText =
+      opts?.displayText ??
+      t ??
+      (images.length
+        ? lang === "bn"
+          ? `প্রেসক্রিপশন ছবি (${images.length})`
+          : `Prescription photo (${images.length})`
+        : "");
     const userBubble: ChatBubble = {
       role: "user",
-      text: bubbleText,
-      apiText: opts?.followUp || opts?.followUpBatch?.length ? t : undefined,
+      text: bubbleText || (lang === "bn" ? "প্রেসক্রিপশন" : "Prescription"),
+      apiText: opts?.followUp || opts?.followUpBatch?.length ? t : t || undefined,
       followUpQuestion: opts?.followUp?.text,
       followUpBatch: !!opts?.followUpBatch?.length,
+      imagePreviews: images.map((i) => i.previewUrl),
     };
     const nextMsgs: ChatBubble[] = [...messages, userBubble];
     setMessages(nextMsgs);
@@ -332,10 +350,22 @@ export function CareAiTestsPage() {
     }
     setBusy(true);
     try {
+      const apiMessages = nextMsgs.map((m) => ({
+        role: m.role,
+        text:
+          m.apiText ??
+          m.text ??
+          (m.imagePreviews?.length
+            ? lang === "bn"
+              ? "প্রেসক্রিপশন ছবি পড়ুন।"
+              : "Please read this prescription image."
+            : ""),
+      }));
       const res = await careAiTestChat({
         data: {
           lang,
-          messages: nextMsgs.map((m) => ({ role: m.role, text: m.apiText ?? m.text })),
+          messages: apiMessages.filter((m) => m.text),
+          images: images.map((i) => ({ mimeType: i.mimeType, data: i.data })),
         },
       });
       const assistantBubble: ChatBubble = {
@@ -348,6 +378,8 @@ export function CareAiTestsPage() {
         specialties: res.suggested_specialties,
         expertAnalysis: res.expert_analysis,
         firstAid: res.first_aid,
+        medicines: res.medicines,
+        fromPrescription: res.from_prescription,
         offerBundle: res.offer_bundle,
       };
       const withAssistant = [...nextMsgs, assistantBubble];
@@ -369,6 +401,33 @@ export function CareAiTestsPage() {
       toast.error((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handlePickFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const max = aiConfig?.limits?.maxPrescriptionImages ?? 2;
+    const maxPx = aiConfig?.limits?.prescriptionImageMaxPx ?? 1600;
+    const room = Math.max(0, max - pendingImages.length);
+    if (!room) {
+      toast.error(lang === "bn" ? `সর্বোচ্চ ${max}টি ছবি` : `Max ${max} images`);
+      return;
+    }
+    try {
+      const next: CareAiPendingImage[] = [...pendingImages];
+      for (const file of Array.from(files).slice(0, room)) {
+        if (!file.type.startsWith("image/")) continue;
+        const compressed = await compressImageForAi(file, maxPx);
+        next.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          mimeType: compressed.mimeType,
+          data: compressed.data,
+          previewUrl: compressed.previewUrl,
+        });
+      }
+      setPendingImages(next);
+    } catch (e) {
+      toast.error((e as Error).message);
     }
   }
 
@@ -474,6 +533,17 @@ export function CareAiTestsPage() {
               {m.role === "assistant" ? (
                 <>
                   <p className="whitespace-pre-wrap">{m.text}</p>
+                  {features?.prescription_medicines !== false && (
+                    <CareAiMedicineBlock
+                      items={m.medicines}
+                      title={
+                        ui?.medicinesHeading ??
+                        (lang === "bn" ? "প্রেসক্রিপশনের ওষুধ" : "Prescription medicines")
+                      }
+                      disclaimer={ui?.prescriptionDisclaimer}
+                      lang={lang}
+                    />
+                  )}
                   {features?.medical_advice !== false && (
                     <AiSection
                       icon={Stethoscope}
@@ -523,6 +593,18 @@ export function CareAiTestsPage() {
                 </>
               ) : (
                 <>
+                  {m.imagePreviews?.length ? (
+                    <div className="flex gap-1.5 mb-2 overflow-x-auto">
+                      {m.imagePreviews.map((src, idx) => (
+                        <img
+                          key={idx}
+                          src={src}
+                          alt=""
+                          className="h-16 w-16 rounded-lg object-cover border border-primary-foreground/30"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                   <p className="whitespace-pre-wrap">{m.text}</p>
                   {m.followUpQuestion && aiConfig?.followUp && (
                     <p className="text-[10px] opacity-75 mt-1 pt-1 border-t border-primary-foreground/20">
@@ -630,8 +712,20 @@ export function CareAiTestsPage() {
         onChange={setInput}
         onSend={() => void send(input)}
         placeholder={lang === "bn" ? "লক্ষণ বা প্রশ্ন লিখুন…" : "Describe symptoms or ask…"}
-        hint={aiConfig?.followUp?.composerHint}
+        hint={
+          busy && pendingImages.length === 0 && features?.prescription_scan
+            ? ui?.prescriptionAnalyzing ?? aiConfig?.followUp?.composerHint
+            : aiConfig?.followUp?.composerHint
+        }
         busy={busy}
+        attachEnabled={features?.prescription_scan !== false}
+        attachLabel={ui?.prescriptionAttach}
+        cameraLabel={ui?.prescriptionCamera}
+        photosLabel={ui?.prescriptionPhotos}
+        pendingImages={pendingImages}
+        onImagesChange={setPendingImages}
+        onPickFiles={(files) => void handlePickFiles(files)}
+        maxImages={aiConfig?.limits?.maxPrescriptionImages ?? 2}
         topSlot={
           showBundle ? (
             <button

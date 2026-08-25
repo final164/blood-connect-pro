@@ -158,6 +158,7 @@ async function callGemini(
   systemText?: string,
   json = false,
   speed?: { thinkingLevel: GeminiThinkingLevel; maxOutputTokens: number },
+  images?: { mimeType: string; data: string }[],
 ): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const thinkingLevel = speed?.thinkingLevel ?? "minimal";
@@ -174,8 +175,20 @@ async function callGemini(
     generationConfig.temperature = 0.3;
   }
 
+  const parts: Record<string, unknown>[] = [];
+  for (const img of images ?? []) {
+    if (!img?.data || !img?.mimeType) continue;
+    parts.push({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.data.replace(/^data:[^;]+;base64,/, ""),
+      },
+    });
+  }
+  parts.push({ text: userText });
+
   const payload: Record<string, unknown> = {
-    contents: [{ role: "user", parts: [{ text: userText }] }],
+    contents: [{ role: "user", parts }],
     generationConfig,
   };
   if (systemText) {
@@ -218,6 +231,7 @@ export async function geminiGenerate(opts: {
   systemText?: string;
   json?: boolean;
   modelRole?: "primary" | "fallback" | "match";
+  images?: { mimeType: string; data: string }[];
 }): Promise<string> {
   const sb = adminClient();
   const settings = await fetchSettings(sb);
@@ -234,7 +248,13 @@ export async function geminiGenerate(opts: {
   const keys = await loadKeys(sb);
   if (!keys.length) throw new Error("No Gemini API keys configured");
 
-  const speed = { thinkingLevel: settings.thinking_level, maxOutputTokens: settings.max_output_tokens };
+  const speed = {
+    thinkingLevel: settings.thinking_level,
+    maxOutputTokens: Math.max(
+      settings.max_output_tokens,
+      opts.images?.length ? 2048 : settings.max_output_tokens,
+    ),
+  };
   const preferred = keys.filter((k) => k.status === "active");
   const rest = keys.filter((k) => k.status !== "active");
   const ordered = [...preferred, ...rest];
@@ -250,6 +270,7 @@ export async function geminiGenerate(opts: {
           opts.systemText,
           opts.json,
           speed,
+          opts.images,
         );
         await markKey(sb, key.id, { status: "active" });
         return text;

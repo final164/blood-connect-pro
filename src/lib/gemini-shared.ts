@@ -14,6 +14,8 @@ export type GeminiSettings = {
   prompt_chat_bn: string;
   prompt_chat_en: string;
   prompt_match: string;
+  prompt_prescription_bn: string;
+  prompt_prescription_en: string;
 };
 
 export const DEFAULT_PROMPT_CHAT_BN = `আপনি BloodLink Care-এর expert-level AI স্বাস্থ্য ও ল্যাব-টেস্ট সহায়ক। আপনি ডাক্তার নন — রোগ নির্ণয়, ওষুধ বা ডোজ দেবেন না; ক্লিনিক্যাল reasoning দিয়ে সাধারণ তথ্য ও রেফারেল দিন।
@@ -60,6 +62,34 @@ Prefer several relevant matches when possible. Use only catalog ids. Never inven
 CATALOG:
 {{catalog}}`;
 
+export const DEFAULT_PROMPT_PRESCRIPTION_BN = `আপনি BloodLink Care প্রেসক্রিপশন রিডার। ছবিতে ডাক্তারের হাতের লেখা পড়ুন।
+কঠোর নিয়ম:
+- শুধু প্রেসক্রিপশনে যা লেখা আছে তাই — বাইরের ওষুধ/টেস্ট উদ্ভাবন নিষেধ।
+- হাতের লেখা অস্পষ্ট হলে suggested_name-এ একই ওষুধের সবচেয়ে সম্ভাব্য পাঠ দিন (বিকল্প অন্য ওষুধ নয়)।
+- প্রতিটি ওষুধে: কতবার, কখন (সকাল/দুপুর/রাত/খাওয়ার আগে-পরে), ডোজ, কতদিন।
+- টেস্ট থাকলে শুধু নিচের ক্যাটালগ থেকে match করুন (catalog_id+code)।
+- এটি তথ্যমূলক সহায়তা — চিকিৎসক নির্দেশের বিকল্প নয়।
+- শুধু JSON।
+
+CATALOG (id|code|name_bn|name_en):
+{{catalog}}
+
+Language: {{lang}}`;
+
+export const DEFAULT_PROMPT_PRESCRIPTION_EN = `You are BloodLink Care's prescription reader. Read the doctor's handwriting in the image(s).
+Strict rules:
+- ONLY extract medicines and tests that appear on the prescription — never invent extra drugs or tests.
+- If handwriting is unclear, put the most likely reading of THAT same drug in suggested_name (not a different drug).
+- For each medicine: how many times/day, when (morning/noon/night/before-after meals), dose, duration.
+- For lab tests written on the Rx, map ONLY to the catalog below (catalog_id+code).
+- Informational aid only — not a substitute for the prescribing doctor.
+- JSON only.
+
+CATALOG (id|code|name_bn|name_en):
+{{catalog}}
+
+Language: {{lang}}`;
+
 export const DEFAULT_GEMINI_SETTINGS: GeminiSettings = {
   enabled: true,
   primary_model: "gemini-3.5-flash-lite",
@@ -72,6 +102,8 @@ export const DEFAULT_GEMINI_SETTINGS: GeminiSettings = {
   prompt_chat_bn: DEFAULT_PROMPT_CHAT_BN,
   prompt_chat_en: DEFAULT_PROMPT_CHAT_EN,
   prompt_match: DEFAULT_PROMPT_MATCH,
+  prompt_prescription_bn: DEFAULT_PROMPT_PRESCRIPTION_BN,
+  prompt_prescription_en: DEFAULT_PROMPT_PRESCRIPTION_EN,
 };
 
 const THINKING_LEVELS: GeminiThinkingLevel[] = ["minimal", "low", "medium", "high"];
@@ -138,6 +170,14 @@ export function normalizeGeminiSettings(raw: unknown): GeminiSettings {
       typeof r.prompt_chat_en === "string" && r.prompt_chat_en.trim() ? r.prompt_chat_en : DEFAULT_PROMPT_CHAT_EN,
     prompt_match:
       typeof r.prompt_match === "string" && r.prompt_match.trim() ? r.prompt_match : DEFAULT_PROMPT_MATCH,
+    prompt_prescription_bn:
+      typeof r.prompt_prescription_bn === "string" && r.prompt_prescription_bn.trim()
+        ? r.prompt_prescription_bn
+        : DEFAULT_PROMPT_PRESCRIPTION_BN,
+    prompt_prescription_en:
+      typeof r.prompt_prescription_en === "string" && r.prompt_prescription_en.trim()
+        ? r.prompt_prescription_en
+        : DEFAULT_PROMPT_PRESCRIPTION_EN,
   };
 }
 

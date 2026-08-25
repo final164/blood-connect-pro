@@ -29,6 +29,8 @@ import {
   DEFAULT_PROMPT_CHAT_BN,
   DEFAULT_PROMPT_CHAT_EN,
   DEFAULT_PROMPT_MATCH,
+  DEFAULT_PROMPT_PRESCRIPTION_BN,
+  DEFAULT_PROMPT_PRESCRIPTION_EN,
   type GeminiThinkingLevel,
 } from "@/lib/gemini-shared";
 
@@ -36,8 +38,8 @@ const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-rose-500/40 placeholder:text-slate-500";
 
 type MainTab = "models" | "features" | "followup" | "prompts" | "ui" | "catalog" | "keys";
-type PromptTab = "chat_bn" | "chat_en" | "match";
-type UiTab = "welcome" | "status" | "headings" | "cta";
+type PromptTab = "chat_bn" | "chat_en" | "match" | "rx_bn" | "rx_en";
+type UiTab = "welcome" | "status" | "headings" | "cta" | "prescription";
 type FollowUpTab = "general" | FollowUpKind;
 
 const MAIN_TABS: { id: MainTab; bn: string; en: string }[] = [
@@ -54,6 +56,8 @@ const PROMPT_TABS: { id: PromptTab; bn: string; en: string }[] = [
   { id: "chat_bn", bn: "চ্যাট (বাংলা)", en: "Chat (Bangla)" },
   { id: "chat_en", bn: "চ্যাট (English)", en: "Chat (English)" },
   { id: "match", bn: "ম্যাচ", en: "Match" },
+  { id: "rx_bn", bn: "প্রেসক্রিপশন (বাংলা)", en: "Prescription (Bangla)" },
+  { id: "rx_en", bn: "প্রেসক্রিপশন (English)", en: "Prescription (English)" },
 ];
 
 const UI_TABS: { id: UiTab; bn: string; en: string }[] = [
@@ -61,6 +65,7 @@ const UI_TABS: { id: UiTab; bn: string; en: string }[] = [
   { id: "status", bn: "স্ট্যাটাস টেক্সট", en: "Status text" },
   { id: "headings", bn: "সেকশন হেডিং", en: "Section headings" },
   { id: "cta", bn: "বুকিং CTA", en: "Booking CTA" },
+  { id: "prescription", bn: "প্রেসক্রিপশন", en: "Prescription" },
 ];
 
 const FOLLOWUP_TABS: { id: FollowUpTab; bn: string; en: string }[] = [
@@ -164,6 +169,20 @@ const UI_FIELDS: Record<UiTab, (keyof GeminiUiCopy)[]> = {
     "first_aid_button_bn",
     "first_aid_button_en",
   ],
+  prescription: [
+    "prescription_attach_bn",
+    "prescription_attach_en",
+    "prescription_camera_bn",
+    "prescription_camera_en",
+    "prescription_photos_bn",
+    "prescription_photos_en",
+    "medicines_heading_bn",
+    "medicines_heading_en",
+    "prescription_disclaimer_bn",
+    "prescription_disclaimer_en",
+    "prescription_analyzing_bn",
+    "prescription_analyzing_en",
+  ],
 };
 
 const UI_LABELS: Record<keyof GeminiUiCopy, { bn: string; en: string }> = {
@@ -193,6 +212,18 @@ const UI_LABELS: Record<keyof GeminiUiCopy, { bn: string; en: string }> = {
   first_aid_heading_en: { bn: "প্রাথমিক চিকিৎসা হেডিং (English)", en: "First-aid heading (English)" },
   first_aid_button_bn: { bn: "প্রাথমিক চিকিৎসা বাটন (বাংলা)", en: "First-aid button (Bangla)" },
   first_aid_button_en: { bn: "প্রাথমিক চিকিৎসা বাটন (English)", en: "First-aid button (English)" },
+  prescription_attach_bn: { bn: "অ্যাটাচ লেবেল (বাংলা)", en: "Attach label (Bangla)" },
+  prescription_attach_en: { bn: "অ্যাটাচ লেবেল (English)", en: "Attach label (English)" },
+  prescription_camera_bn: { bn: "ক্যামেরা (বাংলা)", en: "Camera (Bangla)" },
+  prescription_camera_en: { bn: "ক্যামেরা (English)", en: "Camera (English)" },
+  prescription_photos_bn: { bn: "ফটো (বাংলা)", en: "Photos (Bangla)" },
+  prescription_photos_en: { bn: "ফটো (English)", en: "Photos (English)" },
+  medicines_heading_bn: { bn: "ওষুধ হেডিং (বাংলা)", en: "Medicines heading (Bangla)" },
+  medicines_heading_en: { bn: "ওষুধ হেডিং (English)", en: "Medicines heading (English)" },
+  prescription_disclaimer_bn: { bn: "প্রেসক্রিপশন ডিসক্লেইমার (বাংলা)", en: "Rx disclaimer (Bangla)" },
+  prescription_disclaimer_en: { bn: "প্রেসক্রিপশন ডিসক্লেইমার (English)", en: "Rx disclaimer (English)" },
+  prescription_analyzing_bn: { bn: "অ্যানালাইজিং (বাংলা)", en: "Analyzing (Bangla)" },
+  prescription_analyzing_en: { bn: "অ্যানালাইজিং (English)", en: "Analyzing (English)" },
 };
 
 function defaultExtended(): GeminiSettingsExtended {
@@ -204,6 +235,9 @@ function defaultExtended(): GeminiSettingsExtended {
     max_questions: 4,
     max_suggestions: 8,
     max_specialties: 3,
+    max_medicines: 15,
+    max_prescription_images: 2,
+    prescription_image_max_px: 1600,
     chat_persist_days: 7,
   };
 }
@@ -482,14 +516,22 @@ export function GeminiKeysAdmin() {
       ? settings.prompt_chat_bn
       : promptTab === "chat_en"
         ? settings.prompt_chat_en
-        : settings.prompt_match;
+        : promptTab === "rx_bn"
+          ? settings.prompt_prescription_bn
+          : promptTab === "rx_en"
+            ? settings.prompt_prescription_en
+            : settings.prompt_match;
 
   const activePromptDefault =
     promptTab === "chat_bn"
       ? DEFAULT_PROMPT_CHAT_BN
       : promptTab === "chat_en"
         ? DEFAULT_PROMPT_CHAT_EN
-        : DEFAULT_PROMPT_MATCH;
+        : promptTab === "rx_bn"
+          ? DEFAULT_PROMPT_PRESCRIPTION_BN
+          : promptTab === "rx_en"
+            ? DEFAULT_PROMPT_PRESCRIPTION_EN
+            : DEFAULT_PROMPT_MATCH;
 
   return (
     <div className="space-y-4 max-w-5xl">
@@ -669,6 +711,33 @@ export function GeminiKeysAdmin() {
                   : "Button expands home/primary care steps (no prescriptions)."
               }
             />
+            <FeatureToggle
+              field="prescription_scan"
+              label={lang === "bn" ? "প্রেসক্রিপশন অ্যাটাচ" : "Prescription attach"}
+              hint={
+                lang === "bn"
+                  ? "AI চ্যাটে ক্যামেরা/ফটো দিয়ে Rx আপলোড।"
+                  : "Camera/photo Rx upload in AI chat."
+              }
+            />
+            <FeatureToggle
+              field="prescription_medicines"
+              label={lang === "bn" ? "Rx ওষুধ এক্সট্র্যাক্ট" : "Rx medicine extract"}
+              hint={
+                lang === "bn"
+                  ? "শুধু প্রেসক্রিপশনের ওষুধ — ডোজ/সময়; বাইরের ওষুধ নয়।"
+                  : "Only drugs on the Rx — dose/timing; never invent extras."
+              }
+            />
+            <FeatureToggle
+              field="prescription_tests"
+              label={lang === "bn" ? "Rx টেস্ট → বুকিং" : "Rx tests → booking"}
+              hint={
+                lang === "bn"
+                  ? "প্রেসক্রিপশনের টেস্ট ক্যাটালগে ম্যাচ করে সস্তায় বুক।"
+                  : "Map Rx lab tests to catalog for cheap booking."
+              }
+            />
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 pt-2">
             <label className="block space-y-1">
@@ -710,6 +779,55 @@ export function GeminiKeysAdmin() {
                 value={settings.max_specialties}
                 disabled={!canEdit}
                 onChange={(e) => setSettings((s) => ({ ...s, max_specialties: Number(e.target.value) || 0 }))}
+                className={ainp}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold text-slate-300">
+                {lang === "bn" ? "সর্বোচ্চ ওষুধ (Rx)" : "Max medicines (Rx)"}
+              </span>
+              <input
+                type="number"
+                min={0}
+                max={30}
+                value={settings.max_medicines}
+                disabled={!canEdit}
+                onChange={(e) => setSettings((s) => ({ ...s, max_medicines: Number(e.target.value) || 0 }))}
+                className={ainp}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold text-slate-300">
+                {lang === "bn" ? "Rx ছবি সর্বোচ্চ" : "Max Rx images"}
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={5}
+                value={settings.max_prescription_images}
+                disabled={!canEdit}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, max_prescription_images: Number(e.target.value) || 1 }))
+                }
+                className={ainp}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold text-slate-300">
+                {lang === "bn" ? "ছবি max px" : "Image max px"}
+              </span>
+              <input
+                type="number"
+                min={800}
+                max={2048}
+                value={settings.prescription_image_max_px}
+                disabled={!canEdit}
+                onChange={(e) =>
+                  setSettings((s) => ({
+                    ...s,
+                    prescription_image_max_px: Number(e.target.value) || 1600,
+                  }))
+                }
                 className={ainp}
               />
             </label>
@@ -893,6 +1011,8 @@ export function GeminiKeysAdmin() {
               const v = e.target.value;
               if (promptTab === "chat_bn") setSettings((s) => ({ ...s, prompt_chat_bn: v }));
               else if (promptTab === "chat_en") setSettings((s) => ({ ...s, prompt_chat_en: v }));
+              else if (promptTab === "rx_bn") setSettings((s) => ({ ...s, prompt_prescription_bn: v }));
+              else if (promptTab === "rx_en") setSettings((s) => ({ ...s, prompt_prescription_en: v }));
               else setSettings((s) => ({ ...s, prompt_match: v }));
             }}
             className={ainp + " font-mono text-[12px] min-h-72"}
@@ -908,6 +1028,10 @@ export function GeminiKeysAdmin() {
                     setSettings((s) => ({ ...s, prompt_chat_bn: DEFAULT_PROMPT_CHAT_BN }));
                   else if (promptTab === "chat_en")
                     setSettings((s) => ({ ...s, prompt_chat_en: DEFAULT_PROMPT_CHAT_EN }));
+                  else if (promptTab === "rx_bn")
+                    setSettings((s) => ({ ...s, prompt_prescription_bn: DEFAULT_PROMPT_PRESCRIPTION_BN }));
+                  else if (promptTab === "rx_en")
+                    setSettings((s) => ({ ...s, prompt_prescription_en: DEFAULT_PROMPT_PRESCRIPTION_EN }));
                   else setSettings((s) => ({ ...s, prompt_match: DEFAULT_PROMPT_MATCH }));
                 }}
                 className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200"

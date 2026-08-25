@@ -17,6 +17,12 @@ export type GeminiAiFeatures = {
   expert_analysis: boolean;
   /** Home / primary first-aid steps behind a UI button */
   first_aid: boolean;
+  /** Allow camera/photo prescription upload in AI chat */
+  prescription_scan: boolean;
+  /** Extract medicines + schedule from prescription image */
+  prescription_medicines: boolean;
+  /** Extract / map lab tests from prescription for cheap booking */
+  prescription_tests: boolean;
 };
 
 export type GeminiUiCopy = {
@@ -46,6 +52,18 @@ export type GeminiUiCopy = {
   first_aid_heading_en: string;
   first_aid_button_bn: string;
   first_aid_button_en: string;
+  prescription_attach_bn: string;
+  prescription_attach_en: string;
+  prescription_camera_bn: string;
+  prescription_camera_en: string;
+  prescription_photos_bn: string;
+  prescription_photos_en: string;
+  medicines_heading_bn: string;
+  medicines_heading_en: string;
+  prescription_disclaimer_bn: string;
+  prescription_disclaimer_en: string;
+  prescription_analyzing_bn: string;
+  prescription_analyzing_en: string;
 };
 
 export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
@@ -58,6 +76,9 @@ export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
   specialty_suggestions: true,
   expert_analysis: true,
   first_aid: true,
+  prescription_scan: true,
+  prescription_medicines: true,
+  prescription_tests: true,
 };
 
 export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
@@ -89,6 +110,20 @@ export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
   first_aid_heading_en: "Primary first aid",
   first_aid_button_bn: "প্রাথমিক চিকিৎসা",
   first_aid_button_en: "Primary first aid",
+  prescription_attach_bn: "প্রেসক্রিপশন অ্যাটাচ",
+  prescription_attach_en: "Attach prescription",
+  prescription_camera_bn: "ক্যামেরা",
+  prescription_camera_en: "Camera",
+  prescription_photos_bn: "গ্যালারি / ফটো",
+  prescription_photos_en: "Photos / gallery",
+  medicines_heading_bn: "প্রেসক্রিপশনের ওষুধ",
+  medicines_heading_en: "Prescription medicines",
+  prescription_disclaimer_bn:
+    "হাতের লেখার সম্ভাব্য পাঠ — শুধু প্রেসক্রিপশনে যা আছে। চিকিৎসকের নির্দেশের বিকল্প নয়।",
+  prescription_disclaimer_en:
+    "Likely reading of handwriting — only what is on the Rx. Not a substitute for your doctor.",
+  prescription_analyzing_bn: "প্রেসক্রিপশন পড়ছি…",
+  prescription_analyzing_en: "Reading your prescription…",
 };
 
 export type GeminiSettingsExtended = GeminiSettings & {
@@ -98,6 +133,10 @@ export type GeminiSettingsExtended = GeminiSettings & {
   max_questions: number;
   max_suggestions: number;
   max_specialties: number;
+  max_medicines: number;
+  max_prescription_images: number;
+  /** Max image edge (px) before upload — client should compress */
+  prescription_image_max_px: number;
   /** Days to keep AI chat in the user's browser (localStorage). No server storage. */
   chat_persist_days: number;
 };
@@ -374,6 +413,9 @@ export function normalizeGeminiFeatures(raw: unknown): GeminiAiFeatures {
     specialty_suggestions: pickBool(r, "specialty_suggestions", DEFAULT_GEMINI_FEATURES.specialty_suggestions),
     expert_analysis: pickBool(r, "expert_analysis", DEFAULT_GEMINI_FEATURES.expert_analysis),
     first_aid: pickBool(r, "first_aid", DEFAULT_GEMINI_FEATURES.first_aid),
+    prescription_scan: pickBool(r, "prescription_scan", DEFAULT_GEMINI_FEATURES.prescription_scan),
+    prescription_medicines: pickBool(r, "prescription_medicines", DEFAULT_GEMINI_FEATURES.prescription_medicines),
+    prescription_tests: pickBool(r, "prescription_tests", DEFAULT_GEMINI_FEATURES.prescription_tests),
   };
 }
 
@@ -399,6 +441,9 @@ export function extendGeminiSettings(base: GeminiSettings, raw: unknown): Gemini
     max_questions: Math.min(6, Math.max(0, Number(r.max_questions ?? 4))),
     max_suggestions: Math.min(12, Math.max(0, Number(r.max_suggestions ?? 8))),
     max_specialties: Math.min(6, Math.max(0, Number(r.max_specialties ?? 3))),
+    max_medicines: Math.min(30, Math.max(0, Number(r.max_medicines ?? 15))),
+    max_prescription_images: Math.min(5, Math.max(1, Number(r.max_prescription_images ?? 2) || 2)),
+    prescription_image_max_px: Math.min(2048, Math.max(800, Number(r.prescription_image_max_px ?? 1600) || 1600)),
     chat_persist_days: Math.min(90, Math.max(1, Number(r.chat_persist_days ?? 7) || 7)),
   };
 }
@@ -442,7 +487,76 @@ export function buildJsonSchema(features: GeminiAiFeatures): string {
   if (features.bundle_offer && features.test_suggestions) {
     fields.push('"offer_bundle":boolean');
   }
+  if (features.prescription_medicines) {
+    fields.push(
+      '"medicines":[{"name_as_written":"string","suggested_name":"clarified same drug only","dose":"string","frequency":"e.g. 1-0-1 or twice daily","timing":"when to take","duration":"string","notes":"string"}] — ONLY drugs visible on the prescription; never invent extras',
+    );
+  }
+  if (features.prescription_tests || features.test_suggestions) {
+    // tests already covered when test_suggestions; for prescription mode ensure present
+    if (!features.test_suggestions) {
+      fields.push(
+        '"suggested_tests":[{"catalog_id":"uuid","code":"CODE","reason":"from Rx"}] — ONLY catalog matches for tests written on the Rx',
+      );
+    }
+  }
   return `{${fields.join(",")}}`;
+}
+
+export function buildPrescriptionSystemPrompt(
+  settings: GeminiSettingsExtended,
+  lang: "bn" | "en",
+  catalog: string,
+) {
+  const template = lang === "bn" ? settings.prompt_prescription_bn : settings.prompt_prescription_en;
+  const featureLines: string[] = [];
+  if (settings.features.prescription_medicines) {
+    featureLines.push(
+      lang === "bn"
+        ? `- medicines: সর্বোচ্চ ${settings.max_medicines}টি। শুধু ছবিতে দেখা ওষুধ। suggested_name = একই ওষুধের স্পষ্ট পাঠ (অন্য ওষুধ নয়)। frequency/timing/dose/duration পূরণ করুন।`
+        : `- medicines: max ${settings.max_medicines}. Only drugs visible in the image. suggested_name = clarified reading of the SAME drug. Fill frequency/timing/dose/duration.`,
+    );
+  } else {
+    featureLines.push(lang === "bn" ? "- medicines: []" : "- medicines: []");
+  }
+  if (settings.features.prescription_tests) {
+    featureLines.push(
+      lang === "bn"
+        ? `- suggested_tests: প্রেসক্রিপশনে লেখা টেস্টগুলো ক্যাটালগ থেকে match (সর্বোচ্চ ${settings.max_suggestions})।`
+        : `- suggested_tests: map Rx-written tests to catalog only (max ${settings.max_suggestions}).`,
+    );
+  } else {
+    featureLines.push(lang === "bn" ? "- suggested_tests: []" : "- suggested_tests: []");
+  }
+  if (settings.features.bundle_offer && settings.features.prescription_tests) {
+    featureLines.push(
+      lang === "bn" ? "- offer_bundle=true যদি ২+ টেস্ট থাকে।" : "- offer_bundle=true if 2+ tests.",
+    );
+  }
+  featureLines.push(
+    lang === "bn"
+      ? "- reply: সংক্ষিপ্ত সারাংশ যে প্রেসক্রিপশন পড়া হয়েছে।"
+      : "- reply: short summary that the prescription was read.",
+  );
+
+  const schema = buildJsonSchema({
+    ...settings.features,
+    medical_advice: false,
+    catalog_notes: false,
+    follow_up_questions: false,
+    specialty_suggestions: false,
+    expert_analysis: false,
+    first_aid: false,
+    test_suggestions: settings.features.prescription_tests,
+    prescription_medicines: settings.features.prescription_medicines,
+  });
+
+  const addon =
+    lang === "bn"
+      ? `\n\nENABLED OUTPUT (JSON only):\n${schema}\n\nFeature rules:\n${featureLines.join("\n")}`
+      : `\n\nENABLED OUTPUT (JSON only):\n${schema}\n\nFeature rules:\n${featureLines.join("\n")}`;
+
+  return fillPrompt(template, { catalog, lang }) + addon;
 }
 
 export function buildChatSystemPrompt(
@@ -557,6 +671,19 @@ export function getPublicAiConfig(settings: GeminiSettingsExtended, lang: "bn" |
       specialtyCta: lang === "bn" ? ui.specialty_cta_bn : ui.specialty_cta_en,
       firstAidHeading: lang === "bn" ? ui.first_aid_heading_bn : ui.first_aid_heading_en,
       firstAidButton: lang === "bn" ? ui.first_aid_button_bn : ui.first_aid_button_en,
+      prescriptionAttach: lang === "bn" ? ui.prescription_attach_bn : ui.prescription_attach_en,
+      prescriptionCamera: lang === "bn" ? ui.prescription_camera_bn : ui.prescription_camera_en,
+      prescriptionPhotos: lang === "bn" ? ui.prescription_photos_bn : ui.prescription_photos_en,
+      medicinesHeading: lang === "bn" ? ui.medicines_heading_bn : ui.medicines_heading_en,
+      prescriptionDisclaimer:
+        lang === "bn" ? ui.prescription_disclaimer_bn : ui.prescription_disclaimer_en,
+      prescriptionAnalyzing:
+        lang === "bn" ? ui.prescription_analyzing_bn : ui.prescription_analyzing_en,
+    },
+    limits: {
+      maxPrescriptionImages: settings.max_prescription_images,
+      prescriptionImageMaxPx: settings.prescription_image_max_px,
+      maxMedicines: settings.max_medicines,
     },
   };
 }

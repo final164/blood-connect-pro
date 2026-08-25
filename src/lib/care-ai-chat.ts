@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { optionalSupabaseAuth } from "@/lib/optional-supabase-auth";
 import {
   buildChatSystemPrompt,
+  buildPrescriptionSystemPrompt,
   getPublicAiConfig,
   normalizeGeminiSettingsExtended,
   type CareAiPublicConfig,
@@ -29,6 +30,18 @@ export type CareAiExpertAnalysis = {
   analysis_summary: string;
 };
 
+export type CareAiMedicine = {
+  name_as_written: string;
+  suggested_name: string;
+  dose: string;
+  frequency: string;
+  timing: string;
+  duration: string;
+  notes: string;
+};
+
+export type CareAiChatImage = { mimeType: string; data: string };
+
 export type CareAiChatResult = {
   reply: string;
   medical_advice: string;
@@ -38,7 +51,9 @@ export type CareAiChatResult = {
   suggested_specialties: CareAiSuggestedSpecialty[];
   expert_analysis: CareAiExpertAnalysis | null;
   first_aid: string[];
+  medicines: CareAiMedicine[];
   offer_bundle: boolean;
+  from_prescription: boolean;
 };
 
 type CatalogRow = {
@@ -107,6 +122,49 @@ function friendlyAiError(e: unknown, lang: "bn" | "en"): string {
 
 function asString(v: unknown) {
   return typeof v === "string" ? v.trim() : "";
+}
+
+function parseMedicines(raw: unknown, max: number): CareAiMedicine[] {
+  if (!Array.isArray(raw) || max <= 0) return [];
+  const out: CareAiMedicine[] = [];
+  for (const item of raw) {
+    if (out.length >= max) break;
+    const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const name_as_written = asString(row.name_as_written) || asString(row.name) || asString(row.drug);
+    const suggested_name =
+      asString(row.suggested_name) || asString(row.clarified_name) || name_as_written;
+    if (!name_as_written && !suggested_name) continue;
+    out.push({
+      name_as_written: name_as_written.slice(0, 120),
+      suggested_name: suggested_name.slice(0, 120),
+      dose: asString(row.dose).slice(0, 80),
+      frequency: asString(row.frequency).slice(0, 80),
+      timing: asString(row.timing || row.when).slice(0, 120),
+      duration: asString(row.duration).slice(0, 80),
+      notes: asString(row.notes).slice(0, 200),
+    });
+  }
+  return out;
+}
+
+function sanitizeChatImages(raw: unknown, maxImages: number): CareAiChatImage[] {
+  if (!Array.isArray(raw) || maxImages <= 0) return [];
+  const out: CareAiChatImage[] = [];
+  for (const item of raw) {
+    if (out.length >= maxImages) break;
+    const row = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+    const mimeType = asString(row.mimeType || row.mime_type).toLowerCase();
+    let data = asString(row.data);
+    if (!data) continue;
+    data = data.replace(/^data:[^;]+;base64,/, "");
+    if (!/^(image\/(jpeg|jpg|png|webp|heic|heif))$/.test(mimeType) && !mimeType.startsWith("image/")) {
+      continue;
+    }
+    // ~4MB base64 ≈ 3MB binary — reject absurd payloads
+    if (data.length > 5_500_000) continue;
+    out.push({ mimeType: mimeType === "image/jpg" ? "image/jpeg" : mimeType, data });
+  }
+  return out;
 }
 
 async function loadCatalog(sb: SupabaseClient, limit: number): Promise<CatalogRow[]> {
@@ -363,34 +421,68 @@ export const fetchCareAiPublicConfig = createServerFn({ method: "POST" })
 
 export const careAiTestChat = createServerFn({ method: "POST" })
   .middleware([optionalSupabaseAuth])
-  .validator((data: { messages: CareAiChatMessage[]; lang?: "bn" | "en" }) => {
-    const messages = Array.isArray(data?.messages) ? data.messages : [];
-    const cleaned: CareAiChatMessage[] = messages
-      .slice(-6)
-      .map((m) => {
-        const role: CareAiChatMessage["role"] = m?.role === "assistant" ? "assistant" : "user";
-        return { role, text: String(m?.text ?? "").trim().slice(0, 2000) };
-      })
-      .filter((m) => m.text);
-    if (!cleaned.length) throw new Error("Message required");
-    return { messages: cleaned, lang: data?.lang === "en" ? ("en" as const) : ("bn" as const) };
-  })
+  .validator(
+    (data: {
+      messages: CareAiChatMessage[];
+      lang?: "bn" | "en";
+      images?: CareAiChatImage[];
+    }) => {
+      const messages = Array.isArray(data?.messages) ? data.messages : [];
+      const cleaned: CareAiChatMessage[] = messages
+        .slice(-6)
+        .map((m) => {
+          const role: CareAiChatMessage["role"] = m?.role === "assistant" ? "assistant" : "user";
+          return { role, text: String(m?.text ?? "").trim().slice(0, 2000) };
+        })
+        .filter((m) => m.text);
+      const images = sanitizeChatImages(data?.images, 5);
+      if (!cleaned.length && !images.length) throw new Error("Message required");
+      if (!cleaned.length && images.length) {
+        cleaned.push({
+          role: "user",
+          text: "Please read this prescription image.",
+        });
+      }
+      return {
+        messages: cleaned,
+        lang: data?.lang === "en" ? ("en" as const) : ("bn" as const),
+        images,
+      };
+    },
+  )
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .handler(async (opts: any): Promise<CareAiChatResult> => {
     const context = opts.context as AiAuthContext;
-    const data = opts.data as { messages: CareAiChatMessage[]; lang: "bn" | "en" };
+    const data = opts.data as {
+      messages: CareAiChatMessage[];
+      lang: "bn" | "en";
+      images: CareAiChatImage[];
+    };
     const settings = normalizeGeminiSettingsExtended(
       await fetchSettingsForAi(context.supabase, context.isGuest),
     );
     const { features } = settings;
+    const hasImages = data.images.length > 0;
+    const prescriptionMode = hasImages && features.prescription_scan;
+
+    if (hasImages && !features.prescription_scan) {
+      throw new Error(
+        data.lang === "bn"
+          ? "Admin-এ প্রেসক্রিপশন স্ক্যান বন্ধ আছে।"
+          : "Prescription scan is disabled in Admin.",
+      );
+    }
+
     const emptyExtra = {
       suggested_specialties: [] as CareAiSuggestedSpecialty[],
       expert_analysis: null as CareAiExpertAnalysis | null,
       first_aid: [] as string[],
+      medicines: [] as CareAiMedicine[],
+      from_prescription: prescriptionMode,
     };
     const [catalog, specialties] = await Promise.all([
       loadCatalogForAi(context.supabase, settings.max_catalog_items, context.isGuest),
-      features.specialty_suggestions
+      !prescriptionMode && features.specialty_suggestions
         ? loadSpecialtiesForAi(context.supabase, context.isGuest)
         : Promise.resolve([] as SpecialtyRow[]),
     ]);
@@ -411,20 +503,27 @@ export const careAiTestChat = createServerFn({ method: "POST" })
 
     const catalogText = compactCatalog(catalog);
     const specialtiesText = compactSpecialties(specialties);
-    const systemText = buildChatSystemPrompt(settings, data.lang, catalogText, specialtiesText);
+    const systemText = prescriptionMode
+      ? buildPrescriptionSystemPrompt(settings, data.lang, catalogText)
+      : buildChatSystemPrompt(settings, data.lang, catalogText, specialtiesText);
 
     const history = data.messages
       .map((m) => `${m.role === "assistant" ? "ASSISTANT" : "USER"}: ${m.text}`)
       .join("\n");
 
+    const userText = prescriptionMode
+      ? `${history}\n\nUSER_ATTACHED_PRESCRIPTION_IMAGES: ${data.images.length}`
+      : history;
+
     let rawText: string;
     try {
       const { geminiGenerate } = await import("@/lib/gemini-rotate.server");
       rawText = await geminiGenerate({
-        userText: history,
+        userText,
         systemText,
         json: true,
         modelRole: "primary",
+        images: prescriptionMode ? data.images.slice(0, settings.max_prescription_images) : undefined,
       });
     } catch (e) {
       console.error("[careAiTestChat]", e);
@@ -439,13 +538,17 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       throw new Error(friendlyAiError(e, data.lang));
     }
 
-    let suggested = features.test_suggestions
+    const wantTests = prescriptionMode
+      ? features.prescription_tests
+      : features.test_suggestions;
+
+    let suggested = wantTests
       ? resolveAgainstCatalog(parsed.suggested_tests, catalog, settings.max_suggestions)
       : [];
     const rawSuggestions = Array.isArray(parsed.suggested_tests) ? (parsed.suggested_tests as unknown[]) : [];
     const wantMin = Math.min(3, settings.max_suggestions);
     if (
-      features.test_suggestions &&
+      wantTests &&
       rawSuggestions.length > suggested.length &&
       (suggested.length < wantMin || features.match_fallback)
     ) {
@@ -471,8 +574,13 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       }
     }
 
+    const medicines =
+      prescriptionMode && features.prescription_medicines
+        ? parseMedicines(parsed.medicines ?? parsed.drugs ?? parsed.medications, settings.max_medicines)
+        : [];
+
     let suggested_specialties =
-      features.specialty_suggestions && specialties.length
+      !prescriptionMode && features.specialty_suggestions && specialties.length
         ? resolveAgainstSpecialties(
             parsed.suggested_specialties ?? parsed.specialists ?? parsed.suggested_doctors,
             specialties,
@@ -480,13 +588,13 @@ export const careAiTestChat = createServerFn({ method: "POST" })
           )
         : [];
 
-    // If model skipped IDs but returned clinical content, ensure at least one specialty card
     const looksClinical =
       asString(parsed.medical_advice).length > 24 ||
       asString(parsed.analysis_summary).length > 24 ||
       (Array.isArray(parsed.suggested_tests) && parsed.suggested_tests.length > 0) ||
       suggested.length > 0;
     if (
+      !prescriptionMode &&
       features.specialty_suggestions &&
       specialties.length &&
       suggested_specialties.length === 0 &&
@@ -513,21 +621,28 @@ export const careAiTestChat = createServerFn({ method: "POST" })
     }
 
     const questions =
-      features.follow_up_questions && Array.isArray(parsed.questions)
+      !prescriptionMode && features.follow_up_questions && Array.isArray(parsed.questions)
         ? parsed.questions.map(asString).filter(Boolean).slice(0, settings.max_questions)
         : [];
     const reply =
       asString(parsed.reply) ||
-      (data.lang === "bn"
-        ? "আরও বিস্তারিত লক্ষণ লিখুন, তাহলে ক্যাটালগ থেকে টেস্ট সাজেস্ট করতে পারব।"
-        : "Tell me a bit more about the symptoms so I can suggest catalog tests.");
-    const medical_advice = features.medical_advice ? asString(parsed.medical_advice).slice(0, 1200) : "";
-    const catalog_notes = features.catalog_notes ? asString(parsed.catalog_notes).slice(0, 1600) : "";
-    const expert_analysis = features.expert_analysis ? parseExpertAnalysis(parsed) : null;
+      (prescriptionMode
+        ? data.lang === "bn"
+          ? "প্রেসক্রিপশন পড়া হয়েছে।"
+          : "Prescription read."
+        : data.lang === "bn"
+          ? "আরও বিস্তারিত লক্ষণ লিখুন, তাহলে ক্যাটালগ থেকে টেস্ট সাজেস্ট করতে পারব।"
+          : "Tell me a bit more about the symptoms so I can suggest catalog tests.");
+    const medical_advice =
+      !prescriptionMode && features.medical_advice ? asString(parsed.medical_advice).slice(0, 1200) : "";
+    const catalog_notes =
+      !prescriptionMode && features.catalog_notes ? asString(parsed.catalog_notes).slice(0, 1600) : "";
+    const expert_analysis =
+      !prescriptionMode && features.expert_analysis ? parseExpertAnalysis(parsed) : null;
     const first_aid =
-      features.first_aid && Array.isArray(parsed.first_aid)
+      !prescriptionMode && features.first_aid && Array.isArray(parsed.first_aid)
         ? parsed.first_aid.map(asString).filter(Boolean).slice(0, 8).map((s) => s.slice(0, 280))
-        : features.first_aid && typeof parsed.first_aid === "string" && asString(parsed.first_aid)
+        : !prescriptionMode && features.first_aid && typeof parsed.first_aid === "string" && asString(parsed.first_aid)
           ? asString(parsed.first_aid)
               .split(/\n+/)
               .map((s) => s.replace(/^[\s*•\-\d.)]+/, "").trim())
@@ -536,7 +651,10 @@ export const careAiTestChat = createServerFn({ method: "POST" })
               .map((s) => s.slice(0, 280))
           : [];
     const offer_bundle =
-      features.bundle_offer && features.test_suggestions && parsed.offer_bundle === true && suggested.length >= 2;
+      features.bundle_offer &&
+      wantTests &&
+      parsed.offer_bundle === true &&
+      suggested.length >= 2;
 
     return {
       reply,
@@ -547,6 +665,8 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       suggested_specialties,
       expert_analysis,
       first_aid,
+      medicines,
       offer_bundle,
+      from_prescription: prescriptionMode,
     };
   });

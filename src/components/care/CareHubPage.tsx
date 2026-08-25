@@ -336,7 +336,7 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
   const [district, setDistrict] = useState<District | null>(null);
   const [categoryId, setCategoryId] = useState("");
   const [cats, setCats] = useState<{ id: string; name_bn: string; name_en: string }[]>([]);
-  const [view, setView] = useState<"labs" | "tests">("labs");
+  const [view, setView] = useState<"labs" | "tests">("tests");
   const [facilities, setFacilities] = useState<CareLabFacility[]>([]);
   const [rows, setRows] = useState<CareOffering[]>([]);
   const [loading, setLoading] = useState(true);
