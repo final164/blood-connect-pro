@@ -51,6 +51,7 @@ import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-
 import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
 import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulance.request.$id'
 import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
+import { Route as AppAmbulanceInvoiceIdRouteImport } from './routes/_app.ambulance.invoice.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -262,6 +263,11 @@ const AppAmbulanceProviderOrgIdRoute =
     path: '/provider/$orgId',
     getParentRoute: () => AppAmbulanceRoute,
   } as any)
+const AppAmbulanceInvoiceIdRoute = AppAmbulanceInvoiceIdRouteImport.update({
+  id: '/invoice/$id',
+  path: '/invoice/$id',
+  getParentRoute: () => AppAmbulanceRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -298,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
   '/care/portal/': typeof CarePortalIndexRoute
+  '/ambulance/invoice/$id': typeof AppAmbulanceInvoiceIdRoute
   '/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
   '/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
@@ -337,6 +344,7 @@ export interface FileRoutesByTo {
   '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
   '/care/portal': typeof CarePortalIndexRoute
+  '/ambulance/invoice/$id': typeof AppAmbulanceInvoiceIdRoute
   '/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
   '/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
   '/care/portal/': typeof CarePortalIndexRoute
+  '/_app/ambulance/invoice/$id': typeof AppAmbulanceInvoiceIdRoute
   '/_app/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
   '/_app/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/_app/care/doctor/$id': typeof AppCareDoctorIdRoute
@@ -427,6 +436,7 @@ export interface FileRouteTypes {
     | '/care/'
     | '/profile/'
     | '/care/portal/'
+    | '/ambulance/invoice/$id'
     | '/ambulance/provider/$orgId'
     | '/ambulance/request/$id'
     | '/care/doctor/$id'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/care'
     | '/profile'
     | '/care/portal'
+    | '/ambulance/invoice/$id'
     | '/ambulance/provider/$orgId'
     | '/ambulance/request/$id'
     | '/care/doctor/$id'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/_app/care/'
     | '/_app/profile/'
     | '/care/portal/'
+    | '/_app/ambulance/invoice/$id'
     | '/_app/ambulance/provider/$orgId'
     | '/_app/ambulance/request/$id'
     | '/_app/care/doctor/$id'
@@ -827,6 +839,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAmbulanceProviderOrgIdRouteImport
       parentRoute: typeof AppAmbulanceRoute
     }
+    '/_app/ambulance/invoice/$id': {
+      id: '/_app/ambulance/invoice/$id'
+      path: '/invoice/$id'
+      fullPath: '/ambulance/invoice/$id'
+      preLoaderRoute: typeof AppAmbulanceInvoiceIdRouteImport
+      parentRoute: typeof AppAmbulanceRoute
+    }
   }
 }
 
@@ -844,12 +863,14 @@ const AppAmbulanceRequestRouteWithChildren =
 interface AppAmbulanceRouteChildren {
   AppAmbulanceRequestRoute: typeof AppAmbulanceRequestRouteWithChildren
   AppAmbulanceIndexRoute: typeof AppAmbulanceIndexRoute
+  AppAmbulanceInvoiceIdRoute: typeof AppAmbulanceInvoiceIdRoute
   AppAmbulanceProviderOrgIdRoute: typeof AppAmbulanceProviderOrgIdRoute
 }
 
 const AppAmbulanceRouteChildren: AppAmbulanceRouteChildren = {
   AppAmbulanceRequestRoute: AppAmbulanceRequestRouteWithChildren,
   AppAmbulanceIndexRoute: AppAmbulanceIndexRoute,
+  AppAmbulanceInvoiceIdRoute: AppAmbulanceInvoiceIdRoute,
   AppAmbulanceProviderOrgIdRoute: AppAmbulanceProviderOrgIdRoute,
 }
 

@@ -40,6 +40,7 @@ import {
 import { fetchAmbulanceServiceTypes } from "@/lib/ambulance-cms";
 import { clampDiscountPercent, computeAmbulanceFare, formatCareMoney } from "@/lib/ambulance-price";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { AmbulanceServiceTypeSelect } from "@/components/ambulance/AmbulanceServiceTypeSelect";
 import { supabase } from "@/integrations/supabase/client";
 import { CareAmbulanceInvoiceCard } from "@/components/care/CareAmbulanceInvoice";
 import {
@@ -319,6 +320,10 @@ function DispatchPanel({ orgId, canManage, lang }: { orgId: string; canManage: b
       toast.error(lang === "bn" ? "পিকআপ ঠিকানা দিন" : "Pickup address required");
       return;
     }
+    if (!serviceTypeId) {
+      toast.error(lang === "bn" ? "সার্ভিস টাইপ বেছে নিন" : "Select a service type");
+      return;
+    }
     setBusy(true);
     try {
       await createAmbulanceRequest({
@@ -330,7 +335,7 @@ function DispatchPanel({ orgId, canManage, lang }: { orgId: string; canManage: b
         pickup_address: pickup || undefined,
         dropoff_address: dropoff || undefined,
         patient_condition: condition || undefined,
-        service_type_id: serviceTypeId || undefined,
+        service_type_id: serviceTypeId,
         distance_km: Number(distanceKm) || 5,
       });
       setGuestName("");
@@ -487,13 +492,15 @@ function DispatchPanel({ orgId, canManage, lang }: { orgId: string; canManage: b
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder={lang === "bn" ? "রোগীর নাম" : "Patient name"} className="rounded-xl border px-3 py-2 text-sm" />
             <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder={lang === "bn" ? "ফোন" : "Phone"} className="rounded-xl border px-3 py-2 text-sm" />
-            <select value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {lang === "bn" ? t.name_bn : t.name_en}
-                </option>
-              ))}
-            </select>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <AmbulanceServiceTypeSelect
+                types={types}
+                offerings={offerings}
+                value={serviceTypeId}
+                onChange={setServiceTypeId}
+                lang={lang}
+              />
+            </div>
             <input value={pickup} onChange={(e) => setPickup(e.target.value)} placeholder={lang === "bn" ? "পিকআপ ঠিকানা *" : "Pickup address *"} className="rounded-xl border px-3 py-2 text-sm sm:col-span-2" />
             <input value={dropoff} onChange={(e) => setDropoff(e.target.value)} placeholder={lang === "bn" ? "ড্রপঅফ" : "Dropoff"} className="rounded-xl border px-3 py-2 text-sm" />
             <input value={condition} onChange={(e) => setCondition(e.target.value)} placeholder={lang === "bn" ? "রোগীর অবস্থা" : "Patient condition"} className="rounded-xl border px-3 py-2 text-sm sm:col-span-2" />
@@ -1020,8 +1027,14 @@ function InvoicesPanel({ orgId, lang, canManage }: { orgId: string; lang: "bn" |
   }, [orgId]);
 
   const list = useMemo(() => {
-    if (payFilter === "all") return rows;
-    return rows.filter((r) => r.payment_status === payFilter);
+    const seen = new Set<string>();
+    const base = payFilter === "all" ? rows : rows.filter((r) => r.payment_status === payFilter);
+    return base.filter((r) => {
+      const key = r.invoice_group_id || r.invoice_no || r.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [rows, payFilter]);
 
   if (sel) {

@@ -21,6 +21,7 @@ import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
 import { queryKeys } from "@/lib/query-client";
 import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
 import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
+import { CareHubNav } from "@/components/care/CareHubNav";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
   fetchFeedCarouselBundle,
@@ -450,6 +451,10 @@ function FeedPage() {
                   {g}
                 </button>
               ))}
+            </div>
+
+            <div className="px-3 pb-2 border-t border-border/50 pt-2">
+              <CareHubNav lang={lang} variant="strip" />
             </div>
           </AutoHideHeader>
 

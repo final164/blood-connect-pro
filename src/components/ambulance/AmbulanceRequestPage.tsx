@@ -4,18 +4,22 @@ import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { useAmbulanceProfilePrefill } from "@/hooks/useAmbulanceProfilePrefill";
+import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
 import {
   createAmbulanceRequest,
   fetchAmbulanceFareBreakdown,
   fetchListedAmbulanceProviders,
+  fetchOrgOfferings,
   type CreateAmbulanceRequestPayload,
 } from "@/lib/ambulance-api";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import type { AmbulanceFareBreakdown } from "@/lib/ambulance-price";
 import { fetchAmbulanceFormFields, fetchAmbulanceServiceTypes } from "@/lib/ambulance-cms";
 import { fetchAmbulanceSettings } from "@/lib/ambulance-settings";
+import { AmbulanceServiceTypeSelect } from "@/components/ambulance/AmbulanceServiceTypeSelect";
 
 type Props = {
   initialMode?: "emergency" | "scheduled";
@@ -24,12 +28,14 @@ type Props = {
 
 export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props) {
   const { lang } = useI18n();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"emergency" | "scheduled">(initialMode);
   const [settings, setSettings] = useState<Awaited<ReturnType<typeof fetchAmbulanceSettings>> | null>(null);
   const [fields, setFields] = useState<Awaited<ReturnType<typeof fetchAmbulanceFormFields>>>([]);
   const [types, setTypes] = useState<Awaited<ReturnType<typeof fetchAmbulanceServiceTypes>>>([]);
   const [providers, setProviders] = useState<{ id: string; name: string; name_bn: string | null }[]>([]);
+  const [offerings, setOfferings] = useState<Awaited<ReturnType<typeof fetchOrgOfferings>>>([]);
   const [serviceTypeId, setServiceTypeId] = useState("");
   const [selectedOrg, setSelectedOrg] = useState(orgId ?? "");
   const [pickupDistrict, setPickupDistrict] = useState<District | null>(null);
@@ -60,18 +66,56 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
   }, [orgId]);
 
   useEffect(() => {
+    if (selectedOrg) {
+      void fetchOrgOfferings(selectedOrg).then(setOfferings);
+    } else {
+      setOfferings([]);
+    }
+  }, [selectedOrg]);
+
+  useEffect(() => {
+    if (!offerings.length) return;
+    const allowed = new Set(offerings.filter((o) => o.is_active).map((o) => o.service_type_id));
+    setServiceTypeId((prev) => {
+      if (prev && allowed.has(prev)) return prev;
+      const first = offerings.find((o) => o.is_active);
+      return first?.service_type_id ?? "";
+    });
+  }, [offerings]);
+
+  useAmbulanceProfilePrefill({
+    userId: user?.id,
+    setGuestName,
+    setGuestPhone,
+    setPickupAddress,
+    setPickupDistrict,
+  });
+
+  useEffect(() => {
     if (selectedOrg && serviceTypeId) {
       void fetchAmbulanceFareBreakdown(selectedOrg, serviceTypeId, Number(distanceKm) || 5).then(setEstimate);
     } else setEstimate(null);
   }, [selectedOrg, serviceTypeId, distanceKm]);
 
   async function submit() {
+    if (!serviceTypeId) {
+      toast.error(lang === "bn" ? "সার্ভিস টাইপ বেছে নিন" : "Select a service type");
+      return;
+    }
+    if (required("pickup_address") && !pickupAddress.trim()) {
+      toast.error(lang === "bn" ? "পিকআপ ঠিকানা দিন" : "Pickup address required");
+      return;
+    }
+    if (required("patient_phone") && !guestPhone.trim()) {
+      toast.error(lang === "bn" ? "ফোন নম্বর দিন" : "Phone required");
+      return;
+    }
     setBusy(true);
     try {
       const payload: CreateAmbulanceRequestPayload = {
         mode,
         org_id: selectedOrg || undefined,
-        service_type_id: serviceTypeId || undefined,
+        service_type_id: serviceTypeId,
         scheduled_at: mode === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
         guest_name: guestName || undefined,
         guest_phone: guestPhone || undefined,
@@ -86,7 +130,7 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
       };
       const req = await createAmbulanceRequest(payload);
       toast.success(lang === "bn" ? `রেফ ${req.reference_code}` : `Ref ${req.reference_code}`);
-      void navigate({ to: "/ambulance/request/$id", params: { id: req.id } });
+      void navigate({ to: "/ambulance/invoice/$id", params: { id: req.id } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -119,11 +163,13 @@ export function AmbulanceRequestPage({ initialMode = "emergency", orgId }: Props
         {mode === "scheduled" && (
           <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" />
         )}
-        <select value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm">
-          {types.map((t) => (
-            <option key={t.id} value={t.id}>{lang === "bn" ? t.name_bn : t.name_en}</option>
-          ))}
-        </select>
+        <AmbulanceServiceTypeSelect
+          types={types}
+          offerings={offerings}
+          value={serviceTypeId}
+          onChange={setServiceTypeId}
+          lang={lang}
+        />
         {!orgId && (
           <select value={selectedOrg} onChange={(e) => setSelectedOrg(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm">
             <option value="">{lang === "bn" ? "নিকটতম (পুল)" : "Nearest pool"}</option>

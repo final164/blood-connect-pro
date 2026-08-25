@@ -6,6 +6,248 @@ function money(prefix: string, n: number) {
   return `${prefix} ${formatted}`;
 }
 
+type MemoCtx = {
+  vm: CareInvoiceViewModel;
+  template: ResolvedCareInvoiceTemplate;
+  lang: "bn" | "en";
+  L: (key: Parameters<typeof invoiceLabel>[1]) => string;
+};
+
+function InvoiceTotals({ vm, template, L }: MemoCtx) {
+  const { style, defaults } = template;
+  return (
+    <div className="cm-totals">
+      <div className="cm-tot-row">
+        <span>{L("total")}</span>
+        <span>{vm.money.subtotal.toFixed(2)}</span>
+      </div>
+      <div className="cm-tot-row cm-disc-total">
+        <span>{L("discount")}</span>
+        <span>{vm.money.discount_amount.toFixed(2)}</span>
+      </div>
+      {style.show_vat && (
+        <div className="cm-tot-row">
+          <span>
+            {L("vat")} {vm.money.vat_percent.toFixed(2)}%
+          </span>
+          <span>{vm.money.vat_amount.toFixed(2)}</span>
+        </div>
+      )}
+      <div className="cm-tot-row cm-strong">
+        <span>{L("payable")}</span>
+        <span>{money(defaults.currency_prefix, vm.money.payable)}</span>
+      </div>
+    </div>
+  );
+}
+
+function LabInvoiceBody({ vm, template, lang, L }: MemoCtx) {
+  const { style, defaults } = template;
+  return (
+    <>
+      <table className="cm-table">
+        <thead>
+          <tr>
+            <th className="cm-sl">{L("col_sl")}</th>
+            <th>{L("col_test_id")}</th>
+            <th className="cm-name">{L("col_test_name")}</th>
+            <th>{L("col_delivery")}</th>
+            <th className="cm-amt">{L("col_amount")}</th>
+            <th className="cm-disc">{L("col_discount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {vm.lines.map((line, i) => (
+            <tr key={line.id}>
+              <td className="cm-sl">{i + 1}</td>
+              <td>{line.test_id}</td>
+              <td className="cm-name">{line.name}</td>
+              <td>{line.delivery_date}</td>
+              <td className="cm-amt">{line.amount.toFixed(2)}</td>
+              <td className="cm-disc">
+                {line.discount.toFixed(2)}
+                {line.discount_percent != null && line.discount_percent > 0 ? (
+                  <span className="cm-disc-pct">({line.discount_percent.toFixed(0)}%)</span>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="cm-bottom">
+        <div className="cm-delivery">
+          <p>
+            <b>{L("delivery_time")}:</b> {vm.delivery_datetime || "—"}
+          </p>
+          {style.show_delivery_slots && (
+            <div className="cm-slots">
+              {defaults.delivery_slot_labels.map((slot) => (
+                <label key={slot} className="cm-slot">
+                  <span className="cm-check" /> {slot}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <InvoiceTotals vm={vm} template={template} lang={lang} L={L} />
+      </div>
+    </>
+  );
+}
+
+function SerialInvoiceBody({ vm, template, lang, L }: MemoCtx) {
+  const rows = vm.serial_rows ?? [];
+  const extra = vm.serial_extra;
+  const onlineLabel = lang === "bn" ? "অনলাইন" : "Online";
+
+  return (
+    <>
+      <table className="cm-table cm-table-serial">
+        <thead>
+          <tr>
+            <th className="cm-sl">{L("col_serial_sl")}</th>
+            <th>{L("col_serial_no")}</th>
+            <th className="cm-name">{L("col_serial_doctor")}</th>
+            <th>{L("col_serial_specialty")}</th>
+            <th>{L("col_serial_date")}</th>
+            <th>{L("col_serial_time")}</th>
+            <th className="cm-amt">{L("col_serial_fee")}</th>
+            <th className="cm-disc">{L("col_serial_discount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.id}>
+              <td className="cm-sl">{i + 1}</td>
+              <td>
+                {row.serial_no}
+                {row.online_serial_no != null ? (
+                  <span className="cm-serial-online">
+                    {" "}
+                    ({onlineLabel} #{row.online_serial_no})
+                  </span>
+                ) : null}
+              </td>
+              <td className="cm-name">{row.doctor_name}</td>
+              <td>{row.specialty}</td>
+              <td>{row.session_date}</td>
+              <td>{row.schedule_time}</td>
+              <td className="cm-amt">{row.fee.toFixed(2)}</td>
+              <td className="cm-disc">
+                {row.discount.toFixed(2)}
+                {row.discount_percent != null && row.discount_percent > 0 ? (
+                  <span className="cm-disc-pct">({row.discount_percent.toFixed(0)}%)</span>
+                ) : null}
+                {row.is_second_visit ? (
+                  <span className="cm-disc-pct">
+                    {lang === "bn" ? " · ২য় ভিজিট" : " · 2nd visit"}
+                  </span>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {extra && (extra.bmdc || extra.qualifications || extra.chamber) ? (
+        <div className="cm-serial-extra">
+          {extra.bmdc ? (
+            <span>
+              <b>{L("serial_bmdc")}:</b> {extra.bmdc}
+            </span>
+          ) : null}
+          {extra.qualifications ? (
+            <span>
+              <b>{L("serial_qualifications")}:</b> {extra.qualifications}
+            </span>
+          ) : null}
+          {extra.chamber ? (
+            <span className="cm-grow">
+              <b>{L("serial_chamber")}:</b> {extra.chamber}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="cm-bottom cm-bottom-serial">
+        <InvoiceTotals vm={vm} template={template} lang={lang} L={L} />
+      </div>
+    </>
+  );
+}
+
+function AmbulanceInvoiceBody({ vm, template, lang, L }: MemoCtx) {
+  const rows = vm.ambulance_rows ?? [];
+  const extra = vm.ambulance_extra;
+
+  return (
+    <>
+      <table className="cm-table cm-table-ambulance">
+        <thead>
+          <tr>
+            <th className="cm-sl">{L("col_amb_sl")}</th>
+            <th>{L("col_amb_ref")}</th>
+            <th className="cm-name">{L("col_amb_service")}</th>
+            <th>{L("col_amb_mode")}</th>
+            <th>{L("col_amb_distance")}</th>
+            <th className="cm-amt">{L("col_amb_fare")}</th>
+            <th className="cm-disc">{L("col_amb_discount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.id}>
+              <td className="cm-sl">{i + 1}</td>
+              <td>{row.reference_code}</td>
+              <td className="cm-name">{row.service_name}</td>
+              <td>{row.mode}</td>
+              <td>{row.distance_km}</td>
+              <td className="cm-amt">{row.amount.toFixed(2)}</td>
+              <td className="cm-disc">
+                {row.discount.toFixed(2)}
+                {row.discount_percent != null && row.discount_percent > 0 ? (
+                  <span className="cm-disc-pct">({row.discount_percent.toFixed(0)}%)</span>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {extra && (extra.pickup || extra.dropoff || extra.plate_no || extra.driver_name) ? (
+        <div className="cm-amb-extra">
+          {extra.pickup ? (
+            <span className="cm-grow">
+              <b>{L("amb_pickup")}:</b> {extra.pickup}
+            </span>
+          ) : null}
+          {extra.dropoff ? (
+            <span className="cm-grow">
+              <b>{L("amb_dropoff")}:</b> {extra.dropoff}
+            </span>
+          ) : null}
+          {extra.plate_no ? (
+            <span>
+              <b>{L("amb_vehicle")}:</b> {extra.plate_no}
+            </span>
+          ) : null}
+          {extra.driver_name ? (
+            <span>
+              <b>{L("amb_driver")}:</b> {extra.driver_name}
+              {extra.driver_phone ? ` · ${extra.driver_phone}` : ""}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="cm-bottom cm-bottom-ambulance">
+        <InvoiceTotals vm={vm} template={template} lang={lang} L={L} />
+      </div>
+    </>
+  );
+}
+
 /** Cash Memo / Bill — colorful on screen; print pipeline forces B&W; PDF keeps color. */
 export function CareCashMemoInvoice({
   vm,
@@ -17,7 +259,7 @@ export function CareCashMemoInvoice({
   lang: "bn" | "en";
 }) {
   const L = (key: Parameters<typeof invoiceLabel>[1]) => invoiceLabel(template, key, lang);
-  const { letterhead, style, defaults, visibility } = template;
+  const { letterhead, style, visibility } = template;
   const orgName = lang === "bn" ? letterhead.display_name_bn || letterhead.display_name : letterhead.display_name;
   const phones = letterhead.phones.join(", ");
   const contact = [
@@ -36,6 +278,12 @@ export function CareCashMemoInvoice({
     hour12: true,
   });
   const scale = style.font_scale || 1;
+  const isSerial = vm.kind === "serial";
+  const isAmbulance = vm.kind === "ambulance";
+  const claimLabel = isSerial ? L("serial_claim_code") : isAmbulance ? L("ambulance_ref_code") : L("lab_id");
+  const titleText = isAmbulance ? L("title_ambulance") : L("title");
+  const disclaimerText = isAmbulance ? L("amb_disclaimer") : L("disclaimer");
+  const ctx: MemoCtx = { vm, template, lang, L };
 
   return (
     <>
@@ -58,12 +306,21 @@ export function CareCashMemoInvoice({
 .cm-table th,.cm-table td{border-top:1px solid #99f6e4;border-bottom:1px solid #99f6e4;padding:6px 4px;text-align:left;vertical-align:top}
 .cm-table thead th{border-top:2px solid #0f766e;border-bottom:2px solid #0f766e;font-weight:700;background:#0f766e;color:#fff}
 .cm-table tbody tr:nth-child(even) td{background:#f8fafc}
-.cm-table .cm-sl{width:2.2rem}.cm-table .cm-name{width:34%}
+.cm-table .cm-sl{width:2.2rem}.cm-table .cm-name{width:22%}
 .cm-table .cm-amt,.cm-table th.cm-amt,.cm-table .cm-disc,.cm-table th.cm-disc{text-align:right;white-space:nowrap}
-.cm-table .cm-disc{width:5.5rem;color:#047857;font-weight:600}
-.cm-table .cm-amt{width:4.5rem}
+.cm-table .cm-disc{width:5rem;color:#047857;font-weight:600}
+.cm-table .cm-amt{width:4rem}
+.cm-table-serial{font-size:.7rem}
+.cm-table-ambulance{font-size:.7rem}
+.cm-amb-extra{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.7rem;margin:-4px 0 10px;padding:6px 8px;background:#f8fafc;border:1px solid #99f6e4;border-radius:4px}
+.cm-amb-extra b{color:#0f766e}
+.cm-bottom-ambulance{justify-content:flex-end}
+.cm-serial-online{font-size:.85em;opacity:.85}
+.cm-serial-extra{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.7rem;margin:-4px 0 10px;padding:6px 8px;background:#f8fafc;border:1px solid #99f6e4;border-radius:4px}
+.cm-serial-extra b{color:#0f766e}
 .cm-disc-pct{display:inline;font-size:inherit;opacity:.85;margin-left:2px;font-weight:500}
 .cm-bottom{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}
+.cm-bottom-serial{justify-content:flex-end}
 .cm-delivery{flex:1;font-size:.75rem;min-width:10rem}
 .cm-slots{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
 .cm-slot{display:inline-flex;align-items:center;gap:4px}
@@ -80,11 +337,11 @@ export function CareCashMemoInvoice({
 @media print{
   .cash-memo{border-color:#111!important;box-shadow:none!important;border-radius:0!important;color:#111!important}
   .cm-head{background:#fff!important;color:#111!important;padding:0!important}
-  .cm-org,.cm-addr,.cm-contact,.cm-thanks,.cm-meta b{color:#111!important}
+  .cm-org,.cm-addr,.cm-contact,.cm-thanks,.cm-meta b,.cm-serial-extra b,.cm-amb-extra b{color:#111!important}
   .cm-logo{background:transparent!important;padding:0!important}
   .cm-logo-fallback{border-color:#111!important;background:#fafafa!important;color:#111!important}
   .cm-title-box span{background:#fff!important;color:#111!important;border-color:#111!important}
-  .cm-meta{background:#fff!important;border-color:#111!important;padding:0!important}
+  .cm-meta,.cm-serial-extra,.cm-amb-extra{background:#fff!important;border-color:#111!important;padding:0!important}
   .cm-table th,.cm-table td{border-color:#111!important}
   .cm-table thead th{background:#fff!important;color:#111!important}
   .cm-table tbody tr:nth-child(even) td{background:#fff!important}
@@ -96,7 +353,7 @@ export function CareCashMemoInvoice({
   .cm-foot-meta{color:#333!important}
 }
 `}</style>
-      <article className="cash-memo" style={{ fontSize: `${13 * scale}px` }}>
+      <article className="cash-memo" data-kind={vm.kind} style={{ fontSize: `${13 * scale}px` }}>
         <header className="cm-head">
           {style.show_logo && letterhead.logo_url ? (
             <img src={letterhead.logo_url} alt="" className="cm-logo" />
@@ -115,7 +372,7 @@ export function CareCashMemoInvoice({
         <div className="cm-rule" />
 
         <div className="cm-title-box">
-          <span>{L("title")}</span>
+          <span>{titleText}</span>
         </div>
 
         <div className={`cm-meta ${style.dense_meta ? "cm-meta-dense" : ""}`}>
@@ -127,7 +384,7 @@ export function CareCashMemoInvoice({
             ) : null}
             {visibility.lab_id ? (
               <span>
-                <b>{L("lab_id")}:</b> {vm.lab_id || "—"}
+                <b>{claimLabel}:</b> {vm.lab_id || "—"}
               </span>
             ) : null}
             <span>
@@ -181,74 +438,7 @@ export function CareCashMemoInvoice({
           ) : null}
         </div>
 
-        <table className="cm-table">
-          <thead>
-            <tr>
-              <th className="cm-sl">{L("col_sl")}</th>
-              <th>{L("col_test_id")}</th>
-              <th className="cm-name">{L("col_test_name")}</th>
-              <th>{L("col_delivery")}</th>
-              <th className="cm-amt">{L("col_amount")}</th>
-              <th className="cm-disc">{L("col_discount")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vm.lines.map((line, i) => (
-              <tr key={line.id}>
-                <td className="cm-sl">{i + 1}</td>
-                <td>{line.test_id}</td>
-                <td className="cm-name">{line.name}</td>
-                <td>{line.delivery_date}</td>
-                <td className="cm-amt">{line.amount.toFixed(2)}</td>
-                <td className="cm-disc">
-                  {line.discount.toFixed(2)}
-                  {line.discount_percent != null && line.discount_percent > 0 ? (
-                    <span className="cm-disc-pct">({line.discount_percent.toFixed(0)}%)</span>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="cm-bottom">
-          <div className="cm-delivery">
-            <p>
-              <b>{L("delivery_time")}:</b> {vm.delivery_datetime || "—"}
-            </p>
-            {style.show_delivery_slots && (
-              <div className="cm-slots">
-                {defaults.delivery_slot_labels.map((slot) => (
-                  <label key={slot} className="cm-slot">
-                    <span className="cm-check" /> {slot}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="cm-totals">
-            <div className="cm-tot-row">
-              <span>{L("total")}</span>
-              <span>{vm.money.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="cm-tot-row cm-disc-total">
-              <span>{L("discount")}</span>
-              <span>{vm.money.discount_amount.toFixed(2)}</span>
-            </div>
-            {style.show_vat && (
-              <div className="cm-tot-row">
-                <span>
-                  {L("vat")} {vm.money.vat_percent.toFixed(2)}%
-                </span>
-                <span>{vm.money.vat_amount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="cm-tot-row cm-strong">
-              <span>{L("payable")}</span>
-              <span>{money(defaults.currency_prefix, vm.money.payable)}</span>
-            </div>
-          </div>
-        </div>
+        {isSerial ? <SerialInvoiceBody {...ctx} /> : isAmbulance ? <AmbulanceInvoiceBody {...ctx} /> : <LabInvoiceBody {...ctx} />}
 
         {style.show_signature && (
           <div className="cm-sign">
@@ -259,7 +449,7 @@ export function CareCashMemoInvoice({
 
         <footer className="cm-foot">
           <p className="cm-thanks">{L("thanks")}</p>
-          <p className="cm-disclaimer">{L("disclaimer")}</p>
+          <p className="cm-disclaimer">{disclaimerText}</p>
           <div className="cm-foot-meta">
             {style.show_developer ? <span>{L("developed_by")}</span> : <span />}
             {style.show_print_datetime ? (

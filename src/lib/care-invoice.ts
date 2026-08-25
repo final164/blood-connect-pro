@@ -9,6 +9,7 @@ export type CareSerialInvoice = {
   invoice_no: string;
   fee_amount: number;
   fee_original: number | null;
+  is_second_visit: boolean;
   payment_status: "pending" | "paid" | "waived";
   source: string;
   status: string;
@@ -147,6 +148,7 @@ export async function fetchCareSerialInvoice(serialId: string): Promise<CareSeri
       serial.fee_original != null && num(serial.fee_original) > (serial.fee_amount != null ? num(serial.fee_amount) : feeFromAff)
         ? num(serial.fee_original)
         : null,
+    is_second_visit: !!serial.is_second_visit,
     payment_status: (serial.payment_status || "pending") as CareSerialInvoice["payment_status"],
     source: serial.source,
     status: serial.status,
@@ -301,8 +303,16 @@ function careInvoiceCaptureStyles(mode: "print" | "pdf") {
   .cm-table .cm-amt,.cm-table th.cm-amt,.cm-table .cm-disc,.cm-table th.cm-disc{text-align:right;white-space:nowrap}
   .cm-table .cm-disc{width:5.5rem;color:${discColor};font-weight:${color ? "600" : "400"}}
   .cm-table .cm-amt{width:4.5rem}
+  .cm-table-serial{font-size:${color ? "11px" : "11px"}}
+  .cm-table-ambulance{font-size:${color ? "11px" : "11px"}}
+  .cm-serial-online{font-size:.85em;opacity:.85}
+  .cm-serial-extra{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px;margin:-4px 0 10px;${color ? "padding:6px 8px;background:#f8fafc;border:1px solid #99f6e4;border-radius:4px;" : ""}}
+  .cm-serial-extra b{font-weight:700;${color ? "color:#0f766e;" : ""}}
+  .cm-amb-extra{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px;margin:-4px 0 10px;${color ? "padding:6px 8px;background:#f8fafc;border:1px solid #99f6e4;border-radius:4px;" : ""}}
+  .cm-amb-extra b{font-weight:700;${color ? "color:#0f766e;" : ""}}
   .cm-disc-pct{display:inline;font-size:inherit;opacity:.85;margin-left:2px;font-weight:500}
-  .cm-bottom{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-top:8px}
+  .cm-bottom{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}
+  .cm-bottom-serial,.cm-bottom-ambulance{justify-content:flex-end}
   .cm-delivery{flex:1;font-size:12px}
   .cm-slots{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
   .cm-slot{display:inline-flex;align-items:center;gap:4px}

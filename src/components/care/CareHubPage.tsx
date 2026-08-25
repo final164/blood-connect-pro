@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   FlaskConical,
   LayoutGrid,
-  LayoutDashboard,
   Search,
   Stethoscope,
   Ticket,
-  ClipboardList,
   Microscope,
   Ambulance,
-  Sparkles,
   Building2,
+  Sparkles,
 } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
@@ -21,8 +19,8 @@ import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
-import { fetchCareHubModules, fetchCareSpecialties, fetchTestCategories, locName, type CareHubModule } from "@/lib/care-cms";
-import { fetchMyCareMemberships } from "@/lib/care-access";
+import { fetchCareSpecialties, fetchTestCategories, locName } from "@/lib/care-cms";
+import { CareHubNav } from "@/components/care/CareHubNav";
 import {
   searchCareDoctors,
   fetchMySerials,
@@ -39,18 +37,6 @@ import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
 import { CareCustomerDashboard } from "@/components/care/CareCustomerDashboard";
 
-const ICONS: Record<string, typeof Stethoscope> = {
-  Stethoscope,
-  FlaskConical,
-  Ticket,
-  ClipboardList,
-  Microscope,
-  LayoutGrid,
-  Ambulance,
-  Sparkles,
-  LayoutDashboard,
-};
-
 export function CareHubPage({
   initialTab,
   initialSpecialtyId,
@@ -60,34 +46,11 @@ export function CareHubPage({
 }) {
   const { lang, t } = useI18n();
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [modules, setModules] = useState<CareHubModule[]>([]);
   const [tab, setTab] = useState(initialTab || "dashboard");
-  const [hasDesk, setHasDesk] = useState(false);
-  const [hasLab, setHasLab] = useState(false);
-
-  useEffect(() => {
-    void fetchCareHubModules().then((rows) => {
-      setModules(rows.filter((m) => m.is_enabled !== false));
-    });
-    void fetchMyCareMemberships().then((ms) => {
-      setHasDesk(ms.length > 0);
-      setHasLab(ms.length > 0);
-    });
-  }, [initialTab]);
 
   useEffect(() => {
     if (initialTab) setTab(initialTab);
   }, [initialTab]);
-
-  const visible = useMemo(() => {
-    return modules
-      .filter((m) => {
-        if (m.audience === "staff") return hasDesk || hasLab;
-        return m.audience === "patient" || m.audience === "both" || !m.audience;
-      })
-      .sort((a, b) => a.sort_order - b.sort_order);
-  }, [modules, hasDesk, hasLab]);
 
   return (
     <div className="w-full">
@@ -106,106 +69,9 @@ export function CareHubPage({
             <AlertsHeaderButton />
           </div>
         </div>
-        <div className="flex gap-1 px-3 pb-2 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => {
-                setTab("dashboard");
-                void navigate({ to: "/care", search: { tab: "dashboard" } });
-              }}
-              className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                tab === "dashboard"
-                  ? "bg-primary text-primary-foreground"
-                  : "border text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              {lang === "bn" ? "ড্যাশবোর্ড" : "Dashboard"}
-            </button>
-            {visible
-              .filter((m) => m.slug !== "dashboard")
-              .map((m) => {
-              const Icon = ICONS[m.icon] ?? LayoutGrid;
-              const label = lang === "bn" ? m.label_bn : m.label_en;
-              if (m.href.includes("/desk")) {
-                return (
-                  <Link
-                    key={m.id}
-                    to="/care/portal/desk"
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </Link>
-                );
-              }
-              if (m.href.includes("/lab") && !m.href.includes("lab-booking")) {
-                return (
-                  <Link
-                    key={m.id}
-                    to="/care/portal/lab"
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </Link>
-                );
-              }
-              if (m.slug === "ambulance" || m.href === "/ambulance") {
-                return (
-                  <Link
-                    key={m.id}
-                    to="/ambulance"
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </Link>
-                );
-              }
-              if (m.href.includes("/portal/ambulance")) {
-                return (
-                  <Link
-                    key={m.id}
-                    to="/care/portal/ambulance"
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </Link>
-                );
-              }
-              if (m.slug === "ai_tests" || m.href.includes("/care/ai-tests")) {
-                return (
-                  <Link
-                    key={m.id}
-                    to="/care/ai-tests"
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </Link>
-                );
-              }
-              const active = tab === m.slug;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => {
-                    setTab(m.slug);
-                    void navigate({ to: "/care", search: { tab: m.slug } });
-                  }}
-                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    active ? "bg-primary text-primary-foreground" : "border text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="px-3 pb-2">
+          <CareHubNav lang={lang} activeTab={tab} includeDashboard variant="strip" />
+        </div>
       </AutoHideHeader>
 
       <div className="px-3 sm:px-4 py-3 max-w-2xl mx-auto pb-8">

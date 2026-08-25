@@ -20,6 +20,32 @@ export type CareInvoiceLabelKey =
   | "col_delivery"
   | "col_amount"
   | "col_discount"
+  | "serial_claim_code"
+  | "col_serial_sl"
+  | "col_serial_no"
+  | "col_serial_doctor"
+  | "col_serial_specialty"
+  | "col_serial_date"
+  | "col_serial_time"
+  | "col_serial_fee"
+  | "col_serial_discount"
+  | "serial_bmdc"
+  | "serial_qualifications"
+  | "serial_chamber"
+  | "title_ambulance"
+  | "ambulance_ref_code"
+  | "col_amb_sl"
+  | "col_amb_ref"
+  | "col_amb_service"
+  | "col_amb_mode"
+  | "col_amb_distance"
+  | "col_amb_fare"
+  | "col_amb_discount"
+  | "amb_pickup"
+  | "amb_dropoff"
+  | "amb_vehicle"
+  | "amb_driver"
+  | "amb_disclaimer"
   | "total"
   | "discount"
   | "vat"
@@ -120,6 +146,35 @@ export const DEFAULT_CARE_INVOICE_LABELS: CareInvoiceLabels = {
   col_delivery: { bn: "ডেলিভারি তারিখ", en: "Delivery Date" },
   col_amount: { bn: "মূল্য", en: "Amount" },
   col_discount: { bn: "ছাড়", en: "Discount" },
+  serial_claim_code: { bn: "ক্লেইম কোড", en: "Claim Code" },
+  col_serial_sl: { bn: "ক্রম", en: "Sl.#" },
+  col_serial_no: { bn: "সিরিয়াল", en: "Serial No" },
+  col_serial_doctor: { bn: "ডাক্তার", en: "Doctor" },
+  col_serial_specialty: { bn: "বিশেষত্ব", en: "Specialty" },
+  col_serial_date: { bn: "তারিখ", en: "Date" },
+  col_serial_time: { bn: "সময়", en: "Time" },
+  col_serial_fee: { bn: "ফি", en: "Fee" },
+  col_serial_discount: { bn: "ছাড়", en: "Discount" },
+  serial_bmdc: { bn: "BMDC", en: "BMDC" },
+  serial_qualifications: { bn: "যোগ্যতা", en: "Qualifications" },
+  serial_chamber: { bn: "চেম্বার", en: "Chamber" },
+  title_ambulance: { bn: "অ্যাম্বুলেন্স ক্যাশ মেমো / বিল", en: "Ambulance Cash Memo / Bill" },
+  ambulance_ref_code: { bn: "রেফারেন্স", en: "Reference" },
+  col_amb_sl: { bn: "ক্রম", en: "Sl.#" },
+  col_amb_ref: { bn: "রেফ", en: "Ref" },
+  col_amb_service: { bn: "সার্ভিস", en: "Service" },
+  col_amb_mode: { bn: "ধরন", en: "Mode" },
+  col_amb_distance: { bn: "দূরত্ব", en: "Distance" },
+  col_amb_fare: { bn: "ভাড়া", en: "Fare" },
+  col_amb_discount: { bn: "ছাড়", en: "Discount" },
+  amb_pickup: { bn: "পিকআপ", en: "Pickup" },
+  amb_dropoff: { bn: "গন্তব্য", en: "Dropoff" },
+  amb_vehicle: { bn: "যান", en: "Vehicle" },
+  amb_driver: { bn: "ড্রাইভার", en: "Driver" },
+  amb_disclaimer: {
+    bn: "যাত্রার আগে রোগীর নাম, ঠিকানা ও যোগাযোগ যাচাই করে নিন।",
+    en: "Please verify patient name, address and contact before the trip.",
+  },
   total: { bn: "মোট টাকা", en: "Total Amount" },
   discount: { bn: "মোট ছাড়", en: "Total Discount" },
   vat: { bn: "ভ্যাট", en: "VAT" },

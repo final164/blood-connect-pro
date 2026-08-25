@@ -1,9 +1,21 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAmbulanceRequest } from "@/lib/ambulance-api";
+import { fetchAmbulanceRequest, type AmbulanceRequest } from "@/lib/ambulance-api";
 import { formatCareMoney, paymentStatusLabel } from "@/lib/care-invoice";
+
+export type AmbulanceInvoiceLine = {
+  request_id: string;
+  reference_code: string;
+  service_name_bn: string | null;
+  service_name_en: string | null;
+  mode: string;
+  final_fare: number;
+  fare_original: number | null;
+  discount_percent: number | null;
+};
 
 export type AmbulanceInvoice = {
   request_id: string;
+  invoice_group_id: string | null;
   reference_code: string;
   invoice_no: string;
   mode: string;
@@ -38,6 +50,7 @@ export type AmbulanceInvoice = {
   plate_no: string | null;
   driver_name: string | null;
   driver_phone: string | null;
+  lines: AmbulanceInvoiceLine[];
 };
 
 function num(v: unknown): number {
@@ -46,70 +59,119 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export async function fetchAmbulanceInvoice(requestId: string): Promise<AmbulanceInvoice | null> {
-  const req = await fetchAmbulanceRequest(requestId);
-  if (!req) return null;
+async function fetchGroupRequests(primary: AmbulanceRequest): Promise<AmbulanceRequest[]> {
+  const groupId = primary.invoice_group_id;
+  if (!groupId || groupId === primary.id) {
+    return [primary];
+  }
 
-  const [svcRes, orgRes, vehRes, drvRes, profileRes] = await Promise.all([
-    req.service_type_id
-      ? supabase.from("ambulance_service_types").select("name_bn, name_en").eq("id", req.service_type_id).maybeSingle()
+  const { data, error } = await supabase
+    .from("ambulance_requests")
+    .select(
+      "id, org_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, mode, service_type_id, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, estimated_fare, final_fare, fare_original, discount_percent, distance_km, created_at, status, assigned_vehicle_id, assigned_driver_id, pickup_address, pickup_upazila, dropoff_address, dropoff_upazila",
+    )
+    .eq("invoice_group_id", groupId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    if (/invoice_group_id|guest_age|amount_received/i.test(error.message ?? "")) {
+      return [primary];
+    }
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as AmbulanceRequest[];
+  return rows.length > 0 ? rows : [primary];
+}
+
+export async function fetchAmbulanceInvoice(requestId: string): Promise<AmbulanceInvoice | null> {
+  const primary = await fetchAmbulanceRequest(requestId);
+  if (!primary) return null;
+
+  const group = await fetchGroupRequests(primary);
+  const serviceIds = [...new Set(group.map((r) => r.service_type_id).filter(Boolean))] as string[];
+
+  const [svcMap, orgRes, vehRes, drvRes, profileRes] = await Promise.all([
+    serviceIds.length
+      ? supabase.from("ambulance_service_types").select("id, name_bn, name_en").in("id", serviceIds)
+      : Promise.resolve({ data: [], error: null }),
+    primary.org_id
+      ? supabase.from("care_orgs").select("id, name, name_bn, phone, address").eq("id", primary.org_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    req.org_id
-      ? supabase.from("care_orgs").select("id, name, name_bn, phone, address").eq("id", req.org_id).maybeSingle()
+    primary.assigned_vehicle_id
+      ? supabase.from("ambulance_vehicles").select("plate_no, label").eq("id", primary.assigned_vehicle_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    req.assigned_vehicle_id
-      ? supabase.from("ambulance_vehicles").select("plate_no, label").eq("id", req.assigned_vehicle_id).maybeSingle()
+    primary.assigned_driver_id
+      ? supabase.from("ambulance_drivers").select("full_name, phone").eq("id", primary.assigned_driver_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    req.assigned_driver_id
-      ? supabase.from("ambulance_drivers").select("full_name, phone").eq("id", req.assigned_driver_id).maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    req.patient_id
-      ? supabase.from("profiles").select("full_name, phone").eq("id", req.patient_id).maybeSingle()
+    primary.patient_id
+      ? supabase.from("profiles").select("full_name, phone").eq("id", primary.patient_id).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
 
-  const svc = svcRes.data as { name_bn?: string; name_en?: string } | null;
+  const typeById = new Map(
+    ((svcMap.data ?? []) as { id: string; name_bn?: string; name_en?: string }[]).map((t) => [t.id, t]),
+  );
+
+  const lines: AmbulanceInvoiceLine[] = group.map((row) => {
+    const svc = row.service_type_id ? typeById.get(row.service_type_id) : null;
+    const fare = num(row.final_fare ?? row.estimated_fare);
+    const disc = row.discount_percent != null ? Number(row.discount_percent) : null;
+    const original = row.fare_original != null ? num(row.fare_original) : null;
+    return {
+      request_id: row.id,
+      reference_code: row.reference_code,
+      service_name_bn: svc?.name_bn ?? null,
+      service_name_en: svc?.name_en ?? null,
+      mode: row.mode,
+      final_fare: fare,
+      fare_original: original != null && disc != null && disc > 0 ? original : null,
+      discount_percent: disc != null && disc > 0 ? disc : null,
+    };
+  });
+
+  const subtotal = lines.reduce((n, l) => n + (l.fare_original != null && l.fare_original > l.final_fare ? l.fare_original : l.final_fare), 0);
+  const totalFare = lines.reduce((n, l) => n + l.final_fare, 0);
+  const totalOriginal = lines.reduce((n, l) => n + (l.fare_original ?? l.final_fare), 0);
+  const hasDiscount = totalOriginal > totalFare;
+
   const org = orgRes.data as Record<string, unknown> | null;
   const veh = vehRes.data as { plate_no?: string } | null;
   const drv = drvRes.data as { full_name?: string; phone?: string } | null;
   const profile = profileRes.data as { full_name?: string; phone?: string } | null;
 
-  const fare = num(req.final_fare ?? req.estimated_fare);
-  const disc = req.discount_percent != null ? Number(req.discount_percent) : null;
-  const original = req.fare_original != null ? num(req.fare_original) : null;
+  const firstSvc = primary.service_type_id ? typeById.get(primary.service_type_id) : null;
 
   return {
-    request_id: req.id,
-    reference_code: req.reference_code,
-    invoice_no: req.invoice_no || `BLA-${req.id.slice(0, 8).toUpperCase()}`,
-    mode: req.mode,
-    status: req.status,
-    payment_status: req.payment_status,
-    estimated_fare: num(req.estimated_fare),
-    final_fare: fare,
-    fare_original: original != null && disc != null && disc > 0 ? original : null,
-    discount_percent: disc != null && disc > 0 ? disc : null,
-    distance_km: req.distance_km,
-    created_at: req.created_at,
+    request_id: primary.id,
+    invoice_group_id: primary.invoice_group_id ?? null,
+    reference_code: primary.reference_code,
+    invoice_no: primary.invoice_no || `BLA-${primary.id.slice(0, 8).toUpperCase()}`,
+    mode: primary.mode,
+    status: primary.status,
+    payment_status: primary.payment_status,
+    estimated_fare: num(primary.estimated_fare),
+    final_fare: round2(totalFare),
+    fare_original: hasDiscount ? round2(totalOriginal) : null,
+    discount_percent: hasDiscount && subtotal > 0 ? round2(((totalOriginal - totalFare) / totalOriginal) * 100) : null,
+    distance_km: primary.distance_km,
+    created_at: primary.created_at,
     patient_name: profile?.full_name ?? null,
     patient_phone: profile?.phone ?? null,
-    guest_name: req.guest_name,
-    guest_phone: req.guest_phone,
-    guest_age: (req as { guest_age?: number | null }).guest_age ?? null,
-    guest_sex: (req as { guest_sex?: string | null }).guest_sex ?? null,
-    guest_address: (req as { guest_address?: string | null }).guest_address ?? null,
-    referred_by: (req as { referred_by?: string | null }).referred_by ?? null,
-    amount_received:
-      (req as { amount_received?: number | null }).amount_received != null
-        ? num((req as { amount_received?: number | null }).amount_received)
-        : null,
-    pickup_address: req.pickup_address,
-    pickup_upazila: req.pickup_upazila,
-    dropoff_address: req.dropoff_address,
-    dropoff_upazila: req.dropoff_upazila,
-    service_name_bn: svc?.name_bn ?? null,
-    service_name_en: svc?.name_en ?? null,
-    org_id: req.org_id,
+    guest_name: primary.guest_name,
+    guest_phone: primary.guest_phone,
+    guest_age: primary.guest_age ?? null,
+    guest_sex: primary.guest_sex ?? null,
+    guest_address: primary.guest_address ?? null,
+    referred_by: primary.referred_by ?? null,
+    amount_received: primary.amount_received != null ? num(primary.amount_received) : null,
+    pickup_address: primary.pickup_address,
+    pickup_upazila: primary.pickup_upazila,
+    dropoff_address: primary.dropoff_address,
+    dropoff_upazila: primary.dropoff_upazila,
+    service_name_bn: firstSvc?.name_bn ?? lines[0]?.service_name_bn ?? null,
+    service_name_en: firstSvc?.name_en ?? lines[0]?.service_name_en ?? null,
+    org_id: primary.org_id,
     org_name: String(org?.name ?? "Ambulance Service"),
     org_name_bn: (org?.name_bn as string) ?? null,
     org_phone: (org?.phone as string) ?? null,
@@ -117,7 +179,12 @@ export async function fetchAmbulanceInvoice(requestId: string): Promise<Ambulanc
     plate_no: veh?.plate_no ?? null,
     driver_name: drv?.full_name ?? null,
     driver_phone: drv?.phone ?? null,
+    lines,
   };
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
 }
 
 export function ambulanceInvoicePatientName(inv: AmbulanceInvoice, lang: "bn" | "en"): string {
@@ -133,6 +200,11 @@ export function ambulanceInvoiceOrgName(inv: AmbulanceInvoice, lang: "bn" | "en"
 }
 
 export function ambulanceInvoiceServiceName(inv: AmbulanceInvoice, lang: "bn" | "en"): string {
+  if (inv.lines.length > 1) {
+    return inv.lines
+      .map((l) => (lang === "bn" ? l.service_name_bn || l.service_name_en : l.service_name_en || l.service_name_bn) || "—")
+      .join(", ");
+  }
   return lang === "bn" ? inv.service_name_bn || inv.service_name_en || "—" : inv.service_name_en || inv.service_name_bn || "—";
 }
 

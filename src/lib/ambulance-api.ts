@@ -20,6 +20,7 @@ export type AmbulanceRequest = {
   assigned_driver_id: string | null;
   reference_code: string;
   invoice_no: string | null;
+  invoice_group_id?: string | null;
   payment_status: "pending" | "paid" | "waived";
   amount_received?: number | null;
   estimated_fare: number | null;
@@ -93,6 +94,7 @@ export type CreateAmbulanceRequestPayload = {
   mode?: "emergency" | "scheduled";
   org_id?: string;
   service_type_id?: string;
+  service_type_ids?: string[];
   equipment_ids?: string[];
   scheduled_at?: string;
   guest_name?: string;
@@ -116,24 +118,46 @@ export type CreateAmbulanceRequestPayload = {
 };
 
 const REQUEST_SELECT =
-  "id, org_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, amount_received, estimated_fare, final_fare, fare_original, discount_percent, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
+  "id, org_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, estimated_fare, final_fare, fare_original, discount_percent, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
 
 const REQUEST_SELECT_LEGACY =
   "id, org_id, patient_id, guest_name, guest_phone, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, estimated_fare, final_fare, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
+
+const LEGACY_COLUMN_RE =
+  /fare_original|discount_percent|guest_age|guest_sex|guest_address|referred_by|amount_received|invoice_group_id/i;
+
+function isLegacyColumnError(err: { message?: string }) {
+  return LEGACY_COLUMN_RE.test(err.message ?? "");
+}
+
+function normalizeCreatePayload(payload: CreateAmbulanceRequestPayload): CreateAmbulanceRequestPayload {
+  const ids =
+    payload.service_type_ids?.filter(Boolean) ??
+    (payload.service_type_id ? [payload.service_type_id] : undefined);
+  if (ids && ids.length > 1) {
+    return { ...payload, service_type_ids: ids, service_type_id: undefined };
+  }
+  if (ids?.length === 1) {
+    return { ...payload, service_type_id: ids[0], service_type_ids: undefined };
+  }
+  return payload;
+}
 
 function missing(err: { message?: string; code?: string }) {
   return err.code === "PGRST205" || /does not exist/i.test(err.message ?? "");
 }
 
 export async function createAmbulanceRequest(payload: CreateAmbulanceRequestPayload): Promise<AmbulanceRequest> {
-  const { data, error } = await supabase.rpc("ambulance_create_request", { _payload: payload } as never);
+  const { data, error } = await supabase.rpc("ambulance_create_request", {
+    _payload: normalizeCreatePayload(payload),
+  } as never);
   if (error) throw new Error(error.message);
   return data as AmbulanceRequest;
 }
 
 export async function fetchAmbulanceRequest(id: string): Promise<AmbulanceRequest | null> {
   const primary = await supabase.from("ambulance_requests").select(REQUEST_SELECT).eq("id", id).maybeSingle();
-  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+  if (primary.error && isLegacyColumnError(primary.error)) {
     const legacy = await supabase.from("ambulance_requests").select(REQUEST_SELECT_LEGACY).eq("id", id).maybeSingle();
     if (legacy.error) throw new Error(legacy.error.message);
     return (legacy.data as AmbulanceRequest) ?? null;
@@ -148,7 +172,7 @@ export async function fetchMyAmbulanceRequests(): Promise<AmbulanceRequest[]> {
     .select(REQUEST_SELECT)
     .order("created_at", { ascending: false })
     .limit(50);
-  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+  if (primary.error && isLegacyColumnError(primary.error)) {
     const legacy = await supabase
       .from("ambulance_requests")
       .select(REQUEST_SELECT_LEGACY)
@@ -171,7 +195,7 @@ export async function fetchOrgAmbulanceRequests(orgId: string, statusFilter?: st
   let q = supabase.from("ambulance_requests").select(REQUEST_SELECT).eq("org_id", orgId).order("created_at", { ascending: false }).limit(100);
   if (statusFilter?.length) q = q.in("status", statusFilter);
   const primary = await q;
-  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+  if (primary.error && isLegacyColumnError(primary.error)) {
     let q2 = supabase.from("ambulance_requests").select(REQUEST_SELECT_LEGACY).eq("org_id", orgId).order("created_at", { ascending: false }).limit(100);
     if (statusFilter?.length) q2 = q2.in("status", statusFilter);
     const legacy = await q2;
@@ -190,7 +214,7 @@ export async function fetchOpenAmbulancePool(): Promise<AmbulanceRequest[]> {
     .eq("status", "requested")
     .order("created_at", { ascending: false })
     .limit(50);
-  if (primary.error && /fare_original|discount_percent/i.test(primary.error.message ?? "")) {
+  if (primary.error && isLegacyColumnError(primary.error)) {
     const legacy = await supabase
       .from("ambulance_requests")
       .select(REQUEST_SELECT_LEGACY)

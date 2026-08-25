@@ -45,4 +45,26 @@ export function computeAmbulanceFare(params: {
   };
 }
 
+export function sumAmbulanceFareBreakdowns(parts: AmbulanceFareBreakdown[]): AmbulanceFareBreakdown {
+  const totals = parts.reduce(
+    (acc, p) => ({
+      list_fare: acc.list_fare + p.list_fare,
+      sale_fare: acc.sale_fare + p.sale_fare,
+      saved: acc.saved + p.saved,
+    }),
+    { list_fare: 0, sale_fare: 0, saved: 0 },
+  );
+  const first = parts[0];
+  return {
+    base_price: first?.base_price ?? 0,
+    per_km_price: first?.per_km_price ?? 0,
+    min_fare: first?.min_fare ?? 0,
+    distance_km: first?.distance_km ?? 0,
+    discount_percent: first?.discount_percent ?? 0,
+    list_fare: Math.round(totals.list_fare * 100) / 100,
+    sale_fare: Math.round(totals.sale_fare * 100) / 100,
+    saved: Math.round(totals.saved * 100) / 100,
+  };
+}
+
 export { clampDiscountPercent, formatCareMoney };

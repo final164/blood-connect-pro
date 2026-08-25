@@ -16,7 +16,7 @@ import {
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40";
 
-const LABEL_KEYS: CareInvoiceLabelKey[] = [
+const COMMON_LABEL_KEYS: CareInvoiceLabelKey[] = [
   "title",
   "reg_no",
   "lab_id",
@@ -27,12 +27,6 @@ const LABEL_KEYS: CareInvoiceLabelKey[] = [
   "address",
   "mobile",
   "refd_by",
-  "col_sl",
-  "col_test_id",
-  "col_test_name",
-  "col_delivery",
-  "col_amount",
-  "col_discount",
   "total",
   "discount",
   "vat",
@@ -46,6 +40,34 @@ const LABEL_KEYS: CareInvoiceLabelKey[] = [
   "developed_by",
   "print_datetime",
   "page_of",
+];
+
+const LAB_TABLE_LABEL_KEYS: CareInvoiceLabelKey[] = [
+  "col_sl",
+  "col_test_id",
+  "col_test_name",
+  "col_delivery",
+  "col_amount",
+  "col_discount",
+];
+
+const SERIAL_COLUMN_LABEL_KEYS: CareInvoiceLabelKey[] = [
+  "col_serial_sl",
+  "col_serial_no",
+  "col_serial_doctor",
+  "col_serial_specialty",
+  "col_serial_date",
+  "col_serial_time",
+  "col_serial_fee",
+  "col_serial_discount",
+];
+
+const SERIAL_TABLE_LABEL_KEYS: CareInvoiceLabelKey[] = [
+  "serial_claim_code",
+  ...SERIAL_COLUMN_LABEL_KEYS,
+  "serial_bmdc",
+  "serial_qualifications",
+  "serial_chamber",
 ];
 
 const STYLE_KEYS: (keyof CareInvoiceStyle)[] = [
@@ -71,6 +93,7 @@ const VIS_KEYS: (keyof CareInvoiceVisibility)[] = [
 export function CareInvoiceAdmin({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" }) {
   const [cfg, setCfg] = useState<CareInvoiceSettings>(DEFAULT_CARE_INVOICE_SETTINGS);
   const [busy, setBusy] = useState(false);
+  const [previewKind, setPreviewKind] = useState<"lab" | "serial">("lab");
 
   useEffect(() => {
     void fetchCareInvoiceSettings(true).then(setCfg);
@@ -109,11 +132,45 @@ export function CareInvoiceAdmin({ canEdit, lang }: { canEdit: boolean; lang: "b
           : "Cash Memo / Bill — platform defaults. Clinics may override letterhead."}
       </p>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-[11px] text-slate-300 space-y-1">
+      <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-[11px] text-slate-300 space-y-2">
         <p className="font-bold text-slate-100">{invoiceLabel(cfg, "title", lang)}</p>
         <p className="text-slate-500">
           {lang === "bn" ? "প্রিভিউ টাইটেল · সেভের পর ইনভয়েসে দেখা যাবে" : "Title preview · applies after save"}
         </p>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-slate-500">{lang === "bn" ? "টেবিল হেডার:" : "Table headers:"}</span>
+          <button
+            type="button"
+            onClick={() => setPreviewKind("lab")}
+            className={`rounded px-2 py-0.5 text-[10px] font-semibold ${
+              previewKind === "lab" ? "bg-teal-700 text-white" : "bg-slate-800 text-slate-400"
+            }`}
+          >
+            Lab
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreviewKind("serial")}
+            className={`rounded px-2 py-0.5 text-[10px] font-semibold ${
+              previewKind === "serial" ? "bg-teal-700 text-white" : "bg-slate-800 text-slate-400"
+            }`}
+          >
+            Serial
+          </button>
+        </div>
+        <div className="overflow-x-auto rounded border border-slate-700/80 bg-slate-900/60">
+          <table className="w-full text-[10px] text-slate-200">
+            <thead>
+              <tr className="border-b border-slate-700 text-teal-300">
+                {(previewKind === "lab" ? LAB_TABLE_LABEL_KEYS : SERIAL_COLUMN_LABEL_KEYS).map((k) => (
+                  <th key={k} className="px-2 py-1 text-left font-semibold whitespace-nowrap">
+                    {invoiceLabel(cfg, k, lang)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+        </div>
       </div>
 
       <section className="space-y-2">
@@ -243,7 +300,81 @@ export function CareInvoiceAdmin({ canEdit, lang }: { canEdit: boolean; lang: "b
           {lang === "bn" ? "লেবেল (বাংলা / English)" : "Labels (Bangla / English)"}
         </h3>
         <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
-          {LABEL_KEYS.map((k) => (
+          {COMMON_LABEL_KEYS.map((k) => (
+            <div key={k} className="grid sm:grid-cols-[7rem_1fr_1fr] gap-1 items-center">
+              <span className="text-[10px] text-slate-500 font-mono">{k}</span>
+              <input
+                className={ainp}
+                disabled={!canEdit}
+                value={cfg.labels[k].bn}
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    labels: { ...p.labels, [k]: { ...p.labels[k], bn: e.target.value } },
+                  }))
+                }
+                placeholder="bn"
+              />
+              <input
+                className={ainp}
+                disabled={!canEdit}
+                value={cfg.labels[k].en}
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    labels: { ...p.labels, [k]: { ...p.labels[k], en: e.target.value } },
+                  }))
+                }
+                placeholder="en"
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+          {lang === "bn" ? "ল্যাব টেবিল" : "Lab table"}
+        </h3>
+        <div className="space-y-2 max-h-[16rem] overflow-y-auto pr-1">
+          {LAB_TABLE_LABEL_KEYS.map((k) => (
+            <div key={k} className="grid sm:grid-cols-[7rem_1fr_1fr] gap-1 items-center">
+              <span className="text-[10px] text-slate-500 font-mono">{k}</span>
+              <input
+                className={ainp}
+                disabled={!canEdit}
+                value={cfg.labels[k].bn}
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    labels: { ...p.labels, [k]: { ...p.labels[k], bn: e.target.value } },
+                  }))
+                }
+                placeholder="bn"
+              />
+              <input
+                className={ainp}
+                disabled={!canEdit}
+                value={cfg.labels[k].en}
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    labels: { ...p.labels, [k]: { ...p.labels[k], en: e.target.value } },
+                  }))
+                }
+                placeholder="en"
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+          {lang === "bn" ? "সিরিয়াল টেবিল (ডাক্তার)" : "Serial table (doctor)"}
+        </h3>
+        <div className="space-y-2 max-h-[20rem] overflow-y-auto pr-1">
+          {SERIAL_TABLE_LABEL_KEYS.map((k) => (
             <div key={k} className="grid sm:grid-cols-[7rem_1fr_1fr] gap-1 items-center">
               <span className="text-[10px] text-slate-500 font-mono">{k}</span>
               <input

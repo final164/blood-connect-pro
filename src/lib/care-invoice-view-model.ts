@@ -1,6 +1,11 @@
 import type { CareLabInvoice } from "@/lib/care-lab-invoice";
 import { labInvoiceLineName, labInvoicePatientName, labInvoicePatientPhone } from "@/lib/care-lab-invoice";
 import type { CareSerialInvoice } from "@/lib/care-invoice";
+import {
+  invoiceDoctorName,
+  invoiceLocationLine,
+  invoiceScheduleLine,
+} from "@/lib/care-invoice";
 import type { AmbulanceInvoice } from "@/lib/ambulance-invoice";
 import type { ResolvedCareInvoiceTemplate } from "@/lib/care-invoice-settings";
 
@@ -28,6 +33,47 @@ export type CareInvoiceViewLine = {
   discount_percent: number | null;
 };
 
+export type CareInvoiceSerialRow = {
+  id: string;
+  serial_no: string;
+  online_serial_no: number | null;
+  doctor_name: string;
+  specialty: string;
+  session_date: string;
+  schedule_time: string;
+  fee: number;
+  discount: number;
+  discount_percent: number | null;
+  is_second_visit: boolean;
+};
+
+export type CareInvoiceSerialExtra = {
+  bmdc: string | null;
+  qualifications: string | null;
+  chamber: string | null;
+};
+
+export type CareInvoiceAmbulanceRow = {
+  id: string;
+  reference_code: string;
+  service_name: string;
+  mode: string;
+  distance_km: string;
+  amount: number;
+  discount: number;
+  discount_percent: number | null;
+};
+
+export type CareInvoiceAmbulanceExtra = {
+  pickup: string | null;
+  dropoff: string | null;
+  distance_km: string | null;
+  mode: string | null;
+  plate_no: string | null;
+  driver_name: string | null;
+  driver_phone: string | null;
+};
+
 export type CareInvoiceViewModel = {
   kind: "lab" | "serial" | "ambulance";
   org_id: string;
@@ -44,6 +90,10 @@ export type CareInvoiceViewModel = {
   referred_by: string | null;
   payment_status: "pending" | "paid" | "waived";
   lines: CareInvoiceViewLine[];
+  serial_rows?: CareInvoiceSerialRow[];
+  serial_extra?: CareInvoiceSerialExtra;
+  ambulance_rows?: CareInvoiceAmbulanceRow[];
+  ambulance_extra?: CareInvoiceAmbulanceExtra;
   money: CareInvoiceMoney;
   amount_received: number | null;
 };
@@ -182,46 +232,59 @@ export function mapSerialInvoiceToViewModel(
   const name = inv.guest_name || inv.patient_name || (lang === "bn" ? "রোগী" : "Patient");
   const phone = inv.guest_phone || inv.patient_phone || "—";
   const fee = inv.fee_amount;
-  const doc =
-    lang === "bn"
-      ? inv.doctor_name_bn || inv.doctor_name
-      : inv.doctor_name;
+  const doc = invoiceDoctorName(inv, lang);
+  const specialty = lang === "bn" ? inv.specialty_bn || inv.specialty_en || "—" : inv.specialty_en || inv.specialty_bn || "—";
   const amountReceived = inv.amount_received;
   const age = inv.guest_age;
   const address = inv.guest_address;
   const feeOriginal = inv.fee_original != null && inv.fee_original > fee ? inv.fee_original : fee;
   const lineDiscount = round2(Math.max(0, feeOriginal - fee));
+  const serialNo =
+    inv.serial_no != null
+      ? String(inv.serial_no)
+      : inv.status === "pending_approval"
+        ? lang === "bn"
+          ? "অনুমোদন বাকি"
+          : "Pending"
+        : "—";
 
   return {
     kind: "serial",
     org_id: inv.org_id,
     invoice_no: inv.invoice_no,
     reg_no: inv.invoice_no,
-    lab_id: inv.claim_code || String(inv.online_serial_no ?? inv.serial_no ?? "—"),
+    lab_id: inv.claim_code || "—",
     date: fmtDate(inv.session_date || inv.created_at),
-    delivery_datetime: inv.session_date ? fmtDate(inv.session_date) : null,
+    delivery_datetime: null,
     patient_name: name,
     patient_phone: phone,
     patient_age: age != null ? String(age) : null,
     patient_sex: inv.guest_sex ?? null,
     patient_address: address ?? null,
-    referred_by: inv.referred_by || doc || null,
+    referred_by: inv.referred_by ?? null,
     payment_status: inv.payment_status,
-    lines: [
+    lines: [],
+    serial_rows: [
       {
         id: inv.serial_id,
-        test_id: String(inv.serial_no ?? inv.online_serial_no ?? "—"),
-        name:
-          lang === "bn"
-            ? `ডাক্তার সিরিয়াল · ${doc}`
-            : `Doctor serial · ${doc}`,
-        delivery_date: fmtDate(inv.session_date),
-        amount: round2(feeOriginal),
+        serial_no: serialNo,
+        online_serial_no: inv.online_serial_no,
+        doctor_name: doc || "—",
+        specialty,
+        session_date: fmtDate(inv.session_date),
+        schedule_time: invoiceScheduleLine(inv),
+        fee: round2(feeOriginal),
         discount: lineDiscount,
         discount_percent:
           lineDiscount > 0 && feeOriginal > 0 ? round2((lineDiscount / feeOriginal) * 100) : null,
+        is_second_visit: inv.is_second_visit,
       },
     ],
+    serial_extra: {
+      bmdc: inv.doctor_bmdc,
+      qualifications: inv.doctor_qualifications,
+      chamber: invoiceLocationLine(inv, lang) || null,
+    },
     money: computeInvoiceMoney({
       subtotal: feeOriginal,
       discountAmount: lineDiscount,
@@ -233,6 +296,12 @@ export function mapSerialInvoiceToViewModel(
   };
 }
 
+function ambulanceModeLabel(mode: string, lang: "bn" | "en"): string {
+  if (mode === "emergency") return lang === "bn" ? "জরুরি" : "Emergency";
+  if (mode === "scheduled") return lang === "bn" ? "শিডিউল" : "Scheduled";
+  return mode;
+}
+
 export function mapAmbulanceInvoiceToViewModel(
   inv: AmbulanceInvoice,
   template: ResolvedCareInvoiceTemplate,
@@ -240,17 +309,46 @@ export function mapAmbulanceInvoiceToViewModel(
 ): CareInvoiceViewModel {
   const name = inv.guest_name || inv.patient_name || (lang === "bn" ? "রোগী" : "Patient");
   const phone = inv.guest_phone || inv.patient_phone || "—";
-  const svc =
-    lang === "bn"
-      ? inv.service_name_bn || inv.service_name_en || inv.mode
-      : inv.service_name_en || inv.service_name_bn || inv.mode;
-  const subtotal =
-    inv.fare_original != null && inv.fare_original > inv.final_fare ? inv.fare_original : inv.final_fare;
-  const discount_amount =
-    inv.fare_original != null && inv.fare_original > inv.final_fare
-      ? inv.fare_original - inv.final_fare
-      : 0;
   const amountReceived = inv.amount_received;
+  const distanceLabel =
+    inv.distance_km != null && Number.isFinite(Number(inv.distance_km))
+      ? `${Number(inv.distance_km)} km`
+      : "—";
+
+  const ambulance_rows: CareInvoiceAmbulanceRow[] = inv.lines.map((line) => {
+    const svc =
+      lang === "bn"
+        ? line.service_name_bn || line.service_name_en || line.mode
+        : line.service_name_en || line.service_name_bn || line.mode;
+    const subtotal =
+      line.fare_original != null && line.fare_original > line.final_fare ? line.fare_original : line.final_fare;
+    const discount_amount =
+      line.fare_original != null && line.fare_original > line.final_fare
+        ? line.fare_original - line.final_fare
+        : 0;
+    return {
+      id: line.request_id,
+      reference_code: line.reference_code,
+      service_name: svc,
+      mode: ambulanceModeLabel(line.mode, lang),
+      distance_km: distanceLabel,
+      amount: round2(subtotal),
+      discount: round2(discount_amount),
+      discount_percent:
+        discount_amount > 0
+          ? line.discount_percent != null && line.discount_percent > 0
+            ? line.discount_percent
+            : subtotal > 0
+              ? round2((discount_amount / subtotal) * 100)
+              : null
+          : null,
+    };
+  });
+
+  const subtotal = round2(ambulance_rows.reduce((n, l) => n + l.amount, 0));
+  const discount_amount = round2(ambulance_rows.reduce((n, l) => n + l.discount, 0));
+
+  const pickup = [inv.pickup_address, inv.pickup_upazila].filter(Boolean).join(", ") || null;
 
   return {
     kind: "ambulance",
@@ -259,7 +357,7 @@ export function mapAmbulanceInvoiceToViewModel(
     reg_no: inv.invoice_no,
     lab_id: inv.reference_code,
     date: fmtDate(inv.created_at),
-    delivery_datetime: fmtDate(inv.created_at),
+    delivery_datetime: null,
     patient_name: name,
     patient_phone: phone,
     patient_age: inv.guest_age != null ? String(inv.guest_age) : null,
@@ -267,27 +365,19 @@ export function mapAmbulanceInvoiceToViewModel(
     patient_address: inv.guest_address || inv.pickup_address,
     referred_by: inv.referred_by ?? null,
     payment_status: inv.payment_status,
-    lines: [
-      {
-        id: inv.request_id,
-        test_id: inv.mode,
-        name: svc,
-        delivery_date: fmtDate(inv.created_at),
-        amount: round2(subtotal),
-        discount: round2(discount_amount),
-        discount_percent:
-          discount_amount > 0
-            ? inv.discount_percent != null && inv.discount_percent > 0
-              ? inv.discount_percent
-              : subtotal > 0
-                ? round2((discount_amount / subtotal) * 100)
-                : null
-            : null,
-      },
-    ],
+    lines: [],
+    ambulance_rows,
+    ambulance_extra: {
+      pickup,
+      dropoff: [inv.dropoff_address, inv.dropoff_upazila].filter(Boolean).join(", ") || null,
+      distance_km: inv.distance_km != null ? String(inv.distance_km) : null,
+      mode: ambulanceModeLabel(inv.mode, lang),
+      plate_no: inv.plate_no,
+      driver_name: inv.driver_name,
+      driver_phone: inv.driver_phone,
+    },
     money: computeInvoiceMoney({
       subtotal,
-      discountPercent: inv.discount_percent,
       discountAmount: discount_amount,
       vatPercent: template.defaults.vat_percent,
       paymentStatus: inv.payment_status,
