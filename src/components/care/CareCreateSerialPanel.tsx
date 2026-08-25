@@ -157,7 +157,7 @@ export function CareCreateSerialPanel({
     const { data } = await supabase
       .from("care_serials")
       .select(
-        "id, session_id, serial_no, patient_id, guest_name, guest_phone, guest_age, guest_address, source, status, claim_code, invoice_no, fee_amount, online_serial_no, payment_status, called_at, created_at, care_sessions!inner(org_id)",
+        "id, session_id, serial_no, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, claim_code, invoice_no, fee_amount, online_serial_no, payment_status, amount_received, called_at, created_at, care_sessions!inner(org_id)",
       )
       .eq("care_sessions.org_id", orgId)
       .in("source", ["desk_manual", "walk_in"])

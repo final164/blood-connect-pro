@@ -16,6 +16,7 @@ import {
   type CareSessionRow,
 } from "@/lib/care-api";
 import { CareSerialInvoiceCard } from "@/components/care/CareSerialInvoice";
+import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
 
 export function CareSerialLivePage({ serialId }: { serialId: string }) {
   const { lang } = useI18n();
@@ -70,7 +71,12 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
             fallbackTo={{ to: "/care", search: { tab: "bookings" } }}
             shape="xl"
           />
-          <h1 className="text-sm font-bold">{lang === "bn" ? "লাইভ কিউ" : "Live queue"}</h1>
+          <h1 className="text-sm font-bold flex-1 truncate">
+            {lang === "bn" ? "লাইভ কিউ" : "Live queue"}
+          </h1>
+          {session?.org_id ? (
+            <CareOrgChatButton orgId={session.org_id} variant="icon" />
+          ) : null}
         </div>
       </AutoHideHeader>
       <div className="px-3 py-6 max-w-lg mx-auto space-y-6">

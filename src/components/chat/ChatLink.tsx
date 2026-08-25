@@ -8,6 +8,8 @@ import { prefetchChatThread } from "@/lib/chat-store";
 type Props = Omit<LinkProps, "to" | "params" | "search"> & {
   peerId: string;
   fromRequestId?: string;
+  /** When chatting with a care hospital/clinic staff peer, show org label in thread */
+  careOrgId?: string;
   children?: React.ReactNode;
   className?: string;
   title?: string;
@@ -21,6 +23,7 @@ type Props = Omit<LinkProps, "to" | "params" | "search"> & {
 export function ChatLink({
   peerId,
   fromRequestId,
+  careOrgId,
   onPointerEnter,
   onTouchStart,
   children,
@@ -35,12 +38,20 @@ export function ChatLink({
     void prefetchChatThread(queryClient, user.id, peerId, lang);
   };
 
+  const search =
+    fromRequestId || careOrgId
+      ? {
+          ...(fromRequestId ? { fromRequestId } : {}),
+          ...(careOrgId ? { careOrgId } : {}),
+        }
+      : {};
+
   return (
     <Link
       {...rest}
       to="/chat/$peerId"
       params={{ peerId }}
-      search={fromRequestId ? { fromRequestId } : {}}
+      search={search}
       onPointerEnter={(e) => {
         warm();
         onPointerEnter?.(e);

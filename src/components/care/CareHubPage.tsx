@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   FlaskConical,
   LayoutGrid,
+  LayoutDashboard,
   Search,
   Stethoscope,
   Ticket,
@@ -30,8 +31,13 @@ import {
 import { searchTestOfferings, searchLabFacilities, fetchMyLabBookings, type CareOffering, type CareLabFacility } from "@/lib/care-lab-api";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { formatCareMoney } from "@/lib/care-invoice";
+import {
+  CareLabProgressMini,
+  summarizeLabGroupStatus,
+} from "@/components/care/CareLabProgress";
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
+import { CareCustomerDashboard } from "@/components/care/CareCustomerDashboard";
 
 const ICONS: Record<string, typeof Stethoscope> = {
   Stethoscope,
@@ -42,6 +48,7 @@ const ICONS: Record<string, typeof Stethoscope> = {
   LayoutGrid,
   Ambulance,
   Sparkles,
+  LayoutDashboard,
 };
 
 export function CareHubPage({
@@ -55,7 +62,7 @@ export function CareHubPage({
   const { user } = useAuth();
   const navigate = useNavigate();
   const [modules, setModules] = useState<CareHubModule[]>([]);
-  const [tab, setTab] = useState(initialTab || "doctors");
+  const [tab, setTab] = useState(initialTab || "dashboard");
   const [hasDesk, setHasDesk] = useState(false);
   const [hasLab, setHasLab] = useState(false);
 
@@ -99,9 +106,25 @@ export function CareHubPage({
             <AlertsHeaderButton />
           </div>
         </div>
-        {visible.length > 0 && (
-          <div className="flex gap-1 px-3 pb-2 overflow-x-auto">
-            {visible.map((m) => {
+        <div className="flex gap-1 px-3 pb-2 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setTab("dashboard");
+                void navigate({ to: "/care", search: { tab: "dashboard" } });
+              }}
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                tab === "dashboard"
+                  ? "bg-primary text-primary-foreground"
+                  : "border text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              {lang === "bn" ? "ড্যাশবোর্ড" : "Dashboard"}
+            </button>
+            {visible
+              .filter((m) => m.slug !== "dashboard")
+              .map((m) => {
               const Icon = ICONS[m.icon] ?? LayoutGrid;
               const label = lang === "bn" ? m.label_bn : m.label_en;
               if (m.href.includes("/desk")) {
@@ -183,11 +206,12 @@ export function CareHubPage({
               );
             })}
           </div>
-        )}
       </AutoHideHeader>
 
       <div className="px-3 sm:px-4 py-3 max-w-2xl mx-auto pb-8">
-        {tab === "tests" ? (
+        {tab === "dashboard" ? (
+          <CareCustomerDashboard lang={lang} userId={user?.id} />
+        ) : tab === "tests" ? (
           <TestsPanel lang={lang} />
         ) : tab === "bookings" ? (
           <BookingsPanel lang={lang} userId={user?.id} />
@@ -514,6 +538,7 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
               <Link
                 to="/care/labs/$orgId"
                 params={{ orgId: o.org_id }}
+                search={{ select: o.id }}
                 className="flex items-start gap-3 rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
               >
                 <span className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
@@ -647,6 +672,7 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
           <ul className="space-y-2">
             {groupLabBookings(labs).map((g) => {
               const primary = g.items[0];
+              const groupStatus = summarizeLabGroupStatus(g.items.map((b) => b.status));
               const title =
                 g.items.length > 1
                   ? lang === "bn"
@@ -660,22 +686,29 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                   <Link
                     to="/care/lab-booking/$id"
                     params={{ id: primary.id }}
-                    className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
+                    className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40 space-y-2"
                   >
-                    <p className="text-sm font-semibold">
-                      {title} · {primary.status}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold min-w-0 truncate">{title}</p>
+                      <span className="text-[11px] font-bold tabular-nums text-primary shrink-0">
+                        {formatCareMoney(g.total, lang)}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate">
                       {g.items.length > 1
                         ? primary.invoice_no || primary.reference_code
                         : primary.reference_code}
                       {primary.invoice_no && g.items.length === 1 ? ` · ${primary.invoice_no}` : ""}
-                      {` · ${formatCareMoney(g.total, lang)}`}
                     </p>
+                    <CareLabProgressMini status={groupStatus} lang={lang} />
                     {g.items.length > 1 && (
-                      <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         {g.items
-                          .map((b) => (lang === "bn" ? b.offering?.name_bn : b.offering?.name_en) || b.reference_code)
+                          .map(
+                            (b) =>
+                              (lang === "bn" ? b.offering?.name_bn : b.offering?.name_en) ||
+                              b.reference_code,
+                          )
                           .filter(Boolean)
                           .join(" · ")}
                       </p>

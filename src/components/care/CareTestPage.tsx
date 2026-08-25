@@ -1,95 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { FlaskConical } from "lucide-react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth-context";
-import { locName } from "@/lib/care-cms";
-import {
-  fetchLabCalendars,
-  fetchOffering,
-  remainingSeats,
-  reserveLabSlot,
-  subscribeLabCalendar,
-  type CareLabCalendar,
-  type CareOffering,
-} from "@/lib/care-lab-api";
-import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { fetchOffering } from "@/lib/care-lab-api";
 
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
-
+/** Legacy single-test URL → clinic multi-select with this offering pre-selected. */
 export function CareTestPage({ offeringId }: { offeringId: string }) {
   const { lang } = useI18n();
-  const { session, isAnonymous } = useAuth();
   const navigate = useNavigate();
-  const [off, setOff] = useState<CareOffering | null>(null);
-  const [cals, setCals] = useState<CareLabCalendar[]>([]);
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const range = useMemo(() => {
-    const from = new Date();
-    const to = new Date();
-    to.setDate(to.getDate() + 14);
-    return { from: isoDate(from), to: isoDate(to) };
-  }, []);
-
-  async function reload() {
-    const o = await fetchOffering(offeringId);
-    setOff(o);
-    if (!o) return;
-    const list = await fetchLabCalendars(o.id, range.from, range.to);
-    setCals(list);
-  }
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offeringId]);
-
-  useEffect(() => {
-    return subscribeLabCalendar(offeringId, () => {
-      void reload();
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offeringId]);
-
-  async function book(cal: CareLabCalendar) {
-    if (remainingSeats(cal) <= 0) return;
-    if (!session || isAnonymous) {
+    let cancelled = false;
+    void fetchOffering(offeringId).then((o) => {
+      if (cancelled) return;
+      if (!o?.org_id) {
+        setMissing(true);
+        return;
+      }
       void navigate({
-        to: "/auth",
-        search: { next: `/care/test/${offeringId}` } as never,
+        to: "/care/labs/$orgId",
+        params: { orgId: o.org_id },
+        search: { select: offeringId },
+        replace: true,
       });
-      return;
-    }
-    setBusy(cal.id);
-    try {
-      const booking = await reserveLabSlot({ calendarId: cal.id, source: "app" });
-      toast.success(
-        lang === "bn"
-          ? `বুকিং ${booking.reference_code} · ইনভয়েস প্রস্তুত`
-          : `Booked ${booking.reference_code} · Invoice ready`,
-      );
-      void navigate({ to: "/care/lab-booking/$id", params: { id: booking.id } });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const title = off
-    ? lang === "bn"
-      ? off.catalog?.name_bn
-      : off.catalog?.name_en
-    : lang === "bn"
-      ? "টেস্ট"
-      : "Test";
-  const prep = lang === "bn" ? off?.catalog?.prep_bn || off?.catalog?.fasting_notes_bn : off?.catalog?.prep_en || off?.catalog?.fasting_notes_en;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [offeringId, navigate]);
 
   return (
     <div className="w-full">
@@ -99,87 +39,19 @@ export function CareTestPage({ offeringId }: { offeringId: string }) {
             fallbackTo={{ to: "/care", search: { tab: "tests" } }}
             shape="xl"
           />
-          <h1 className="text-sm font-bold truncate">{title}</h1>
+          <h1 className="text-sm font-bold truncate">
+            {lang === "bn" ? "টেস্ট" : "Test"}
+          </h1>
         </div>
       </AutoHideHeader>
-      <div className="px-3 py-4 max-w-2xl mx-auto space-y-4">
-        {!off ? (
-          <div className="h-24 rounded-2xl border bg-muted/40 animate-pulse" />
-        ) : (
-          <>
-            <div className="flex gap-3">
-              <span className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center">
-                <FlaskConical className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold">{title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {[off.catalog?.code, locName(off.org ?? {}, lang), locName(off.location ?? {}, lang)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-                <div className="mt-2">
-                  <CareLabPriceDisplay
-                    listPrice={off.price}
-                    discountPercent={off.discount_percent}
-                    lang={lang}
-                    variant="card"
-                  />
-                </div>
-                {off.org_id && (
-                  <Link
-                    to="/care/labs/$orgId"
-                    params={{ orgId: off.org_id }}
-                    className="inline-flex mt-2 text-xs font-semibold text-primary"
-                  >
-                    {lang === "bn" ? "এই ল্যাবের সব টেস্ট দেখুন →" : "See all tests at this lab →"}
-                  </Link>
-                )}
-              </div>
-            </div>
-            {prep && (
-              <p className="text-sm rounded-xl border bg-muted/40 px-3 py-2">{prep}</p>
-            )}
-            <div className="space-y-2">
-              <h2 className="text-xs font-bold uppercase text-muted-foreground">
-                {lang === "bn" ? "অ্যাভেইলেবিলিটি" : "Availability"}
-              </h2>
-              {cals.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {lang === "bn" ? "এখন কোনো স্লট খোলা নেই" : "No open slots yet"}
-                </p>
-              ) : (
-                cals.map((c) => {
-                  const left = remainingSeats(c);
-                  const full = left <= 0;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      disabled={full || busy === c.id}
-                      onClick={() => void book(c)}
-                      className="w-full flex items-center justify-between rounded-xl border bg-card px-3 py-2.5 text-sm disabled:opacity-40"
-                    >
-                      <span>
-                        {c.cal_date}
-                        {c.slot_start ? ` · ${String(c.slot_start).slice(0, 5)}` : ""}
-                      </span>
-                      <span className="text-xs font-semibold">
-                        {full
-                          ? lang === "bn"
-                            ? "পূর্ণ"
-                            : "Full"
-                          : lang === "bn"
-                            ? `${left} জন বাকি`
-                            : `${left} left`}
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </>
-        )}
+      <div className="px-3 py-8 max-w-2xl mx-auto text-center text-sm text-muted-foreground">
+        {missing
+          ? lang === "bn"
+            ? "টেস্ট পাওয়া যায়নি"
+            : "Test not found"
+          : lang === "bn"
+            ? "ক্লিনিকে নিয়ে যাওয়া হচ্ছে…"
+            : "Opening clinic…"}
       </div>
     </div>
   );

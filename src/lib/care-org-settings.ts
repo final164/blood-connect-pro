@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCarePolicies, type CareFeatureFlags } from "@/lib/care-cms";
+import {
+  parseOrgInvoiceSettings,
+  type CareOrgInvoiceSettings,
+} from "@/lib/care-invoice-settings";
 
 export type CareSerialBookingFieldKey = "name" | "phone" | "age" | "address";
 
@@ -16,6 +20,7 @@ export type CareOrgSerialSettings = {
 
 export type CareOrgSettings = {
   serial?: CareOrgSerialSettings;
+  invoice?: CareOrgInvoiceSettings;
 };
 
 /** Resolved effective settings for UI / booking */
@@ -99,11 +104,12 @@ export function parseOrgSettings(raw: unknown): CareOrgSettings {
   if (!raw || typeof raw !== "object") return {};
   const o = raw as Record<string, unknown>;
   const serialRaw = o.serial;
-  if (!serialRaw || typeof serialRaw !== "object") return { serial: {} };
-  const s = serialRaw as Record<string, unknown>;
-  const bf = s.booking_fields;
-  return {
-    serial: {
+  const invoice = parseOrgInvoiceSettings(o.invoice);
+  let serial: CareOrgSerialSettings | undefined;
+  if (serialRaw && typeof serialRaw === "object") {
+    const s = serialRaw as Record<string, unknown>;
+    const bf = s.booking_fields;
+    serial = {
       desk_serial_approval: typeof s.desk_serial_approval === "boolean" ? s.desk_serial_approval : undefined,
       manual_patient_serial: typeof s.manual_patient_serial === "boolean" ? s.manual_patient_serial : undefined,
       booking_fields:
@@ -118,7 +124,11 @@ export function parseOrgSettings(raw: unknown): CareOrgSettings {
                   : undefined,
             }
           : undefined,
-    },
+    };
+  }
+  return {
+    serial: serial ?? {},
+    invoice: Object.keys(invoice).length ? invoice : {},
   };
 }
 
@@ -151,6 +161,27 @@ export async function saveOrgSerialSettings(
         ...base.serial?.booking_fields,
         ...serial.booking_fields,
       },
+    },
+  };
+  const { error } = await supabase.from("care_orgs").update({ settings: next } as never).eq("id", orgId);
+  if (error) throw new Error(error.message);
+}
+
+export async function saveOrgInvoiceSettings(
+  orgId: string,
+  invoice: CareOrgInvoiceSettings,
+  existing?: CareOrgSettings | null,
+): Promise<void> {
+  const base = existing ?? (await fetchOrgSettings(orgId));
+  const next: CareOrgSettings = {
+    ...base,
+    invoice: {
+      ...base.invoice,
+      ...invoice,
+      phones: invoice.phones ?? base.invoice?.phones,
+      labels: { ...base.invoice?.labels, ...invoice.labels },
+      style: { ...base.invoice?.style, ...invoice.style },
+      visibility: { ...base.invoice?.visibility, ...invoice.visibility },
     },
   };
   const { error } = await supabase.from("care_orgs").update({ settings: next } as never).eq("id", orgId);

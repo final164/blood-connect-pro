@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Building2, Check, FlaskConical, Loader2 } from "lucide-react";
+import { Building2, Check, FlaskConical, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { formatCareMoney } from "@/lib/care-invoice";
 import {
   ensurePatientLabDay,
@@ -18,7 +19,17 @@ import {
 } from "@/lib/care-lab-api";
 import { offeringSalePrice } from "@/lib/care-lab-price";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 import { cn } from "@/lib/utils";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 function isoDateLocal(d: Date) {
   const y = d.getFullYear();
@@ -38,9 +49,15 @@ function nextDates(count = 14) {
   return out;
 }
 
-export function CareLabFacilityPage({ orgId }: { orgId: string }) {
+export function CareLabFacilityPage({
+  orgId,
+  initialSelectId,
+}: {
+  orgId: string;
+  initialSelectId?: string;
+}) {
   const { lang } = useI18n();
-  const { session, isAnonymous } = useAuth();
+  const { session, user, isAnonymous } = useAuth();
   const navigate = useNavigate();
   const [facility, setFacility] = useState<CareLabFacility | null>(null);
   const [offerings, setOfferings] = useState<CareOffering[]>([]);
@@ -49,6 +66,14 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [date, setDate] = useState(() => isoDateLocal(new Date()));
   const [busy, setBusy] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [patientName, setPatientName] = useState("");
+  const [patientPhone, setPatientPhone] = useState("");
+  const [patientAge, setPatientAge] = useState("");
+  const [patientSex, setPatientSex] = useState("");
+  const [patientAddress, setPatientAddress] = useState("");
+  const [referredBy, setReferredBy] = useState("");
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const dates = useMemo(() => nextDates(14), []);
 
   useEffect(() => {
@@ -59,6 +84,9 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
         if (cancelled) return;
         setFacility(f);
         setOfferings(list);
+        if (initialSelectId && list.some((o) => o.id === initialSelectId)) {
+          setSelected(new Set([initialSelectId]));
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -71,7 +99,32 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [orgId]);
+  }, [orgId, initialSelectId]);
+
+  useEffect(() => {
+    if (!user?.id || isAnonymous) {
+      setProfileLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    void supabase
+      .from("profiles")
+      .select("full_name, phone")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const p = data as { full_name?: string | null; phone?: string | null } | null;
+        if (p) {
+          setPatientName((prev) => prev || (p.full_name ?? "").trim());
+          setPatientPhone((prev) => prev || clampPhoneDigits(p.phone ?? ""));
+        }
+        setProfileLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, isAnonymous]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -107,7 +160,26 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
     });
   }
 
-  async function bookSelected() {
+  function openCheckout() {
+    if (!selectedOfferings.length) {
+      toast.error(lang === "bn" ? "কমপক্ষে একটি টেস্ট বেছে নিন" : "Select at least one test");
+      return;
+    }
+    if (!session || isAnonymous) {
+      const next =
+        initialSelectId != null
+          ? `/care/labs/${orgId}?select=${encodeURIComponent(initialSelectId)}`
+          : `/care/labs/${orgId}`;
+      void navigate({
+        to: "/auth",
+        search: { next } as never,
+      });
+      return;
+    }
+    setCheckoutOpen(true);
+  }
+
+  async function confirmBook() {
     if (!selectedOfferings.length) {
       toast.error(lang === "bn" ? "কমপক্ষে একটি টেস্ট বেছে নিন" : "Select at least one test");
       return;
@@ -120,23 +192,45 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
       return;
     }
 
+    const name = patientName.trim();
+    const phone = clampPhoneDigits(patientPhone);
+    if (!name) {
+      toast.error(lang === "bn" ? "রোগীর নাম দিন" : "Enter patient name");
+      return;
+    }
+    if (phone.length > 0 && phone.length < 11) {
+      toast.error(lang === "bn" ? "সঠিক মোবাইল নম্বর দিন" : "Enter a valid mobile number");
+      return;
+    }
+
     setBusy(true);
     try {
       const calendarIds: string[] = [];
       for (const o of selectedOfferings) {
         const cal = await ensurePatientLabDay(o.id, date);
         if (remainingSeats(cal) <= 0) {
-          const name = lang === "bn" ? o.catalog?.name_bn : o.catalog?.name_en;
+          const testName = lang === "bn" ? o.catalog?.name_bn : o.catalog?.name_en;
           throw new Error(
             lang === "bn"
-              ? `${name ?? "টেস্ট"} — এই তারিখে স্লট পূর্ণ`
-              : `${name ?? "Test"} — slot full on this date`,
+              ? `${testName ?? "টেস্ট"} — এই তারিখে স্লট পূর্ণ`
+              : `${testName ?? "Test"} — slot full on this date`,
           );
         }
         calendarIds.push(cal.id);
       }
 
-      const result = await reserveLabBundle({ calendarIds, source: "app" });
+      const ageNum = patientAge.trim() ? Number(patientAge) : null;
+      const result = await reserveLabBundle({
+        calendarIds,
+        source: "app",
+        guestName: name,
+        guestPhone: phone || undefined,
+        guestAge: ageNum != null && Number.isFinite(ageNum) ? ageNum : null,
+        guestSex: patientSex || null,
+        guestAddress: patientAddress.trim() || null,
+        referredBy: referredBy.trim() || null,
+      });
+      setCheckoutOpen(false);
       toast.success(
         lang === "bn"
           ? `${result.count}টি টেস্ট · এক ইনভয়েস ${result.invoice_no}`
@@ -200,29 +294,14 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
                     ? `${facility.offering_count}টি টেস্ট উপলব্ধ · একাধিক বেছে এক ইনভয়েস`
                     : `${facility.offering_count} tests available · multi-select, one invoice`}
                 </p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground">
-                {lang === "bn" ? "টেস্টের তারিখ" : "Test date"}
-              </label>
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                {dates.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDate(d)}
-                    className={cn(
-                      "shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold",
-                      date === d
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "bg-card hover:bg-muted/50",
-                    )}
-                  >
-                    {d.slice(5)}
-                  </button>
-                ))}
+                <div className="mt-2.5">
+                  <CareOrgChatButton
+                    orgId={facility.id}
+                    phone={facility.phone}
+                    orgLabel={title}
+                    variant="button"
+                  />
+                </div>
               </div>
             </div>
 
@@ -289,7 +368,7 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
         )}
       </div>
 
-      {selectedOfferings.length > 0 && (
+      {selectedOfferings.length > 0 && !checkoutOpen && (
         <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur safe-bottom">
           <div className="max-w-2xl mx-auto px-3 py-3 flex items-center gap-3">
             <div className="min-w-0 flex-1">
@@ -307,16 +386,183 @@ export function CareLabFacilityPage({ orgId }: { orgId: string }) {
             </div>
             <button
               type="button"
-              disabled={busy}
-              onClick={() => void bookSelected()}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold disabled:opacity-60 shrink-0"
+              onClick={openCheckout}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold shrink-0"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {lang === "bn" ? "বুক ও ইনভয়েস" : "Book & invoice"}
+              {lang === "bn" ? "পরবর্তী · ফর্ম" : "Next · form"}
             </button>
           </div>
         </div>
       )}
+
+      <Sheet open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl px-0 pb-safe">
+          <SheetHeader className="px-4 text-left space-y-1">
+            <SheetTitle>
+              {lang === "bn" ? "বুকিং ফর্ম" : "Booking form"}
+            </SheetTitle>
+            <SheetDescription>
+              {lang === "bn"
+                ? "তারিখ ও রোগীর তথ্য দিন — তারপর এক ইনভয়েস তৈরি হবে।"
+                : "Enter date and patient details — then one invoice will be created."}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="px-4 py-4 space-y-4">
+            <div className="rounded-2xl border bg-muted/30 p-3 space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {lang === "bn" ? "নির্বাচিত টেস্ট" : "Selected tests"}
+              </p>
+              <ul className="space-y-1.5">
+                {selectedOfferings.map((o) => (
+                  <li key={o.id} className="flex items-start justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate font-medium">
+                      {lang === "bn" ? o.catalog?.name_bn : o.catalog?.name_en}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {formatCareMoney(offeringSalePrice(o), lang)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between border-t pt-2">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {lang === "bn" ? "মোট" : "Total"}
+                </span>
+                <span className="text-sm font-black tabular-nums text-primary">
+                  {formatCareMoney(total, lang)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-muted-foreground">
+                {lang === "bn" ? "টেস্টের তারিখ" : "Test date"}
+              </label>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {dates.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDate(d)}
+                    className={cn(
+                      "shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold",
+                      date === d
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "bg-card hover:bg-muted/50",
+                    )}
+                  >
+                    {d.slice(5)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {lang === "bn" ? "রোগীর তথ্য" : "Patient details"}
+              </p>
+              {!profileLoaded ? (
+                <div className="h-20 rounded-xl bg-muted/40 animate-pulse" />
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {lang === "bn" ? "নাম" : "Name"}
+                    </span>
+                    <input
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                      autoComplete="name"
+                    />
+                  </label>
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {lang === "bn" ? "মোবাইল" : "Mobile"}
+                    </span>
+                    <input
+                      value={patientPhone}
+                      onChange={(e) => setPatientPhone(clampPhoneDigits(e.target.value))}
+                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm tabular-nums"
+                      inputMode="tel"
+                      maxLength={11}
+                      autoComplete="tel"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {lang === "bn" ? "বয়স" : "Age"}
+                    </span>
+                    <input
+                      value={patientAge}
+                      onChange={(e) => setPatientAge(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                      inputMode="numeric"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {lang === "bn" ? "লিঙ্গ" : "Sex"}
+                    </span>
+                    <select
+                      value={patientSex}
+                      onChange={(e) => setPatientSex(e.target.value)}
+                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">—</option>
+                      <option value="M">{lang === "bn" ? "পুরুষ" : "Male"}</option>
+                      <option value="F">{lang === "bn" ? "নারী" : "Female"}</option>
+                      <option value="O">{lang === "bn" ? "অন্যান্য" : "Other"}</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {lang === "bn" ? "ঠিকানা" : "Address"}
+                    </span>
+                    <input
+                      value={patientAddress}
+                      onChange={(e) => setPatientAddress(e.target.value)}
+                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="space-y-1 sm:col-span-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {lang === "bn" ? "রেফার্ড বাই" : "Referred by"}
+                    </span>
+                    <input
+                      value={referredBy}
+                      onChange={(e) => setReferredBy(e.target.value)}
+                      className="w-full rounded-xl border bg-background px-3 py-2 text-sm"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <SheetFooter className="px-4 pb-4 gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setCheckoutOpen(false)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold"
+            >
+              <X className="h-4 w-4" />
+              {lang === "bn" ? "ফিরে যান" : "Back"}
+            </button>
+            <button
+              type="button"
+              disabled={busy || !profileLoaded}
+              onClick={() => void confirmBook()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-bold disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {lang === "bn" ? "বুক ও ইনভয়েস" : "Book & invoice"}
+            </button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

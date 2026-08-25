@@ -6,6 +6,10 @@ export type AmbulanceRequest = {
   patient_id: string | null;
   guest_name: string | null;
   guest_phone: string | null;
+  guest_age?: number | null;
+  guest_sex?: string | null;
+  guest_address?: string | null;
+  referred_by?: string | null;
   mode: "emergency" | "scheduled";
   scheduled_at: string | null;
   service_type_id: string | null;
@@ -17,6 +21,7 @@ export type AmbulanceRequest = {
   reference_code: string;
   invoice_no: string | null;
   payment_status: "pending" | "paid" | "waived";
+  amount_received?: number | null;
   estimated_fare: number | null;
   final_fare: number | null;
   fare_original?: number | null;
@@ -111,7 +116,7 @@ export type CreateAmbulanceRequestPayload = {
 };
 
 const REQUEST_SELECT =
-  "id, org_id, patient_id, guest_name, guest_phone, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, estimated_fare, final_fare, fare_original, discount_percent, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
+  "id, org_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, amount_received, estimated_fare, final_fare, fare_original, discount_percent, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
 
 const REQUEST_SELECT_LEGACY =
   "id, org_id, patient_id, guest_name, guest_phone, mode, scheduled_at, service_type_id, equipment_ids, priority_id, status, assigned_vehicle_id, assigned_driver_id, reference_code, invoice_no, payment_status, estimated_fare, final_fare, distance_km, source, notes, patient_condition, pickup_address, pickup_district_id, pickup_upazila, pickup_lat, pickup_lng, dropoff_address, dropoff_district_id, dropoff_upazila, dropoff_lat, dropoff_lng, extra_fields, created_at, updated_at";
@@ -296,11 +301,24 @@ export async function fetchAmbulanceFareBreakdown(
   });
 }
 
-export async function setAmbulancePayment(requestId: string, paymentStatus: AmbulanceRequest["payment_status"]) {
+export async function setAmbulancePayment(
+  requestId: string,
+  paymentStatus: AmbulanceRequest["payment_status"],
+  amountReceived?: number | null,
+) {
   const { data, error } = await supabase.rpc("ambulance_set_payment", {
     _request_id: requestId,
     _payment_status: paymentStatus,
+    _amount_received: amountReceived ?? null,
   } as never);
+  if (error && /_amount_received|could not find|function public\.ambulance_set_payment/i.test(error.message)) {
+    const retry = await supabase.rpc("ambulance_set_payment", {
+      _request_id: requestId,
+      _payment_status: paymentStatus,
+    } as never);
+    if (retry.error) throw new Error(retry.error.message);
+    return retry.data as AmbulanceRequest;
+  }
   if (error) throw new Error(error.message);
   return data as AmbulanceRequest;
 }

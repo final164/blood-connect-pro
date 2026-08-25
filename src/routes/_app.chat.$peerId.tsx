@@ -23,17 +23,19 @@ import {
 } from "@/lib/chat-store";
 import { queryKeys } from "@/lib/query-client";
 import { toast } from "sonner";
+import { fetchCareOrgChatLabel } from "@/lib/care-chat";
 
 const TYPING_IDLE_MS = 1800;
 const PEER_TYPING_HOLD_MS = 3200;
 const LONG_PRESS_MS = 480;
 
-type ChatSearch = { fromRequestId?: string };
+type ChatSearch = { fromRequestId?: string; careOrgId?: string };
 
 export const Route = createFileRoute("/_app/chat/$peerId")({
   head: () => ({ meta: [{ title: "Conversation — BloodLink" }] }),
   validateSearch: (search: Record<string, unknown>): ChatSearch => ({
     fromRequestId: typeof search.fromRequestId === "string" ? search.fromRequestId : undefined,
+    careOrgId: typeof search.careOrgId === "string" ? search.careOrgId : undefined,
   }),
   loader: async ({ context, params }) => {
     const {
@@ -48,12 +50,13 @@ export const Route = createFileRoute("/_app/chat/$peerId")({
 
 function Thread() {
   const { peerId } = Route.useParams();
-  const { fromRequestId } = Route.useSearch();
+  const { fromRequestId, careOrgId } = Route.useSearch();
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const queryClient = useQueryClient();
   const { markConversationRead } = useChatUnread();
   const userId = user?.id ?? "";
+  const [careOrgLabel, setCareOrgLabel] = useState<string | null>(null);
 
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -96,6 +99,20 @@ function Thread() {
   });
 
   const peer = peerQuery.data;
+
+  useEffect(() => {
+    if (!careOrgId) {
+      setCareOrgLabel(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchCareOrgChatLabel(careOrgId, lang).then((name) => {
+      if (!cancelled) setCareOrgLabel(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [careOrgId, lang]);
 
   const messagesQuery = useQuery({
     queryKey: queryKeys.chatMessages(convId ?? ""),
@@ -367,7 +384,15 @@ function Thread() {
   }
 
   const selectedCount = selected.size;
-  const peerName = (peer?.full_name as string | null | undefined) ?? (lang === "bn" ? "ইউজার" : "User");
+  const peerName =
+    careOrgLabel ||
+    (peer?.full_name as string | null | undefined) ||
+    (lang === "bn" ? "ইউজার" : "User");
+  const peerSubtitle = careOrgLabel
+    ? lang === "bn"
+      ? "হাসপাতাল / ক্লিনিক"
+      : "Hospital / clinic"
+    : null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full">
@@ -428,8 +453,8 @@ function Thread() {
                 ) : (
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <ShieldCheck className="h-2.5 w-2.5" />
-                    {t("encrypted")}
-                    {peer?.blood_group && (
+                    {peerSubtitle ?? t("encrypted")}
+                    {!peerSubtitle && peer?.blood_group && (
                       <span className="ml-1 font-semibold text-primary">· {peer.blood_group as string}</span>
                     )}
                   </p>

@@ -19,6 +19,11 @@ export type AmbulanceInvoice = {
   patient_phone: string | null;
   guest_name: string | null;
   guest_phone: string | null;
+  guest_age: number | null;
+  guest_sex: string | null;
+  guest_address: string | null;
+  referred_by: string | null;
+  amount_received: number | null;
   pickup_address: string | null;
   pickup_upazila: string | null;
   dropoff_address: string | null;
@@ -90,6 +95,14 @@ export async function fetchAmbulanceInvoice(requestId: string): Promise<Ambulanc
     patient_phone: profile?.phone ?? null,
     guest_name: req.guest_name,
     guest_phone: req.guest_phone,
+    guest_age: (req as { guest_age?: number | null }).guest_age ?? null,
+    guest_sex: (req as { guest_sex?: string | null }).guest_sex ?? null,
+    guest_address: (req as { guest_address?: string | null }).guest_address ?? null,
+    referred_by: (req as { referred_by?: string | null }).referred_by ?? null,
+    amount_received:
+      (req as { amount_received?: number | null }).amount_received != null
+        ? num((req as { amount_received?: number | null }).amount_received)
+        : null,
     pickup_address: req.pickup_address,
     pickup_upazila: req.pickup_upazila,
     dropoff_address: req.dropoff_address,
@@ -128,7 +141,8 @@ export { formatCareMoney, paymentStatusLabel };
 export async function setAmbulanceInvoicePayment(
   requestId: string,
   status: AmbulanceInvoice["payment_status"],
+  amountReceived?: number | null,
 ) {
   const { setAmbulancePayment } = await import("@/lib/ambulance-api");
-  return setAmbulancePayment(requestId, status);
+  return setAmbulancePayment(requestId, status, amountReceived);
 }

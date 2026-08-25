@@ -131,16 +131,43 @@ async function firstOpenCalendar(offering: CareOffering): Promise<CareLabCalenda
   throw new Error("No open slot");
 }
 
-export async function bookBundlePlan(plan: BundlePlan): Promise<BundleBookResult[]> {
+export type BundleBookOptions = {
+  /** Prefer this calendar date for every test (falls back to first open slot). */
+  date?: string;
+  guestName?: string;
+  guestPhone?: string;
+};
+
+async function calendarForOffering(offering: CareOffering, date?: string): Promise<CareLabCalendar> {
+  if (date) {
+    const cal = await ensurePatientLabDay(offering.id, date);
+    if (remainingSeats(cal) <= 0) {
+      throw new Error(
+        `${offering.catalog?.name_en || offering.catalog?.code || "Test"} — slot full on ${date}`,
+      );
+    }
+    return cal;
+  }
+  return firstOpenCalendar(offering);
+}
+
+export async function bookBundlePlan(
+  plan: BundlePlan,
+  opts: BundleBookOptions = {},
+): Promise<BundleBookResult[]> {
   const results: BundleBookResult[] = [];
+  const guest = {
+    guestName: opts.guestName,
+    guestPhone: opts.guestPhone,
+  };
   for (const group of plan.groups) {
     try {
       const calendarIds: string[] = [];
       for (const item of group.items) {
-        const cal = await firstOpenCalendar(item.offering);
+        const cal = await calendarForOffering(item.offering, opts.date);
         calendarIds.push(cal.id);
       }
-      const bundle = await reserveLabBundle({ calendarIds, source: "app" });
+      const bundle = await reserveLabBundle({ calendarIds, source: "app", ...guest });
       const byOffering = new Map(bundle.bookings.map((b) => [b.offering_id, b]));
       for (let i = 0; i < group.items.length; i++) {
         const item = group.items[i];
@@ -183,8 +210,8 @@ export async function bookBundlePlan(plan: BundlePlan): Promise<BundleBookResult
       for (const item of group.items) {
         const name = item.offering.catalog?.name_en || item.offering.catalog?.code || item.catalogId;
         try {
-          const cal = await firstOpenCalendar(item.offering);
-          const booking = await reserveLabSlot({ calendarId: cal.id, source: "app" });
+          const cal = await calendarForOffering(item.offering, opts.date);
+          const booking = await reserveLabSlot({ calendarId: cal.id, source: "app", ...guest });
           results.push({ catalogId: item.catalogId, offeringId: item.offering.id, name, ok: true, booking });
         } catch (err) {
           results.push({

@@ -530,7 +530,9 @@ export function buildPrescriptionSystemPrompt(
   }
   if (settings.features.bundle_offer && settings.features.prescription_tests) {
     featureLines.push(
-      lang === "bn" ? "- offer_bundle=true যদি ২+ টেস্ট থাকে।" : "- offer_bundle=true if 2+ tests.",
+      lang === "bn"
+        ? "- offer_bundle=true যদি কোনো ক্যাটালগ টেস্ট ম্যাচ হয় (বুকিং ফর্ম দেখানোর জন্য)।"
+        : "- offer_bundle=true if any catalog tests match (so the booking form can open).",
     );
   }
   featureLines.push(

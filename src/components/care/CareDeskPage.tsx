@@ -47,16 +47,19 @@ import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
 import { clampPhoneDigits } from "@/lib/phone-auth";
 import { CareSerialInvoiceCard } from "@/components/care/CareSerialInvoice";
 import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm";
+import { CareInvoiceLetterheadForm } from "@/components/care/CareInvoiceLetterheadForm";
 import { CareCreateSerialPanel } from "@/components/care/CareCreateSerialPanel";
 import {
   bookingFieldsFromFlags,
   fetchEffectiveDeskSerialSettings,
   fetchOrgSettings,
   parseOrgSettings,
+  saveOrgInvoiceSettings,
   saveOrgSerialSettings,
   type CareOrgSerialSettings,
   type EffectiveDeskSerialSettings,
 } from "@/lib/care-org-settings";
+import type { CareOrgInvoiceSettings } from "@/lib/care-invoice-settings";
 import { fetchCarePolicies } from "@/lib/care-cms";
 import {
   Dialog,
@@ -1268,22 +1271,28 @@ function SettingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
   const [kindId, setKindId] = useState("");
   const [locName, setLocName] = useState("");
   const [serial, setSerial] = useState<CareOrgSerialSettings>({});
+  const [invoice, setInvoice] = useState<CareOrgInvoiceSettings>({});
+  const [invoiceAllowed, setInvoiceAllowed] = useState(true);
   const [effective, setEffective] = useState<EffectiveDeskSerialSettings | null>(null);
   const [platformApproval, setPlatformApproval] = useState(false);
   const [platformManual, setPlatformManual] = useState(true);
-  const [platformFields, setPlatformFields] = useState(bookingFieldsFromFlags({
-    home_collection: false,
-    reviews: false,
-    payment: false,
-    report_vault: false,
-    desk_serial_approval: false,
-    desk_manual_patient_serial: true,
-    desk_allow_org_serial_settings: true,
-    desk_booking_field_name: true,
-    desk_booking_field_phone: true,
-    desk_booking_field_age: true,
-    desk_booking_field_address: true,
-  }));
+  const [platformFields, setPlatformFields] = useState(
+    bookingFieldsFromFlags({
+      home_collection: false,
+      reviews: false,
+      payment: false,
+      report_vault: false,
+      patient_org_chat: true,
+      desk_serial_approval: false,
+      desk_manual_patient_serial: true,
+      desk_allow_org_serial_settings: true,
+      desk_allow_org_invoice_settings: true,
+      desk_booking_field_name: true,
+      desk_booking_field_phone: true,
+      desk_booking_field_age: true,
+      desk_booking_field_address: true,
+    }),
+  );
 
   useEffect(() => {
     void supabase
@@ -1304,13 +1313,16 @@ function SettingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
         setNameBn(r.name_bn ?? "");
         setPhone(r.phone ?? "");
         setKindId(r.org_kind_id ?? "");
-        setSerial(parseOrgSettings(r.settings).serial ?? {});
+        const parsed = parseOrgSettings(r.settings);
+        setSerial(parsed.serial ?? {});
+        setInvoice(parsed.invoice ?? {});
       });
     void fetchCareVendorTypes().then(setKinds);
     void fetchCarePolicies().then((r) => {
       setPlatformApproval(r.flags.desk_serial_approval);
       setPlatformManual(r.flags.desk_manual_patient_serial);
       setPlatformFields(bookingFieldsFromFlags(r.flags));
+      setInvoiceAllowed(r.flags.desk_allow_org_invoice_settings !== false);
     });
     void fetchEffectiveDeskSerialSettings(orgId).then(setEffective);
   }, [orgId]);
@@ -1330,6 +1342,16 @@ function SettingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
       await saveOrgSerialSettings(orgId, serial, existing);
       setEffective(await fetchEffectiveDeskSerialSettings(orgId));
       toast.success(lang === "bn" ? "সিরিয়াল সেটিংস সেভ" : "Serial settings saved");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function saveInvoice() {
+    try {
+      const existing = await fetchOrgSettings(orgId);
+      await saveOrgInvoiceSettings(orgId, invoice, existing);
+      toast.success(lang === "bn" ? "ইনভয়েস লেটারহেড সেভ" : "Invoice letterhead saved");
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -1423,6 +1445,19 @@ function SettingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
           </p>
         )}
       </div>
+
+      {invoiceAllowed && (
+        <div className="space-y-2">
+          <CareInvoiceLetterheadForm lang={lang} value={invoice} onChange={setInvoice} />
+          <button
+            type="button"
+            onClick={() => void saveInvoice()}
+            className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold"
+          >
+            {lang === "bn" ? "ইনভয়েস লেটারহেড সেভ" : "Save invoice letterhead"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

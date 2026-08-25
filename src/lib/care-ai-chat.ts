@@ -650,11 +650,13 @@ export const careAiTestChat = createServerFn({ method: "POST" })
               .slice(0, 8)
               .map((s) => s.slice(0, 280))
           : [];
+    // Prescription: always offer booking form when any catalog tests matched.
+    // Symptom chat: only when model sets offer_bundle and 2+ tests.
     const offer_bundle =
       features.bundle_offer &&
       wantTests &&
-      parsed.offer_bundle === true &&
-      suggested.length >= 2;
+      suggested.length >= 1 &&
+      (prescriptionMode || (parsed.offer_bundle === true && suggested.length >= 2));
 
     return {
       reply,

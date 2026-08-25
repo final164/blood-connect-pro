@@ -395,7 +395,10 @@ export function CareAiTestsPage() {
         ]);
         const built = buildCards(res.suggested_tests, offerings, catalog);
         setCards(built);
-        persistChat(withAssistant, built, cart);
+        // Prescription: pre-select all matched tests so Book opens the form immediately.
+        const nextCart = res.from_prescription ? built.map((c) => c.catalogId) : cart;
+        if (res.from_prescription) setCart(nextCart);
+        persistChat(withAssistant, built, nextCart);
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -454,8 +457,12 @@ export function CareAiTestsPage() {
     });
   }
 
-  async function openBundle() {
-    const ids = cart.length ? cart : cards.map((c) => c.catalogId);
+  async function openBundle(catalogIds?: string[]) {
+    const ids = catalogIds?.length
+      ? catalogIds
+      : cart.length
+        ? cart
+        : cards.map((c) => c.catalogId);
     if (!ids.length) return toast.error(lang === "bn" ? "আগে টেস্ট বেছে নিন" : "Select tests first");
     if (isGuest) {
       void navigate({ to: "/auth", search: { next: AI_CHAT_RESUME_PATH } as never });
@@ -474,9 +481,14 @@ export function CareAiTestsPage() {
   }
 
   const cartCount = cart.length;
-  const showSuggestions = features?.test_suggestions !== false;
+  const fromPrescription = !!messages.filter((m) => m.fromPrescription).at(-1);
+  const showSuggestions =
+    features?.test_suggestions !== false ||
+    (fromPrescription && features?.prescription_tests !== false);
   const showBundle =
-    features?.bundle_offer !== false && (lastOffer || cartCount >= 2 || cards.length >= 2);
+    features?.bundle_offer !== false &&
+    cards.length > 0 &&
+    (lastOffer || fromPrescription || cartCount >= 1 || cards.length >= 1);
 
   return (
     <div className="w-full min-h-dvh flex flex-col">
@@ -676,14 +688,14 @@ export function CareAiTestsPage() {
                         {c.reason && <p className="text-xs text-muted-foreground mt-1">{c.reason}</p>}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {c.cheapestOfferingId && (
                         <Link
                           to="/care/test/$id"
                           params={{ id: c.cheapestOfferingId }}
                           className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold"
                         >
-                          {lang === "bn" ? "বিস্তারিত" : "Details"}
+                          {lang === "bn" ? "ক্লিনিক" : "Clinic"}
                         </Link>
                       )}
                       <button
@@ -696,6 +708,14 @@ export function CareAiTestsPage() {
                         }`}
                       >
                         {inCart ? (lang === "bn" ? "কার্টে আছে" : "In cart") : lang === "bn" ? "কার্টে যোগ" : "Add"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={bookBusy}
+                        onClick={() => void openBundle([c.catalogId])}
+                        className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                      >
+                        {lang === "bn" ? "বুক করুন" : "Book"}
                       </button>
                     </div>
                   </li>
@@ -736,9 +756,13 @@ export function CareAiTestsPage() {
             >
               <ShoppingBag className="h-4 w-4" />
               {ui?.bundleCta ??
-                (lang === "bn"
-                  ? "এই টেস্টগুলো সবচেয়ে ভালো ও কম টাকায় বুক করব?"
-                  : "Book these tests at the best price together?")}
+                (fromPrescription
+                  ? lang === "bn"
+                    ? "প্রেসক্রিপশনের টেস্ট বুক করুন"
+                    : "Book prescription tests"
+                  : lang === "bn"
+                    ? "এই টেস্টগুলো সবচেয়ে ভালো ও কম টাকায় বুক করব?"
+                    : "Book these tests at the best price together?")}
             </button>
           ) : undefined
         }

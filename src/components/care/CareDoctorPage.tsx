@@ -27,6 +27,7 @@ import {
   type CareSerialBookingFields,
 } from "@/lib/care-org-settings";
 import { clampPhoneDigits } from "@/lib/phone-auth";
+import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
 
 function ageFromDob(dob: string | null | undefined): string {
   if (!dob) return "";
@@ -298,11 +299,21 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
                 const locLabel = locName({ name: ch.location_name, name_bn: ch.location_name_bn }, lang);
                 return (
                   <section key={ch.affiliation_id} className="rounded-2xl border bg-card p-3 space-y-2">
-                    <p className="text-sm font-semibold">{orgLabel}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {locLabel}
-                      {ch.fee_amount != null ? ` · ৳${ch.fee_amount}` : ""}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{orgLabel}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {locLabel}
+                          {ch.fee_amount != null ? ` · ৳${ch.fee_amount}` : ""}
+                        </p>
+                      </div>
+                      <CareOrgChatButton
+                        orgId={ch.org_id}
+                        orgLabel={orgLabel}
+                        variant="icon"
+                        className="shrink-0"
+                      />
+                    </div>
                     {schs.length === 0 && (
                       <p className="text-xs text-muted-foreground">
                         {lang === "bn" ? "শিডিউল নেই" : "No schedule yet"}

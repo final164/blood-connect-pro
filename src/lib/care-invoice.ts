@@ -8,6 +8,7 @@ export type CareSerialInvoice = {
   claim_code: string;
   invoice_no: string;
   fee_amount: number;
+  fee_original: number | null;
   payment_status: "pending" | "paid" | "waived";
   source: string;
   status: string;
@@ -19,6 +20,11 @@ export type CareSerialInvoice = {
   patient_phone: string | null;
   guest_name: string | null;
   guest_phone: string | null;
+  guest_age: number | null;
+  guest_sex: string | null;
+  guest_address: string | null;
+  referred_by: string | null;
+  amount_received: number | null;
   doctor_name: string;
   doctor_name_bn: string | null;
   doctor_qualifications: string | null;
@@ -137,6 +143,10 @@ export async function fetchCareSerialInvoice(serialId: string): Promise<CareSeri
     claim_code: serial.claim_code,
     invoice_no: serial.invoice_no || `BLC-${serial.id.slice(0, 8).toUpperCase()}`,
     fee_amount: serial.fee_amount != null ? num(serial.fee_amount) : feeFromAff,
+    fee_original:
+      serial.fee_original != null && num(serial.fee_original) > (serial.fee_amount != null ? num(serial.fee_amount) : feeFromAff)
+        ? num(serial.fee_original)
+        : null,
     payment_status: (serial.payment_status || "pending") as CareSerialInvoice["payment_status"],
     source: serial.source,
     status: serial.status,
@@ -148,6 +158,14 @@ export async function fetchCareSerialInvoice(serialId: string): Promise<CareSeri
     patient_phone: serial.guest_phone || profile?.phone || null,
     guest_name: serial.guest_name,
     guest_phone: serial.guest_phone,
+    guest_age: serial.guest_age ?? null,
+    guest_sex: (serial as { guest_sex?: string | null }).guest_sex ?? null,
+    guest_address: serial.guest_address ?? null,
+    referred_by: (serial as { referred_by?: string | null }).referred_by ?? null,
+    amount_received:
+      (serial as { amount_received?: number | null }).amount_received != null
+        ? num((serial as { amount_received?: number | null }).amount_received)
+        : null,
     doctor_name: str(doc?.full_name),
     doctor_name_bn: (doc?.full_name_bn as string) ?? null,
     doctor_qualifications: (doc?.qualifications as string) ?? null,
@@ -204,11 +222,22 @@ export function invoiceScheduleLine(inv: CareSerialInvoice): string {
   return start || end || "—";
 }
 
-export async function setSerialPaymentStatus(serialId: string, status: CareSerialInvoice["payment_status"]) {
-  const { data, error } = await supabase.rpc("care_set_serial_payment", {
+export async function setSerialPaymentStatus(
+  serialId: string,
+  status: CareSerialInvoice["payment_status"],
+  amountReceived?: number | null,
+) {
+  let { data, error } = await supabase.rpc("care_set_serial_payment", {
     _serial_id: serialId,
     _payment_status: status,
+    _amount_received: amountReceived ?? null,
   } as never);
+  if (error && /_amount_received|could not find|function public\.care_set_serial_payment/i.test(error.message)) {
+    ({ data, error } = await supabase.rpc("care_set_serial_payment", {
+      _serial_id: serialId,
+      _payment_status: status,
+    } as never));
+  }
   if (error) throw new Error(error.message);
   return data;
 }
@@ -218,42 +247,91 @@ export function printCareSerialInvoice(elementId: string) {
   if (!el) return;
   const w = window.open("", "_blank", "width=800,height=900");
   if (!w) return;
-  w.document.write(buildCareInvoiceDocument(el.innerHTML, false));
+  w.document.write(buildCareInvoiceDocument(el.innerHTML, "print"));
   w.document.write(`<script>window.onload=function(){window.print();}</script></body></html>`);
   w.document.close();
 }
 
-function careInvoiceCaptureStyles(forPdf: boolean) {
+/** Strip embedded component styles so capture theme (print B&W / PDF color) wins. */
+function stripEmbeddedStyles(html: string) {
+  return html.replace(/<style[\s\S]*?<\/style>/gi, "");
+}
+
+function careInvoiceCaptureStyles(mode: "print" | "pdf") {
+  const color = mode === "pdf";
+  const ink = color ? "#1e293b" : "#111";
+  const border = color ? "#0f766e" : "#111";
+  const soft = color ? "#f0fdfa" : "#fff";
+  const headBg = color ? "linear-gradient(135deg,#0f766e 0%,#115e59 55%,#134e4a 100%)" : "transparent";
+  const titleBg = color ? "#ccfbf1" : "#fff";
+  const titleBorder = color ? "#0f766e" : "#111";
+  const thBg = color ? "#0f766e" : "#fff";
+  const thColor = color ? "#fff" : "#111";
+  const rowAlt = color ? "#f8fafc" : "#fff";
+  const discColor = color ? "#047857" : "#111";
+  const payableBg = color ? "#ecfdf5" : "transparent";
+  const payableColor = color ? "#065f46" : "#111";
+  const rule = color ? "#0f766e" : "#111";
+  const footBorder = color ? "#99f6e4" : "#999";
+
   return `
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:"Segoe UI",system-ui,sans-serif;color:#111827;background:#fff;padding:${forPdf ? "16px" : "24px"}}
-  .invoice{max-width:720px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff}
-  .head{background:linear-gradient(135deg,#b91c1c,#dc2626);color:#fff;padding:20px 24px}
-  .head h1{font-size:20px;font-weight:800}
-  .head p{font-size:12px;opacity:.9;margin-top:4px}
-  .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 24px;background:#fef2f2;border-bottom:1px solid #fecaca}
-  .meta div{font-size:12px}
-  .meta strong{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#991b1b;margin-bottom:2px}
-  section{padding:16px 24px;border-bottom:1px solid #f3f4f6}
-  section h2{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;margin-bottom:8px}
-  .row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0}
-  .serial-box{text-align:center;padding:20px;background:#fff;border-bottom:1px solid #f3f4f6}
-  .serial-num{font-size:56px;font-weight:900;color:#b91c1c;line-height:1}
-  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
-  th,td{padding:10px 8px;text-align:left;border-bottom:1px solid #f3f4f6}
-  th{font-size:10px;text-transform:uppercase;color:#6b7280}
+  body{font-family:"Times New Roman",Times,serif;color:${ink};background:#fff;padding:${color ? "12px" : "20px"}}
+  .invoice,.cash-memo{max-width:720px;margin:0 auto;background:#fff;color:${ink}}
+  .cash-memo{border:2px solid ${border};padding:14px 16px;${color ? "box-shadow:0 8px 24px rgba(15,118,110,.12);border-radius:4px;" : ""}}
+  .cm-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;${color ? `padding:10px 12px;border-radius:4px;background:${headBg};color:#fff;` : ""}}
+  .cm-logo{width:64px;height:64px;object-fit:contain;flex-shrink:0;${color ? "background:#fff;border-radius:8px;padding:4px;" : ""}}
+  .cm-logo-fallback{width:64px;height:64px;border:2px solid ${color ? "#fff" : "#111"};border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:22px;${color ? "background:rgba(255,255,255,.2);color:#fff;" : "background:#fafafa"}}
+  .cm-head-text{flex:1;text-align:center;min-width:0}
+  .cm-org{font-size:20px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;${color ? "color:#fff;" : ""}}
+  .cm-addr,.cm-contact{font-size:12px;margin-top:2px;${color ? "color:#ccfbf1;" : ""}}
+  .cm-rule{border-top:2px solid ${rule};margin:8px 0}
+  .cm-title-box{display:flex;justify-content:center;margin:8px 0 10px}
+  .cm-title-box span{border:1px solid ${titleBorder};padding:4px 18px;font-weight:700;font-size:14px;background:${titleBg};${color ? "color:#115e59;border-radius:4px;" : ""}}
+  .cm-meta{font-size:12px;margin-bottom:10px;${color ? `background:${soft};padding:8px 10px;border-radius:4px;border:1px solid #99f6e4;` : ""}}
+  .cm-meta-row{display:flex;flex-wrap:wrap;gap:8px 16px;margin:3px 0}
+  .cm-grow{flex:1 1 12rem}
+  .cm-meta b{font-weight:700;${color ? "color:#0f766e;" : ""}}
+  .cm-table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 12px}
+  .cm-table th,.cm-table td{border-top:1px solid ${color ? "#99f6e4" : "#111"};border-bottom:1px solid ${color ? "#99f6e4" : "#111"};padding:6px 4px;text-align:left;vertical-align:top}
+  .cm-table thead th{border-top:2px solid ${border};border-bottom:2px solid ${border};font-weight:700;background:${thBg};color:${thColor}}
+  .cm-table tbody tr:nth-child(even) td{background:${rowAlt}}
+  .cm-table .cm-sl{width:2.2rem}
+  .cm-table .cm-name{width:34%}
+  .cm-table .cm-amt,.cm-table th.cm-amt,.cm-table .cm-disc,.cm-table th.cm-disc{text-align:right;white-space:nowrap}
+  .cm-table .cm-disc{width:5.5rem;color:${discColor};font-weight:${color ? "600" : "400"}}
+  .cm-table .cm-amt{width:4.5rem}
+  .cm-disc-pct{display:inline;font-size:inherit;opacity:.85;margin-left:2px;font-weight:500}
+  .cm-bottom{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-top:8px}
+  .cm-delivery{flex:1;font-size:12px}
+  .cm-slots{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+  .cm-slot{display:inline-flex;align-items:center;gap:4px}
+  .cm-check{width:12px;height:12px;border:1px solid ${border};display:inline-block}
+  .cm-totals{min-width:12rem;font-size:12px;${color ? "padding:8px 10px;border:1px solid #99f6e4;border-radius:4px;background:#fff;" : ""}}
+  .cm-tot-row{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+  .cm-tot-row.cm-disc-total span:last-child{color:${discColor};font-weight:600}
+  .cm-strong{font-weight:800;margin-top:2px;${color ? `background:${payableBg};color:${payableColor};padding:4px 6px;margin:4px -6px 0;border-radius:3px;` : ""}}
+  .cm-sign{margin-top:28px;text-align:right;font-size:12px}
+  .cm-sign-line{display:inline-block;width:10rem;border-top:1px solid ${border};margin-bottom:4px}
+  .cm-foot{margin-top:16px;font-size:11px;border-top:1px solid ${footBorder};padding-top:8px}
+  .cm-thanks{font-weight:600;margin-bottom:4px;${color ? "color:#0f766e;" : ""}}
+  .cm-disclaimer{margin-bottom:8px;line-height:1.35}
+  .cm-foot-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:10px;color:${color ? "#64748b" : "#333"}}
+  .head{background:#111;color:#fff;padding:16px}
+  .head h1{font-size:18px;font-weight:800}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;border-bottom:1px solid #ddd}
+  section{padding:12px;border-bottom:1px solid #eee}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{padding:8px 6px;border-bottom:1px solid #ddd;text-align:left}
   td:last-child,th:last-child{text-align:right}
-  .total{font-size:16px;font-weight:800;color:#111827}
-  .foot{padding:16px 24px;font-size:11px;color:#6b7280;line-height:1.5;background:#f9fafb}
-  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e}
-  .badge.paid{background:#dcfce7;color:#166534}
+  .foot{padding:12px;font-size:11px;color:#444}
   @media print{body{padding:0}.no-print{display:none!important}}
 `;
 }
 
-function buildCareInvoiceDocument(bodyHtml: string, forPdf: boolean) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Invoice</title>
-<style>${careInvoiceCaptureStyles(forPdf)}</style></head><body><div class="invoice">${bodyHtml}</div>`;
+function buildCareInvoiceDocument(bodyHtml: string, mode: "print" | "pdf") {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Cash Memo</title>
+<style>${careInvoiceCaptureStyles(mode)}</style></head><body>${stripEmbeddedStyles(bodyHtml)}`;
 }
 
 /** Isolated iframe document for html2canvas (parent Tailwind oklch() breaks capture). */
@@ -275,7 +353,7 @@ async function mountInvoiceForPdfCapture(bodyHtml: string): Promise<{
   }
 
   doc.open();
-  doc.write(`${buildCareInvoiceDocument(bodyHtml, true)}</body></html>`);
+  doc.write(`${buildCareInvoiceDocument(bodyHtml, "pdf")}</body></html>`);
   doc.close();
 
   await new Promise<void>((resolve) => {
@@ -287,7 +365,9 @@ async function mountInvoiceForPdfCapture(bodyHtml: string): Promise<{
     win.requestAnimationFrame(() => resolve());
   });
 
-  const root = doc.querySelector(".invoice") as HTMLElement | null;
+  const root =
+    (doc.querySelector(".cash-memo") as HTMLElement | null) ||
+    (doc.querySelector(".invoice") as HTMLElement | null);
   if (!root) {
     iframe.remove();
     throw new Error("Invoice not found");

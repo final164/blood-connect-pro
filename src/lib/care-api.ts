@@ -66,7 +66,9 @@ export type CareSerialRow = {
   guest_name: string | null;
   guest_phone: string | null;
   guest_age?: number | null;
+  guest_sex?: string | null;
   guest_address?: string | null;
+  referred_by?: string | null;
   source: string;
   status: string;
   claim_code: string;
@@ -77,11 +79,14 @@ export type CareSerialRow = {
   /** App booking order within this chamber/doctor session (1, 2, 3…) */
   online_serial_no?: number | null;
   payment_status?: "pending" | "paid" | "waived";
+  amount_received?: number | null;
   called_at: string | null;
   created_at: string;
 };
 
 const CARE_SERIAL_COLS =
+  "id, session_id, serial_no, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, claim_code, invoice_no, fee_amount, fee_original, is_second_visit, online_serial_no, payment_status, amount_received, called_at, created_at";
+const CARE_SERIAL_COLS_LEGACY =
   "id, session_id, serial_no, patient_id, guest_name, guest_phone, guest_age, guest_address, source, status, claim_code, invoice_no, fee_amount, fee_original, is_second_visit, online_serial_no, payment_status, called_at, created_at";
 const SESSION_EMBED =
   "id, schedule_id, org_id, location_id, doctor_id, session_date, status, max_serial, start_number, last_issued, now_serving, care_schedules(start_time, end_time)";
@@ -372,11 +377,14 @@ export async function fetchMySerials(): Promise<(CareSerialRow & { session?: Car
 }
 
 export async function fetchSerial(id: string) {
-  const { data, error } = await supabase
-    .from("care_serials")
-    .select(CARE_SERIAL_COLS)
-    .eq("id", id)
-    .maybeSingle();
+  let { data, error } = await supabase.from("care_serials").select(CARE_SERIAL_COLS).eq("id", id).maybeSingle();
+  if (error && /guest_sex|referred_by|amount_received|column/i.test(error.message)) {
+    ({ data, error } = await supabase
+      .from("care_serials")
+      .select(CARE_SERIAL_COLS_LEGACY)
+      .eq("id", id)
+      .maybeSingle());
+  }
   if (error) throw new Error(error.message);
   return (data as CareSerialRow) ?? null;
 }

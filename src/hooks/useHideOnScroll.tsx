@@ -8,7 +8,7 @@ export function useHideOnScroll(opts?: {
   topReveal?: number;
   disabled?: boolean;
 }) {
-  const threshold = opts?.threshold ?? 6;
+  const threshold = opts?.threshold ?? 10;
   const topReveal = opts?.topReveal ?? 24;
   const disabled = opts?.disabled ?? false;
   const [hidden, setHidden] = useState(false);
@@ -21,6 +21,7 @@ export function useHideOnScroll(opts?: {
 
     let lastY = typeof window !== "undefined" ? window.scrollY : 0;
     let ticking = false;
+    let current = false;
 
     const onScroll = () => {
       if (ticking) return;
@@ -28,14 +29,26 @@ export function useHideOnScroll(opts?: {
       requestAnimationFrame(() => {
         const y = window.scrollY;
         const delta = y - lastY;
+        let next = current;
+
         if (y <= topReveal) {
-          setHidden(false);
+          next = false;
         } else if (delta > threshold) {
-          setHidden(true);
+          next = true;
         } else if (delta < -threshold) {
-          setHidden(false);
+          next = false;
         }
-        lastY = y;
+
+        // Only commit lastY on meaningful direction changes to reduce jitter
+        if (Math.abs(delta) >= threshold || y <= topReveal) {
+          lastY = y;
+        }
+
+        if (next !== current) {
+          current = next;
+          setHidden(next);
+        }
+
         ticking = false;
       });
     };
@@ -61,7 +74,7 @@ export function AutoHideHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 transition-transform duration-300 ease-out will-change-transform",
+        "sticky top-0 transition-transform duration-200 ease-out will-change-transform",
         hidden ? "-translate-y-full pointer-events-none" : "translate-y-0",
         className,
       )}

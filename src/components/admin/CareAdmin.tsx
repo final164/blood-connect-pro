@@ -28,12 +28,16 @@ import {
   type CareVendorType,
 } from "@/lib/care-cms";
 import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm";
+import { CareInvoiceAdmin } from "@/components/admin/CareInvoiceAdmin";
+import { CareInvoiceLetterheadForm } from "@/components/care/CareInvoiceLetterheadForm";
 import {
   bookingFieldsFromFlags,
   parseOrgSettings,
+  saveOrgInvoiceSettings,
   saveOrgSerialSettings,
   type CareOrgSerialSettings,
 } from "@/lib/care-org-settings";
+import type { CareOrgInvoiceSettings } from "@/lib/care-invoice-settings";
 
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40";
@@ -47,6 +51,7 @@ type Sub =
   | "tests"
   | "statuses"
   | "policies"
+  | "invoices"
   | "notifs"
   | "audit";
 
@@ -66,6 +71,7 @@ export function CareAdmin() {
     { id: "tests", bn: "টেস্ট ক্যাটালগ", en: "Test catalog" },
     { id: "statuses", bn: "স্ট্যাটাস", en: "Statuses" },
     { id: "policies", bn: "পলিসি / ফ্ল্যাগ", en: "Policies / flags" },
+    { id: "invoices", bn: "ক্যাশ মেমো / ইনভয়েস", en: "Cash Memo / Invoice" },
     { id: "notifs", bn: "নোটিফ টেমপ্লেট", en: "Notif templates" },
     { id: "audit", bn: "অডিট", en: "Audit" },
   ];
@@ -99,6 +105,7 @@ export function CareAdmin() {
       {sub === "tests" && <TestsPanel canEdit={canEdit} lang={lang} />}
       {sub === "statuses" && <StatusesPanel canEdit={canEdit} lang={lang} />}
       {sub === "policies" && <PoliciesPanel canEdit={canEdit} lang={lang} />}
+      {sub === "invoices" && <CareInvoiceAdmin canEdit={canEdit} lang={lang} />}
       {sub === "notifs" && <NotifsPanel canEdit={canEdit} lang={lang} />}
       {sub === "audit" && <AuditPanel lang={lang} />}
     </div>
@@ -285,8 +292,11 @@ function OrgSerialAdminBlock({
 }) {
   const parsed = parseOrgSettings(rawSettings);
   const [serial, setSerial] = useState<CareOrgSerialSettings>(parsed.serial ?? {});
+  const [invoice, setInvoice] = useState<CareOrgInvoiceSettings>(parsed.invoice ?? {});
   useEffect(() => {
-    setSerial(parseOrgSettings(rawSettings).serial ?? {});
+    const p = parseOrgSettings(rawSettings);
+    setSerial(p.serial ?? {});
+    setInvoice(p.invoice ?? {});
   }, [rawSettings, orgId]);
 
   return (
@@ -319,6 +329,33 @@ function OrgSerialAdminBlock({
         >
           {lang === "bn" ? "সিরিয়াল সেটিংস সেভ" : "Save serial settings"}
         </button>
+      )}
+      {flags.desk_allow_org_invoice_settings !== false && (
+        <>
+          <CareInvoiceLetterheadForm
+            lang={lang}
+            variant="admin"
+            value={invoice}
+            onChange={setInvoice}
+            disabled={!canEdit}
+          />
+          {canEdit && (
+            <button
+              type="button"
+              className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white"
+              onClick={() =>
+                void saveOrgInvoiceSettings(orgId, invoice, parsed)
+                  .then(() => {
+                    toast.success(lang === "bn" ? "ইনভয়েস লেটারহেড সেভ" : "Invoice letterhead saved");
+                    onSaved();
+                  })
+                  .catch((e) => toast.error((e as Error).message))
+              }
+            >
+              {lang === "bn" ? "ইনভয়েস সেভ" : "Save invoice"}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -698,11 +735,29 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
   }, []);
   if (!policies || !flags) return null;
 
+  const policyLabel: Record<keyof CareBookingPolicies, { bn: string; en: string }> = {
+    booking_window_hours: { bn: "বুকিং উইন্ডো (ঘণ্টা)", en: "Booking window (hours)" },
+    cancel_cutoff_hours: { bn: "বাতিল কাটঅফ (ঘণ্টা)", en: "Cancel cutoff (hours)" },
+    allow_cash: { bn: "ক্যাশ পেমেন্ট", en: "Allow cash" },
+    allow_online: { bn: "অনলাইন পেমেন্ট", en: "Allow online" },
+    allow_multi_test_cart: { bn: "মাল্টি-টেস্ট কার্ট", en: "Multi-test cart" },
+    allow_vendor_price: { bn: "ভেন্ডর প্রাইস", en: "Vendor price" },
+    no_show_requeue: { bn: "নো-শো রি-কিউ", en: "No-show requeue" },
+    lab_desk_page_size: {
+      bn: "ল্যাব ডেস্ক — আজকের বুকিং পেজ সাইজ (স্ক্রলে লোড)",
+      en: "Lab desk — Today bookings page size (infinite scroll)",
+    },
+  };
+
   const flagLabel: Record<keyof CareFeatureFlags, { bn: string; en: string }> = {
     home_collection: { bn: "হোম কালেকশন", en: "Home collection" },
     reviews: { bn: "রিভিউ", en: "Reviews" },
     payment: { bn: "পেমেন্ট", en: "Payment" },
     report_vault: { bn: "রিপোর্ট ভল্ট", en: "Report vault" },
+    patient_org_chat: {
+      bn: "রোগী ↔ হাসপাতাল/ক্লিনিক ইন-অ্যাপ চ্যাট",
+      en: "Patient ↔ hospital/clinic in-app chat",
+    },
     desk_serial_approval: {
       bn: "সিরিয়াল — প্ল্যাটফর্ম ডিফল্ট: ডেস্ক অ্যাপ্রুভাল",
       en: "Serial — platform default: desk approval",
@@ -715,6 +770,10 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
       bn: "চেম্বার ডেস্ক সেটিংস থেকে সিরিয়াল কন্ট্রোল",
       en: "Allow chamber desk to control serial settings",
     },
+    desk_allow_org_invoice_settings: {
+      bn: "চেম্বার ডেস্ক থেকে ইনভয়েস লেটারহেড ওভাররাইড",
+      en: "Allow chamber desk to override invoice letterhead",
+    },
     desk_booking_field_name: { bn: "বুকিং ফিল্ড: নাম", en: "Booking field: name" },
     desk_booking_field_phone: { bn: "বুকিং ফিল্ড: মোবাইল", en: "Booking field: mobile" },
     desk_booking_field_age: { bn: "বুকিং ফিল্ড: বয়স", en: "Booking field: age" },
@@ -724,11 +783,15 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
   return (
     <div className="space-y-3 max-w-md">
       {(Object.keys(policies) as (keyof CareBookingPolicies)[]).map((k) => (
-        <label key={k} className="flex items-center justify-between gap-3 text-xs text-slate-200">
-          <span>{k}</span>
+        <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
+          <span className="leading-snug">
+            <span className="block font-medium">{lang === "bn" ? policyLabel[k].bn : policyLabel[k].en}</span>
+            <span className="text-[10px] text-slate-500">policy: {k}</span>
+          </span>
           {typeof policies[k] === "boolean" ? (
             <input
               type="checkbox"
+              className="mt-0.5"
               checked={policies[k] as boolean}
               onChange={(e) => setPolicies({ ...policies, [k]: e.target.checked })}
             />
@@ -736,6 +799,8 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
             <input
               className={ainp + " w-24"}
               type="number"
+              min={k === "lab_desk_page_size" ? 5 : 0}
+              max={k === "lab_desk_page_size" ? 100 : undefined}
               value={policies[k] as number}
               onChange={(e) => setPolicies({ ...policies, [k]: Number(e.target.value) })}
             />

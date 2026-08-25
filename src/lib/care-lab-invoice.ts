@@ -45,6 +45,11 @@ export type CareLabInvoice = {
   patient_phone: string | null;
   guest_name: string | null;
   guest_phone: string | null;
+  guest_age: string | null;
+  guest_sex: string | null;
+  guest_address: string | null;
+  referred_by: string | null;
+  amount_received: number | null;
   org_id: string;
   org_name: string;
   org_name_bn: string | null;
@@ -181,10 +186,16 @@ export async function fetchCareLabInvoice(bookingId: string): Promise<CareLabInv
     sample_type: primaryLine?.sample_type ?? null,
     prep_bn: primaryLine?.prep_bn ?? null,
     prep_en: primaryLine?.prep_en ?? null,
-    patient_name: profile?.full_name ?? null,
-    patient_phone: profile?.phone ?? null,
+    // Form-entered guest_* wins over profile (same as serial invoices).
+    patient_name: booking.guest_name || profile?.full_name || null,
+    patient_phone: booking.guest_phone || profile?.phone || null,
     guest_name: booking.guest_name,
     guest_phone: booking.guest_phone,
+    guest_age: booking.guest_age != null ? String(booking.guest_age) : null,
+    guest_sex: booking.guest_sex ?? null,
+    guest_address: booking.guest_address ?? null,
+    referred_by: booking.referred_by ?? null,
+    amount_received: booking.amount_received != null ? num(booking.amount_received) : null,
     org_id: str(org?.id),
     org_name: str(org?.name),
     org_name_bn: (org?.name_bn as string) ?? null,
@@ -204,13 +215,13 @@ export async function fetchCareLabInvoice(bookingId: string): Promise<CareLabInv
 }
 
 export function labInvoicePatientName(inv: CareLabInvoice, lang: "bn" | "en"): string {
-  const name = inv.patient_name || inv.guest_name;
+  const name = inv.guest_name || inv.patient_name;
   if (name) return name;
   return lang === "bn" ? "রোগী" : "Patient";
 }
 
 export function labInvoicePatientPhone(inv: CareLabInvoice): string {
-  return inv.patient_phone || inv.guest_phone || "—";
+  return inv.guest_phone || inv.patient_phone || "—";
 }
 
 export function labInvoiceOrgName(inv: CareLabInvoice, lang: "bn" | "en"): string {
@@ -251,11 +262,23 @@ export function labInvoiceSlotLine(inv: CareLabInvoice): string {
   return start || end || "—";
 }
 
-export async function setLabPaymentStatus(bookingId: string, status: CareLabInvoice["payment_status"]) {
-  const { data, error } = await supabase.rpc("care_set_lab_payment", {
+export async function setLabPaymentStatus(
+  bookingId: string,
+  status: CareLabInvoice["payment_status"],
+  amountReceived?: number | null,
+) {
+  const payload = {
     _booking_id: bookingId,
     _payment_status: status,
-  } as never);
+    _amount_received: amountReceived ?? null,
+  };
+  let { data, error } = await supabase.rpc("care_set_lab_payment", payload as never);
+  if (error && /_amount_received|could not find|function public\.care_set_lab_payment/i.test(error.message)) {
+    ({ data, error } = await supabase.rpc("care_set_lab_payment", {
+      _booking_id: bookingId,
+      _payment_status: status,
+    } as never));
+  }
   if (error) throw new Error(error.message);
   return data;
 }

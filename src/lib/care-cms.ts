@@ -74,6 +74,8 @@ export type CareBookingPolicies = {
   allow_multi_test_cart: boolean;
   allow_vendor_price: boolean;
   no_show_requeue: boolean;
+  /** Lab desk “Today” list page size (infinite scroll) */
+  lab_desk_page_size: number;
 };
 
 export type CareFeatureFlags = {
@@ -81,12 +83,16 @@ export type CareFeatureFlags = {
   reviews: boolean;
   payment: boolean;
   report_vault: boolean;
+  /** Patients may in-app chat with hospital/clinic staff */
+  patient_org_chat: boolean;
   /** Platform default: app bookings wait for chamber approval */
   desk_serial_approval: boolean;
   /** Allow desk to create serial from patient name/phone/address */
   desk_manual_patient_serial: boolean;
   /** Chambers may override serial approval / fields / manual form */
   desk_allow_org_serial_settings: boolean;
+  /** Chambers may override Cash Memo letterhead / invoice labels */
+  desk_allow_org_invoice_settings: boolean;
   desk_booking_field_name: boolean;
   desk_booking_field_phone: boolean;
   desk_booking_field_age: boolean;
@@ -134,6 +140,17 @@ const DEFAULT_VENDOR_ONBOARDING: CareVendorOnboardingSettings = {
 };
 
 export const FALLBACK_HUB_MODULES: CareHubModule[] = [
+  {
+    id: "dashboard",
+    slug: "dashboard",
+    label_bn: "ড্যাশবোর্ড",
+    label_en: "Dashboard",
+    icon: "LayoutDashboard",
+    href: "/care?tab=dashboard",
+    audience: "patient",
+    is_enabled: true,
+    sort_order: 0,
+  },
   {
     id: "doctors",
     slug: "doctors",
@@ -210,6 +227,7 @@ const DEFAULT_POLICIES: CareBookingPolicies = {
   allow_multi_test_cart: true,
   allow_vendor_price: true,
   no_show_requeue: true,
+  lab_desk_page_size: 10,
 };
 
 const DEFAULT_FLAGS: CareFeatureFlags = {
@@ -217,9 +235,11 @@ const DEFAULT_FLAGS: CareFeatureFlags = {
   reviews: false,
   payment: false,
   report_vault: false,
+  patient_org_chat: true,
   desk_serial_approval: false,
   desk_manual_patient_serial: true,
   desk_allow_org_serial_settings: true,
+  desk_allow_org_invoice_settings: true,
   desk_booking_field_name: true,
   desk_booking_field_phone: true,
   desk_booking_field_age: true,
@@ -330,18 +350,75 @@ export async function fetchCarePolicies(): Promise<{
     care_feature_flags?: Partial<CareFeatureFlags>;
   };
   return {
-    policies: { ...DEFAULT_POLICIES, ...(row.care_booking_policies ?? {}) },
-    flags: { ...DEFAULT_FLAGS, ...(row.care_feature_flags ?? {}) },
+    policies: normalizeCarePolicies(row.care_booking_policies),
+    flags: normalizeCareFeatureFlags(row.care_feature_flags),
   };
+}
+
+export function normalizeCareFeatureFlags(raw?: Partial<CareFeatureFlags> | null): CareFeatureFlags {
+  const r = raw ?? {};
+  return {
+    ...DEFAULT_FLAGS,
+    ...r,
+    // Explicit booleans so missing keys keep defaults; only false disables
+    home_collection: r.home_collection === true,
+    reviews: r.reviews === true,
+    payment: r.payment === true,
+    report_vault: r.report_vault === true,
+    patient_org_chat: r.patient_org_chat !== false,
+    desk_serial_approval: r.desk_serial_approval === true,
+    desk_manual_patient_serial: r.desk_manual_patient_serial !== false,
+    desk_allow_org_serial_settings: r.desk_allow_org_serial_settings !== false,
+    desk_allow_org_invoice_settings: r.desk_allow_org_invoice_settings !== false,
+    desk_booking_field_name: r.desk_booking_field_name !== false,
+    desk_booking_field_phone: r.desk_booking_field_phone !== false,
+    desk_booking_field_age: r.desk_booking_field_age !== false,
+    desk_booking_field_address: r.desk_booking_field_address !== false,
+  };
+}
+
+export function normalizeCarePolicies(raw?: Partial<CareBookingPolicies> | null): CareBookingPolicies {
+  const merged = { ...DEFAULT_POLICIES, ...(raw ?? {}) };
+  const page = Math.round(Number(merged.lab_desk_page_size));
+  return {
+    ...merged,
+    booking_window_hours: Math.max(1, Math.round(Number(merged.booking_window_hours)) || 12),
+    cancel_cutoff_hours: Math.max(0, Math.round(Number(merged.cancel_cutoff_hours)) || 0),
+    lab_desk_page_size: Number.isFinite(page) ? Math.min(100, Math.max(5, page)) : 10,
+  };
+}
+
+/** Lab desk Today list page size from Care policies (default 10). */
+export async function fetchLabDeskPageSize(): Promise<number> {
+  const { policies } = await fetchCarePolicies();
+  return policies.lab_desk_page_size;
 }
 
 export async function saveCarePolicies(policies: CareBookingPolicies, flags: CareFeatureFlags) {
   const { error } = await supabase.from("app_settings").upsert({
     id: 1,
-    care_booking_policies: policies,
-    care_feature_flags: flags,
+    care_booking_policies: normalizeCarePolicies(policies),
+    care_feature_flags: normalizeCareFeatureFlags(flags),
   } as never);
   if (error) throw new Error(error.message);
+  invalidateCarePoliciesCache();
+}
+
+let policiesCache: { policies: CareBookingPolicies; flags: CareFeatureFlags; at: number } | null = null;
+const POLICIES_CACHE_MS = 60_000;
+
+export function invalidateCarePoliciesCache() {
+  policiesCache = null;
+}
+
+/** Cached care policies/flags (admin toggles). */
+export async function fetchCarePoliciesCached(force = false) {
+  if (!force && policiesCache && Date.now() - policiesCache.at < POLICIES_CACHE_MS) {
+    return { policies: policiesCache.policies, flags: policiesCache.flags };
+  }
+  const result = await fetchCarePolicies();
+  policiesCache = { ...result, at: Date.now() };
+  return result;
 }
 
 function normalizeVendorOnboarding(raw: unknown): CareVendorOnboardingSettings {
