@@ -93,18 +93,18 @@ export type LandingHeroOverlayStyle = {
 };
 
 export const DEFAULT_HERO_OVERLAY_STYLE: LandingHeroOverlayStyle = {
-  bg_opacity: 6,
-  blur_px: 12,
-  border_opacity: 15,
-  shadow_opacity: 20,
-  text_tone: "light",
-  icon_tint_opacity: 18,
-  hover_opacity: 10,
-  inner_bg_opacity: 6,
-  footer_bg_opacity: 4,
-  title_opacity: 70,
-  body_opacity: 95,
-  muted_opacity: 60,
+  bg_opacity: 72,
+  blur_px: 8,
+  border_opacity: 28,
+  shadow_opacity: 22,
+  text_tone: "dark",
+  icon_tint_opacity: 14,
+  hover_opacity: 8,
+  inner_bg_opacity: 55,
+  footer_bg_opacity: 65,
+  title_opacity: 62,
+  body_opacity: 92,
+  muted_opacity: 58,
 };
 
 export type LandingHeroYoutube = {
@@ -838,7 +838,7 @@ function normalizeHeroOverlayStyle(
   const text_tone = s.text_tone === "dark" ? "dark" : "light";
   return {
     bg_opacity: num(s.bg_opacity, d.bg_opacity, 0, 100),
-    blur_px: num(s.blur_px, d.blur_px, 0, 32),
+    blur_px: num(s.blur_px, d.blur_px, 0, 16),
     border_opacity: num(s.border_opacity, d.border_opacity, 0, 100),
     shadow_opacity: num(s.shadow_opacity, d.shadow_opacity, 0, 100),
     text_tone,
@@ -1198,12 +1198,16 @@ export function heroOverlayCssVars(style: LandingHeroOverlayStyle): Record<strin
   const light = style.text_tone !== "dark";
   const cardRgb = "255,255,255";
   const fgRgb = light ? "255,255,255" : "26,26,26";
+  const hoverRgb = light ? "255,255,255" : "0,0,0";
+  const borderRgb = light ? "255,255,255" : "0,0,0";
   return {
     "--hero-card-rgb": cardRgb,
     "--hero-card-fg-rgb": fgRgb,
+    "--hero-card-hover-rgb": hoverRgb,
+    "--hero-card-border-rgb": borderRgb,
     "--hero-card-bg-a": String(style.bg_opacity / 100),
     "--hero-card-blur": `${style.blur_px}px`,
-    "--hero-card-border-a": String(style.border_opacity / 100),
+    "--hero-card-border-a": String((light ? style.border_opacity : Math.min(style.border_opacity, 18)) / 100),
     "--hero-card-shadow-a": String(style.shadow_opacity / 100),
     "--hero-card-icon-tint": `${style.icon_tint_opacity}%`,
     "--hero-card-hover-a": String(style.hover_opacity / 100),

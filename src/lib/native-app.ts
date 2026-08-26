@@ -144,6 +144,8 @@ export async function initNativeApp(): Promise<void> {
     try {
       await StatusBar.setStyle({ style: Style.Dark });
       await StatusBar.setBackgroundColor({ color: "#c1121f" });
+      // Keep WebView below the system bar so landing/app headers aren't clipped.
+      await StatusBar.setOverlaysWebView({ overlay: false });
     } catch {
       /* webview / older OS */
     }

@@ -105,18 +105,32 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   const gridOn = grid.enabled !== false && grid.tiles.length > 0;
   const slides = ensureHeroSlides(h.background_images, h.background_url);
   const overlay = h.slideshow?.overlay_opacity ?? DEFAULT_HERO_SLIDESHOW.overlay_opacity;
+  const [showYoutube, setShowYoutube] = useState(false);
+  // AI open on desktop only — open panel + blur over slideshow tanks mobile FPS
+  const [aiOpen, setAiOpen] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : false,
+  );
+  const lcpSrc = slides[0];
+
+  // Mobile: longer interval, shorter fade — less GPU work while scrolling
+  const mobileHero =
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
   const slideshow = {
     ...DEFAULT_HERO_SLIDESHOW,
     ...(h.slideshow ?? {}),
     enabled: h.slideshow?.enabled !== false,
     ken_burns: false,
+    interval_ms: mobileHero
+      ? Math.max(h.slideshow?.interval_ms ?? DEFAULT_HERO_SLIDESHOW.interval_ms, 8000)
+      : (h.slideshow?.interval_ms ?? DEFAULT_HERO_SLIDESHOW.interval_ms),
+    transition_ms: mobileHero
+      ? Math.min(h.slideshow?.transition_ms ?? DEFAULT_HERO_SLIDESHOW.transition_ms, 500)
+      : (h.slideshow?.transition_ms ?? DEFAULT_HERO_SLIDESHOW.transition_ms),
+    show_dots: mobileHero ? false : (h.slideshow?.show_dots ?? DEFAULT_HERO_SLIDESHOW.show_dots),
   };
   const yt = { ...DEFAULT_HERO_YOUTUBE, ...(h.youtube ?? {}) };
   if (!yt.url?.trim()) yt.url = DEFAULT_HERO_YOUTUBE.url;
   const canYoutube = yt.enabled !== false && !!parseYoutubeId(yt.url);
-  const [showYoutube, setShowYoutube] = useState(false);
-  const [aiOpen, setAiOpen] = useState(true);
-  const lcpSrc = slides[0];
 
   useEffect(() => {
     if (!canYoutube || gridOn) return;

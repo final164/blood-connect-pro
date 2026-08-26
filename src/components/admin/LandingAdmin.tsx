@@ -567,15 +567,15 @@ export function LandingAdmin() {
                   }))
                 }
               >
-                <option value="light">{lang === "bn" ? "হালকা (গ্লাস)" : "Light (glass)"}</option>
-                <option value="dark">{lang === "bn" ? "গাঢ় (অopaque)" : "Dark (opaque)"}</option>
+                <option value="light">{lang === "bn" ? "সাদা টেক্সট (গ্লাস)" : "Light text (glass)"}</option>
+                <option value="dark">{lang === "bn" ? "গাঢ় টেক্সট (পড়তে সহজ)" : "Dark text (readable)"}</option>
               </select>
             </Field>
             <div className="grid sm:grid-cols-2 gap-3">
               {(
                 [
                   ["bg_opacity", lang === "bn" ? "কার্ড ব্যাকগ্রাউন্ড %" : "Card background %", 0, 100],
-                  ["blur_px", lang === "bn" ? "Blur (px)" : "Blur (px)", 0, 32],
+                  ["blur_px", lang === "bn" ? "Blur (px)" : "Blur (px)", 0, 16],
                   ["border_opacity", lang === "bn" ? "বর্ডার %" : "Border %", 0, 100],
                   ["shadow_opacity", lang === "bn" ? "ছায়া %" : "Shadow %", 0, 100],
                   ["icon_tint_opacity", lang === "bn" ? "আইকন টিন্ট %" : "Icon tint %", 0, 100],

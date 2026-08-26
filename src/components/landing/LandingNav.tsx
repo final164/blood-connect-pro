@@ -15,7 +15,10 @@ export function LandingNav({
   const customLogo =
     nav.logo_url && !/\/icon-192\.png|\/icon-512\.png|\/icon\.svg/i.test(nav.logo_url);
   return (
-    <header className="sticky top-0 z-40 border-b border-black/8 bg-[color:var(--landing-bg)]/92">
+    <header
+      className="sticky top-0 z-40 border-b border-black/8 bg-[color:var(--landing-bg)]/95 supports-[backdrop-filter]:bg-[color:var(--landing-bg)]/90"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+    >
       <div className="mx-auto flex w-full max-w-5xl md:max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <a href="#top" className="flex items-center gap-2 min-w-0">
           {customLogo ? (
