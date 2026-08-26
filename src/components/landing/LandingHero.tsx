@@ -7,13 +7,18 @@ import {
   ensureHeroSlides,
 } from "@/components/landing/HeroBackgroundSlideshow";
 import { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGrid";
-import { LandingAiHealthPanel } from "@/components/landing/LandingAiHealthPanel";
 import { parseYoutubeId } from "@/lib/youtube";
 import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
 
 const LandingYoutubePlayer = lazy(() =>
   import("@/components/landing/LandingYoutubePlayer").then((m) => ({
     default: m.LandingYoutubePlayer,
+  })),
+);
+
+const LandingAiHealthPanel = lazy(() =>
+  import("@/components/landing/LandingAiHealthPanel").then((m) => ({
+    default: m.LandingAiHealthPanel,
   })),
 );
 
@@ -106,19 +111,17 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   const slides = ensureHeroSlides(h.background_images, h.background_url);
   const overlay = h.slideshow?.overlay_opacity ?? DEFAULT_HERO_SLIDESHOW.overlay_opacity;
   const [showYoutube, setShowYoutube] = useState(false);
-  // AI open on desktop only — open panel + blur over slideshow tanks mobile FPS
-  const [aiOpen, setAiOpen] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : false,
-  );
+  const [aiReady, setAiReady] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [slidesReady, setSlidesReady] = useState(false);
   const lcpSrc = slides[0];
 
-  // Mobile: longer interval, shorter fade — less GPU work while scrolling
   const mobileHero =
     typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
   const slideshow = {
     ...DEFAULT_HERO_SLIDESHOW,
     ...(h.slideshow ?? {}),
-    enabled: h.slideshow?.enabled !== false,
+    enabled: slidesReady && h.slideshow?.enabled !== false,
     ken_burns: false,
     interval_ms: mobileHero
       ? Math.max(h.slideshow?.interval_ms ?? DEFAULT_HERO_SLIDESHOW.interval_ms, 8000)
@@ -131,6 +134,25 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   const yt = { ...DEFAULT_HERO_YOUTUBE, ...(h.youtube ?? {}) };
   if (!yt.url?.trim()) yt.url = DEFAULT_HERO_YOUTUBE.url;
   const canYoutube = yt.enabled !== false && !!parseYoutubeId(yt.url);
+
+  useEffect(() => {
+    const startSlides = () => setSlidesReady(true);
+    const startAi = () => setAiReady(true);
+    if (typeof requestIdleCallback === "function") {
+      const a = requestIdleCallback(startSlides, { timeout: 1800 });
+      const b = requestIdleCallback(startAi, { timeout: 2800 });
+      return () => {
+        cancelIdleCallback(a);
+        cancelIdleCallback(b);
+      };
+    }
+    const t1 = window.setTimeout(startSlides, 700);
+    const t2 = window.setTimeout(startAi, 1400);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, []);
 
   useEffect(() => {
     if (!canYoutube || gridOn) return;
@@ -189,6 +211,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
               grid={grid}
               lang={lang}
               onAiHealth={() => {
+                setAiReady(true);
                 setAiOpen(true);
                 requestAnimationFrame(() => {
                   document.getElementById("landing-ai-health")?.scrollIntoView({
@@ -198,7 +221,41 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
                 });
               }}
             />
-            <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
+            {aiReady ? (
+              <Suspense
+                fallback={
+                  <div
+                    className="landing-hero-card w-full px-4 py-3.5 h-[4.25rem]"
+                    id="landing-ai-health"
+                    aria-hidden
+                  />
+                }
+              >
+                <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
+              </Suspense>
+            ) : (
+              <button
+                type="button"
+                id="landing-ai-health"
+                onClick={() => {
+                  setAiReady(true);
+                  setAiOpen(true);
+                }}
+                className="landing-hero-card w-full px-4 py-3.5 flex items-center gap-3 text-left"
+              >
+                <span className="landing-hero-card-icon h-11 w-11 rounded-2xl grid place-items-center shrink-0">
+                  <span className="text-sm font-bold">AI</span>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="landing-hero-card-body text-sm font-semibold">
+                    {pick(lang, "AI স্বাস্থ্য — লক্ষণ লিখুন", "AI health — describe symptoms")}
+                  </p>
+                  <p className="landing-hero-card-muted text-[11px] truncate">
+                    {pick(lang, "সাজেশন ও বুকিং · চ্যাটে লগইন লাগবে", "Suggestions & booking · login to chat")}
+                  </p>
+                </div>
+              </button>
+            )}
           </div>
         </div>
       </section>

@@ -12,8 +12,16 @@ export function ChatWarmup() {
 
   useEffect(() => {
     if (!user?.id) return;
-    void hydrateChatConversationsCache(queryClient, user.id);
-    void prefetchChatList(queryClient, user.id, lang);
+    const run = () => {
+      void hydrateChatConversationsCache(queryClient, user.id);
+      void prefetchChatList(queryClient, user.id, lang);
+    };
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(run, { timeout: 4000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(run, 1500);
+    return () => window.clearTimeout(t);
   }, [user?.id, lang, queryClient]);
 
   return null;

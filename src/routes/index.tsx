@@ -148,19 +148,7 @@ function LandingPage() {
 
   useEffect(() => {
     if (!hasStoredAuthHint()) return;
-    let cancelled = false;
-    const t = window.setTimeout(() => {
-      void import("@/integrations/supabase/client").then(async ({ supabase }) => {
-        const { data } = await supabase.auth.getSession();
-        if (cancelled) return;
-        const s = data.session;
-        if (s && !s.user?.is_anonymous) void navigate({ to: "/home" });
-      });
-    }, 600);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
+    void navigate({ to: "/home" });
   }, [navigate]);
 
   useEffect(() => {

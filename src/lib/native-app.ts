@@ -126,20 +126,23 @@ export async function initNativeApp(): Promise<void> {
 
   const hideSplash = () => {
     if (!SplashScreen) return;
-    void SplashScreen.hide({ fadeOutDuration: 280 }).catch(() => {});
+    void SplashScreen.hide({ fadeOutDuration: 120 }).catch(() => {});
   };
 
   try {
+    // Paint first — hide splash before other plugins.
+    const splashMod = await import("@capacitor/splash-screen");
+    SplashScreen = splashMod.SplashScreen;
+    hideSplash();
+
     const mods = await Promise.all([
-      import("@capacitor/splash-screen"),
       import("@capacitor/status-bar"),
       import("@capacitor/app"),
       import("@capacitor/keyboard"),
     ]);
-    SplashScreen = mods[0].SplashScreen;
-    const { StatusBar, Style } = mods[1];
-    const { App } = mods[2];
-    const { Keyboard } = mods[3];
+    const { StatusBar, Style } = mods[0];
+    const { App } = mods[1];
+    const { Keyboard } = mods[2];
 
     try {
       await StatusBar.setStyle({ style: Style.Dark });
@@ -156,9 +159,8 @@ export async function initNativeApp(): Promise<void> {
       /* iOS/Android differences */
     }
 
-    if (document.readyState === "complete") hideSplash();
-    else window.addEventListener("load", hideSplash, { once: true });
-    window.setTimeout(hideSplash, 2500);
+    hideSplash();
+    window.setTimeout(hideSplash, 800);
 
     // Only trust Capacitor WebView canGoBack — history.length is unreliable and
     // was sending first-launch back into a blank entry (app looked like it closed).
