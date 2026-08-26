@@ -320,8 +320,7 @@ export function CareAiTestsPage() {
     setPendingImages([]);
     setActiveFollowUp(null);
     const bubbleText =
-      opts?.displayText ??
-      t ??
+      (opts?.displayText?.trim() || t.trim()) ||
       (images.length
         ? lang === "bn"
           ? `প্রেসক্রিপশন ছবি (${images.length})`

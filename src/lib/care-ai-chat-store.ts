@@ -51,6 +51,16 @@ export type CareAiChatStoredMessage = {
     analysis_summary: string;
   } | null;
   firstAid?: string[];
+  /** Prescription scan medicines — must persist with image threads */
+  medicines?: {
+    name_as_written: string;
+    suggested_name: string;
+    dose: string;
+    frequency: string;
+    timing: string;
+    duration: string;
+    notes: string;
+  }[];
   offerBundle?: boolean;
   followUpQuestion?: string;
   followUpBatch?: boolean;
@@ -136,6 +146,7 @@ function isMeaningful(messages: CareAiChatStoredMessage[]) {
       m.role === "assistant" &&
       (Boolean(m.suggestions?.length) ||
         Boolean(m.specialties?.length) ||
+        Boolean(m.medicines?.length) ||
         Boolean(m.medicalAdvice?.trim()) ||
         Boolean(m.expertAnalysis) ||
         Boolean(m.firstAid?.length) ||
@@ -253,6 +264,17 @@ function trimMessages(messages: CareAiChatStoredMessage[]): CareAiChatStoredMess
     firstAid: Array.isArray(m.firstAid)
       ? m.firstAid.slice(0, 8).map((s) => String(s).slice(0, 280))
       : undefined,
+    medicines: Array.isArray(m.medicines)
+      ? m.medicines.slice(0, 24).map((med) => ({
+          name_as_written: String(med?.name_as_written ?? "").slice(0, 120),
+          suggested_name: String(med?.suggested_name ?? "").slice(0, 120),
+          dose: String(med?.dose ?? "").slice(0, 80),
+          frequency: String(med?.frequency ?? "").slice(0, 80),
+          timing: String(med?.timing ?? "").slice(0, 120),
+          duration: String(med?.duration ?? "").slice(0, 80),
+          notes: String(med?.notes ?? "").slice(0, 200),
+        }))
+      : undefined,
     offerBundle: m.offerBundle,
     followUpQuestion: m.followUpQuestion,
     followUpBatch: m.followUpBatch,
@@ -260,6 +282,19 @@ function trimMessages(messages: CareAiChatStoredMessage[]): CareAiChatStoredMess
     fromPrescription: m.fromPrescription,
   }));
   let json = JSON.stringify(sliced);
+  // Prefer shrinking image payloads before dropping messages (keeps reply/medicine text).
+  while (json.length > MAX_CHARS && sliced.some((m) => m.imagePreviews?.length)) {
+    for (const m of sliced) {
+      if (!m.imagePreviews?.length) continue;
+      if (m.imagePreviews.length > 1) {
+        m.imagePreviews = m.imagePreviews.slice(0, 1);
+      } else {
+        m.imagePreviews = undefined;
+      }
+      break;
+    }
+    json = JSON.stringify(sliced);
+  }
   while (json.length > MAX_CHARS && sliced.length > 4) {
     sliced.shift();
     json = JSON.stringify(sliced);
