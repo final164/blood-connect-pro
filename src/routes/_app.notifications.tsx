@@ -10,7 +10,7 @@ import { PageBackButton } from "@/components/nav/PageBackButton";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/notifications")({
-  head: () => ({ meta: [{ title: "Notifications — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Notifications — Muktosheba" }] }),
   component: NotificationsPage,
 });
 

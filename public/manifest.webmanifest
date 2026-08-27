@@ -1,6 +1,6 @@
 {
-  "name": "BloodLink",
-  "short_name": "BloodLink",
+  "name": "Muktosheba",
+  "short_name": "Muktosheba",
   "description": "Realtime blood donation network — find donors, post requests, encrypted chat.",
   "start_url": "/",
   "display": "standalone",

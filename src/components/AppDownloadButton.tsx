@@ -43,7 +43,7 @@ async function triggerApkDownload(lang: "bn" | "en") {
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = objectUrl;
-  a.download = "BloodLink.apk";
+  a.download = "Muktosheba.apk";
   a.rel = "noopener";
   document.body.appendChild(a);
   a.click();

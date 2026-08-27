@@ -69,7 +69,7 @@ async function enableNativePush(userId: string): Promise<boolean> {
               endpoint,
               p256dh: "native",
               auth: platform,
-              user_agent: `BloodLink-Capacitor/${platform}/${Capacitor.getPlatform()}`,
+              user_agent: `Muktosheba-Capacitor/${platform}/${Capacitor.getPlatform()}`,
               platform,
             } as never,
             { onConflict: "user_id,endpoint" },

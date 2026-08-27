@@ -20,7 +20,7 @@ type SettingsSearch = {
 };
 
 export const Route = createFileRoute("/_app/settings")({
-  head: () => ({ meta: [{ title: "Settings — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Settings — Muktosheba" }] }),
   validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
     report:
       search.report === true ||
@@ -227,7 +227,7 @@ function SettingsPage() {
           {t("logout")}
         </button>
 
-        <p className="text-center text-[10px] text-muted-foreground">v1.0 · BloodLink</p>
+        <p className="text-center text-[10px] text-muted-foreground">v1.0 · Muktosheba</p>
       </div>
 
       {user && (

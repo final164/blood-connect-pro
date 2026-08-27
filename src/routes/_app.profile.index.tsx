@@ -31,7 +31,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/profile/")({
-  head: () => ({ meta: [{ title: "Profile — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Profile — Muktosheba" }] }),
   component: ProfilePage,
 });
 

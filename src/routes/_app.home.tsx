@@ -39,7 +39,7 @@ import { toast } from "sonner";
 type FeedSearch = { requestId?: string; compose?: boolean };
 
 export const Route = createFileRoute("/_app/home")({
-  head: () => ({ meta: [{ title: "Feed — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Feed — Muktosheba" }] }),
   validateSearch: (search: Record<string, unknown>): FeedSearch => ({
     requestId: typeof search.requestId === "string" ? search.requestId : undefined,
     compose: search.compose === true || search.compose === "true" || search.compose === "1",

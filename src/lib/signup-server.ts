@@ -20,7 +20,7 @@ function adminClient() {
   }
   return createClient(url, secret, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { "User-Agent": "BloodLink-Signup/1.0" } },
+    global: { headers: { "User-Agent": "Muktosheba-Signup/1.0" } },
   });
 }
 
@@ -128,7 +128,7 @@ export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(asy
       email: preferredEmail,
       password,
       email_confirm: true,
-      user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE, pin: ADMIN_PIN },
+      user_metadata: { full_name: "Muktosheba Admin", phone: ADMIN_PHONE, pin: ADMIN_PIN },
     });
   } else {
     let lastError: Error | null = null;
@@ -137,7 +137,7 @@ export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(asy
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: "BloodLink Admin", phone: ADMIN_PHONE, pin: ADMIN_PIN },
+        user_metadata: { full_name: "Muktosheba Admin", phone: ADMIN_PHONE, pin: ADMIN_PIN },
       });
       if (error) {
         if (error.message.toLowerCase().includes("email") && error.message.toLowerCase().includes("invalid")) {
@@ -156,7 +156,7 @@ export const ensureAdminAccount = createServerFn({ method: "POST" }).handler(asy
 
   await admin.from("profiles").upsert({
     id: userId,
-    full_name: "BloodLink Admin",
+    full_name: "Muktosheba Admin",
     phone: ADMIN_PHONE,
   });
   await admin.from("user_login_credentials").upsert(

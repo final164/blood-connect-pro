@@ -1,8 +1,8 @@
 /** Architecture plan shown in Admin → Plan (+ PDF export) */
-export const ARCHITECTURE_MARKDOWN = `# BloodLink — Professional Architecture Plan
+export const ARCHITECTURE_MARKDOWN = `# Muktosheba — Professional Architecture Plan
 
 ## 1. Product vision
-BloodLink is a realtime blood-donation network: district-scoped social feed, blood requests, encrypted chat, and an admin CMS. Web-first (TanStack Start), designed so the same Supabase backend powers a future native app.
+Muktosheba is a realtime blood-donation network: district-scoped social feed, blood requests, encrypted chat, and an admin CMS. Web-first (TanStack Start), designed so the same Supabase backend powers a future native app.
 
 ## 2. Search pattern name
 **Typeahead Autocomplete** for district input, combined with **District-scoped feed filtering** (administrative region filtering — not map/GPS geofencing).
@@ -49,7 +49,7 @@ Keep business logic in \`src/lib/api/*\` and \`src/lib/offline.ts\`. A React Nat
 ## 9. Migrations
 - Base schema: \`20260723190810_*.sql\`
 - Hardening: \`20260723190835_*.sql\`
-- Platform v2: \`20260728010000_bloodlink_v2_platform.sql\`
+- Platform v2: \`20260728010000_Muktosheba_v2_platform.sql\`
 - Combined apply file: \`scripts/full-schema.sql\`
 
 ## 10. What else can be added later

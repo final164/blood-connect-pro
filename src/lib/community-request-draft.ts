@@ -4,7 +4,11 @@ import {
   getCachedMessagingSettings,
 } from "@/lib/messaging-settings";
 
-const STORAGE_PREFIX = "bloodlink:community-request-draft:v1:";
+const STORAGE_PREFIX = "muktosheba:community-request-draft:v1:";
+const STORAGE_PREFIX_LEGACY = [
+  "bloodlink:community-request-draft:v1:",
+  "Muktosheba:community-request-draft:v1:",
+];
 
 export type CommunityRequestDraft = {
   version: 1;
@@ -120,13 +124,26 @@ export function loadCommunityRequestDraft(
 ): CommunityRequestDraft | null {
   if (!userId || typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(storageKey(userId));
+    const keys = [storageKey(userId), ...STORAGE_PREFIX_LEGACY.map((p) => `${p}${userId}`)];
+    let raw: string | null = null;
+    let usedKey = keys[0];
+    for (const k of keys) {
+      raw = localStorage.getItem(k);
+      if (raw) {
+        usedKey = k;
+        break;
+      }
+    }
     if (!raw) return null;
     const draft = parseDraft(JSON.parse(raw) as unknown);
     if (!draft) return null;
     if (isCommunityRequestDraftExpired(draft, ttlHours)) {
       clearCommunityRequestDraft(userId);
       return null;
+    }
+    if (usedKey !== storageKey(userId)) {
+      localStorage.setItem(storageKey(userId), raw);
+      for (const p of STORAGE_PREFIX_LEGACY) localStorage.removeItem(`${p}${userId}`);
     }
     return draft;
   } catch {
@@ -155,6 +172,7 @@ export function saveCommunityRequestDraft(
 export function clearCommunityRequestDraft(userId: string | null | undefined) {
   if (!userId || typeof window === "undefined") return;
   localStorage.removeItem(storageKey(userId));
+  for (const p of STORAGE_PREFIX_LEGACY) localStorage.removeItem(`${p}${userId}`);
   window.dispatchEvent(new CustomEvent("community-request-draft-changed", { detail: { userId } }));
 }
 

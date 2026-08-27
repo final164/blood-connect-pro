@@ -1,5 +1,5 @@
-/* BloodLink offline shell + device notifications */
-const CACHE = "bloodlink-shell-v4";
+/* Muktosheba offline shell + device notifications */
+const CACHE = "Muktosheba-shell-v4";
 const ASSETS = ["/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
@@ -42,11 +42,11 @@ self.addEventListener("message", (event) => {
   if (!data || data.type !== "SHOW_NOTIFICATION") return;
   const { title, body, url, tag } = data;
   event.waitUntil(
-    self.registration.showNotification(title || "BloodLink", {
+    self.registration.showNotification(title || "Muktosheba", {
       body: body || "",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      tag: tag || "bloodlink",
+      tag: tag || "Muktosheba",
       data: { url: url || "/" },
       renotify: true,
     }),
@@ -71,7 +71,7 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "BloodLink", body: "", url: "/", tag: "bloodlink" };
+  let payload = { title: "Muktosheba", body: "", url: "/", tag: "Muktosheba" };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {
@@ -82,7 +82,7 @@ self.addEventListener("push", (event) => {
       body: payload.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      tag: payload.tag || "bloodlink",
+      tag: payload.tag || "Muktosheba",
       data: { url: payload.url || "/" },
       renotify: true,
     }),

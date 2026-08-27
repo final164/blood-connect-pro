@@ -430,8 +430,8 @@ export const DEFAULT_ISLAMIC_CARDS: LandingIslamicCard[] = [
     quote_en: "Whoever guides others to good is like the one who does it.",
     source_bn: "সহিহ মুসলিম",
     source_en: "Sahih Muslim",
-    reflection_bn: "BloodLink-এ শেয়ার ও আমন্ত্রণ — অন্যকেও রক্তদানে উদ্বুদ্ধ করে।",
-    reflection_en: "Sharing BloodLink invites others into the same good.",
+    reflection_bn: "Muktosheba-এ শেয়ার ও আমন্ত্রণ — অন্যকেও রক্তদানে উদ্বুদ্ধ করে।",
+    reflection_en: "Sharing Muktosheba invites others into the same good.",
     sort_order: 40,
     is_active: true,
   },
@@ -538,8 +538,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
   theme: "life_crimson",
   colors: { ...THEME_PRESETS.life_crimson },
   seo: {
-    title_bn: "BloodLink — রক্তদানে জীবন বাঁচান",
-    title_en: "BloodLink — Save lives with blood donation",
+    title_bn: "Muktosheba — রক্তদানে জীবন বাঁচান",
+    title_en: "Muktosheba — Save lives with blood donation",
     description_bn:
       "বাংলাদেশের রিয়েলটাইম রক্তদাতা নেটওয়ার্ক। জরুরি রিকোয়েস্ট দেখুন, কাছের ডোনার খুঁজুন — ইসলামে জীবন রক্ষার আলোকে সাহায্য করুন।",
     description_en:
@@ -563,8 +563,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     ],
   },
   hero: {
-    brand_bn: "BloodLink",
-    brand_en: "BloodLink",
+    brand_bn: "Muktosheba",
+    brand_en: "Muktosheba",
     headline_bn: "রক্তদান করুন, জীবন বাঁচান",
     headline_en: "Donate blood. Save lives.",
     sub_bn:
@@ -607,8 +607,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     cta_href: "/auth",
   },
   care_vendor: {
-    title_bn: "BloodLink Care — চেম্বার, ক্লিনিক ও ল্যাব",
-    title_en: "BloodLink Care — chambers, clinics & labs",
+    title_bn: "Muktosheba Care — চেম্বার, ক্লিনিক ও ল্যাব",
+    title_en: "Muktosheba Care — chambers, clinics & labs",
     body_bn:
       "ডাক্তার সিরিয়াল, কিউ, ওয়াক-ইন ও ল্যাব বুকিং পরিচালনার জন্য আলাদা পেশাদার পোর্টাল। চেম্বার বা ডায়াগনস্টিক ল্যাব হিসেবে নিবন্ধন করুন।",
     body_en:
@@ -632,8 +632,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     secondary_href: "#how",
   },
   footer: {
-    copyright_bn: "© BloodLink. রক্তদান — সবার অধিকার, সবার দায়িত্ব।",
-    copyright_en: "© BloodLink. Blood donation — a right and a responsibility.",
+    copyright_bn: "© Muktosheba. রক্তদান — সবার অধিকার, সবার দায়িত্ব।",
+    copyright_en: "© Muktosheba. Blood donation — a right and a responsibility.",
     hotline: "16263",
     columns: [
       {
@@ -654,6 +654,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
           { label_bn: "ক্যাম্পেইন", label_en: "Campaigns", href: "#campaigns" },
           { label_bn: "গ্যালারি", label_en: "Gallery", href: "#gallery" },
           { label_bn: "প্রশ্নোত্তর", label_en: "FAQ", href: "#faq" },
+          { label_bn: "গোপনীয়তা নীতি", label_en: "Privacy policy", href: "/privacy" },
+          { label_bn: "সেবার শর্তাবলী", label_en: "Terms of service", href: "/terms" },
         ],
       },
       {

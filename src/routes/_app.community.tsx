@@ -67,7 +67,7 @@ type CommunitySearch = {
 const PAGE = 12;
 
 export const Route = createFileRoute("/_app/community")({
-  head: () => ({ meta: [{ title: "Community — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Community — Muktosheba" }] }),
   validateSearch: (search: Record<string, unknown>): CommunitySearch => ({
     orgId: typeof search.orgId === "string" && search.orgId ? search.orgId : undefined,
   }),

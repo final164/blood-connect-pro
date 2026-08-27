@@ -188,7 +188,7 @@ export const DEFAULT_CARE_INVOICE_LABELS: CareInvoiceLabels = {
     bn: "পরীক্ষার আগে রোগীর নাম, বয়স ও অন্যান্য তথ্য যাচাই করে নিন।",
     en: "Please verify patient name, age and other details before the test.",
   },
-  developed_by: { bn: "Developed By: BloodLink", en: "Developed By: BloodLink" },
+  developed_by: { bn: "Developed By: Muktosheba", en: "Developed By: Muktosheba" },
   print_datetime: { bn: "প্রিন্ট তারিখ ও সময়", en: "Print Date & Time" },
   page_of: { bn: "পৃষ্ঠা", en: "Page" },
 };

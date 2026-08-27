@@ -32,7 +32,7 @@ const LONG_PRESS_MS = 480;
 type ChatSearch = { fromRequestId?: string; careOrgId?: string };
 
 export const Route = createFileRoute("/_app/chat/$peerId")({
-  head: () => ({ meta: [{ title: "Conversation — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Conversation — Muktosheba" }] }),
   validateSearch: (search: Record<string, unknown>): ChatSearch => ({
     fromRequestId: typeof search.fromRequestId === "string" ? search.fromRequestId : undefined,
     careOrgId: typeof search.careOrgId === "string" ? search.careOrgId : undefined,

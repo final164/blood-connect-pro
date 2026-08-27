@@ -132,7 +132,7 @@ export function CareAuthPage() {
   }
 
   const copy = {
-    title: lang === "bn" ? "BloodLink Care" : "BloodLink Care",
+    title: lang === "bn" ? "Muktosheba Care" : "Muktosheba Care",
     subtitle:
       lang === "bn"
         ? "চেম্বার, ক্লিনিক ও ল্যাবের জন্য পেশাদার পোর্টাল"
@@ -172,7 +172,7 @@ export function CareAuthPage() {
               {lang === "bn" ? "অ্যাডমিন অনুমোদনের পর লিস্টেড" : "Listed after admin approval"}
             </li>
           </ul>
-          <p className="mt-6 text-xs text-teal-200/70">© {new Date().getFullYear()} BloodLink Care</p>
+          <p className="mt-6 text-xs text-teal-200/70">© {new Date().getFullYear()} Muktosheba Care</p>
         </div>
       </aside>
 

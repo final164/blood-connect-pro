@@ -9,7 +9,7 @@ export const Route = createFileRoute("/care/auth")({
   }),
   head: () => ({
     meta: [
-      { title: "Care Vendor — BloodLink" },
+      { title: "Care Vendor — Muktosheba" },
       { name: "robots", content: "noindex, nofollow" },
     ],
     links: [APP_STYLESHEET],

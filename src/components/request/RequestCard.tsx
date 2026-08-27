@@ -1,4 +1,4 @@
-﻿import { Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ChatLink } from "@/components/chat/ChatLink";
 import { memo, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -227,12 +227,12 @@ function RequestCardInner({
     try {
       const { nativeShare, isNativeApp } = await import("@/lib/native-app");
       if (isNativeApp()) {
-        const ok = await nativeShare({ title: "BloodLink", text: payload, url: window.location.origin });
+        const ok = await nativeShare({ title: "Muktosheba", text: payload, url: window.location.origin });
         if (ok) return;
       }
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         try {
-          await navigator.share({ title: "BloodLink", text: payload });
+          await navigator.share({ title: "Muktosheba", text: payload });
           return;
         } catch (err) {
           if ((err as Error)?.name === "AbortError") return;

@@ -41,19 +41,19 @@ export type SeoSettings = {
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   site_url: "https://blood.pgdiary.cloud",
-  title_bn: "BloodLink — রক্তদাতা খুঁজুন, রক্তদান করুন, জীবন বাঁচান",
-  title_en: "BloodLink — Find blood donors and save lives in Bangladesh",
-  title_template: "%s — BloodLink",
+  title_bn: "Muktosheba — রক্তদাতা খুঁজুন, রক্তদান করুন, জীবন বাঁচান",
+  title_en: "Muktosheba — Find blood donors and save lives in Bangladesh",
+  title_template: "%s — Muktosheba",
   description_bn:
-    "BloodLink বাংলাদেশজুড়ে রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক। রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট দিন — ইসলামে জীবন রক্ষার অনুপ্রেরণায় একসাথে সাহায্য করুন।",
+    "Muktosheba বাংলাদেশজুড়ে রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক। রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট দিন — ইসলামে জীবন রক্ষার অনুপ্রেরণায় একসাথে সাহায্য করুন।",
   description_en:
-    "BloodLink is a Bangladesh-wide realtime blood donor network. Find donors, post urgent requests, and give inspired by the call to save lives.",
+    "Muktosheba is a Bangladesh-wide realtime blood donor network. Find donors, post urgent requests, and give inspired by the call to save lives.",
   keywords_bn:
-    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, BloodLink, রক্তের গ্রুপ, হাসপাতাল, জেলা ভিত্তিক রক্তদাতা, রক্ত খুঁজুন, ইসলামে জীবন রক্ষা, সদকা",
+    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, Muktosheba, রক্তের গ্রুপ, হাসপাতাল, জেলা ভিত্তিক রক্তদাতা, রক্ত খুঁজুন, ইসলামে জীবন রক্ষা, সদকা",
   keywords_en:
-    "blood donation, blood donor, Bangladesh, urgent blood, BloodLink, blood group, hospital, district donor, find blood donor, save a life Islam, charity",
-  og_title_bn: "BloodLink — রক্তদাতা খুঁজুন, রক্তদান করুন",
-  og_title_en: "BloodLink — Find blood donors in Bangladesh",
+    "blood donation, blood donor, Bangladesh, urgent blood, Muktosheba, blood group, hospital, district donor, find blood donor, save a life Islam, charity",
+  og_title_bn: "Muktosheba — রক্তদাতা খুঁজুন, রক্তদান করুন",
+  og_title_en: "Muktosheba — Find blood donors in Bangladesh",
   og_description_bn:
     "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট।",
   og_description_en:
@@ -61,7 +61,7 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   og_image_url: "https://blood.pgdiary.cloud/landing/hero.jpg",
   og_type: "website",
   twitter_card: "summary_large_image",
-  twitter_title: "BloodLink — Find blood donors and save lives in Bangladesh",
+  twitter_title: "Muktosheba — Find blood donors and save lives in Bangladesh",
   twitter_description:
     "Find blood donors, post urgent requests, and get district and hospital based blood support across Bangladesh.",
   twitter_image_url: "https://blood.pgdiary.cloud/landing/hero.jpg",
@@ -73,7 +73,7 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   google_site_verification: "",
   bing_site_verification: "",
   json_ld_enabled: true,
-  org_name: "BloodLink",
+  org_name: "Muktosheba",
   org_logo_url: "https://blood.pgdiary.cloud/icon-192.png",
   org_phone: "",
   org_same_as: [],
@@ -320,8 +320,8 @@ export function buildHead(
     { title },
     { name: "description", content: description },
     { name: "keywords", content: keywords },
-    { name: "author", content: seo.org_name || "BloodLink" },
-    { name: "publisher", content: seo.org_name || "BloodLink" },
+    { name: "author", content: seo.org_name || "Muktosheba" },
+    { name: "publisher", content: seo.org_name || "Muktosheba" },
     { name: "language", content: language },
     { name: "geo.region", content: "BD" },
     { name: "geo.placename", content: "Bangladesh" },
@@ -344,13 +344,13 @@ export function buildHead(
       content: seo.twitter_description || ogDescription,
     },
     { name: "twitter:image", content: twitterImage },
-    { name: "application-name", content: seo.org_name || "BloodLink" },
-    { name: "apple-mobile-web-app-title", content: seo.org_name || "BloodLink" },
+    { name: "application-name", content: seo.org_name || "Muktosheba" },
+    { name: "apple-mobile-web-app-title", content: seo.org_name || "Muktosheba" },
   ];
 
   if (siteUrl) {
     meta.push({ property: "og:url", content: canonical });
-    meta.push({ property: "og:site_name", content: seo.org_name || "BloodLink" });
+    meta.push({ property: "og:site_name", content: seo.org_name || "Muktosheba" });
   }
 
   if (seo.google_site_verification.trim()) {
@@ -397,7 +397,7 @@ export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin =
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: seo.org_name || "BloodLink",
+    name: seo.org_name || "Muktosheba",
     url: siteUrl || undefined,
     logo,
     description: seoDescriptionForLang(seo, lang),
@@ -451,7 +451,7 @@ export function buildLandingJsonLd(
   const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: seo.org_name || "BloodLink",
+    name: seo.org_name || "Muktosheba",
     url: siteUrl || pageUrl,
     inLanguage,
     description: seoDescriptionForLang(seo, lang),
@@ -466,7 +466,7 @@ export function buildLandingJsonLd(
     isPartOf: siteUrl
       ? {
           "@type": "WebSite",
-          name: seo.org_name || "BloodLink",
+          name: seo.org_name || "Muktosheba",
           url: siteUrl,
         }
       : undefined,
@@ -563,7 +563,7 @@ export function buildRobotsTxt(seo: SeoSettings, origin = ""): string {
 }
 
 export function sitemapPaths(seo: SeoSettings): string[] {
-  const base = ["/", "/auth"];
+  const base = ["/", "/auth", "/privacy", "/terms"];
   const extra = seo.sitemap_extra_paths.map((p) => (p.startsWith("/") ? p : `/${p}`));
   return [...new Set([...base, ...extra])];
 }

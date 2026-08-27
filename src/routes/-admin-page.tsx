@@ -105,6 +105,7 @@ import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import { LandingAdmin } from "@/components/admin/LandingAdmin";
 import { SeoAdmin } from "@/components/admin/SeoAdmin";
+import { LegalAdmin } from "@/components/admin/LegalAdmin";
 import { RequestContactsExpandable } from "@/components/request/RequestContactsExpandable";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
@@ -3387,6 +3388,7 @@ function SettingsAdmin() {
     | "banner"
     | "landing"
     | "seo"
+    | "legal"
     | "reasons"
     | "donations"
     | "menu"
@@ -3399,7 +3401,7 @@ function SettingsAdmin() {
     | "app"
   >("urgency");
   const [s, setS] = useState<any>({
-    app_name: "BloodLink",
+    app_name: "Muktosheba",
     emergency_hotline: "",
     about_bn: "",
     about_en: "",
@@ -3460,6 +3462,7 @@ function SettingsAdmin() {
     { id: "banner" as const, bn: "ফুল ব্যানার", en: "Full banner" },
     { id: "landing" as const, bn: "ল্যান্ডিং / Frontpage", en: "Landing / Frontpage" },
     { id: "seo" as const, bn: "SEO", en: "SEO" },
+    { id: "legal" as const, bn: "আইনি পেজ", en: "Legal pages" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
@@ -3511,6 +3514,7 @@ function SettingsAdmin() {
       {settingsTab === "banner" && <FeedBannerAdmin />}
       {settingsTab === "landing" && <LandingAdmin />}
       {settingsTab === "seo" && <SeoAdmin />}
+      {settingsTab === "legal" && <LegalAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}
@@ -3634,7 +3638,7 @@ function ArchitectureAdmin() {
       .replace(/^\- (.*$)/gim, "<li>$1</li>")
       .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
       .replace(/\n/g, "<br/>");
-    w.document.write(`<!DOCTYPE html><html><head><title>BloodLink Architecture</title>
+    w.document.write(`<!DOCTYPE html><html><head><title>Muktosheba Architecture</title>
       <style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6;color:#1a1a1a}
       h1{color:#C62828} h2{margin-top:1.5em;border-bottom:1px solid #ddd;padding-bottom:.3em}
       @media print{button{display:none}}</style></head><body>

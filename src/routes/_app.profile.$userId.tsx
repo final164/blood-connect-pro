@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/query-client";
 
 export const Route = createFileRoute("/_app/profile/$userId")({
-  head: () => ({ meta: [{ title: "Profile — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Profile — Muktosheba" }] }),
   component: PublicProfilePage,
 });
 

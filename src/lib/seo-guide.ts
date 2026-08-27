@@ -12,9 +12,9 @@ export type SeoGuideContent = {
 };
 
 export const SEO_GUIDE_BN: SeoGuideContent = {
-  title: "BloodLink SEO সম্পূর্ণ গাইড",
+  title: "Muktosheba SEO সম্পূর্ণ গাইড",
   intro:
-    "এই গাইড আপনাকে Admin → Settings → SEO থেকে সাইটের সার্চ ইঞ্জিন অপ্টিমাইজেশন সেটআপ করতে সাহায্য করবে। সঠিক SEO-তে Google/Bing-এ BloodLink খুঁজে পাওয়া সহজ হয় এবং Facebook/WhatsApp শেয়ারে সুন্দর প্রিভিউ দেখায়।",
+    "এই গাইড আপনাকে Admin → Settings → SEO থেকে সাইটের সার্চ ইঞ্জিন অপ্টিমাইজেশন সেটআপ করতে সাহায্য করবে। সঠিক SEO-তে Google/Bing-এ Muktosheba খুঁজে পাওয়া সহজ হয় এবং Facebook/WhatsApp শেয়ারে সুন্দর প্রিভিউ দেখায়।",
   checklist: [
     "Site URL নিশ্চিত করুন: https://blood.pgdiary.cloud",
     "Title ও Description BN/EN লিখুন — ৫৫–৬০ অক্ষরের title, ১৫০–১৬০ অক্ষরের description",
@@ -35,7 +35,7 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
     {
       title: "২. Title ও Description",
       body: [
-        "Title সার্চ রেজাল্টে নীল লিংক হিসেবে দেখায়। BloodLink-এর জন্য রক্তদান, জরুরি রক্ত, বাংলাদেশ — এসব কীওয়ার্ড প্রাকৃতিকভাবে রাখুন।",
+        "Title সার্চ রেজাল্টে নীল লিংক হিসেবে দেখায়। Muktosheba-এর জন্য রক্তদান, জরুরি রক্ত, বাংলাদেশ — এসব কীওয়ার্ড প্রাকৃতিকভাবে রাখুন।",
         "Description সার্চ স্নিপেটে দেখায়; ক্লিক বাড়াতে স্পষ্ট CTA দিন (যেমন: 'রক্তদাতা খুঁজুন')।",
       ],
       bullets: [
@@ -55,7 +55,7 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
     {
       title: "৪. Twitter Card",
       body: [
-        "summary_large_image বড় ইমেজ সহ কার্ড দেখায় — BloodLink-এর জন্য recommended।",
+        "summary_large_image বড় ইমেজ সহ কার্ড দেখায় — Muktosheba-এর জন্য recommended।",
         "Twitter fields খালি থাকলে OG values fallback হিসেবে ব্যবহার হবে।",
       ],
     },
@@ -89,7 +89,7 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
     {
       title: "৮. JSON-LD Structured Data",
       body: [
-        "Organization schema Google-কে BloodLink কী তা বোঝায় — logo, phone, social links দিন।",
+        "Organization schema Google-কে Muktosheba কী তা বোঝায় — logo, phone, social links দিন।",
         "Rich results test: https://search.google.com/test/rich-results",
       ],
     },
@@ -123,9 +123,9 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
 };
 
 export const SEO_GUIDE_EN: SeoGuideContent = {
-  title: "BloodLink Complete SEO Guide",
+  title: "Muktosheba Complete SEO Guide",
   intro:
-    "Use Admin → Settings → SEO to configure search and social previews. Good SEO helps people find BloodLink on Google/Bing and improves link shares on Facebook/WhatsApp.",
+    "Use Admin → Settings → SEO to configure search and social previews. Good SEO helps people find Muktosheba on Google/Bing and improves link shares on Facebook/WhatsApp.",
   checklist: [
     "Confirm Site URL: https://blood.pgdiary.cloud",
     "Write BN/EN titles (~55–60 chars) and descriptions (~150–160 chars)",
@@ -165,7 +165,7 @@ export const SEO_GUIDE_EN: SeoGuideContent = {
     {
       title: "4. Twitter Card",
       body: [
-        "summary_large_image shows a large image card — recommended for BloodLink.",
+        "summary_large_image shows a large image card — recommended for Muktosheba.",
         "Empty Twitter fields fall back to OG values.",
       ],
     },
@@ -196,7 +196,7 @@ export const SEO_GUIDE_EN: SeoGuideContent = {
     {
       title: "8. JSON-LD",
       body: [
-        "Organization schema tells search engines about BloodLink — logo, phone, social profiles.",
+        "Organization schema tells search engines about Muktosheba — logo, phone, social profiles.",
         "Test with Google Rich Results Test.",
       ],
     },

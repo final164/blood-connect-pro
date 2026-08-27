@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * BloodLink native shell — loads the live web app (design-identical).
+ * Muktosheba native shell — loads the live web app (design-identical).
  * Change CAP_SERVER_URL only via env at build time if needed.
  */
 const SERVER_URL =
@@ -9,7 +9,7 @@ const SERVER_URL =
 
 const config: CapacitorConfig = {
   appId: "app.bloodlink.care",
-  appName: "BloodLink",
+  appName: "Muktosheba",
   webDir: "www",
   // Remote URL keeps Lovable/web deploys in sync with zero UI drift.
   server: {
@@ -56,7 +56,7 @@ const config: CapacitorConfig = {
     backgroundColor: "#c1121f",
     contentInset: "automatic",
     preferredContentMode: "mobile",
-    scheme: "BloodLink",
+    scheme: "muktosheba",
   },
 };
 

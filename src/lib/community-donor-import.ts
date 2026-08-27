@@ -85,7 +85,7 @@ function mapAppProfileToDonor(p: AppProfileCommunityRow): CommunityDonorRow {
     source: "app",
     profile_id: p.id,
     community_orgs: {
-      name: "BloodLink",
+      name: "Muktosheba",
       name_bn: "অ্যাপ ইউজার",
       donor_contact_settings: undefined,
     },

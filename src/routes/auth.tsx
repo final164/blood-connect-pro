@@ -8,7 +8,7 @@ export const Route = createFileRoute("/auth")({
     next: isSafeNextPath(search.next) ? search.next : undefined,
   }),
   head: () => ({
-    meta: [{ title: "Sign in — BloodLink" }, { name: "robots", content: "noindex, nofollow" }],
+    meta: [{ title: "Sign in — Muktosheba" }, { name: "robots", content: "noindex, nofollow" }],
     links: [APP_STYLESHEET],
   }),
   component: AuthPage,

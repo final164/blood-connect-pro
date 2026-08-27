@@ -4,7 +4,7 @@ export type Lang = "bn" | "en";
 
 /** Fallback only — live copy comes from cms_strings (Admin → CMS) */
 const fallback: Record<string, { bn: string; en: string }> = {
-  appName: { bn: "BloodLink", en: "BloodLink" },
+  appName: { bn: "Muktosheba", en: "Muktosheba" },
   tagline: { bn: "রক্তদানে জীবন বাঁচান", en: "Save lives by donating blood" },
   login: { bn: "লগইন", en: "Log in" },
   signup: { bn: "সাইনআপ", en: "Sign up" },

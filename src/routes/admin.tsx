@@ -4,7 +4,7 @@ import { AdminPage } from "./-admin-page";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
-    meta: [{ title: "Admin — BloodLink" }, { name: "robots", content: "noindex, nofollow" }],
+    meta: [{ title: "Admin — Muktosheba" }, { name: "robots", content: "noindex, nofollow" }],
     links: [APP_STYLESHEET],
   }),
   component: AdminPage,

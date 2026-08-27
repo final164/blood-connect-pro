@@ -186,7 +186,7 @@ async function sendFcmLegacy(
 
 function displayCopy(record: NotifRecord, kind: string) {
   if (kind === "new_request" || record.type === "request_match") {
-    return { title: "নতুন রক্তের রিকোয়েস্ট", body: record.body || record.title || "BloodLink" };
+    return { title: "নতুন রক্তের রিকোয়েস্ট", body: record.body || record.title || "Muktosheba" };
   }
   if (["like", "request_like", "post_like"].includes(kind) || record.type === "post_like") {
     return { title: "নতুন লাইক", body: "আপনার পোস্টে লাইক দেওয়া হয়েছে" };
@@ -197,7 +197,7 @@ function displayCopy(record: NotifRecord, kind: string) {
   if (["share", "request_share"].includes(kind)) {
     return { title: "শেয়ার", body: "আপনার পোস্ট শেয়ার করা হয়েছে" };
   }
-  return { title: record.title || "BloodLink", body: record.body || "" };
+  return { title: record.title || "Muktosheba", body: record.body || "" };
 }
 
 function json(data: unknown, status = 200) {

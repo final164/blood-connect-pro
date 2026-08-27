@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrgRouteImport } from './routes/org'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -53,6 +55,11 @@ import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulan
 import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
 import { Route as AppAmbulanceInvoiceIdRouteImport } from './routes/_app.ambulance.invoice.$id'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -61,6 +68,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
   id: '/robots.txt',
   path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrgRoute = OrgRouteImport.update({
@@ -274,8 +286,10 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/org': typeof OrgRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/ambulance': typeof AppAmbulanceRouteWithChildren
   '/care': typeof AppCareRouteWithChildren
   '/chat': typeof AppChatRouteWithChildren
@@ -318,8 +332,10 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/org': typeof OrgRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/chat': typeof AppChatRouteWithChildren
   '/community': typeof AppCommunityRoute
   '/home': typeof AppHomeRoute
@@ -360,8 +376,10 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/org': typeof OrgRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/_app/ambulance': typeof AppAmbulanceRouteWithChildren
   '/_app/care': typeof AppCareRouteWithChildren
   '/_app/chat': typeof AppChatRouteWithChildren
@@ -406,8 +424,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/org'
+    | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/terms'
     | '/ambulance'
     | '/care'
     | '/chat'
@@ -450,8 +470,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/org'
+    | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/terms'
     | '/chat'
     | '/community'
     | '/home'
@@ -491,8 +513,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/org'
+    | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/terms'
     | '/_app/ambulance'
     | '/_app/care'
     | '/_app/chat'
@@ -537,14 +561,23 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   OrgRoute: typeof OrgRoute
+  PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   CareAuthRoute: typeof CareAuthRoute
   CarePortalRoute: typeof CarePortalRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -557,6 +590,13 @@ declare module '@tanstack/react-router' {
       path: '/robots.txt'
       fullPath: '/robots.txt'
       preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/org': {
@@ -988,8 +1028,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   OrgRoute: OrgRoute,
+  PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   CareAuthRoute: CareAuthRoute,
   CarePortalRoute: CarePortalRouteWithChildren,
 }

@@ -4,7 +4,7 @@ import { OrgPortalPage } from "./-org-page";
 
 export const Route = createFileRoute("/org")({
   head: () => ({
-    meta: [{ title: "Organization — BloodLink" }],
+    meta: [{ title: "Organization — Muktosheba" }],
     links: [APP_STYLESHEET],
   }),
   component: OrgPortalPage,

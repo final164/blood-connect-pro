@@ -60,7 +60,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" },
       { name: "theme-color", content: "#c1121f" },
-      { title: "BloodLink" },
+      { title: "Muktosheba" },
     ],
     links: [
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },

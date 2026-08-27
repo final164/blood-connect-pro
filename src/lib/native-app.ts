@@ -11,7 +11,7 @@ export const nativePlatform = () =>
   isNativeApp() ? Capacitor.getPlatform() : "web";
 
 const APP_HOST = "blood.pgdiary.cloud";
-const CUSTOM_SCHEME = "bloodlink";
+const CUSTOM_SCHEMES = ["muktosheba", "bloodlink"] as const;
 
 function sameAppHost(url: URL) {
   return url.hostname === APP_HOST || url.hostname.endsWith(".pgdiary.cloud");
@@ -19,9 +19,11 @@ function sameAppHost(url: URL) {
 
 function pathFromAppUrl(raw: string): string | null {
   try {
-    if (raw.startsWith(`${CUSTOM_SCHEME}://`)) {
-      const rest = raw.slice(`${CUSTOM_SCHEME}://`.length);
-      return rest.startsWith("/") ? rest : `/${rest}`;
+    for (const scheme of CUSTOM_SCHEMES) {
+      if (raw.startsWith(`${scheme}://`)) {
+        const rest = raw.slice(`${scheme}://`.length);
+        return rest.startsWith("/") ? rest : `/${rest}`;
+      }
     }
     const u = new URL(raw);
     if (sameAppHost(u)) return `${u.pathname}${u.search}${u.hash}`;
@@ -56,7 +58,7 @@ export async function nativeShare(opts: { title?: string; text?: string; url?: s
       title: opts.title,
       text: opts.text,
       url: opts.url,
-      dialogTitle: opts.title || "BloodLink",
+      dialogTitle: opts.title || "Muktosheba",
     });
     await nativeHapticLight();
     return true;
@@ -152,6 +154,7 @@ export async function initNativeApp(): Promise<void> {
     } catch {
       /* webview / older OS */
     }
+    
 
     try {
       await Keyboard.setScroll({ isDisabled: false });

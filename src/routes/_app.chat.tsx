@@ -19,7 +19,7 @@ import { Search } from "lucide-react";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 
 export const Route = createFileRoute("/_app/chat")({
-  head: () => ({ meta: [{ title: "Chat — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Chat — Muktosheba" }] }),
   loader: async ({ context }) => {
     const {
       data: { session },

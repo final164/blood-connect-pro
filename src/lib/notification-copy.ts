@@ -69,5 +69,5 @@ export function notificationCopy(
     if (isShare) return { title: `${name} shared your post`, body: null };
   }
 
-  return { title: n.title || "BloodLink", body: n.body || null };
+  return { title: n.title || "Muktosheba", body: n.body || null };
 }

@@ -248,8 +248,8 @@ export const DEFAULT_LANDING_CONTENT: Omit<
       image_url: LANDING_MEDIA.stories[1],
       title_bn: "মধ্যরাতে রিকোয়েস্ট",
       title_en: "A midnight request",
-      body_bn: "BloodLink নোটিফিকেশনে দেখে হাসপাতালে পৌঁছেছি — সময়মতো।",
-      body_en: "A BloodLink alert got me to the hospital in time.",
+      body_bn: "Muktosheba নোটিফিকেশনে দেখে হাসপাতালে পৌঁছেছি — সময়মতো।",
+      body_en: "A Muktosheba alert got me to the hospital in time.",
       link_url: "#faq",
       sort_order: 1,
       is_active: true,
@@ -327,12 +327,12 @@ export const DEFAULT_LANDING_CONTENT: Omit<
   faqs: [
     {
       id: "seed-faq-1",
-      question_bn: "BloodLink কী?",
-      question_en: "What is BloodLink?",
+      question_bn: "Muktosheba কী?",
+      question_en: "What is Muktosheba?",
       answer_bn:
-        "BloodLink একটি রিয়েলটাইম রক্তদাতা নেটওয়ার্ক — রিকোয়েস্ট পোস্ট করুন, কাছের ডোনার খুঁজুন, এবং নিরাপদে যোগাযোগ করুন।",
+        "Muktosheba একটি রিয়েলটাইম রক্তদাতা নেটওয়ার্ক — রিকোয়েস্ট পোস্ট করুন, কাছের ডোনার খুঁজুন, এবং নিরাপদে যোগাযোগ করুন।",
       answer_en:
-        "BloodLink is a realtime blood donor network — post requests, find nearby donors, and connect safely.",
+        "Muktosheba is a realtime blood donor network — post requests, find nearby donors, and connect safely.",
       sort_order: 0,
       is_active: true,
     },
@@ -352,9 +352,9 @@ export const DEFAULT_LANDING_CONTENT: Omit<
       question_bn: "কমিউনিটি সংস্থা কারা?",
       question_en: "What are community organizations?",
       answer_bn:
-        "জেলাভিত্তিক স্বেচ্ছাসেবী সংস্থা যারা ডোনার তালিকা ও রিকোয়েস্ট সমন্বয় করে — BloodLink-এ তারা অর্গ প্যানেল ব্যবহার করে।",
+        "জেলাভিত্তিক স্বেচ্ছাসেবী সংস্থা যারা ডোনার তালিকা ও রিকোয়েস্ট সমন্বয় করে — Muktosheba-এ তারা অর্গ প্যানেল ব্যবহার করে।",
       answer_en:
-        "District volunteer groups that coordinate donors and requests — they use the org panel on BloodLink.",
+        "District volunteer groups that coordinate donors and requests — they use the org panel on Muktosheba.",
       sort_order: 2,
       is_active: true,
     },

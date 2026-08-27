@@ -344,7 +344,7 @@ function sqlComment(lang: ExportLang, requests: number, contacts: number): strin
   const when = new Date().toISOString();
   if (lang === "bn") {
     return [
-      "-- BloodLink · সম্পূর্ণ রক্তের অনুরোধ এক্সপোর্ট (সব কলাম)",
+      "-- Muktosheba · সম্পূর্ণ রক্তের অনুরোধ এক্সপোর্ট (সব কলাম)",
       `-- তৈরি: ${when}`,
       `-- এনকোডিং: UTF-8`,
       `-- রিকোয়েস্ট: ${requests} · কন্টাক্ট: ${contacts}`,
@@ -353,7 +353,7 @@ function sqlComment(lang: ExportLang, requests: number, contacts: number): strin
     ].join("\n");
   }
   return [
-    "-- BloodLink · full blood requests export (all columns)",
+    "-- Muktosheba · full blood requests export (all columns)",
     `-- Generated: ${when}`,
     `-- Encoding: UTF-8`,
     `-- Requests: ${requests} · Contacts: ${contacts}`,
@@ -474,12 +474,12 @@ export function exportRequestsCsv(
   const contactHeaders = contactCols.map((k) => labelOf(CONTACT_LABELS, k, lang));
 
   const ts = stamp();
-  const filename = `bloodlink_requests_${ts}.csv`;
+  const filename = `Muktosheba_requests_${ts}.csv`;
   downloadBlob(csvBlob(buildCsvTable(headers, columns, reqRows)), filename);
 
   let contactsFilename: string | undefined;
   if (contactRows.length > 0) {
-    contactsFilename = `bloodlink_request_contacts_${ts}.csv`;
+    contactsFilename = `Muktosheba_request_contacts_${ts}.csv`;
     window.setTimeout(() => {
       downloadBlob(
         csvBlob(buildCsvTable(contactHeaders, contactCols, contactRows)),
@@ -554,7 +554,7 @@ export async function exportRequestsExcel(
   XLSX.utils.book_append_sheet(wb, wsCon, "Contacts");
   XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
-  const filename = `bloodlink_requests_${stamp()}.xlsx`;
+  const filename = `Muktosheba_requests_${stamp()}.xlsx`;
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   downloadBlob(
     new Blob([buf], {
@@ -579,7 +579,7 @@ export async function exportRequestsSummaryExcel(
   ws["!cols"] = [{ wch: 40 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, ws, "Summary");
 
-  const filename = `bloodlink_requests_summary_${stamp()}.xlsx`;
+  const filename = `Muktosheba_requests_summary_${stamp()}.xlsx`;
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   downloadBlob(
     new Blob([buf], {
@@ -653,7 +653,7 @@ export function exportRequestsSql(
   }
 
   lines.push("COMMIT;", "");
-  const filename = `bloodlink_requests_${stamp()}.sql`;
+  const filename = `Muktosheba_requests_${stamp()}.sql`;
   downloadBlob(
     new Blob([lines.join("\n")], { type: "application/sql;charset=utf-8" }),
     filename,

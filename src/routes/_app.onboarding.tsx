@@ -16,7 +16,7 @@ import { Droplet } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/onboarding")({
-  head: () => ({ meta: [{ title: "Complete profile — BloodLink" }] }),
+  head: () => ({ meta: [{ title: "Complete profile — Muktosheba" }] }),
   component: OnboardingPage,
 });
 

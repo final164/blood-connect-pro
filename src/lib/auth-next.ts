@@ -67,7 +67,8 @@ export function isGuestBrowsePath(
   return false;
 }
 
-const AI_CHAT_DRAFT_KEY = "bloodlink:ai-chat-draft";
+const AI_CHAT_DRAFT_KEY = "muktosheba:ai-chat-draft";
+const AI_CHAT_DRAFT_LEGACY_KEYS = ["bloodlink:ai-chat-draft", "Muktosheba:ai-chat-draft"];
 
 /** Persist chat draft across login redirect (text only; path scopes restore). */
 export function saveAiChatDraft(path: string, text: string) {
@@ -85,15 +86,26 @@ export function saveAiChatDraft(path: string, text: string) {
 export function consumeAiChatDraft(path: string): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(AI_CHAT_DRAFT_KEY);
+    let raw = sessionStorage.getItem(AI_CHAT_DRAFT_KEY);
+    let usedKey = AI_CHAT_DRAFT_KEY;
+    if (!raw) {
+      for (const k of AI_CHAT_DRAFT_LEGACY_KEYS) {
+        raw = sessionStorage.getItem(k);
+        if (raw) {
+          usedKey = k;
+          break;
+        }
+      }
+    }
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { path?: string; text?: string; at?: number };
     if (parsed.path !== path || typeof parsed.text !== "string" || !parsed.text.trim()) return null;
     if (typeof parsed.at === "number" && Date.now() - parsed.at > 30 * 60 * 1000) {
-      sessionStorage.removeItem(AI_CHAT_DRAFT_KEY);
+      sessionStorage.removeItem(usedKey);
       return null;
     }
-    sessionStorage.removeItem(AI_CHAT_DRAFT_KEY);
+    sessionStorage.removeItem(usedKey);
+    for (const k of AI_CHAT_DRAFT_LEGACY_KEYS) sessionStorage.removeItem(k);
     return parsed.text.trim();
   } catch {
     return null;

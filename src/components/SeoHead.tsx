@@ -92,7 +92,7 @@ export function SeoHeadUpdater({ seo, lang }: { seo: SeoSettings; lang: "bn" | "
     }
 
     const jsonLd = buildJsonLd(seo, lang, origin);
-    upsertJsonLd("bloodlink-seo-jsonld", jsonLd);
+    upsertJsonLd("Muktosheba-seo-jsonld", jsonLd);
   }, [seo, lang]);
 
   return null;
@@ -104,7 +104,7 @@ export function SeoJsonLd({ seo, lang }: { seo: SeoSettings; lang: "bn" | "en" }
   if (!data) return null;
   return (
     <script
-      id="bloodlink-seo-jsonld-ssr"
+      id="Muktosheba-seo-jsonld-ssr"
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
@@ -131,11 +131,11 @@ export function LandingSeoJsonLd({
   const entries = buildLandingJsonLd(seo, lang, origin, faqs, quotes, islamic);
 
   useEffect(() => {
-    syncJsonLdScripts("bloodlink-landing-jsonld", entries);
+    syncJsonLdScripts("Muktosheba-landing-jsonld", entries);
     return () => {
       if (typeof document === "undefined") return;
       Array.from(
-        document.head.querySelectorAll(`script[data-seo-prefix="bloodlink-landing-jsonld"]`),
+        document.head.querySelectorAll(`script[data-seo-prefix="Muktosheba-landing-jsonld"]`),
       ).forEach((el) => el.remove());
     };
   }, [entries]);
@@ -145,7 +145,7 @@ export function LandingSeoJsonLd({
       {entries.map((entry, index) => (
         <script
           key={index}
-          id={`bloodlink-landing-jsonld-ssr-${index}`}
+          id={`Muktosheba-landing-jsonld-ssr-${index}`}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(entry) }}
         />

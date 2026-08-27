@@ -168,7 +168,7 @@ export function SeoAdmin() {
         <Field label={lang === "bn" ? "সাইট URL" : "Site URL"}>
           <input
             className={ainp}
-            placeholder="https://bloodlink.example.com"
+            placeholder="https://muktosheba.example.com"
             value={s.site_url}
             onChange={(e) => setS({ ...s, site_url: e.target.value })}
           />
@@ -191,7 +191,7 @@ export function SeoAdmin() {
           <Field label={lang === "bn" ? "Title টেমপ্লেট" : "Title template"}>
             <input
               className={ainp}
-              placeholder="%s — BloodLink"
+              placeholder="%s — Muktosheba"
               value={s.title_template}
               onChange={(e) => setS({ ...s, title_template: e.target.value })}
             />

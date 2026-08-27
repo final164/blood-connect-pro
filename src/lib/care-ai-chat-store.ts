@@ -1,7 +1,11 @@
 /** Client-only multi-thread AI chat — one device key (no userId split / no server). */
 
-const DEVICE_KEY = "bloodlink:care-ai-chats:device";
-const LEGACY_PREFIX = "bloodlink:care-ai-chat:";
+const DEVICE_KEY = "muktosheba:care-ai-chats:device";
+const LEGACY_PREFIXES = ["muktosheba:care-ai-chat:", "bloodlink:care-ai-chat:", "Muktosheba:care-ai-chat:"];
+const LEGACY_DEVICE_KEYS = [
+  "bloodlink:care-ai-chats:device",
+  "Muktosheba:care-ai-chats:device",
+];
 const VERSION = 2;
 const DEFAULT_MAX_AGE_DAYS = 7;
 const MAX_MESSAGES = 40;
@@ -408,9 +412,15 @@ function mergeLibraries(libs: CareAiChatLibrary[], persistDays: number): CareAiC
 function collectLegacyLibraries(persistDays: number): CareAiChatLibrary[] {
   const out: CareAiChatLibrary[] = [];
   try {
+    for (const key of LEGACY_DEVICE_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const lib = parseAny(raw, persistDays);
+      if (lib.threads.length) out.push(lib);
+    }
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key || !key.startsWith(LEGACY_PREFIX)) continue;
+      if (!key || !LEGACY_PREFIXES.some((p) => key.startsWith(p))) continue;
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       const lib = parseAny(raw, persistDays);
@@ -424,10 +434,10 @@ function collectLegacyLibraries(persistDays: number): CareAiChatLibrary[] {
 
 function clearLegacyKeys() {
   try {
-    const keys: string[] = [];
+    const keys: string[] = [...LEGACY_DEVICE_KEYS];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key?.startsWith(LEGACY_PREFIX)) keys.push(key);
+      if (key && LEGACY_PREFIXES.some((p) => key.startsWith(p))) keys.push(key);
     }
     for (const key of keys) localStorage.removeItem(key);
   } catch {

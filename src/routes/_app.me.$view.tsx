@@ -3,7 +3,7 @@ import { ActivityFeedPage, isActivityView } from "@/components/menu/ActivityFeed
 
 export const Route = createFileRoute("/_app/me/$view")({
   head: ({ params }) => ({
-    meta: [{ title: `${params.view} — BloodLink` }],
+    meta: [{ title: `${params.view} — Muktosheba` }],
   }),
   beforeLoad: ({ params }) => {
     if (!isActivityView(params.view)) {
