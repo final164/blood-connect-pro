@@ -3,15 +3,28 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { isSafeNextPath } from "@/lib/auth-next";
-import { clampPhoneDigits, isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
+import { isValidPhone, isValidPin, normalizePhone } from "@/lib/phone-auth";
 import {
   authErrorMessage,
   loginAsDefaultAdmin,
   loginWithPhonePin,
-  registerWithPhonePin,
 } from "@/lib/phone-session";
+import {
+  PASSWORD_MIN,
+  USERNAME_MAX,
+  emailAuthErrorMessage,
+  isUsernameAvailable,
+  isValidEmail,
+  isValidUsername,
+  loginWithEmailPassword,
+  normalizeUsername,
+  registerWithEmailPassword,
+} from "@/lib/email-auth";
+import { signInWithGoogle } from "@/lib/google-auth";
+import { GoogleButton } from "@/components/auth/GoogleButton";
+import { PhoneField } from "@/components/auth/PhoneField";
 import { toast } from "sonner";
-import { Droplet, Loader2, Shield } from "lucide-react";
+import { Check, Droplet, Loader2, Shield, X } from "lucide-react";
 
 type Mode = "login" | "signup" | "admin";
 
@@ -55,18 +68,29 @@ function authContinueHint(next: string | undefined, lang: "bn" | "en"): string |
     : "Sign in to continue where you left off.";
 }
 
+type UsernameState = "idle" | "checking" | "free" | "taken" | "invalid";
+
 export function AuthPage() {
   const { t, lang, setLang } = useI18n();
   const { session, loading, isAnonymous, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { next } = authRoute.useSearch();
   const continueHint = authContinueHint(next, lang);
+  const bn = lang === "bn";
+
   const [mode, setMode] = useState<Mode>("login");
+  const [usePhonePin, setUsePhonePin] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameState, setUsernameState] = useState<UsernameState>("idle");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (loading || !session || isAnonymous) return;
@@ -74,65 +98,104 @@ export function AuthPage() {
     void navigate(dest);
   }, [session, loading, isAnonymous, isAdmin, mode, navigate, next]);
 
+  // Debounced username availability check — signup only.
+  useEffect(() => {
+    if (mode !== "signup" || usePhonePin) return;
+    const u = normalizeUsername(username);
+    if (!u) {
+      setUsernameState("idle");
+      return;
+    }
+    if (!isValidUsername(u)) {
+      setUsernameState("invalid");
+      return;
+    }
+    setUsernameState("checking");
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void isUsernameAvailable(u)
+        .then((free) => {
+          if (!cancelled) setUsernameState(free ? "free" : "taken");
+        })
+        .catch(() => {
+          if (!cancelled) setUsernameState("idle");
+        });
+    }, 450);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [username, mode, usePhonePin]);
+
+  async function submitPhonePin() {
+    const normalized = normalizePhone(phone);
+    if (!isValidPhone(normalized)) {
+      toast.error(bn ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)" : "Enter a valid mobile number (01XXXXXXXXX)");
+      return;
+    }
+    if (!isValidPin(pin)) {
+      toast.error(bn ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
+      return;
+    }
+    if (mode === "admin") {
+      await loginAsDefaultAdmin({ phone: normalized, pin });
+      void navigate(resumePath(next, "/admin"));
+      return;
+    }
+    await loginWithPhonePin({ phone: normalized, pin });
+    void navigate(resumePath(next, "/home"));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      const normalized = normalizePhone(phone);
-      if (!isValidPhone(normalized)) {
-        toast.error(
-          lang === "bn"
-            ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)"
-            : "Enter a valid mobile number (01XXXXXXXXX)",
-        );
-        return;
-      }
-      if (!isValidPin(pin)) {
-        toast.error(lang === "bn" ? "৪ সংখ্যার PIN দিন" : "Enter a 4-digit PIN");
+      if (mode === "admin" || usePhonePin) {
+        await submitPhonePin();
         return;
       }
 
       if (mode === "signup") {
-        if (pin !== confirmPin) {
-          toast.error(lang === "bn" ? "PIN মিলছে না" : "PINs do not match");
-          return;
-        }
-        const result = await registerWithPhonePin({
-          phone: normalized,
-          pin,
-          confirmPin,
-          fullName: name.trim() || normalized,
+        await registerWithEmailPassword({
+          fullName: name,
+          username,
+          email,
+          password,
+          confirmPassword,
         });
-        toast.success(
-          result.exists
-            ? lang === "bn"
-              ? "লগইন হয়েছে"
-              : "Signed in"
-            : lang === "bn"
-              ? "অ্যাকাউন্ট তৈরি হয়েছে"
-              : "Account created",
-        );
+        toast.success(bn ? "অ্যাকাউন্ট তৈরি হয়েছে" : "Account created");
         void navigate(resumePath(next, "/home"));
         return;
       }
 
-      if (mode === "admin") {
-        await loginAsDefaultAdmin({ phone: normalized, pin });
-        void navigate(resumePath(next, "/admin"));
-        return;
-      }
-
-      await loginWithPhonePin({ phone: normalized, pin });
+      await loginWithEmailPassword({ email, password });
       void navigate(resumePath(next, "/home"));
     } catch (err) {
       const raw = (err as Error)?.message || String(err);
-      toast.error(authErrorMessage(raw, lang));
-      if (raw === "ACCOUNT_EXISTS_WRONG_PIN" || /ACCOUNT_EXISTS_WRONG_PIN/.test(raw))
-        setMode("login");
+      toast.error(
+        mode === "admin" || usePhonePin
+          ? authErrorMessage(raw, lang)
+          : emailAuthErrorMessage(raw, lang),
+      );
+      if (/ACCOUNT_EXISTS_WRONG_PIN/.test(raw)) setMode("login");
+      if (/EMAIL_TAKEN/.test(raw)) setMode("login");
     } finally {
       setBusy(false);
     }
   }
+
+  const emailFormReady =
+    mode === "signup"
+      ? name.trim().length > 0 &&
+        usernameState === "free" &&
+        isValidEmail(email) &&
+        password.length >= PASSWORD_MIN &&
+        confirmPassword.length >= PASSWORD_MIN
+      : isValidEmail(email) && password.length > 0;
+
+  const phoneFormReady = phone.replace(/\D/g, "").length === 11 && pin.length === 4;
+
+  const submitDisabled = busy || (mode === "admin" || usePhonePin ? !phoneFormReady : !emailFormReady);
 
   return (
     <div className="min-h-dvh flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/15 via-background to-background">
@@ -157,7 +220,7 @@ export function AuthPage() {
                 [
                   ["login", t("login")],
                   ["signup", t("signup")],
-                  ["admin", lang === "bn" ? "অ্যাডমিন" : "Admin"],
+                  ["admin", bn ? "অ্যাডমিন" : "Admin"],
                 ] as const
               ).map(([m, label]) => (
                 <button
@@ -165,9 +228,8 @@ export function AuthPage() {
                   type="button"
                   onClick={() => {
                     setMode(m);
-                    setConfirmPin("");
-                    setName("");
-                    // Admin: empty inputs — user types phone/PIN (no prefilled credentials)
+                    setUsePhonePin(false);
+                    setConfirmPassword("");
                     if (m === "admin") {
                       setPhone("");
                       setPin("");
@@ -189,52 +251,143 @@ export function AuthPage() {
               ))}
             </div>
 
-            <form onSubmit={(e) => void submit(e)} className="space-y-3">
-              {mode === "signup" && (
-                <Field label={t("fullName")} value={name} onChange={setName} required />
-              )}
-              <PhoneField label={t("phone")} value={phone} onChange={setPhone} lang={lang} />
-              <PinField
-                label={lang === "bn" ? "৪ সংখ্যার PIN" : "4-digit PIN"}
-                value={pin}
-                onChange={setPin}
-              />
-              {mode === "signup" && (
-                <PinField
-                  label={lang === "bn" ? "PIN নিশ্চিত করুন" : "Confirm PIN"}
-                  value={confirmPin}
-                  onChange={setConfirmPin}
+            {mode !== "admin" && !usePhonePin && (
+              <>
+                <GoogleButton
+                  label={bn ? "Google দিয়ে চালিয়ে যান" : "Continue with Google"}
+                  onClick={() => signInWithGoogle(next)}
+                  disabled={busy}
                 />
+                <div className="my-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {bn ? "অথবা" : "or"}
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+              </>
+            )}
+
+            <form onSubmit={(e) => void submit(e)} className="space-y-3">
+              {mode === "admin" || usePhonePin ? (
+                <>
+                  <PhoneField label={t("phone")} value={phone} onChange={setPhone} lang={lang} />
+                  <PinField
+                    label={bn ? "৪ সংখ্যার PIN" : "4-digit PIN"}
+                    value={pin}
+                    onChange={setPin}
+                  />
+                </>
+              ) : (
+                <>
+                  {mode === "signup" && (
+                    <>
+                      <Field
+                        label={t("fullName")}
+                        value={name}
+                        onChange={setName}
+                        autoComplete="name"
+                        required
+                      />
+                      <UsernameField
+                        value={username}
+                        onChange={(v) => setUsername(normalizeUsername(v))}
+                        state={usernameState}
+                        lang={lang}
+                      />
+                    </>
+                  )}
+                  <Field
+                    label={bn ? "ইমেইল" : "Email"}
+                    value={email}
+                    onChange={setEmail}
+                    type="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                  />
+                  <Field
+                    label={bn ? "পাসওয়ার্ড" : "Password"}
+                    value={password}
+                    onChange={setPassword}
+                    type="password"
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    required
+                  />
+                  {mode === "signup" && (
+                    <Field
+                      label={bn ? "পাসওয়ার্ড নিশ্চিত করুন" : "Confirm password"}
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                    />
+                  )}
+                  {mode === "signup" && (
+                    <p className="text-[10px] text-muted-foreground">
+                      {bn
+                        ? `পাসওয়ার্ড কমপক্ষে ${PASSWORD_MIN} অক্ষরের হতে হবে`
+                        : `Password must be at least ${PASSWORD_MIN} characters`}
+                    </p>
+                  )}
+                </>
               )}
+
               <button
                 type="submit"
-                disabled={
-                  busy ||
-                  phone.replace(/\D/g, "").length !== 11 ||
-                  pin.length !== 4 ||
-                  (mode === "signup" && confirmPin.length !== 4)
-                }
+                disabled={submitDisabled}
                 className="w-full rounded-2xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-primary/25 hover:brightness-105 transition"
               >
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 {mode === "signup"
                   ? t("createAccount")
                   : mode === "admin"
-                    ? lang === "bn"
+                    ? bn
                       ? "অ্যাডমিন প্রবেশ"
                       : "Admin enter"
                     : t("login")}
               </button>
             </form>
+
+            {mode === "login" && !usePhonePin && (
+              <div className="mt-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => void navigate({ to: "/auth/forgot" })}
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  {bn ? "পাসওয়ার্ড ভুলে গেছেন?" : "Forgot your password?"}
+                </button>
+              </div>
+            )}
+
+            {mode === "login" && (
+              <div className="mt-4 border-t border-border/70 pt-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => setUsePhonePin((v) => !v)}
+                  className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline hover:text-foreground"
+                >
+                  {usePhonePin
+                    ? bn
+                      ? "ইমেইল দিয়ে লগইন করুন"
+                      : "Log in with email instead"
+                    : bn
+                      ? "পুরোনো অ্যাকাউন্ট? ফোন ও PIN দিয়ে লগইন করুন"
+                      : "Existing account? Log in with phone and PIN"}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-5 text-center">
             <button
               type="button"
-              onClick={() => setLang(lang === "bn" ? "en" : "bn")}
+              onClick={() => setLang(bn ? "en" : "bn")}
               className="text-xs text-muted-foreground underline-offset-2 hover:underline"
             >
-              {lang === "bn" ? "English" : "বাংলা"}
+              {bn ? "English" : "বাংলা"}
             </button>
           </div>
         </div>
@@ -243,82 +396,50 @@ export function AuthPage() {
   );
 }
 
-function PhoneField({
-  label,
+function UsernameField({
   value,
   onChange,
+  state,
   lang,
-  readOnly,
 }: {
-  label: string;
   value: string;
   onChange: (v: string) => void;
+  state: UsernameState;
   lang: "bn" | "en";
-  readOnly?: boolean;
 }) {
-  const len = value.replace(/\D/g, "").length;
+  const bn = lang === "bn";
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
-        <span
-          className={`text-[10px] font-mono tabular-nums ${
-            len === 11 ? "text-emerald-600" : "text-muted-foreground"
-          }`}
-        >
-          {len}/11
-        </span>
+        <label className="text-[11px] font-medium text-muted-foreground">
+          {bn ? "ইউজারনেম" : "Username"}
+        </label>
+        {state === "checking" && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        {state === "free" && <Check className="h-3.5 w-3.5 text-emerald-600" />}
+        {state === "taken" && <X className="h-3.5 w-3.5 text-destructive" />}
       </div>
-      <input
-        className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 font-mono tracking-wide"
-        type="tel"
-        inputMode="numeric"
-        autoComplete="tel"
-        maxLength={11}
-        value={value}
-        placeholder="01712345678"
-        readOnly={readOnly}
-        required
-        onChange={(e) => onChange(clampPhoneDigits(e.target.value))}
-        onPaste={(e) => {
-          e.preventDefault();
-          const text = e.clipboardData.getData("text") || "";
-          onChange(clampPhoneDigits(text));
-        }}
-        onKeyDown={(e) => {
-          // Block non-digit keys (allow control/nav)
-          if (
-            e.ctrlKey ||
-            e.metaKey ||
-            e.altKey ||
-            [
-              "Backspace",
-              "Delete",
-              "Tab",
-              "Enter",
-              "ArrowLeft",
-              "ArrowRight",
-              "Home",
-              "End",
-            ].includes(e.key)
-          ) {
-            return;
-          }
-          if (!/^\d$/.test(e.key)) {
-            e.preventDefault();
-            return;
-          }
-          if (value.replace(/\D/g, "").length >= 11 && !e.key.match(/^(Backspace|Delete)$/)) {
-            // Selection replace is ok; otherwise block extra digit
-            const el = e.currentTarget;
-            const hasSelection = (el.selectionEnd ?? 0) > (el.selectionStart ?? 0);
-            if (!hasSelection) e.preventDefault();
-          }
-        }}
-      />
-      {len > 0 && len < 11 && (
+      <div className="flex items-center rounded-xl border bg-background focus-within:ring-2 focus-within:ring-primary/30">
+        <span className="pl-3 text-sm text-muted-foreground">@</span>
+        <input
+          className="w-full bg-transparent px-2 py-3 text-sm outline-none"
+          value={value}
+          maxLength={USERNAME_MAX}
+          autoComplete="username"
+          placeholder={bn ? "rahim_bd" : "rahim_bd"}
+          onChange={(e) => onChange(e.target.value)}
+          required
+        />
+      </div>
+      {state === "invalid" && (
         <p className="mt-1 text-[10px] text-amber-600/90">
-          {lang === "bn" ? "ঠিক ১১ সংখ্যার মোবাইল নম্বর দিন" : "Enter exactly 11 digits"}
+          {bn
+            ? "ছোট হাতের অক্ষর, সংখ্যা ও _ চলবে — শুরুতে অক্ষর, ৩-২০ অক্ষর"
+            : "Lowercase letters, numbers and _ only — must start with a letter, 3-20 characters"}
+        </p>
+      )}
+      {state === "taken" && (
+        <p className="mt-1 text-[10px] text-destructive">
+          {bn ? "এই ইউজারনেম নেওয়া হয়ে গেছে" : "That username is taken"}
         </p>
       )}
     </div>
@@ -342,7 +463,7 @@ function Field({
   required?: boolean;
   placeholder?: string;
   autoComplete?: string;
-  inputMode?: "numeric" | "tel" | "text";
+  inputMode?: "numeric" | "tel" | "text" | "email";
 }) {
   return (
     <div>
@@ -382,11 +503,7 @@ function PinField({
         placeholder="••••"
         onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
         required
-        autoComplete={
-          label.includes("Confirm") || label.includes("নিশ্চিত")
-            ? "new-password"
-            : "current-password"
-        }
+        autoComplete="current-password"
       />
     </div>
   );

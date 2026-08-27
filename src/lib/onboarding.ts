@@ -1,3 +1,5 @@
+import { isValidPhone } from "@/lib/phone-auth";
+
 /** Required fields after first registration before using the app */
 export type OnboardingProfile = {
   blood_group?: string | null;
@@ -5,8 +7,13 @@ export type OnboardingProfile = {
   district_id?: string | null;
   area?: string | null;
   date_of_birth?: string | null;
+  phone?: string | null;
 } | null;
 
+/**
+ * Phone is required even though it is not a login credential any more:
+ * community donor discovery and org donation-history matching both key off it.
+ */
 export function isProfileComplete(profile: OnboardingProfile): boolean {
   if (!profile) return false;
   const gender = (profile.gender ?? "").trim().toLowerCase();
@@ -14,7 +21,8 @@ export function isProfileComplete(profile: OnboardingProfile): boolean {
     profile.blood_group &&
     (gender === "male" || gender === "female") &&
     profile.district_id &&
-    (profile.area ?? "").trim()
+    (profile.area ?? "").trim() &&
+    isValidPhone(profile.phone ?? "")
   );
 }
 

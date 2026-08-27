@@ -107,6 +107,101 @@ export const signupWithPhone = createServerFn({ method: "POST" })
     return { ok: true as const, exists: false as const };
   });
 
+type EmailSignupInput = {
+  fullName: string;
+  username: string;
+  email: string;
+  password: string;
+};
+
+const USERNAME_RE = /^[a-z][a-z0-9_]{2,19}$/;
+
+/**
+ * Username lookup runs server-side because the profiles SELECT policy is
+ * `TO authenticated` — an anonymous visitor on the signup form cannot read it.
+ */
+export const checkUsernameAvailable = createServerFn({ method: "POST" })
+  .validator((data: { username: string }) => ({
+    username: String(data?.username ?? "").trim().toLowerCase(),
+  }))
+  .handler(async ({ data }) => {
+    if (!USERNAME_RE.test(data.username)) return { available: false as const };
+    const admin = adminClient();
+    const { data: row } = await admin
+      .from("profiles")
+      .select("id")
+      .ilike("username", data.username)
+      .maybeSingle();
+    return { available: !row };
+  });
+
+/**
+ * Creates an email/password account via Auth Admin API with email_confirm: true,
+ * so no confirmation email is sent (Supabase email confirmations are disabled).
+ */
+export const signupWithEmailPassword = createServerFn({ method: "POST" })
+  .validator((data: EmailSignupInput) => {
+    const fullName = String(data?.fullName ?? "").trim();
+    const username = String(data?.username ?? "").trim().toLowerCase();
+    const email = String(data?.email ?? "").trim().toLowerCase();
+    const password = String(data?.password ?? "");
+    if (!fullName) throw new Error("NAME_REQUIRED");
+    if (!USERNAME_RE.test(username)) throw new Error("INVALID_USERNAME");
+    if (!/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email)) throw new Error("INVALID_EMAIL");
+    if (password.length < 8) throw new Error("WEAK_PASSWORD");
+    return { fullName, username, email, password };
+  })
+  .handler(async ({ data }) => {
+    const admin = adminClient();
+
+    const { data: taken } = await admin
+      .from("profiles")
+      .select("id")
+      .ilike("username", data.username)
+      .maybeSingle();
+    if (taken) throw new Error("USERNAME_TAKEN");
+
+    const { data: created, error } = await admin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: data.fullName, username: data.username },
+    });
+
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (
+        msg.includes("already") ||
+        msg.includes("registered") ||
+        msg.includes("exists") ||
+        msg.includes("duplicate")
+      ) {
+        throw new Error("EMAIL_TAKEN");
+      }
+      throw new Error(error.message);
+    }
+
+    const userId = created.user?.id;
+    if (!userId) throw new Error("Could not create user");
+
+    const { error: profileErr } = await admin.from("profiles").upsert({
+      id: userId,
+      full_name: data.fullName,
+      username: data.username,
+    });
+    if (profileErr) {
+      // Username lost a race between the check above and the insert — undo the
+      // half-made account so the user can retry instead of being locked out.
+      if (/username/i.test(profileErr.message)) {
+        await admin.auth.admin.deleteUser(userId);
+        throw new Error("USERNAME_TAKEN");
+      }
+      throw new Error(profileErr.message);
+    }
+
+    return { ok: true as const, userId };
+  });
+
 /**
  * Ensures the default admin phone account exists, PIN is set, and admin role is granted.
  */

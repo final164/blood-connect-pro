@@ -5,6 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { ProfileToggle as Toggle } from "@/components/profile/ProfileToggle";
 import { ChangePinSheet } from "@/components/settings/ChangePinSheet";
+import { ChangePasswordSheet } from "@/components/settings/ChangePasswordSheet";
+import { isPhoneAuthUser } from "@/lib/email-auth";
 import { ReportProblemSheet } from "@/components/settings/ReportProblemSheet";
 import { ShieldCheck, Globe, Bell, LogOut, KeyRound, ChevronRight, Flag, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -39,8 +41,13 @@ function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [dark, setDark] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [userPhone, setUserPhone] = useState("");
+
+  const phoneAccount = isPhoneAuthUser(user?.email);
+  // Google-only accounts have exactly one identity and it isn't "email".
+  const hasPassword = (user?.identities ?? []).some((i) => i.provider === "email");
 
   useEffect(() => {
     if (openReportFromSearch) {
@@ -178,12 +185,22 @@ function SettingsPage() {
           />
           <button
             type="button"
-            onClick={() => setPinOpen(true)}
+            onClick={() => (phoneAccount ? setPinOpen(true) : setPasswordOpen(true))}
             className="w-full flex items-center justify-between rounded-xl border bg-card px-3 py-3 hover:bg-muted/50 transition"
           >
             <span className="flex items-center gap-2 text-sm">
               <KeyRound className="h-4 w-4 text-primary" />
-              {lang === "bn" ? "PIN পরিবর্তন" : "Change PIN"}
+              {phoneAccount
+                ? lang === "bn"
+                  ? "PIN পরিবর্তন"
+                  : "Change PIN"
+                : hasPassword
+                  ? lang === "bn"
+                    ? "পাসওয়ার্ড পরিবর্তন"
+                    : "Change password"
+                  : lang === "bn"
+                    ? "পাসওয়ার্ড সেট করুন"
+                    : "Set a password"}
             </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
@@ -230,12 +247,23 @@ function SettingsPage() {
         <p className="text-center text-[10px] text-muted-foreground">v1.0 · Muktosheba</p>
       </div>
 
-      {user && (
+      {user && phoneAccount && (
         <ChangePinSheet
           open={pinOpen}
           onClose={() => setPinOpen(false)}
           userId={user.id}
           phone={userPhone}
+          lang={lang}
+          t={t}
+        />
+      )}
+
+      {user && !phoneAccount && (
+        <ChangePasswordSheet
+          open={passwordOpen}
+          onClose={() => setPasswordOpen(false)}
+          email={user.email ?? ""}
+          hasPassword={hasPassword}
           lang={lang}
           t={t}
         />

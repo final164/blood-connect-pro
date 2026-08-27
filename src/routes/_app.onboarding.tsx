@@ -12,6 +12,9 @@ import {
   dateOfBirthFromAge,
   isProfileComplete,
 } from "@/lib/onboarding";
+import { isValidPhone, normalizePhone } from "@/lib/phone-auth";
+import { resolveFreeUsername } from "@/lib/email-auth";
+import { PhoneField } from "@/components/auth/PhoneField";
 import { Droplet } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,6 +34,8 @@ function OnboardingPage() {
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
   const [age, setAge] = useState("");
+  const [phone, setPhone] = useState("");
+  const [existingUsername, setExistingUsername] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -42,6 +47,8 @@ function OnboardingPage() {
         void navigate({ to: "/home" });
         return;
       }
+      if (data?.phone) setPhone(normalizePhone(data.phone));
+      setExistingUsername((data as { username?: string | null } | null)?.username ?? null);
       if (data?.blood_group) setBloodGroup(data.blood_group);
       const g = (data?.gender ?? "").toLowerCase();
       if (g === "male" || g === "female") setGender(g);
@@ -65,6 +72,13 @@ function OnboardingPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const normalizedPhone = normalizePhone(phone);
+    if (!isValidPhone(normalizedPhone))
+      return toast.error(
+        lang === "bn"
+          ? "সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)"
+          : "Enter a valid mobile number (01XXXXXXXXX)",
+      );
     if (!bloodGroup) return toast.error(lang === "bn" ? "রক্তের গ্রুপ দিন" : "Select blood group");
     if (!gender) return toast.error(lang === "bn" ? "লিঙ্গ সিলেক্ট করুন" : "Select gender");
     if (!district) return toast.error(lang === "bn" ? "জেলা সিলেক্ট করুন" : "Select district");
@@ -77,6 +91,7 @@ function OnboardingPage() {
 
     setBusy(true);
     const payload: Record<string, unknown> = {
+      phone: normalizedPhone,
       blood_group: bloodGroup,
       gender,
       district_id: district.id,
@@ -86,9 +101,26 @@ function OnboardingPage() {
     const dob = ageNum != null ? dateOfBirthFromAge(ageNum) : null;
     if (dob) payload.date_of_birth = dob;
 
+    // Google and legacy phone accounts arrive without a username — derive one
+    // rather than making it another field the user has to fill in.
+    if (!existingUsername) {
+      try {
+        payload.username = await resolveFreeUsername(
+          user.user_metadata?.full_name || user.email || normalizedPhone,
+        );
+      } catch {
+        /* leave username unset; profile edit can set it later */
+      }
+    }
+
     const { error } = await supabase.from("profiles").update(payload).eq("id", user.id);
     setBusy(false);
     if (error) return toast.error(error.message);
+
+    // Now that a phone exists, pull in any donation history an organisation
+    // imported for this number before the user signed up.
+    void supabase.rpc("link_org_donor_history_to_profile").then(undefined, () => {});
+
     toast.success(t("saved"));
     void navigate({ to: "/home" });
   }
@@ -116,6 +148,15 @@ function OnboardingPage() {
           </div>
 
           <form onSubmit={submit} className="space-y-4">
+            <div>
+              <PhoneField label={t("phone")} value={phone} onChange={setPhone} lang={lang} />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {lang === "bn"
+                  ? "রক্তদাতা হিসেবে আপনাকে খুঁজে পেতে নম্বরটি দরকার।"
+                  : "Needed so people can reach you as a donor."}
+              </p>
+            </div>
+
             <Field label={t("bloodGroup")} required>
               <div className="grid grid-cols-4 gap-2">
                 {BLOOD_GROUPS.map((g) => (

@@ -20,6 +20,9 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CarePortalRouteImport } from './routes/care.portal'
 import { Route as CareAuthRouteImport } from './routes/care.auth'
+import { Route as AuthResetRouteImport } from './routes/auth_.reset'
+import { Route as AuthForgotRouteImport } from './routes/auth_.forgot'
+import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppRequestsRouteImport } from './routes/_app.requests'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -107,6 +110,21 @@ const CarePortalRoute = CarePortalRouteImport.update({
 const CareAuthRoute = CareAuthRouteImport.update({
   id: '/care/auth',
   path: '/care/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetRoute = AuthResetRouteImport.update({
+  id: '/auth_/reset',
+  path: '/auth/reset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthForgotRoute = AuthForgotRouteImport.update({
+  id: '/auth_/forgot',
+  path: '/auth/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth_/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -301,6 +319,9 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AppProfileRouteWithChildren
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/reset': typeof AuthResetRoute
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
   '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
@@ -344,6 +365,9 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AppOnboardingRoute
   '/requests': typeof AppRequestsRoute
   '/settings': typeof AppSettingsRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/reset': typeof AuthResetRoute
   '/care/auth': typeof CareAuthRoute
   '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/care/ai-tests': typeof AppCareAiTestsRoute
@@ -391,6 +415,9 @@ export interface FileRoutesById {
   '/_app/profile': typeof AppProfileRouteWithChildren
   '/_app/requests': typeof AppRequestsRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/auth_/callback': typeof AuthCallbackRoute
+  '/auth_/forgot': typeof AuthForgotRoute
+  '/auth_/reset': typeof AuthResetRoute
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
   '/_app/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
@@ -439,6 +466,9 @@ export interface FileRouteTypes {
     | '/profile'
     | '/requests'
     | '/settings'
+    | '/auth/callback'
+    | '/auth/forgot'
+    | '/auth/reset'
     | '/care/auth'
     | '/care/portal'
     | '/ambulance/request'
@@ -482,6 +512,9 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/requests'
     | '/settings'
+    | '/auth/callback'
+    | '/auth/forgot'
+    | '/auth/reset'
     | '/care/auth'
     | '/ambulance/request'
     | '/care/ai-tests'
@@ -528,6 +561,9 @@ export interface FileRouteTypes {
     | '/_app/profile'
     | '/_app/requests'
     | '/_app/settings'
+    | '/auth_/callback'
+    | '/auth_/forgot'
+    | '/auth_/reset'
     | '/care/auth'
     | '/care/portal'
     | '/_app/ambulance/request'
@@ -565,6 +601,9 @@ export interface RootRouteChildren {
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthForgotRoute: typeof AuthForgotRoute
+  AuthResetRoute: typeof AuthResetRoute
   CareAuthRoute: typeof CareAuthRoute
   CarePortalRoute: typeof CarePortalRouteWithChildren
 }
@@ -646,6 +685,27 @@ declare module '@tanstack/react-router' {
       path: '/care/auth'
       fullPath: '/care/auth'
       preLoaderRoute: typeof CareAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/reset': {
+      id: '/auth_/reset'
+      path: '/auth/reset'
+      fullPath: '/auth/reset'
+      preLoaderRoute: typeof AuthResetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/forgot': {
+      id: '/auth_/forgot'
+      path: '/auth/forgot'
+      fullPath: '/auth/forgot'
+      preLoaderRoute: typeof AuthForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/callback': {
+      id: '/auth_/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/settings': {
@@ -1032,6 +1092,9 @@ const rootRouteChildren: RootRouteChildren = {
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
+  AuthForgotRoute: AuthForgotRoute,
+  AuthResetRoute: AuthResetRoute,
   CareAuthRoute: CareAuthRoute,
   CarePortalRoute: CarePortalRouteWithChildren,
 }
