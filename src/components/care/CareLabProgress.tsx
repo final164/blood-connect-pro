@@ -209,6 +209,17 @@ function LabScheduleChips({
   );
 }
 
+/** Compact chips for dashboard / hub booking cards. */
+export function CareLabScheduleChips({
+  schedule,
+  lang,
+}: {
+  schedule?: Parameters<typeof CareLabProgressBar>[0]["schedule"];
+  lang: "bn" | "en";
+}) {
+  return <LabScheduleChips schedule={schedule} lang={lang} />;
+}
+
 /** Worst / furthest-behind status across a multi-test invoice group for list summary. */
 export function summarizeLabGroupStatus(statuses: string[]): string {
   if (!statuses.length) return "reserved";

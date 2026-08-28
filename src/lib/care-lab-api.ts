@@ -82,6 +82,11 @@ export type CareLabBooking = {
   delivery_date?: string | null;
   delivery_start?: string | null;
   delivery_end?: string | null;
+  report_url?: string | null;
+  report_path?: string | null;
+  report_file_name?: string | null;
+  report_uploaded_at?: string | null;
+  report_uploaded_by?: string | null;
   created_at: string;
 };
 
@@ -92,6 +97,8 @@ export type CareLabBooking = {
  */
 const SCHEDULE_COLS =
   "collection_date, collection_start, collection_end, delivery_date, delivery_start, delivery_end";
+const REPORT_COLS =
+  "report_url, report_path, report_file_name, report_uploaded_at, report_uploaded_by";
 const CATALOG_JOIN = "care_test_offerings(care_test_catalog(code, name_bn, name_en))";
 
 /** Before 20260828010000_lab_schedule_window. */
@@ -102,7 +109,10 @@ const BOOKING_COLS_NO_SCHEDULE =
  * Current schema. Built with concatenation, not a template literal: PostgREST
  * types parse literal select strings and reject template-literal types.
  */
-const BOOKING_COLS: string = BOOKING_COLS_NO_SCHEDULE + ", " + SCHEDULE_COLS;
+const BOOKING_COLS_WITH_SCHEDULE: string = BOOKING_COLS_NO_SCHEDULE + ", " + SCHEDULE_COLS;
+const BOOKING_COLS: string = BOOKING_COLS_WITH_SCHEDULE + ", " + REPORT_COLS;
+/** Before 20260828040000_lab_report_pdf (schedule present, report absent). */
+const BOOKING_COLS_NO_REPORT: string = BOOKING_COLS_WITH_SCHEDULE;
 /** Before the invoice-group / patient-detail migrations. */
 const BOOKING_COLS_LEGACY =
   "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at";
@@ -113,6 +123,7 @@ const BOOKING_COLS_MINIMAL =
 const withCatalog = (cols: string): string => cols + ", " + CATALOG_JOIN;
 
 const MISSING_SCHEDULE_RE = /collection_date|collection_start|delivery_date|delivery_start/i;
+const MISSING_REPORT_RE = /report_url|report_path|report_file_name|report_uploaded/i;
 
 export type CareLabFacility = {
   id: string;
@@ -490,6 +501,9 @@ export async function fetchMyLabBookings(): Promise<(CareLabBooking & { offering
   }
 
   let { data, error } = await query(BOOKING_COLS);
+  if (error && MISSING_REPORT_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_REPORT));
+  }
   if (error && MISSING_SCHEDULE_RE.test(error.message)) {
     ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
   }
@@ -515,6 +529,9 @@ export async function fetchLabBooking(id: string) {
   }
 
   let { data, error } = await query(BOOKING_COLS);
+  if (error && MISSING_REPORT_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_REPORT));
+  }
   if (error && MISSING_SCHEDULE_RE.test(error.message)) {
     ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
   }
@@ -541,6 +558,9 @@ export async function fetchLabBookingsForInvoice(bookingId: string): Promise<Car
     }
 
     let { data, error } = await query(withCatalog(BOOKING_COLS));
+    if (error && MISSING_REPORT_RE.test(error.message)) {
+      ({ data, error } = await query(withCatalog(BOOKING_COLS_NO_REPORT)));
+    }
     if (error && MISSING_SCHEDULE_RE.test(error.message)) {
       ({ data, error } = await query(withCatalog(BOOKING_COLS_NO_SCHEDULE)));
     }
@@ -608,6 +628,38 @@ export async function setLabBookingStatus(id: string, status: string) {
   return data as CareLabBooking;
 }
 
+export async function setLabReport(
+  bookingId: string,
+  input: { url?: string | null; path: string; fileName?: string | null; applyGroup?: boolean },
+) {
+  const { data, error } = await supabase.rpc("care_set_lab_report", {
+    _booking_id: bookingId,
+    _url: input.url ?? null,
+    _path: input.path,
+    _file_name: input.fileName ?? null,
+    _apply_group: input.applyGroup !== false,
+  } as never);
+  if (error) throw new Error(error.message);
+  return data as CareLabBooking;
+}
+
+export async function clearLabReport(bookingId: string, applyGroup = true) {
+  const { data, error } = await supabase.rpc("care_clear_lab_report", {
+    _booking_id: bookingId,
+    _apply_group: applyGroup,
+  } as never);
+  if (error) throw new Error(error.message);
+  return data as CareLabBooking;
+}
+
+export async function getLabReportDownloadUrl(path: string, expiresIn = 3600) {
+  const { data, error } = await supabase.storage
+    .from("care-lab-reports")
+    .createSignedUrl(path, expiresIn);
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}
+
 export async function fetchOrgOfferings(orgId: string) {
   const { data, error } = await supabase
     .from("care_test_offerings")
@@ -662,6 +714,9 @@ export async function fetchOrgLabBookings(
 
   let { data, error } = await query(BOOKING_COLS);
 
+  if (error && MISSING_REPORT_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_REPORT));
+  }
   if (error && MISSING_SCHEDULE_RE.test(error.message)) {
     ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
   }

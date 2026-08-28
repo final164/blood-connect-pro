@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { fetchOrgLocations } from "@/lib/care-api";
 import { resolveDoctorId, type CareDoctorOption } from "@/lib/care-doctors-api";
 import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
+import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { CareOperationPriceBreakdown, operationPriceMath } from "@/components/care/CareOperationPriceBreakdown";
 import {
   addOperationOfferingDoctor,
   deleteOperationOffering,
@@ -20,6 +22,7 @@ import {
   type CareOperationOffering,
   type CareOperationPriceItem,
 } from "@/lib/care-operations-api";
+import { formatCareMoney } from "@/lib/care-invoice";
 
 type OrgLocation = { id: string; name: string; name_bn: string | null };
 
@@ -43,7 +46,7 @@ const DOCTOR_ROLES: CareOperationDoctorRole[] = [
 ];
 
 function money(n: number, bn: boolean) {
-  return `${bn ? "৳" : "BDT "}${n.toLocaleString("en-US")}`;
+  return formatCareMoney(n, bn ? "bn" : "en");
 }
 
 export function CareOperationOfferingsPanel({
@@ -192,7 +195,6 @@ function OfferingRow({
   const bn = lang === "bn";
   const [editing, setEditing] = useState(false);
   const loc = locations.find((l) => l.id === offering.location_id);
-  const breakdownTotal = (offering.price_items ?? []).reduce((sum, i) => sum + i.amount, 0);
 
   async function remove() {
     if (!window.confirm(bn ? "এই অপারেশনটি মুছে ফেলবেন?" : "Delete this operation?")) return;
@@ -217,7 +219,13 @@ function OfferingRow({
           </p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-bold text-primary">{money(offering.package_price, bn)}</p>
+          <CareLabPriceDisplay
+            listPrice={offering.price_original ?? offering.package_price}
+            salePrice={offering.package_price}
+            discountPercent={offering.discount_percent}
+            lang={lang}
+            variant="compact"
+          />
           {!offering.is_active && (
             <span className="text-[10px] font-semibold text-destructive">
               {bn ? "নিষ্ক্রিয়" : "inactive"}
@@ -243,28 +251,17 @@ function OfferingRow({
             />
           ) : (
             <>
-              {!!(offering.price_items ?? []).length && (
-                <div className="rounded-xl bg-muted/40 p-3">
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {bn ? "মূল্য ব্রেকডাউন" : "Price breakdown"}
-                  </p>
-                  <ul className="space-y-1 text-xs">
-                    {offering.price_items!.map((item) => (
-                      <li key={item.id} className="flex justify-between">
-                        <span>{priceItemLabel(item, lang)}</span>
-                        <span className="font-medium">{money(item.amount, bn)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {Math.abs(breakdownTotal - offering.package_price) > 0.5 && (
-                    <p className="mt-1.5 text-[10px] text-amber-700">
-                      {bn
-                        ? `ব্রেকডাউনের যোগফল ${money(breakdownTotal, bn)} — প্যাকেজ মূল্যের সাথে মিলছে না`
-                        : `Breakdown totals ${money(breakdownTotal, bn)}, which does not match the package price`}
-                    </p>
-                  )}
-                </div>
-              )}
+              <CareOperationPriceBreakdown
+                lang={lang}
+                variant="compact"
+                summary={{
+                  packagePrice: offering.package_price,
+                  priceOriginal: offering.price_original,
+                  discountPercent: offering.discount_percent,
+                  priceNote: offering.price_note,
+                  items: offering.price_items,
+                }}
+              />
 
               <OfferingDoctors
                 offering={offering}
@@ -468,6 +465,22 @@ function OfferingForm({
   }, [catalog, catalogQuery]);
 
   const breakdownTotal = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const preview = operationPriceMath({
+    packagePrice: Number(packagePrice) || 0,
+    priceOriginal: priceOriginal ? Number(priceOriginal) : null,
+    discountPercent: discount ? Number(discount) : 0,
+    items: items
+      .filter((i) => Number(i.amount) > 0)
+      .map((i, idx) => ({
+        id: String(idx),
+        offering_id: "",
+        kind: i.kind,
+        label_bn: i.label_bn || null,
+        label_en: null,
+        amount: Number(i.amount) || 0,
+        sort_order: idx,
+      })),
+  });
 
   async function submit() {
     if (!catalogId) {
@@ -666,10 +679,35 @@ function OfferingForm({
         ))}
         {!!items.length && (
           <p className="text-[11px] text-muted-foreground">
-            {bn ? "যোগফল" : "Total"}: <span className="font-semibold">{money(breakdownTotal, bn)}</span>
+            {bn ? "খাতের যোগফল" : "Lines total"}:{" "}
+            <span className="font-semibold">{money(breakdownTotal, bn)}</span>
           </p>
         )}
       </div>
+
+      {Number(packagePrice) > 0 && (
+        <div className="space-y-1 rounded-xl border bg-muted/30 px-3 py-2.5 text-xs">
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{bn ? "মূল্য" : "Price"}</span>
+            <span className="tabular-nums font-medium">{money(preview.list, bn)}</span>
+          </div>
+          {preview.discountAmount > 0 && (
+            <div className="flex justify-between gap-2 text-rose-700">
+              <span>
+                {bn ? "ছাড়" : "Discount"}
+                {preview.discountPercent > 0
+                  ? ` (${preview.discountPercent % 1 === 0 ? preview.discountPercent : preview.discountPercent.toFixed(1)}%)`
+                  : ""}
+              </span>
+              <span className="tabular-nums font-semibold">− {money(preview.discountAmount, bn)}</span>
+            </div>
+          )}
+          <div className="flex justify-between gap-2 border-t border-dashed pt-1.5 font-bold text-emerald-700">
+            <span>{bn ? "মোট" : "Total"}</span>
+            <span className="tabular-nums">{money(preview.payable, bn)}</span>
+          </div>
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-xs">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />

@@ -540,7 +540,7 @@ async function main() {
 
   console.log(`\nDone. ${seeded.length} offerings + ${bookings.length} bookings.`);
   console.log("Browse: /care?tab=operations");
-  console.log("Desk:   /care/portal/desk → Operations / Operation bookings\n");
+  console.log("Desk:   /care/portal/lab → Operations / Operation bookings\n");
 }
 
 main().catch((e) => {

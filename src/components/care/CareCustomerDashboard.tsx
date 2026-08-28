@@ -13,10 +13,12 @@ import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { formatCareMoney } from "@/lib/care-invoice";
 import {
   CareLabProgressMini,
+  CareLabScheduleChips,
   labStatusLabel,
   labStatusTone,
   summarizeLabGroupStatus,
 } from "@/components/care/CareLabProgress";
+import { CareLabReportChip, hasLabReport } from "@/components/care/CareLabReportBlock";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
 import { cn } from "@/lib/utils";
 
@@ -341,6 +343,8 @@ export function CareCustomerDashboard({
                             : primary.reference_code}
                         </p>
                         <CareLabProgressMini status={groupStatus} lang={lang} />
+                        <CareLabScheduleChips schedule={primary} lang={lang} />
+                        <CareLabReportChip hasReport={hasLabReport(primary)} lang={lang} />
                         {g.items.length > 1 && (
                           <ul className="space-y-1.5 pt-0.5 border-t border-dashed">
                             {g.items.map((b) => (

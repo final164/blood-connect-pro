@@ -12,6 +12,7 @@ import {
   labStatusLabel,
   labStatusTone,
 } from "@/components/care/CareLabProgress";
+import { CareLabReportBlock, hasLabReport } from "@/components/care/CareLabReportBlock";
 import { formatCareMoney } from "@/lib/care-invoice";
 import { cn } from "@/lib/utils";
 
@@ -192,6 +193,10 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
                 </ul>
               )}
             </section>
+
+            {hasLabReport(primary) && (
+              <CareLabReportBlock booking={primary} lang={lang} canEdit={false} />
+            )}
 
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1">

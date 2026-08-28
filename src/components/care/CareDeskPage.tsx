@@ -63,8 +63,6 @@ import {
 } from "@/lib/care-org-settings";
 import type { CareOrgInvoiceSettings } from "@/lib/care-invoice-settings";
 import { fetchCarePolicies } from "@/lib/care-cms";
-import { CareOperationOfferingsPanel } from "@/components/care/CareOperationOfferingsPanel";
-import { CareOperationDeskPanel } from "@/components/care/CareOperationDeskPanel";
 import {
   Dialog,
   DialogContent,
@@ -72,15 +70,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type DeskTab =
-  | "queue"
-  | "create"
-  | "doctors"
-  | "schedule"
-  | "operations"
-  | "operation-queue"
-  | "staff"
-  | "settings";
+type DeskTab = "queue" | "create" | "doctors" | "schedule" | "staff" | "settings";
 
 type CareDeskPageProps = {
   /** Vendor portal — separate auth & no donor onboarding */
@@ -163,16 +153,6 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
     },
     { id: "doctors", label: lang === "bn" ? "ডাক্তার" : "Doctors", show: can("doctors.manage") || can("queue.view") },
     { id: "schedule", label: lang === "bn" ? "শিডিউল" : "Schedule", show: can("schedule.manage") || can("queue.view") },
-    {
-      id: "operations",
-      label: lang === "bn" ? "অপারেশন" : "Operations",
-      show: can("operation.manage"),
-    },
-    {
-      id: "operation-queue",
-      label: lang === "bn" ? "অপারেশন বুকিং" : "Operation bookings",
-      show: can("operation.view") || can("operation.schedule"),
-    },
     { id: "staff", label: lang === "bn" ? "স্টাফ" : "Staff", show: can("staff.manage") },
     { id: "settings", label: lang === "bn" ? "সেটিংস" : "Settings", show: can("settings.edit") },
   ];
@@ -240,12 +220,6 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
         )}
         {tab === "doctors" && <DoctorsPanel orgId={orgId} canEdit={can("doctors.manage")} lang={lang} />}
         {tab === "schedule" && <SchedulePanel orgId={orgId} canEdit={can("schedule.manage")} lang={lang} />}
-        {tab === "operations" && (
-          <CareOperationOfferingsPanel orgId={orgId} canEdit={can("operation.manage")} lang={lang} />
-        )}
-        {tab === "operation-queue" && (
-          <CareOperationDeskPanel orgId={orgId} canSchedule={can("operation.schedule")} lang={lang} />
-        )}
         {tab === "staff" && <StaffPanel orgId={orgId} lang={lang} />}
         {tab === "settings" && <SettingsPanel orgId={orgId} lang={lang} />}
       </main>

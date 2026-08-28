@@ -13,16 +13,26 @@ type MemoCtx = {
   L: (key: Parameters<typeof invoiceLabel>[1]) => string;
 };
 
-function InvoiceTotals({ vm, template, L }: MemoCtx) {
+function InvoiceTotals({ vm, template, L, lang }: MemoCtx) {
   const { style, defaults } = template;
+  const isOp = vm.kind === "operation";
+  const labelPrice = isOp ? (lang === "bn" ? "মূল্য" : "Price") : L("total");
+  const labelDiscount = isOp ? (lang === "bn" ? "ছাড়" : "Discount") : L("discount");
+  const labelTotal = isOp ? (lang === "bn" ? "মোট" : "Total") : L("payable");
+
   return (
     <div className="cm-totals">
       <div className="cm-tot-row">
-        <span>{L("total")}</span>
+        <span>{labelPrice}</span>
         <span>{vm.money.subtotal.toFixed(2)}</span>
       </div>
       <div className="cm-tot-row cm-disc-total">
-        <span>{L("discount")}</span>
+        <span>
+          {labelDiscount}
+          {vm.money.discount_percent > 0
+            ? ` (${vm.money.discount_percent % 1 === 0 ? vm.money.discount_percent : vm.money.discount_percent.toFixed(1)}%)`
+            : ""}
+        </span>
         <span>{vm.money.discount_amount.toFixed(2)}</span>
       </div>
       {style.show_vat && (
@@ -34,7 +44,7 @@ function InvoiceTotals({ vm, template, L }: MemoCtx) {
         </div>
       )}
       <div className="cm-tot-row cm-strong">
-        <span>{L("payable")}</span>
+        <span>{labelTotal}</span>
         <span>{money(defaults.currency_prefix, vm.money.payable)}</span>
       </div>
     </div>

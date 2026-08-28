@@ -32,8 +32,10 @@ import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { formatCareMoney } from "@/lib/care-invoice";
 import {
   CareLabProgressMini,
+  CareLabScheduleChips,
   summarizeLabGroupStatus,
 } from "@/components/care/CareLabProgress";
+import { CareLabReportChip, hasLabReport } from "@/components/care/CareLabReportBlock";
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
 import { CareCustomerDashboard } from "@/components/care/CareCustomerDashboard";
@@ -753,6 +755,8 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                       {primary.invoice_no && g.items.length === 1 ? ` · ${primary.invoice_no}` : ""}
                     </p>
                     <CareLabProgressMini status={groupStatus} lang={lang} />
+                    <CareLabScheduleChips schedule={primary} lang={lang} />
+                    <CareLabReportChip hasReport={hasLabReport(primary)} lang={lang} />
                     {g.items.length > 1 && (
                       <p className="text-[10px] text-muted-foreground truncate">
                         {g.items

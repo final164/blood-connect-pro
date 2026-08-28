@@ -6,13 +6,12 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
-import { formatCareMoney } from "@/lib/care-invoice";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { CareOperationPriceBreakdown } from "@/components/care/CareOperationPriceBreakdown";
 import {
   fetchOperationOffering,
   operationDoctorRoleLabel,
   operationName,
-  priceItemLabel,
   requestOperation,
   type CareOperationOffering,
 } from "@/lib/care-operations-api";
@@ -115,20 +114,6 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
                 </div>
               </div>
 
-              <div className="flex items-end gap-2">
-                <p className="text-2xl font-black text-primary">
-                  {formatCareMoney(offering.package_price, lang)}
-                </p>
-                {offering.price_original && offering.price_original > offering.package_price ? (
-                  <p className="pb-1 text-xs text-muted-foreground line-through">
-                    {formatCareMoney(offering.price_original, lang)}
-                  </p>
-                ) : null}
-              </div>
-              {offering.price_note && (
-                <p className="text-[11px] text-muted-foreground">{offering.price_note}</p>
-              )}
-
               <div className="flex flex-wrap gap-3 pt-1 text-[11px] text-muted-foreground">
                 {catalog?.typical_duration_minutes ? (
                   <span className="inline-flex items-center gap-1">
@@ -149,21 +134,16 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
               </div>
             </section>
 
-            {!!offering.price_items?.length && (
-              <section className="rounded-2xl border bg-card p-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                  {bn ? "মূল্য ব্রেকডাউন" : "Price breakdown"}
-                </p>
-                <ul className="space-y-1 text-sm">
-                  {offering.price_items.map((item) => (
-                    <li key={item.id} className="flex justify-between">
-                      <span>{priceItemLabel(item, lang)}</span>
-                      <span className="font-medium">{formatCareMoney(item.amount, lang)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
+            <CareOperationPriceBreakdown
+              lang={lang}
+              summary={{
+                packagePrice: offering.package_price,
+                priceOriginal: offering.price_original,
+                discountPercent: offering.discount_percent,
+                priceNote: offering.price_note,
+                items: offering.price_items,
+              }}
+            />
 
             {!!offering.doctors?.length && (
               <section className="rounded-2xl border bg-card p-4">

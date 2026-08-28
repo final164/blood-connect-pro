@@ -34,11 +34,19 @@ import {
   offeringSalePrice,
 } from "@/lib/care-lab-price";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import { CareOperationOfferingsPanel } from "@/components/care/CareOperationOfferingsPanel";
+import { CareOperationDeskPanel } from "@/components/care/CareOperationDeskPanel";
 import {
   CareLabScheduleForm,
+  CheckinScheduleDialog,
   labCollectionLine,
   labDeliveryLine,
 } from "@/components/care/CareLabScheduleForm";
+import {
+  CareLabReportBlock,
+  CareLabReportChip,
+  hasLabReport,
+} from "@/components/care/CareLabReportBlock";
 import { fetchOrgLocations } from "@/lib/care-api";
 import { supabase } from "@/integrations/supabase/client";
 import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
@@ -58,7 +66,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-type LabTab = "today" | "offerings" | "calendar" | "checkin";
+type LabTab = "today" | "offerings" | "calendar" | "checkin" | "operations" | "operation-queue";
 
 type CareLabDeskPageProps = {
   portalMode?: boolean;
@@ -86,6 +94,10 @@ type DeskBookingRow = Record<string, unknown> & {
   delivery_date?: string | null;
   delivery_start?: string | null;
   delivery_end?: string | null;
+  report_url?: string | null;
+  report_path?: string | null;
+  report_file_name?: string | null;
+  report_uploaded_at?: string | null;
   created_at?: string;
   care_test_offerings?: {
     care_test_catalog?: { name_bn?: string; name_en?: string; code?: string };
@@ -367,6 +379,16 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
     { id: "offerings", label: lang === "bn" ? "অফার" : "Offerings", show: can("lab.offerings") },
     { id: "calendar", label: lang === "bn" ? "ক্যালেন্ডার" : "Calendar", show: can("lab.calendar") },
     { id: "checkin", label: lang === "bn" ? "চেক-ইন" : "Check-in", show: can("lab.checkin") },
+    {
+      id: "operations",
+      label: lang === "bn" ? "অপারেশন" : "Operations",
+      show: can("operation.manage"),
+    },
+    {
+      id: "operation-queue",
+      label: lang === "bn" ? "অপারেশন বুকিং" : "Operation bookings",
+      show: can("operation.view") || can("operation.schedule"),
+    },
   ];
 
   return (
@@ -429,6 +451,12 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
         )}
         {tab === "offerings" && <OfferingsPanel orgId={orgId} lang={lang} />}
         {tab === "calendar" && <CalendarPanel orgId={orgId} lang={lang} />}
+        {tab === "operations" && (
+          <CareOperationOfferingsPanel orgId={orgId} canEdit={can("operation.manage")} lang={lang} />
+        )}
+        {tab === "operation-queue" && (
+          <CareOperationDeskPanel orgId={orgId} canSchedule={can("operation.schedule")} lang={lang} />
+        )}
       </main>
     </div>
   );
@@ -461,6 +489,7 @@ function TodayPanel({
   const [detailRows, setDetailRows] = useState<DeskBookingRow[]>([]);
   const [detailBusy, setDetailBusy] = useState(false);
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+  const [checkinBookingId, setCheckinBookingId] = useState<string | null>(null);
 
   // Live filters (apply immediately)
   const [q, setQ] = useState("");
@@ -574,6 +603,10 @@ function TodayPanel({
   }
 
   async function advanceStatus(bookingId: string, status: string) {
+    if (status === "checked_in") {
+      setCheckinBookingId(bookingId);
+      return;
+    }
     setDetailBusy(true);
     setRowBusyId(bookingId);
     try {
@@ -586,6 +619,15 @@ function TodayPanel({
       setRowBusyId(null);
     }
   }
+
+  const checkinRow = useMemo(() => {
+    if (!checkinBookingId) return null;
+    return (
+      detailRows.find((r) => String(r.id) === checkinBookingId) ||
+      rows.find((r) => String(r.id) === checkinBookingId) ||
+      null
+    );
+  }, [checkinBookingId, detailRows, rows]);
 
   const filtersActive =
     q.trim() !== "" ||
@@ -821,6 +863,11 @@ function TodayPanel({
                   </div>
 
                   <LabScheduleChips row={r} lang={lang} />
+                  {hasLabReport(r) && (
+                    <div className="pl-10">
+                      <CareLabReportChip hasReport lang={lang} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile only: details sheet */}
@@ -894,6 +941,19 @@ function TodayPanel({
         hasMore={hasMore}
         label={lang === "bn" ? "আরও বুকিং লোড…" : "Loading more bookings…"}
       />
+      <CheckinScheduleDialog
+        open={!!checkinBookingId}
+        onOpenChange={(open) => {
+          if (!open) setCheckinBookingId(null);
+        }}
+        bookingId={checkinBookingId}
+        lang={lang}
+        applyGroup
+        initial={checkinRow}
+        patientLabel={checkinRow ? patientName(checkinRow, lang) : null}
+        onDone={() => void refreshDetail()}
+      />
+
       <Sheet open={!!detailId} onOpenChange={(open) => !open && setDetailId(null)}>
         <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl px-0">
           {detailPrimary && (
@@ -959,6 +1019,24 @@ function TodayPanel({
                   canEdit={canManage}
                   multiTest={detailRows.length > 1}
                   onSaved={() => void refreshDetail()}
+                />
+
+                <CareLabReportBlock
+                  booking={{
+                    id: String(detailPrimary.id),
+                    org_id: String(detailPrimary.org_id || orgId),
+                    invoice_group_id: detailPrimary.invoice_group_id
+                      ? String(detailPrimary.invoice_group_id)
+                      : null,
+                    status: String(detailPrimary.status || "reserved"),
+                    report_url: detailPrimary.report_url ?? null,
+                    report_path: detailPrimary.report_path ?? null,
+                    report_file_name: detailPrimary.report_file_name ?? null,
+                    report_uploaded_at: detailPrimary.report_uploaded_at ?? null,
+                  }}
+                  lang={lang}
+                  canEdit={canManage}
+                  onChanged={() => void refreshDetail()}
                 />
 
                 <div className="space-y-2">

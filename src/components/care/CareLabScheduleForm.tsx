@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { CalendarClock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { setLabSchedule, type CareLabBooking } from "@/lib/care-lab-api";
+import { setLabBookingStatus, setLabSchedule, type CareLabBooking } from "@/lib/care-lab-api";
 import { formatDateTimeWindow } from "@/lib/care-time-window";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ScheduleSource = Pick<
   CareLabBooking,
@@ -92,9 +99,11 @@ export function CareLabScheduleForm({
             <span className="font-semibold">{collectionLine}</span>
           </p>
         )}
-        {deliveryLine && (
+                        {deliveryLine && (
           <p className="text-xs">
-            <span className="text-muted-foreground">{bn ? "রিপোর্ট ডেলিভারি" : "Report delivery"}: </span>
+            <span className="text-muted-foreground">
+              {bn ? "সম্ভাব্য রিপোর্ট ডেলিভারি" : "Expected report delivery"}:{" "}
+            </span>
             <span className="font-semibold">{deliveryLine}</span>
           </p>
         )}
@@ -161,7 +170,7 @@ export function CareLabScheduleForm({
       />
 
       <ScheduleRow
-        title={bn ? "রিপোর্ট ডেলিভারি" : "Report delivery"}
+        title={bn ? "সম্ভাব্য রিপোর্ট ডেলিভারি" : "Expected report delivery"}
         lang={lang}
         date={deliveryDate}
         setDate={setDeliveryDate}
@@ -193,6 +202,154 @@ export function CareLabScheduleForm({
         {bn ? "সময়সূচি সেভ করুন" : "Save schedule"}
       </button>
     </div>
+  );
+}
+
+/**
+ * Opened when lab desk clicks Check-in: requires collection + expected delivery
+ * times, then saves schedule and advances status to checked_in.
+ */
+export function CheckinScheduleDialog({
+  open,
+  onOpenChange,
+  bookingId,
+  lang,
+  applyGroup = true,
+  initial,
+  patientLabel,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  bookingId: string | null;
+  lang: "bn" | "en";
+  applyGroup?: boolean;
+  initial?: ScheduleSource | null;
+  patientLabel?: string | null;
+  onDone?: () => void;
+}) {
+  const bn = lang === "bn";
+  const [collectionDate, setCollectionDate] = useState("");
+  const [collectionStart, setCollectionStart] = useState("");
+  const [collectionEnd, setCollectionEnd] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryStart, setDeliveryStart] = useState("");
+  const [deliveryEnd, setDeliveryEnd] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setCollectionDate(toDateInput(initial?.collection_date));
+    setCollectionStart(toTimeInput(initial?.collection_start));
+    setCollectionEnd(toTimeInput(initial?.collection_end));
+    setDeliveryDate(toDateInput(initial?.delivery_date));
+    setDeliveryStart(toTimeInput(initial?.delivery_start));
+    setDeliveryEnd(toTimeInput(initial?.delivery_end));
+  }, [open, bookingId, initial]);
+
+  async function confirm() {
+    if (!bookingId) return;
+    if (!collectionDate || !collectionStart) {
+      toast.error(bn ? "নমুনা সংগ্রহের তারিখ ও সময় দিন" : "Enter sample collection date and time");
+      return;
+    }
+    if (!deliveryDate || !deliveryStart) {
+      toast.error(
+        bn ? "সম্ভাব্য রিপোর্ট ডেলিভারির তারিখ ও সময় দিন" : "Enter expected report delivery date and time",
+      );
+      return;
+    }
+    if (collectionEnd && collectionEnd <= collectionStart) {
+      toast.error(bn ? "সংগ্রহের শেষ সময় শুরুর পরে হতে হবে" : "Collection end must be after start");
+      return;
+    }
+    if (deliveryEnd && deliveryEnd <= deliveryStart) {
+      toast.error(bn ? "ডেলিভারির শেষ সময় শুরুর পরে হতে হবে" : "Delivery end must be after start");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await setLabSchedule(bookingId, {
+        collectionDate,
+        collectionStart,
+        collectionEnd,
+        deliveryDate,
+        deliveryStart,
+        deliveryEnd,
+        applyGroup,
+      });
+      await setLabBookingStatus(bookingId, "checked_in");
+      toast.success(bn ? "চেক-ইন ও সময়সূচি সেভ হয়েছে" : "Checked in with schedule");
+      onOpenChange(false);
+      onDone?.();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
+      <DialogContent className="max-w-md gap-0 p-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2 text-left space-y-1">
+          <DialogTitle>{bn ? "চেক-ইন · সময়সূচি" : "Check-in · schedule"}</DialogTitle>
+          <DialogDescription>
+            {patientLabel
+              ? bn
+                ? `${patientLabel} — নমুনা সংগ্রহ ও সম্ভাব্য রিপোর্ট ডেলিভারি সময় দিন।`
+                : `${patientLabel} — enter sample collection and expected report delivery times.`
+              : bn
+                ? "নমুনা সংগ্রহ ও সম্ভাব্য রিপোর্ট ডেলিভারি সময় দিন, তারপর চেক-ইন নিশ্চিত করুন।"
+                : "Enter sample collection and expected report delivery times, then confirm check-in."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-4 py-3 space-y-3 border-t">
+          <ScheduleRow
+            title={bn ? "নমুনা সংগ্রহ" : "Sample collection"}
+            lang={lang}
+            date={collectionDate}
+            setDate={setCollectionDate}
+            start={collectionStart}
+            setStart={setCollectionStart}
+            end={collectionEnd}
+            setEnd={setCollectionEnd}
+          />
+          <ScheduleRow
+            title={bn ? "সম্ভাব্য রিপোর্ট ডেলিভারি" : "Expected report delivery"}
+            lang={lang}
+            date={deliveryDate}
+            setDate={setDeliveryDate}
+            start={deliveryStart}
+            setStart={setDeliveryStart}
+            end={deliveryEnd}
+            setEnd={setDeliveryEnd}
+          />
+        </div>
+
+        <div className="px-4 py-3 border-t flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onOpenChange(false)}
+            className="flex-1 rounded-xl border px-3 py-2 text-xs font-bold hover:bg-muted transition disabled:opacity-50"
+          >
+            {bn ? "বাতিল" : "Cancel"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void confirm()}
+            className="flex-1 rounded-xl border-2 border-sky-500 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-800 hover:bg-sky-500 hover:text-white transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
+          >
+            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {bn ? "চেক-ইন নিশ্চিত" : "Confirm check-in"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
