@@ -50,45 +50,63 @@ export function ChatUnreadProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    void refresh();
-    if (!user) return;
+    // Defer badge fetch + realtime — never compete with first paint.
+    if (!user) {
+      setByConversation({});
+      return;
+    }
+    let cancelled = false;
+    let ch: ReturnType<typeof supabase.channel> | null = null;
 
-    const ch = supabase
-      .channel(`chat-unread-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${user.id}`,
-        },
-        () => void refresh(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${user.id}`,
-        },
-        () => void refresh(),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "messages",
-          filter: `recipient_id=eq.${user.id}`,
-        },
-        () => void refresh(),
-      )
-      .subscribe();
+    const start = () => {
+      if (cancelled) return;
+      void refresh();
+      ch = supabase
+        .channel(`chat-unread-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => void refresh(),
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "messages",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => void refresh(),
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "messages",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => void refresh(),
+        )
+        .subscribe();
+    };
+
+    const idleId =
+      typeof requestIdleCallback === "function"
+        ? requestIdleCallback(start, { timeout: 3500 })
+        : null;
+    const t = idleId == null ? window.setTimeout(start, 1200) : null;
 
     return () => {
-      supabase.removeChannel(ch);
+      cancelled = true;
+      if (idleId != null) cancelIdleCallback(idleId);
+      if (t != null) window.clearTimeout(t);
+      if (ch) supabase.removeChannel(ch);
     };
   }, [user, refresh]);
 

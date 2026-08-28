@@ -262,20 +262,17 @@ export function RequestComposer({
       return supabase.from("blood_requests").insert(body).select("id").single();
     }
 
+    // One retry max: strip optional columns that older DBs may lack (avoid stacked insert waits).
     let { data: created, error } = await tryInsert(payload);
-    if (error && /need_reason_/i.test(error.message)) {
-      delete payload.need_reason_key;
-      delete payload.need_reason_label;
-      ({ data: created, error } = await tryInsert(payload));
-    }
-    if (error && /whatsapp_phone/i.test(error.message)) {
-      delete payload.whatsapp_phone;
-      ({ data: created, error } = await tryInsert(payload));
-    }
-    if (error && /image_url/i.test(error.message)) {
-      delete payload.image_url;
-      ({ data: created, error } = await tryInsert(payload));
-      if (!error) {
+    if (error && /need_reason_|whatsapp_phone|image_url/i.test(error.message)) {
+      const slim = { ...payload };
+      delete slim.need_reason_key;
+      delete slim.need_reason_label;
+      delete slim.whatsapp_phone;
+      const droppedImage = !!slim.image_url && /image_url/i.test(error.message);
+      if (droppedImage || /image_url/i.test(error.message)) delete slim.image_url;
+      ({ data: created, error } = await tryInsert(slim));
+      if (!error && (droppedImage || payload.image_url) && !slim.image_url) {
         toast.message(
           lang === "bn"
             ? "পোস্ট হয়েছে — ইমেজ কলাম নেই, scripts/google-drive-media.sql চালান"

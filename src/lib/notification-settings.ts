@@ -41,7 +41,7 @@ export function invalidateNotificationSettingsCache() {
 }
 
 export async function fetchNotificationSettings(force = false): Promise<NotificationSettings> {
-  if (!force && cached && Date.now() - cachedAt < 60_000) return cached;
+  if (!force && cached && Date.now() - cachedAt < 5 * 60_000) return cached;
   const { data, error } = await supabase
     .from("app_settings")
     .select("notification_settings")

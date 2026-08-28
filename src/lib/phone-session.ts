@@ -14,6 +14,7 @@ export type PhoneAuthResult = {
   ok: true;
   exists: boolean;
   userId: string;
+  session?: import("@supabase/supabase-js").Session | null;
 };
 
 function isAlreadyRegistered(message: string) {
@@ -58,24 +59,52 @@ async function syncProfile(userId: string, phone: string, fullName?: string, pin
       { user_id: userId, phone, pin },
       { onConflict: "user_id" },
     );
-    // Keep PIN in auth metadata so admin can recover if credentials row is missing
-    await supabase.auth.updateUser({
-      data: { phone, pin, ...(fullName?.trim() ? { full_name: fullName.trim() } : {}) },
-    });
+    // Metadata sync is best-effort — never block login on updateUser.
+    void supabase.auth
+      .updateUser({
+        data: { phone, pin, ...(fullName?.trim() ? { full_name: fullName.trim() } : {}) },
+      })
+      .catch(() => undefined);
   }
 }
 
+function withAuthTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 async function signIn(email: string, password: string) {
-  return supabase.auth.signInWithPassword({ email, password });
+  return withAuthTimeout(
+    supabase.auth.signInWithPassword({ email, password }),
+    12_000,
+    "SIGNIN",
+  );
 }
 
 /** Try every synthetic email for this phone until one signs in. */
 async function signInWithPhonePassword(phone: string, password: string) {
   let lastError: Error | null = null;
   for (const email of phoneAuthEmailCandidates(phone)) {
-    const { data, error } = await signIn(email, password);
-    if (!error && data.user) return { data, email };
-    if (error) lastError = new Error(sanitizeAuthProviderError(error.message));
+    try {
+      const { data, error } = await signIn(email, password);
+      if (!error && data.user) return { data, email };
+      if (error) lastError = new Error(sanitizeAuthProviderError(error.message));
+    } catch (err) {
+      lastError = err as Error;
+      // One hung attempt is enough — don't burn more emails on a dead lock/network.
+      if (/TIMEOUT/i.test((err as Error).message)) break;
+    }
   }
   throw lastError ?? new Error("INVALID_CREDENTIALS");
 }
@@ -88,10 +117,17 @@ export async function loginWithPhonePin(input: { phone: string; pin: string }): 
   const password = pinToPassword(pin);
   try {
     const { data } = await signInWithPhonePassword(phone, password);
-    await syncProfile(data.user!.id, phone, undefined, pin);
-    return { ok: true, exists: true, userId: data.user!.id };
+    // Profile sync in background — login must return with session immediately.
+    void syncProfile(data.user!.id, phone, undefined, pin).catch(() => undefined);
+    return {
+      ok: true,
+      exists: true,
+      userId: data.user!.id,
+      session: data.session ?? null,
+    };
   } catch (err) {
     const code = sanitizeAuthProviderError((err as Error).message);
+    if (/TIMEOUT/i.test((err as Error).message)) throw new Error("AUTH_TIMEOUT");
     throw new Error(code === "AUTH_EMAIL_BACKEND" ? "INVALID_CREDENTIALS" : code);
   }
 }
@@ -146,8 +182,13 @@ export async function registerWithPhonePin(input: {
   // Sign-in covers: just created via admin, or account already existed.
   try {
     const { data } = await signInWithPhonePassword(phone, password);
-    await syncProfile(data.user!.id, phone, fullName, pin);
-    return { ok: true, exists: createdExists || usedServer, userId: data.user!.id };
+    void syncProfile(data.user!.id, phone, fullName, pin).catch(() => undefined);
+    return {
+      ok: true,
+      exists: createdExists || usedServer,
+      userId: data.user!.id,
+      session: data.session ?? null,
+    };
   } catch {
     if (usedServer && !allowClientSignup) {
       throw new Error(createdExists ? "ACCOUNT_EXISTS_WRONG_PIN" : "AUTH_EMAIL_BACKEND");
@@ -184,8 +225,13 @@ export async function registerWithPhonePin(input: {
       if (isAlreadyRegistered(signUpError.message)) {
         try {
           const { data } = await signInWithPhonePassword(phone, password);
-          await syncProfile(data.user!.id, phone, fullName, pin);
-          return { ok: true, exists: true, userId: data.user!.id };
+          void syncProfile(data.user!.id, phone, fullName, pin).catch(() => undefined);
+          return {
+            ok: true,
+            exists: true,
+            userId: data.user!.id,
+            session: data.session ?? null,
+          };
         } catch {
           throw new Error("ACCOUNT_EXISTS_WRONG_PIN");
         }
@@ -198,15 +244,25 @@ export async function registerWithPhonePin(input: {
     }
 
     if (signed.session?.user) {
-      await syncProfile(signed.session.user.id, phone, fullName, pin);
-      return { ok: true, exists: false, userId: signed.session.user.id };
+      void syncProfile(signed.session.user.id, phone, fullName, pin).catch(() => undefined);
+      return {
+        ok: true,
+        exists: false,
+        userId: signed.session.user.id,
+        session: signed.session,
+      };
     }
 
     // User created but no session → Confirm email is still ON in the hosted project.
     try {
       const { data } = await signInWithPhonePassword(phone, password);
-      await syncProfile(data.user!.id, phone, fullName, pin);
-      return { ok: true, exists: false, userId: data.user!.id };
+      void syncProfile(data.user!.id, phone, fullName, pin).catch(() => undefined);
+      return {
+        ok: true,
+        exists: false,
+        userId: data.user!.id,
+        session: data.session ?? null,
+      };
     } catch {
       throw new Error("EMAIL_CONFIRM_REQUIRED");
     }
@@ -215,13 +271,10 @@ export async function registerWithPhonePin(input: {
   throw new Error(sanitizeAuthProviderError(lastSignUpMessage) || "AUTH_EMAIL_BACKEND");
 }
 
-/** Admin tab: ensure default admin then login. */
+/** Admin tab: sign in first. Ensure-admin is optional background (must not block login). */
 export async function loginAsDefaultAdmin(input: { phone: string; pin: string }): Promise<PhoneAuthResult> {
-  try {
-    await ensureAdminAccount();
-  } catch {
-    /* still attempt login if admin already exists */
-  }
+  // Never await ensureAdminAccount here — server fn / listUsers can hang forever.
+  void ensureAdminAccount().catch(() => undefined);
   return loginWithPhonePin(input);
 }
 
@@ -287,6 +340,11 @@ export async function changeUserPin(input: {
 export function authErrorMessage(code: string, lang: "bn" | "en"): string {
   const mapped = sanitizeAuthProviderError(code);
   switch (mapped) {
+    case "AUTH_TIMEOUT":
+    case "SIGNIN_TIMEOUT":
+      return lang === "bn"
+        ? "Supabase Auth সাড়া দিচ্ছে না (টাইমআউট)। Dashboard → Project Settings → Restart project করে ২ মিনিট পর আবার চেষ্টা করুন।"
+        : "Supabase Auth is not responding (timeout). Restart the project in Dashboard → Project Settings, wait ~2 min, then retry.";
     case "INVALID_CREDENTIALS":
       return lang === "bn"
         ? "ফোন বা PIN ভুল — আবার চেষ্টা করুন"

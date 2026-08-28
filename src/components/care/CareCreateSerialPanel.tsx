@@ -377,8 +377,7 @@ export function CareCreateSerialPanel({
       setAddress("");
       setSecondVisit(false);
       setInvoiceId(ticket.id);
-      await refreshSession();
-      await reloadCreatedToday();
+      await Promise.all([refreshSession(), reloadCreatedToday()]);
       toast.success(
         lang === "bn" ? `সিরিয়াল ${ticket.serial_no} তৈরি` : `Serial ${ticket.serial_no} created`,
       );

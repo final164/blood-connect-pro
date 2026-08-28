@@ -8,14 +8,10 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
-
-/** Keep supabase/auth off the landing critical JS path. */
-const AppProviders = lazy(() =>
-  import("@/components/AppProviders").then((m) => ({ default: m.AppProviders })),
-);
+import { AppProviders } from "@/components/AppProviders";
 
 function NotFoundComponent() {
   return (
@@ -62,7 +58,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+      },
       { name: "theme-color", content: "#c1121f" },
       { title: "Muktosheba" },
     ],
@@ -128,13 +128,13 @@ function RootComponent() {
     return () => window.clearTimeout(t);
   }, [isLanding]);
 
+  // Landing: no auth providers on critical path.
+  // App: eager providers — lazy+Suspense was the full-screen spinner on every route.
   if (isLanding) return <Outlet />;
 
   return (
-    <Suspense fallback={null}>
-      <AppProviders queryClient={queryClient}>
-        <Outlet />
-      </AppProviders>
-    </Suspense>
+    <AppProviders queryClient={queryClient}>
+      <Outlet />
+    </AppProviders>
   );
 }

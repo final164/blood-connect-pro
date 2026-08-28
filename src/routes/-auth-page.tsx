@@ -72,7 +72,7 @@ type UsernameState = "idle" | "checking" | "free" | "taken" | "invalid";
 
 export function AuthPage() {
   const { t, lang, setLang } = useI18n();
-  const { session, loading, isAnonymous, isAdmin } = useAuth();
+  const { session, loading, isAnonymous, isAdmin, applySession } = useAuth();
   const navigate = useNavigate();
   const { next } = authRoute.useSearch();
   const continueHint = authContinueHint(next, lang);
@@ -138,11 +138,22 @@ export function AuthPage() {
       return;
     }
     if (mode === "admin") {
-      await loginAsDefaultAdmin({ phone: normalized, pin });
+      const res = await loginAsDefaultAdmin({ phone: normalized, pin });
+      if (res.session) applySession(res.session);
+      else if (res.userId) {
+        // Session missing from response — force full reload so AuthProvider peeks storage.
+        window.location.assign(next && isSafeNextPath(next) ? next : "/admin");
+        return;
+      }
       void navigate(resumePath(next, "/admin"));
       return;
     }
-    await loginWithPhonePin({ phone: normalized, pin });
+    const res = await loginWithPhonePin({ phone: normalized, pin });
+    if (res.session) applySession(res.session);
+    else if (res.userId) {
+      window.location.assign(next && isSafeNextPath(next) ? next : "/home");
+      return;
+    }
     void navigate(resumePath(next, "/home"));
   }
 
@@ -156,19 +167,21 @@ export function AuthPage() {
       }
 
       if (mode === "signup") {
-        await registerWithEmailPassword({
+        const res = await registerWithEmailPassword({
           fullName: name,
           username,
           email,
           password,
           confirmPassword,
         });
+        if (res.session) applySession(res.session);
         toast.success(bn ? "অ্যাকাউন্ট তৈরি হয়েছে" : "Account created");
         void navigate(resumePath(next, "/home"));
         return;
       }
 
-      await loginWithEmailPassword({ email, password });
+      const res = await loginWithEmailPassword({ email, password });
+      if (res.session) applySession(res.session);
       void navigate(resumePath(next, "/home"));
     } catch (err) {
       const raw = (err as Error)?.message || String(err);

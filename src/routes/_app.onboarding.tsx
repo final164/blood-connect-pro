@@ -38,37 +38,44 @@ function OnboardingPage() {
   const [existingUsername, setExistingUsername] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      const t = window.setTimeout(() => {
+        void navigate({ to: "/auth", search: { next: "/onboarding" } as never });
+      }, 1000);
+      return () => window.clearTimeout(t);
+    }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      if (cancelled) return;
-      if (isProfileComplete(data)) {
-        void navigate({ to: "/home" });
-        return;
+      try {
+        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+        if (cancelled) return;
+        if (isProfileComplete(data)) {
+          void navigate({ to: "/home" });
+          return;
+        }
+        if (data?.phone) setPhone(normalizePhone(data.phone));
+        setExistingUsername((data as { username?: string | null } | null)?.username ?? null);
+        if (data?.blood_group) setBloodGroup(data.blood_group);
+        const g = (data?.gender ?? "").toLowerCase();
+        if (g === "male" || g === "female") setGender(g);
+        if (data?.area) setUpazila(data.area);
+        setAge(ageFromDateOfBirth(data?.date_of_birth));
+        if (data?.district_id) {
+          const { data: d } = await supabase
+            .from("districts")
+            .select("id,name_bn,name_en,slug,is_active,sort_order")
+            .eq("id", data.district_id)
+            .maybeSingle();
+          if (!cancelled && d) setDistrict(d as District);
+        }
+      } finally {
+        if (!cancelled) setReady(true);
       }
-      if (data?.phone) setPhone(normalizePhone(data.phone));
-      setExistingUsername((data as { username?: string | null } | null)?.username ?? null);
-      if (data?.blood_group) setBloodGroup(data.blood_group);
-      const g = (data?.gender ?? "").toLowerCase();
-      if (g === "male" || g === "female") setGender(g);
-      if (data?.area) setUpazila(data.area);
-      setAge(ageFromDateOfBirth(data?.date_of_birth));
-      if (data?.district_id) {
-        const { data: d } = await supabase
-          .from("districts")
-          .select("id,name_bn,name_en,slug,is_active,sort_order")
-          .eq("id", data.district_id)
-          .maybeSingle();
-        if (!cancelled && d) setDistrict(d as District);
-      }
-      setReady(true);
     })();
     return () => {
       cancelled = true;
     };
   }, [user, navigate]);
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;

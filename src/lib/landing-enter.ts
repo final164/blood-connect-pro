@@ -1,15 +1,16 @@
 import { authWithNext, isSafeNextPath } from "@/lib/auth-next";
+import { peekStoredSession } from "@/lib/auth-peek";
 
-/** Click-time only — keeps supabase off the landing critical JS path. */
+/** Sync check from localStorage — never await GoTrue (can hang on lock). */
+export function isLandingUserLoggedInSync(): boolean {
+  const session = peekStoredSession();
+  const user = session?.user;
+  return !!user && !user.is_anonymous;
+}
+
+/** @deprecated Prefer sync peek — kept for call sites that await. */
 export async function isLandingUserLoggedIn(): Promise<boolean> {
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    const { data } = await supabase.auth.getSession();
-    const user = data.session?.user;
-    return !!user && !user.is_anonymous;
-  } catch {
-    return false;
-  }
+  return isLandingUserLoggedInSync();
 }
 
 /**
@@ -18,8 +19,7 @@ export async function isLandingUserLoggedIn(): Promise<boolean> {
  */
 export async function enterAppOrAuth(nextPath?: string) {
   const next = (nextPath || "/home").trim() || "/home";
-  const loggedIn = await isLandingUserLoggedIn();
-  if (loggedIn) {
+  if (isLandingUserLoggedInSync()) {
     window.location.assign(isSafeNextPath(next) ? next : "/home");
     return;
   }
@@ -28,6 +28,5 @@ export async function enterAppOrAuth(nextPath?: string) {
 
 /** Login / signup CTA from landing: logged-in users skip the auth form. */
 export async function enterAppOrOpenAuth() {
-  const loggedIn = await isLandingUserLoggedIn();
-  window.location.assign(loggedIn ? "/home" : "/auth");
+  window.location.assign(isLandingUserLoggedInSync() ? "/home" : "/auth");
 }

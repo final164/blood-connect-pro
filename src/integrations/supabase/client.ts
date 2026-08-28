@@ -60,7 +60,12 @@ function createSupabaseClient() {
       storage: typeof window !== "undefined" ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
-    },
+      detectSessionInUrl:
+        typeof window !== "undefined" && window.location.pathname.startsWith("/auth/callback"),
+      flowType: "pkce",
+      // Avoid navigator.locks deadlock (infinite login spinners).
+      lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<unknown>) => fn(),
+    } as never,
   });
 }
 

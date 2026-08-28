@@ -343,6 +343,44 @@ export async function issueCareSerial(params: {
   return data as CareSerialRow;
 }
 
+/** App booking in one RPC (ensure session + issue) — half the round-trips. */
+export async function bookCareAppSerial(params: {
+  scheduleId: string;
+  date: string;
+  guestName?: string;
+  guestPhone?: string;
+  guestAge?: number | null;
+  guestAddress?: string;
+  isSecondVisit?: boolean;
+}): Promise<CareSerialRow> {
+  const { data, error } = await supabase.rpc("care_book_app_serial", {
+    _schedule_id: params.scheduleId,
+    _date: params.date,
+    _guest_name: params.guestName ?? null,
+    _guest_phone: params.guestPhone ?? null,
+    _guest_age: params.guestAge ?? null,
+    _guest_address: params.guestAddress ?? null,
+    _is_second_visit: params.isSecondVisit ?? false,
+  } as never);
+  if (error) {
+    // Older DBs without the RPC — fall back to two calls
+    if (/care_book_app_serial|Could not find the function/i.test(error.message)) {
+      const sessionId = await ensureCareSession(params.scheduleId, params.date);
+      return issueCareSerial({
+        sessionId,
+        source: "app",
+        guestName: params.guestName,
+        guestPhone: params.guestPhone,
+        guestAge: params.guestAge,
+        guestAddress: params.guestAddress,
+        isSecondVisit: params.isSecondVisit,
+      });
+    }
+    throw new Error(error.message);
+  }
+  return data as CareSerialRow;
+}
+
 /** Chamber assigns serial_no and moves pending_approval → booked */
 export async function approveCareSerial(params: {
   serialId: string;

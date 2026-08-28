@@ -74,7 +74,7 @@ export async function resolveFreeUsername(seed: string): Promise<string> {
   throw new Error("USERNAME_TAKEN");
 }
 
-export type EmailAuthResult = { ok: true; userId: string };
+export type EmailAuthResult = { ok: true; userId: string; session: import("@supabase/supabase-js").Session | null };
 
 export async function loginWithEmailPassword(input: {
   email: string;
@@ -84,13 +84,20 @@ export async function loginWithEmailPassword(input: {
   if (!isValidEmail(email)) throw new Error("INVALID_EMAIL");
   if (!input.password) throw new Error("INVALID_CREDENTIALS");
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const signIn = supabase.auth.signInWithPassword({
     email,
     password: input.password,
   });
+  const timed = await Promise.race([
+    signIn,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("AUTH_TIMEOUT")), 12_000);
+    }),
+  ]);
+  const { data, error } = timed;
   if (error) throw new Error(sanitizeAuthProviderError(error.message));
   if (!data.user) throw new Error("INVALID_CREDENTIALS");
-  return { ok: true, userId: data.user.id };
+  return { ok: true, userId: data.user.id, session: data.session };
 }
 
 export async function registerWithEmailPassword(input: {
@@ -163,6 +170,10 @@ export function emailAuthErrorMessage(raw: string, lang: "bn" | "en"): string {
       return lang === "bn"
         ? "ইমেইল বা পাসওয়ার্ড ভুল — আবার চেষ্টা করুন"
         : "Wrong email or password — try again";
+    case "AUTH_TIMEOUT":
+      return lang === "bn"
+        ? "Supabase Auth সাড়া দিচ্ছে না (টাইমআউট)। Dashboard → Project Settings → Restart project করে ২ মিনিট পর আবার চেষ্টা করুন।"
+        : "Supabase Auth is not responding (timeout). Restart the project in Dashboard → Project Settings, wait ~2 min, then retry.";
     case "EMAIL_RATE_LIMIT":
       return lang === "bn"
         ? "অনেকবার চেষ্টা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন, অথবা Google দিয়ে ঢুকুন।"

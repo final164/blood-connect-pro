@@ -8,12 +8,11 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  ensureCareSession,
+  bookCareAppSerial,
   fetchCareDoctor,
   fetchSchedulesForAffiliations,
   fetchSessionByScheduleDate,
   applySecondVisitDiscount,
-  issueCareSerial,
   nextDatesForWeekday,
   WEEKDAY_BN,
   WEEKDAY_EN,
@@ -231,10 +230,9 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
 
     setBusy(true);
     try {
-      const sessionId = await ensureCareSession(selected.scheduleId, selected.date);
-      const ticket = await issueCareSerial({
-        sessionId,
-        source: "app",
+      const ticket = await bookCareAppSerial({
+        scheduleId: selected.scheduleId,
+        date: selected.date,
         guestName: req.name ? name : undefined,
         guestPhone: req.phone ? phone : undefined,
         guestAge: req.age && ageNum != null && Number.isFinite(ageNum) ? ageNum : null,

@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useAuth } from "@/lib/auth-context";
@@ -61,13 +61,7 @@ export function AppLayout() {
     };
   }, []);
 
-  useEffect(() => {
-    if (loading) return;
-    if (isGuest && !guestBrowse) {
-      const next = pathWithSearch(location.pathname, location.search);
-      void navigate({ to: "/auth", search: { next } as never });
-    }
-  }, [loading, isGuest, guestBrowse, navigate, location.pathname, location.search]);
+  // Guest redirect handled by <Navigate> below — no effect spinner trap.
 
   useEffect(() => {
     if (!user || loading || isAnonymous) {
@@ -76,33 +70,42 @@ export function AppLayout() {
     }
     let cancelled = false;
     setProfileGate((prev) => (prev === "ok" ? "ok" : "checking"));
-    getProfile(user.id)
-      .then((profile) => {
-        if (cancelled) return;
-        const accountKind = (profile as { account_kind?: string } | null)?.account_kind;
-        if (accountKind === "care_vendor") {
-          setProfileGate("ok");
-          return;
-        }
-        const complete = isProfileComplete(profile);
-        setProfileGate(complete ? "ok" : "incomplete");
-        if (!complete && !onOnboarding) {
-          void navigate({ to: "/onboarding" });
-        } else if (complete && onOnboarding) {
-          void navigate({ to: "/home" });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setProfileGate("incomplete");
-          if (!onOnboarding) void navigate({ to: "/onboarding" });
-        }
-      });
+    const run = () => {
+      getProfile(user.id)
+        .then((profile) => {
+          if (cancelled) return;
+          const accountKind = (profile as { account_kind?: string } | null)?.account_kind;
+          if (accountKind === "care_vendor") {
+            setProfileGate("ok");
+            return;
+          }
+          const complete = isProfileComplete(profile);
+          setProfileGate(complete ? "ok" : "incomplete");
+          if (!complete && !onOnboarding) {
+            void navigate({ to: "/onboarding" });
+          } else if (complete && onOnboarding) {
+            void navigate({ to: "/home" });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            // Don't trap users on onboarding if profile fetch fails (offline / slow).
+            setProfileGate("ok");
+          }
+        });
+    };
+    // Defer profile gate so Care/Home paint first.
+    const idleId =
+      typeof requestIdleCallback === "function"
+        ? requestIdleCallback(run, { timeout: 2500 })
+        : null;
+    const t = idleId == null ? window.setTimeout(run, 800) : null;
     return () => {
       cancelled = true;
+      if (idleId != null) cancelIdleCallback(idleId);
+      if (t != null) window.clearTimeout(t);
     };
   }, [user?.id, loading, isAnonymous, onOnboarding, navigate]);
-
   useEffect(() => {
     if (!user || !canUseDeviceNotifications()) return;
     // Defer so login navigation finishes; never block first paint.
@@ -120,21 +123,15 @@ export function AppLayout() {
     return () => window.clearTimeout(t);
   }, [user?.id]);
 
-  if (loading && !session) {
-    return (
-      <div className="min-h-dvh grid place-items-center bg-background">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
+  // Paint immediately — never block the whole app on auth/network.
+  // Protected guest routes: hard Navigate (no infinite spinner).
   if (isGuest) {
     if (!guestBrowse) {
-      return (
-        <div className="min-h-dvh grid place-items-center bg-background">
-          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        </div>
-      );
+      if (loading) {
+        return <div className="min-h-dvh bg-background" aria-busy="true" />;
+      }
+      const next = pathWithSearch(location.pathname, location.search);
+      return <Navigate to="/auth" search={{ next } as never} replace />;
     }
     return (
       <NotificationsProvider>

@@ -152,6 +152,27 @@ function missing(error: { message?: string } | null) {
   return !!error && /does not exist|schema cache|relation/i.test(error.message ?? "");
 }
 
+const OFFERINGS_CACHE_TTL_MS = 60_000;
+const offeringsCache = new Map<string, { at: number; data: CareOffering[] }>();
+
+function offeringsCacheKey(opts: {
+  q?: string;
+  districtId?: string;
+  upazila?: string;
+  categoryId?: string;
+  catalogIds?: string[];
+  orgId?: string;
+}) {
+  return [
+    opts.q?.trim().toLowerCase() ?? "",
+    opts.districtId ?? "",
+    opts.upazila?.trim().toLowerCase() ?? "",
+    opts.categoryId ?? "",
+    (opts.catalogIds ?? []).slice().sort().join(","),
+    opts.orgId ?? "",
+  ].join("|");
+}
+
 export async function searchTestOfferings(opts: {
   q?: string;
   districtId?: string;
@@ -160,6 +181,10 @@ export async function searchTestOfferings(opts: {
   catalogIds?: string[];
   orgId?: string;
 }): Promise<CareOffering[]> {
+  const cacheKey = offeringsCacheKey(opts);
+  const hit = offeringsCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < OFFERINGS_CACHE_TTL_MS) return hit.data;
+
   const selectWithDisc = `
       id, org_id, location_id, catalog_id, price, discount_percent, booking_mode, default_capacity, home_collection, is_active,
       care_test_catalog ( code, name_bn, name_en, prep_bn, prep_en, fasting_notes_bn, fasting_notes_en, sample_type, category_id ),
@@ -172,15 +197,17 @@ export async function searchTestOfferings(opts: {
       care_orgs ( id, name, name_bn, district_id, address, upazila, phone, is_verified, is_listed, is_active, org_kind_id ),
       care_locations ( id, name, name_bn, upazila, district_id )
     `;
+  // Keep browse payloads small; catalog/org lookups can pull more.
+  const rowLimit = opts.catalogIds?.length || opts.orgId ? 300 : 80;
   let qy = supabase.from("care_test_offerings").select(selectWithDisc).eq("is_active", true);
   if (opts.catalogIds?.length) qy = qy.in("catalog_id", opts.catalogIds);
   if (opts.orgId) qy = qy.eq("org_id", opts.orgId);
-  let { data, error } = await qy.limit(opts.catalogIds?.length || opts.orgId ? 500 : 200);
+  let { data, error } = await qy.limit(rowLimit);
   if (error && /discount_percent/i.test(error.message)) {
     let q2 = supabase.from("care_test_offerings").select(selectNoDisc).eq("is_active", true);
     if (opts.catalogIds?.length) q2 = q2.in("catalog_id", opts.catalogIds);
     if (opts.orgId) q2 = q2.eq("org_id", opts.orgId);
-    const retry = await q2.limit(opts.catalogIds?.length || opts.orgId ? 500 : 200);
+    const retry = await q2.limit(rowLimit);
     data = retry.data as typeof data;
     error = retry.error;
   }
@@ -231,6 +258,7 @@ export async function searchTestOfferings(opts: {
   }
   // Prefer cheapest sale price for stable UX
   out.sort((a, b) => offeringSalePrice(a) - offeringSalePrice(b));
+  offeringsCache.set(cacheKey, { at: Date.now(), data: out });
   return out;
 }
 

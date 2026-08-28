@@ -69,6 +69,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     if (itemsLenRef.current === 0) setLoading(true);
     try {
       const settings = await fetchNotificationSettings();
+      // Purge in background — never block list paint
       void purgeExpiredNotificationsForUser(user.id, settings.retention_days).catch(() => undefined);
 
       const { data, error } = await supabase
@@ -135,50 +136,70 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [user, lang]);
 
   useEffect(() => {
-    void refresh();
-    if (!user) return;
+    if (!user) {
+      setItems([]);
+      return;
+    }
 
-    const ch = supabase
-      .channel(`notif-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        async (payload) => {
-          const n = payload.new as AppNotification;
-          const fromData = (n.data?.actor_id as string | undefined) ?? null;
-          n.actor_id = n.actor_id ?? fromData;
-          if (n.actor_id && !n.actor) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("id, full_name, avatar_url")
-              .eq("id", n.actor_id)
-              .maybeSingle();
-            if (profile) n.actor = profile;
-          }
-          if (!seenIds.current.has(n.id)) {
-            seenIds.current.add(n.id);
-            await pushForNotification(n);
-          }
-          void refresh();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => void refresh(),
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => void refresh(),
-      )
-      .subscribe();
+    let cancelled = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        if (!cancelled) void refresh();
+      }, 400);
+    };
+
+    const start = () => {
+      if (cancelled) return;
+      void refresh();
+      ch = supabase
+        .channel(`notif-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const n = payload.new as AppNotification;
+            const fromData = (n.data?.actor_id as string | undefined) ?? null;
+            n.actor_id = n.actor_id ?? fromData;
+            if (!seenIds.current.has(n.id)) {
+              seenIds.current.add(n.id);
+              setItems((prev) => [n, ...prev].slice(0, 40));
+              void pushForNotification(n);
+            }
+            scheduleRefresh();
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          () => scheduleRefresh(),
+        )
+        .on(
+          "postgres_changes",
+          { event: "DELETE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          () => scheduleRefresh(),
+        )
+        .subscribe();
+    };
+
+    // Badge/list sync must not compete with first paint of Care/Home.
+    const idleId =
+      typeof requestIdleCallback === "function"
+        ? requestIdleCallback(start, { timeout: 3500 })
+        : null;
+    const t = idleId == null ? window.setTimeout(start, 1200) : null;
 
     return () => {
-      supabase.removeChannel(ch);
+      cancelled = true;
+      if (idleId != null) cancelIdleCallback(idleId);
+      if (t != null) window.clearTimeout(t);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      if (ch) supabase.removeChannel(ch);
     };
   }, [user, refresh, pushForNotification]);
-
   const markRead = async (id: string) => {
     setItems((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true, read_at: n.read_at ?? new Date().toISOString() } : n)),
