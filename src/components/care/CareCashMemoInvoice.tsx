@@ -115,9 +115,24 @@ function SerialInvoiceBody({ vm, template, lang, L }: MemoCtx) {
   const rows = vm.serial_rows ?? [];
   const extra = vm.serial_extra;
   const onlineLabel = lang === "bn" ? "অনলাইন" : "Online";
+  const heroSerial = rows[0]?.serial_no?.trim() || null;
+  const heroOnline = rows[0]?.online_serial_no ?? null;
 
   return (
     <>
+      {heroSerial && heroSerial !== "—" ? (
+        <div className="cm-serial-hero">
+          <p className="cm-serial-hero-label">
+            {lang === "bn" ? "চেম্বার সিরিয়াল" : "Chamber serial"}
+          </p>
+          <p className="cm-serial-hero-no">{heroSerial}</p>
+          {heroOnline != null ? (
+            <p className="cm-serial-hero-online">
+              {onlineLabel} #{heroOnline}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       <table className="cm-table cm-table-serial">
         <thead>
           <tr>
@@ -437,6 +452,10 @@ export function CareCashMemoInvoice({
 .cm-amb-extra b{color:#0f766e}
 .cm-bottom-ambulance{justify-content:flex-end}
 .cm-serial-online{font-size:.85em;opacity:.85}
+.cm-serial-hero{text-align:center;margin:0 0 12px;padding:10px 8px;border:2px solid #0f766e;border-radius:6px;background:#ecfdf5}
+.cm-serial-hero-label{font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f766e;margin:0 0 2px}
+.cm-serial-hero-no{font-size:2.75rem;font-weight:900;line-height:1;letter-spacing:-.02em;color:#065f46;margin:0;font-variant-numeric:tabular-nums}
+.cm-serial-hero-online{font-size:.7rem;color:#64748b;margin:4px 0 0}
 .cm-serial-extra{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.7rem;margin:-4px 0 10px;padding:6px 8px;background:#f8fafc;border:1px solid #99f6e4;border-radius:4px}
 .cm-serial-extra b{color:#0f766e}
 .cm-disc-pct{display:inline;font-size:inherit;opacity:.85;margin-left:2px;font-weight:500}
@@ -463,6 +482,9 @@ export function CareCashMemoInvoice({
   .cm-logo-fallback{border-color:#111!important;background:#fafafa!important;color:#111!important}
   .cm-title-box span{background:#fff!important;color:#111!important;border-color:#111!important}
   .cm-meta,.cm-serial-extra,.cm-amb-extra{background:#fff!important;border-color:#111!important;padding:0!important}
+  .cm-serial-hero{background:#fff!important;border-color:#111!important}
+  .cm-serial-hero-label,.cm-serial-hero-no{color:#111!important}
+  .cm-serial-hero-online{color:#333!important}
   .cm-table th,.cm-table td{border-color:#111!important}
   .cm-table thead th{background:#fff!important;color:#111!important}
   .cm-table tbody tr:nth-child(even) td{background:#fff!important}

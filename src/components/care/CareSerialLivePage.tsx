@@ -88,36 +88,33 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {pending
                 ? lang === "bn"
-                  ? "অনলাইন সিরিয়াল · অনুমোদন বাকি"
-                  : "Online serial · awaiting approval"
+                  ? "চেম্বার সিরিয়াল · অনুমোদন বাকি"
+                  : "Chamber serial · awaiting approval"
                 : lang === "bn"
                   ? "চেম্বার সিরিয়াল নম্বর"
                   : "Chamber serial number"}
             </p>
+            <p
+              className={`font-black tabular-nums text-6xl ${
+                pending ? "text-amber-700" : "text-primary"
+              }`}
+            >
+              {ticket.serial_no ?? "—"}
+            </p>
             {pending ? (
-              <>
-                <p className="font-black tabular-nums text-sky-800 text-6xl">
-                  {ticket.online_serial_no ?? "—"}
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+                <p className="text-xs font-semibold text-amber-800">
+                  {lang === "bn" ? "চেম্বার অনুমোদনের অপেক্ষায়" : "Awaiting chamber approval"}
                 </p>
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wide text-amber-700">
-                    {lang === "bn" ? "চেম্বার সিরিয়াল" : "Chamber serial"}
-                  </p>
-                  <p className="text-3xl font-black text-amber-600 mt-1">
-                    {lang === "bn" ? "পেন্ডিং" : "PENDING"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    {lang === "bn"
-                      ? "অ্যাপ্রুভ করে নম্বর দিলে এখানে দেখা যাবে।"
-                      : "Shows here after approval with a serial number."}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <p className="font-black tabular-nums text-primary text-6xl">{ticket.serial_no}</p>
-            )}
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {lang === "bn"
+                    ? "নম্বর আগে থেকেই রিজার্ভ — অ্যাপ্রুভ হলে একই নম্বর নিশ্চিত হবে।"
+                    : "Number is reserved — approval confirms the same serial."}
+                </p>
+              </div>
+            ) : null}
             <p className="text-sm text-muted-foreground font-mono">{ticket.claim_code}</p>
-              {ticket.online_serial_no != null && !pending && ticket.source === "app" && (
+              {ticket.online_serial_no != null && ticket.source === "app" && (
                 <p className="text-[11px] text-muted-foreground inline-flex items-center gap-1 justify-center">
                   <Receipt className="h-3 w-3" />
                   {lang === "bn" ? "অনলাইন সিরিয়াল" : "Online serial"}: {ticket.online_serial_no}

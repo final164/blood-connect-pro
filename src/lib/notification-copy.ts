@@ -27,6 +27,8 @@ export function notificationCopy(
   if (kind.startsWith("care_") || String(n.title || "").startsWith("care_")) {
     const map: Record<string, { bn: string; en: string }> = {
       care_serial_booked: { bn: "সিরিয়াল নিশ্চিত", en: "Serial confirmed" },
+      care_serial_pending: { bn: "সিরিয়াল অনুরোধ গৃহীত", en: "Serial request received" },
+      care_serial_approved: { bn: "সিরিয়াল অনুমোদিত", en: "Serial approved" },
       care_serial_called: { bn: "আপনার নম্বর কল হয়েছে", en: "Your number is called" },
       care_serial_ahead: { bn: "আপনার পালা কাছে", en: "You are next soon" },
       care_session_paused: { bn: "সেশন আপডেট", en: "Session updated" },
@@ -34,9 +36,31 @@ export function notificationCopy(
       care_lab_cancelled: { bn: "টেস্ট বুকিং বাতিল", en: "Test booking cancelled" },
     };
     const hit = map[kind] || map[String(n.title)];
+    const serial =
+      n.data?.serial_no != null
+        ? String(n.data.serial_no)
+        : n.data?.serial != null
+          ? String(n.data.serial)
+          : null;
+    let body = n.body;
+    if (serial && (kind === "care_serial_pending" || kind === "care_serial_approved" || kind === "care_serial_booked")) {
+      if (kind === "care_serial_pending") {
+        body =
+          lang === "bn"
+            ? `আপনার সিরিয়াল #${serial} — চেম্বার অনুমোদনের অপেক্ষায়।`
+            : `Your serial is #${serial} — awaiting chamber approval.`;
+      } else if (kind === "care_serial_approved") {
+        body =
+          lang === "bn"
+            ? `আপনার সিরিয়াল #${serial} অনুমোদিত হয়েছে।`
+            : `Your serial #${serial} has been approved.`;
+      } else {
+        body = lang === "bn" ? `আপনার সিরিয়াল নম্বর ${serial}` : `Your serial is ${serial}`;
+      }
+    }
     return {
       title: hit ? (lang === "bn" ? hit.bn : hit.en) : n.title || "Care",
-      body: n.body,
+      body,
     };
   }
 

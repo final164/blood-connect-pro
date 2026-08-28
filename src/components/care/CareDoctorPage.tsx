@@ -241,12 +241,12 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
         guestAddress: req.address ? address || undefined : undefined,
         isSecondVisit: secondVisit,
       });
-      const pending = ticket.status === "pending_approval" || ticket.serial_no == null;
+      const pending = ticket.status === "pending_approval";
       toast.success(
         pending
           ? lang === "bn"
-            ? `অনলাইন সিরিয়াল ${ticket.online_serial_no ?? "—"} · চেম্বার অনুমোদনের অপেক্ষা`
-            : `Online serial ${ticket.online_serial_no ?? "—"} · waiting for chamber approval`
+            ? `সিরিয়াল ${ticket.serial_no ?? "—"} · চেম্বার অনুমোদনের অপেক্ষা`
+            : `Serial ${ticket.serial_no ?? "—"} · waiting for chamber approval`
           : lang === "bn"
             ? `সিরিয়াল ${ticket.serial_no} · ইনভয়েস প্রস্তুত`
             : `Serial ${ticket.serial_no} · Invoice ready`,

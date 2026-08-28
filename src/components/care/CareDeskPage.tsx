@@ -712,12 +712,11 @@ function QueuePanel({
               </p>
               <ul className="divide-y rounded-2xl border border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-900">
                 {group.items.map((t) => {
-                  const ticketSess = t.session ?? sessionById.get(t.session_id);
-                  const nextHint = ticketSess ? String(ticketSess.last_issued + 1) : "";
+                  const reserved = t.serial_no;
                   return (
                     <li key={t.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 shrink-0">
-                        {lang === "bn" ? "পেন্ডিং" : "Pending"}
+                      <span className="font-black tabular-nums w-8 text-amber-800">
+                        {reserved ?? "—"}
                       </span>
                       <PatientInfoBlock
                         t={t}
@@ -743,7 +742,15 @@ function QueuePanel({
                             inputMode="numeric"
                             value={approveNos[t.id] ?? ""}
                             onChange={(e) => setApproveNos((p) => ({ ...p, [t.id]: e.target.value }))}
-                            placeholder={lang === "bn" ? `নম্বর (${nextHint}+)` : `No. (${nextHint}+)`}
+                            placeholder={
+                              reserved != null
+                                ? lang === "bn"
+                                  ? `নম্বর (#${reserved})`
+                                  : `No. (#${reserved})`
+                                : lang === "bn"
+                                  ? "নম্বর"
+                                  : "No."
+                            }
                             className="w-24 rounded-lg border bg-background px-2 py-1.5 text-xs tabular-nums"
                           />
                           <button

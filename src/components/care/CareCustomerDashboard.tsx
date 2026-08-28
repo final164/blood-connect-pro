@@ -239,7 +239,7 @@ export function CareCustomerDashboard({
             ) : (
               <ul className="space-y-2">
                 {serials.map((s) => {
-                  const pending = s.status === "pending_approval" || s.serial_no == null;
+                  const pending = s.status === "pending_approval";
                   const orgId = s.session?.org_id;
                   return (
                     <li
@@ -253,13 +253,9 @@ export function CareCustomerDashboard({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-semibold min-w-0">
-                            {pending
-                              ? lang === "bn"
-                                ? `অনলাইন #${s.online_serial_no ?? "—"}`
-                                : `Online #${s.online_serial_no ?? "—"}`
-                              : lang === "bn"
-                                ? `সিরিয়াল #${s.serial_no}`
-                                : `Serial #${s.serial_no}`}
+                            {lang === "bn"
+                              ? `সিরিয়াল #${s.serial_no ?? "—"}`
+                              : `Serial #${s.serial_no ?? "—"}`}
                           </p>
                           <span
                             className={cn(
@@ -277,6 +273,11 @@ export function CareCustomerDashboard({
                         <p className="text-[11px] text-muted-foreground">
                           {s.session?.session_date}
                           {s.claim_code ? ` · ${s.claim_code}` : ""}
+                          {s.online_serial_no != null
+                            ? lang === "bn"
+                              ? ` · অনলাইন #${s.online_serial_no}`
+                              : ` · online #${s.online_serial_no}`
+                            : ""}
                           {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
                         </p>
                       </Link>

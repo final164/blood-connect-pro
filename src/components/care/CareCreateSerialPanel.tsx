@@ -9,7 +9,10 @@ import {
   fetchSession,
   applySecondVisitDiscount,
   issueCareSerial,
+  nextDatesForWeekday,
   setSessionStatus,
+  WEEKDAY_BN,
+  WEEKDAY_EN,
   type CareScheduleRow,
   type CareSerialRow,
   type CareSessionRow,
@@ -150,12 +153,21 @@ export function CareCreateSerialPanel({
     };
   }, [selectedAff, secondVisit]);
 
+  const selectedSchedule = useMemo(
+    () => schedulesForAff.find((s) => s.id === scheduleId) ?? null,
+    [schedulesForAff, scheduleId],
+  );
+  const dateOptions = useMemo(
+    () => (selectedSchedule ? nextDatesForWeekday(selectedSchedule.weekday, 4) : []),
+    [selectedSchedule],
+  );
+
   const remaining = liveSession
     ? Math.max(0, liveSession.max_serial - liveSession.last_issued)
-    : schedulesForAff.find((s) => s.id === scheduleId)?.max_serial ?? null;
+    : selectedSchedule?.max_serial ?? null;
   const nextNo = liveSession
     ? liveSession.last_issued + 1
-    : schedulesForAff.find((s) => s.id === scheduleId)?.start_number ?? 1;
+    : selectedSchedule?.start_number ?? 1;
 
   function doctorName(a: AffRow) {
     return lang === "bn"
@@ -230,6 +242,11 @@ export function CareCreateSerialPanel({
     const list = schedulesForAff;
     setScheduleId((prev) => (prev && list.some((s) => s.id === prev) ? prev : list[0]?.id ?? ""));
   }, [affiliationId, schedulesForAff]);
+
+  useEffect(() => {
+    if (!dateOptions.length) return;
+    setSessionDate((prev) => (dateOptions.includes(prev) ? prev : dateOptions[0]!));
+  }, [scheduleId, dateOptions]);
 
   useEffect(() => {
     void refreshSession();
@@ -325,6 +342,19 @@ export function CareCreateSerialPanel({
     }
     if (remaining === 0) {
       toast.error(lang === "bn" ? "সিরিয়াল পূর্ণ" : "Serial full");
+      return;
+    }
+    if (!selectedSchedule) {
+      toast.error(lang === "bn" ? "শিডিউল বেছে নিন" : "Pick a schedule");
+      return;
+    }
+    const dow = new Date(`${sessionDate}T12:00:00`).getDay();
+    if (dow !== selectedSchedule.weekday) {
+      toast.error(
+        lang === "bn"
+          ? "তারিখ শিডিউলের দিনের সাথে মেলে না"
+          : "Date does not match schedule weekday",
+      );
       return;
     }
 
@@ -508,17 +538,39 @@ export function CareCreateSerialPanel({
                     })}
                   </select>
                 </label>
-                <label className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     {lang === "bn" ? "তারিখ" : "Date"}
+                    {selectedSchedule
+                      ? ` · ${lang === "bn" ? WEEKDAY_BN[selectedSchedule.weekday] : WEEKDAY_EN[selectedSchedule.weekday]}`
+                      : ""}
                   </span>
-                  <input
-                    type="date"
-                    value={sessionDate}
-                    onChange={(e) => setSessionDate(e.target.value)}
-                    className={inputCls}
-                  />
-                </label>
+                  {dateOptions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">
+                      {lang === "bn" ? "আসন্ন তারিখ নেই" : "No upcoming dates"}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {dateOptions.map((date) => {
+                        const selected = sessionDate === date;
+                        return (
+                          <button
+                            key={date}
+                            type="button"
+                            onClick={() => setSessionDate(date)}
+                            className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold tabular-nums transition ${
+                              selected
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            {date.slice(5)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div className="flex flex-wrap gap-2">
