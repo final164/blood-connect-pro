@@ -8,7 +8,8 @@ import {
 } from "@/components/landing/HeroBackgroundSlideshow";
 import { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGridGuest";
 import { parseYoutubeId } from "@/lib/youtube";
-import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
+import { hrefRequiresLogin } from "@/lib/auth-next";
+import { enterAppOrAuth, enterAppOrOpenAuth } from "@/lib/landing-enter";
 
 const LandingYoutubePlayer = lazy(() =>
   import("@/components/landing/LandingYoutubePlayer").then((m) => ({
@@ -57,9 +58,17 @@ export function LandingHref({
 
   if (h === "/auth" || h.startsWith("/auth?") || h.startsWith("/auth/")) {
     return (
-      <Link to="/auth" search={{}} className={className} style={style}>
+      <a
+        href="/auth"
+        className={className}
+        style={style}
+        onClick={(e) => {
+          e.preventDefault();
+          void enterAppOrOpenAuth();
+        }}
+      >
         {children}
-      </Link>
+      </a>
     );
   }
 
@@ -89,7 +98,15 @@ export function LandingHref({
 
   if (hrefRequiresLogin(h)) {
     return (
-      <a href={authWithNext(h)} className={className} style={style}>
+      <a
+        href={h}
+        className={className}
+        style={style}
+        onClick={(e) => {
+          e.preventDefault();
+          void enterAppOrAuth(h);
+        }}
+      >
         {children}
       </a>
     );

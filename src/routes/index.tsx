@@ -27,21 +27,6 @@ const LandingSeoJsonLd = lazy(() =>
   import("@/components/SeoHead").then((m) => ({ default: m.LandingSeoJsonLd })),
 );
 
-function hasStoredAuthHint(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key || !/auth-token|sb-.*-auth/i.test(key)) continue;
-      const raw = localStorage.getItem(key);
-      if (raw && /access_token|"user"/.test(raw)) return true;
-    }
-  } catch {
-    /* private mode */
-  }
-  return false;
-}
-
 function readLandingLang(): "bn" | "en" {
   if (typeof window === "undefined") return "bn";
   try {
@@ -139,11 +124,6 @@ function LandingPage() {
       cancelSchedule?.();
     };
   }, []);
-
-  useEffect(() => {
-    if (!hasStoredAuthHint()) return;
-    void navigate({ to: "/home" });
-  }, [navigate]);
 
   useEffect(() => {
     if (settings.enabled === false) void navigate({ to: "/auth", search: {} });

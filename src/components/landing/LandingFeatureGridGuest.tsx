@@ -15,7 +15,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { LandingFeatureGrid, LandingFeatureIcon, LandingFeatureTile } from "@/lib/landing-settings";
-import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
+import { hrefRequiresLogin } from "@/lib/auth-next";
+import { enterAppOrAuth } from "@/lib/landing-enter";
 
 const ICON_MAP: Record<LandingFeatureIcon, LucideIcon> = {
   droplet: Droplet,
@@ -61,8 +62,13 @@ export function LandingFeatureGridGuest({
       return;
     }
     const href = (tile.href || "/").trim() || "/";
+    if (href.startsWith("#") || href.startsWith("http") || href.startsWith("tel:") || href.startsWith("mailto:")) {
+      window.location.assign(href);
+      return;
+    }
+    // Login-gated tiles: if session exists, enter directly; else /auth?next=
     if (tile.requires_auth || hrefRequiresLogin(href)) {
-      window.location.assign(authWithNext(href));
+      void enterAppOrAuth(href);
       return;
     }
     window.location.assign(href);

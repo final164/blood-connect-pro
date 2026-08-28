@@ -1,10 +1,38 @@
 import { Link } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import type { LandingSettings } from "@/lib/landing-settings";
+import { enterAppOrOpenAuth } from "@/lib/landing-enter";
 
 const AppDownloadButton = lazy(() =>
   import("@/components/AppDownloadButton").then((m) => ({ default: m.AppDownloadButton })),
 );
+
+function AuthEntryButton({
+  className,
+  style,
+  children,
+}: {
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  const [busy, setBusy] = useState(false);
+  async function onClick(e: MouseEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await enterAppOrOpenAuth();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button type="button" className={className} style={style} disabled={busy} onClick={(e) => void onClick(e)}>
+      {children}
+    </button>
+  );
+}
 
 export function LandingNav({
   settings,
@@ -88,13 +116,9 @@ export function LandingNav({
               <AppDownloadButton lang={lang} variant="nav" force />
             </Suspense>
           ) : null}
-          <Link
-            to="/auth"
-            search={{}}
-            className="hidden sm:inline-flex text-xs font-semibold px-3 py-2 rounded-xl border border-black/10"
-          >
+          <AuthEntryButton className="hidden sm:inline-flex text-xs font-semibold px-3 py-2 rounded-xl border border-black/10">
             {lang === "bn" ? nav.cta_login_bn : nav.cta_login_en}
-          </Link>
+          </AuthEntryButton>
           <Link
             to="/care/auth"
             search={{ mode: "register", next: undefined }}
@@ -102,14 +126,12 @@ export function LandingNav({
           >
             {lang === "bn" ? "Care ভেন্ডর" : "Care vendor"}
           </Link>
-          <Link
-            to="/auth"
-            search={{}}
+          <AuthEntryButton
             className="text-xs font-semibold px-3 py-2 rounded-xl text-white shadow-md"
             style={{ background: "var(--landing-primary)" }}
           >
             {lang === "bn" ? nav.cta_signup_bn : nav.cta_signup_en}
-          </Link>
+          </AuthEntryButton>
         </div>
       </div>
     </header>
