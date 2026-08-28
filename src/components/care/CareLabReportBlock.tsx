@@ -9,7 +9,6 @@ type ReportSource = Pick<
   CareLabBooking,
   | "id"
   | "org_id"
-  | "invoice_group_id"
   | "status"
   | "report_url"
   | "report_path"
@@ -21,15 +20,22 @@ export function hasLabReport(row: Pick<ReportSource, "report_path" | "report_url
   return !!(row.report_path || row.report_url);
 }
 
+/**
+ * Per-test lab report PDF: desk uploads when that test is completed;
+ * patient views/downloads the same file for that test only.
+ */
 export function CareLabReportBlock({
   booking,
   lang,
   canEdit,
+  compact,
   onChanged,
 }: {
   booking: ReportSource;
   lang: "bn" | "en";
   canEdit?: boolean;
+  /** Nest inside a test row (smaller chrome). */
+  compact?: boolean;
   onChanged?: () => void;
 }) {
   const bn = lang === "bn";
@@ -71,12 +77,10 @@ export function CareLabReportBlock({
       await uploadLabReportPdf({
         orgId: booking.org_id,
         bookingId: booking.id,
-        groupKey: booking.invoice_group_id || booking.id,
         file,
         previousPath: booking.report_path,
-        applyGroup: true,
       });
-      toast.success(bn ? "রিপোর্ট আপলোড হয়েছে" : "Report uploaded");
+      toast.success(bn ? "এই টেস্টের রিপোর্ট আপলোড হয়েছে" : "Report uploaded for this test");
       onChanged?.();
     } catch (e) {
       toast.error((e as Error).message);
@@ -88,11 +92,7 @@ export function CareLabReportBlock({
 
   async function clear() {
     if (!canEdit || !hasReport) return;
-    if (
-      !window.confirm(
-        bn ? "রিপোর্ট মুছে ফেলবেন?" : "Remove the uploaded report?",
-      )
-    ) {
+    if (!window.confirm(bn ? "এই টেস্টের রিপোর্ট মুছে ফেলবেন?" : "Remove this test's report?")) {
       return;
     }
     setBusy(true);
@@ -100,7 +100,6 @@ export function CareLabReportBlock({
       await removeLabReportPdf({
         bookingId: booking.id,
         path: booking.report_path,
-        applyGroup: true,
       });
       toast.success(bn ? "রিপোর্ট মুছেছে" : "Report removed");
       onChanged?.();
@@ -112,28 +111,40 @@ export function CareLabReportBlock({
   }
 
   if (!canEdit && !hasReport) return null;
+  // Desk: hide until completed (and no file yet) — still show if a file exists
+  if (canEdit && !completed && !hasReport) return null;
 
   return (
-    <div className="rounded-2xl border bg-card p-3 space-y-2.5">
+    <div
+      className={cn(
+        "rounded-xl border bg-background/80 space-y-2",
+        compact ? "px-2.5 py-2" : "rounded-2xl bg-card p-3 space-y-2.5",
+      )}
+    >
       <div className="flex items-center gap-2">
-        <FileText className="h-4 w-4 text-primary" />
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {bn ? "ল্যাব রিপোর্ট" : "Lab report"}
+        <FileText className={cn("text-primary", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+        <p
+          className={cn(
+            "font-bold uppercase tracking-wide text-muted-foreground",
+            compact ? "text-[10px]" : "text-xs",
+          )}
+        >
+          {bn ? "টেস্ট রিপোর্ট (PDF)" : "Test report (PDF)"}
         </p>
       </div>
 
       {hasReport ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold truncate">
+        <div className="space-y-1.5">
+          <p className={cn("font-semibold truncate", compact ? "text-[11px]" : "text-xs")}>
             {booking.report_file_name || (bn ? "রিপোর্ট.pdf" : "report.pdf")}
           </p>
           {booking.report_uploaded_at ? (
             <p className="text-[10px] text-muted-foreground tabular-nums">
               {bn ? "আপলোড" : "Uploaded"} ·{" "}
-              {new Date(booking.report_uploaded_at).toLocaleString(
-                bn ? "bn-BD" : "en-GB",
-                { dateStyle: "medium", timeStyle: "short" },
-              )}
+              {new Date(booking.report_uploaded_at).toLocaleString(bn ? "bn-BD" : "en-GB", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
             </p>
           ) : null}
           <div className="flex flex-wrap gap-1.5">
@@ -141,10 +152,7 @@ export function CareLabReportBlock({
               type="button"
               disabled={busy}
               onClick={() => void openUrl("view")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold",
-                "hover:bg-muted transition disabled:opacity-50",
-              )}
+              className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold hover:bg-muted transition disabled:opacity-50"
             >
               {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
               {bn ? "দেখুন" : "View"}
@@ -153,10 +161,7 @@ export function CareLabReportBlock({
               type="button"
               disabled={busy}
               onClick={() => void openUrl("download")}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/5 px-2.5 py-1.5 text-[11px] font-bold text-primary",
-                "hover:bg-primary hover:text-primary-foreground transition disabled:opacity-50",
-              )}
+              className="inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/5 px-2.5 py-1.5 text-[11px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition disabled:opacity-50"
             >
               <Download className="h-3 w-3" />
               {bn ? "ডাউনলোড" : "Download"}
@@ -185,27 +190,16 @@ export function CareLabReportBlock({
             )}
           </div>
         </div>
-      ) : canEdit ? (
-        <div className="space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            {completed
-              ? bn
-                ? "সম্পন্ন বুকিংয়ের PDF রিপোর্ট আপলোড করুন।"
-                : "Upload the PDF report for this completed booking."
-              : bn
-                ? "রিপোর্ট আপলোড করতে আগে স্ট্যাটাস সম্পন্ন করুন।"
-                : "Mark the booking completed before uploading a report."}
-          </p>
-          <button
-            type="button"
-            disabled={busy || !completed}
-            onClick={() => inputRef.current?.click()}
-            className="w-full rounded-xl border-2 border-primary bg-primary/5 px-4 py-2 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
-          >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-            {bn ? "PDF আপলোড" : "Upload PDF"}
-          </button>
-        </div>
+      ) : canEdit && completed ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+          className="w-full rounded-xl border-2 border-primary bg-primary/5 px-3 py-2 text-[11px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition disabled:opacity-50 inline-flex items-center justify-center gap-2"
+        >
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+          {bn ? "এই টেস্টের PDF আপলোড" : "Upload PDF for this test"}
+        </button>
       ) : null}
 
       {canEdit && (
@@ -225,15 +219,26 @@ export function CareLabReportBlock({
 export function CareLabReportChip({
   hasReport,
   lang,
+  count,
 }: {
   hasReport: boolean;
   lang: "bn" | "en";
+  /** How many tests already have a report (optional). */
+  count?: number;
 }) {
   if (!hasReport) return null;
+  const label =
+    count != null && count > 1
+      ? lang === "bn"
+        ? `রিপোর্ট ✓ ${count}`
+        : `Report ✓ ${count}`
+      : lang === "bn"
+        ? "রিপোর্ট ✓"
+        : "Report ✓";
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/5 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
       <FileText className="h-3 w-3" />
-      {lang === "bn" ? "রিপোর্ট ✓" : "Report ✓"}
+      {label}
     </span>
   );
 }

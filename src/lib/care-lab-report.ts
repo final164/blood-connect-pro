@@ -10,16 +10,14 @@ function sanitizeFileName(name: string) {
 }
 
 /**
- * Upload a PDF report for a lab booking (private bucket), then persist metadata
- * via care_set_lab_report (group-wide by default).
+ * Upload a PDF report for one lab test booking (private bucket).
+ * Path: {org_id}/{booking_id}/{timestamp}-file.pdf — one file per test.
  */
 export async function uploadLabReportPdf(opts: {
   orgId: string;
   bookingId: string;
-  groupKey?: string | null;
   file: File;
   previousPath?: string | null;
-  applyGroup?: boolean;
 }): Promise<CareLabBooking> {
   const file = opts.file;
   if (!file || file.type !== "application/pdf") {
@@ -30,8 +28,7 @@ export async function uploadLabReportPdf(opts: {
   }
 
   const safeName = sanitizeFileName(file.name);
-  const folder = opts.groupKey || opts.bookingId;
-  const path = `${opts.orgId}/${folder}/${Date.now()}-${safeName}`;
+  const path = `${opts.orgId}/${opts.bookingId}/${Date.now()}-${safeName}`;
 
   const { error: upErr } = await supabase.storage.from(LAB_REPORT_BUCKET).upload(path, file, {
     contentType: "application/pdf",
@@ -43,7 +40,7 @@ export async function uploadLabReportPdf(opts: {
     const booking = await setLabReport(opts.bookingId, {
       path,
       fileName: safeName,
-      applyGroup: opts.applyGroup !== false,
+      applyGroup: false,
     });
 
     if (opts.previousPath && opts.previousPath !== path) {
@@ -60,9 +57,8 @@ export async function uploadLabReportPdf(opts: {
 export async function removeLabReportPdf(opts: {
   bookingId: string;
   path?: string | null;
-  applyGroup?: boolean;
 }): Promise<CareLabBooking> {
-  const booking = await clearLabReport(opts.bookingId, opts.applyGroup !== false);
+  const booking = await clearLabReport(opts.bookingId, false);
   if (opts.path) {
     const { error } = await supabase.storage.from(LAB_REPORT_BUCKET).remove([opts.path]);
     if (error && !/not found|No such file/i.test(error.message)) {

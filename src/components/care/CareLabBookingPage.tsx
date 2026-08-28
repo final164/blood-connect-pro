@@ -12,7 +12,7 @@ import {
   labStatusLabel,
   labStatusTone,
 } from "@/components/care/CareLabProgress";
-import { CareLabReportBlock, hasLabReport } from "@/components/care/CareLabReportBlock";
+import { CareLabReportBlock } from "@/components/care/CareLabReportBlock";
 import { formatCareMoney } from "@/lib/care-invoice";
 import { cn } from "@/lib/utils";
 
@@ -150,7 +150,10 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
               </div>
 
               {rows.length <= 1 ? (
-                <CareLabProgressBar status={primary.status} lang={lang} schedule={primary} />
+                <div className="space-y-3">
+                  <CareLabProgressBar status={primary.status} lang={lang} schedule={primary} />
+                  <CareLabReportBlock booking={primary} lang={lang} canEdit={false} />
+                </div>
               ) : (
                 <ul className="space-y-3">
                   {rows.map((r) => {
@@ -187,16 +190,13 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
                           </span>
                         </div>
                         <CareLabProgressBar status={r.status} lang={lang} schedule={r} />
+                        <CareLabReportBlock booking={r} lang={lang} canEdit={false} compact />
                       </li>
                     );
                   })}
                 </ul>
               )}
             </section>
-
-            {hasLabReport(primary) && (
-              <CareLabReportBlock booking={primary} lang={lang} canEdit={false} />
-            )}
 
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1">

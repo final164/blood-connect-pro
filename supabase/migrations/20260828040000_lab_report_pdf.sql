@@ -1,5 +1,5 @@
--- Lab desk uploads a PDF report after completion; patient views/downloads via signed URL.
--- One report per invoice group (mirrors care_set_lab_schedule apply-group behaviour).
+-- Lab desk uploads one PDF report per completed test booking; patient views/downloads
+-- that test's file via signed URL. report_* columns live on each care_lab_bookings row.
 
 ALTER TABLE public.care_lab_bookings
   ADD COLUMN IF NOT EXISTS report_url TEXT,
@@ -17,7 +17,7 @@ CREATE OR REPLACE FUNCTION public.care_set_lab_report(
   _url TEXT,
   _path TEXT,
   _file_name TEXT DEFAULT NULL,
-  _apply_group BOOLEAN DEFAULT true
+  _apply_group BOOLEAN DEFAULT false
 )
 RETURNS public.care_lab_bookings
 LANGUAGE plpgsql
@@ -74,7 +74,7 @@ GRANT EXECUTE ON FUNCTION public.care_set_lab_report(UUID, TEXT, TEXT, TEXT, BOO
 -- ─── Clear report metadata (client deletes storage object separately) ────────
 CREATE OR REPLACE FUNCTION public.care_clear_lab_report(
   _booking_id UUID,
-  _apply_group BOOLEAN DEFAULT true
+  _apply_group BOOLEAN DEFAULT false
 )
 RETURNS public.care_lab_bookings
 LANGUAGE plpgsql

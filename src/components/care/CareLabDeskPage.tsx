@@ -74,6 +74,7 @@ type CareLabDeskPageProps = {
 
 type DeskBookingRow = Record<string, unknown> & {
   id: string;
+  org_id?: string | null;
   offering_id?: string | null;
   guest_name?: string | null;
   guest_phone?: string | null;
@@ -880,8 +881,8 @@ function TodayPanel({
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
 
-                {/* Desktop / tablet: step buttons replace details icon */}
-                <div className="hidden sm:flex shrink-0 flex-col items-end gap-2 min-w-[11.5rem]">
+                {/* Desktop / tablet: steps + invoice + per-test report upload */}
+                <div className="hidden sm:flex shrink-0 flex-col items-end gap-2 min-w-[12rem] max-w-[20rem]">
                   {canManage && st !== "completed" && st !== "cancelled" && st !== "no_show" ? (
                     <LabStepActions
                       status={st}
@@ -890,7 +891,8 @@ function TodayPanel({
                       busy={rowBusyId === String(r.id)}
                       onAdvance={(next) => void advanceStatus(String(r.id), next)}
                     />
-                  ) : (
+                  ) : null}
+                  <div className="flex flex-wrap items-start justify-end gap-2 w-full">
                     <button
                       type="button"
                       onClick={() => {
@@ -901,7 +903,26 @@ function TodayPanel({
                     >
                       {lang === "bn" ? "ইনভয়েস" : "Invoice"}
                     </button>
-                  )}
+                    {canManage && (st === "completed" || hasLabReport(r)) ? (
+                      <div className="min-w-[13rem] flex-1 max-w-[16rem]">
+                        <CareLabReportBlock
+                          compact
+                          booking={{
+                            id: String(r.id),
+                            org_id: String(r.org_id || orgId),
+                            status: st,
+                            report_url: r.report_url ?? null,
+                            report_path: r.report_path ?? null,
+                            report_file_name: r.report_file_name ?? null,
+                            report_uploaded_at: r.report_uploaded_at ?? null,
+                          }}
+                          lang={lang}
+                          canEdit={canManage && st === "completed"}
+                          onChanged={() => void refreshDetail()}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </li>
@@ -1021,24 +1042,6 @@ function TodayPanel({
                   onSaved={() => void refreshDetail()}
                 />
 
-                <CareLabReportBlock
-                  booking={{
-                    id: String(detailPrimary.id),
-                    org_id: String(detailPrimary.org_id || orgId),
-                    invoice_group_id: detailPrimary.invoice_group_id
-                      ? String(detailPrimary.invoice_group_id)
-                      : null,
-                    status: String(detailPrimary.status || "reserved"),
-                    report_url: detailPrimary.report_url ?? null,
-                    report_path: detailPrimary.report_path ?? null,
-                    report_file_name: detailPrimary.report_file_name ?? null,
-                    report_uploaded_at: detailPrimary.report_uploaded_at ?? null,
-                  }}
-                  lang={lang}
-                  canEdit={canManage}
-                  onChanged={() => void refreshDetail()}
-                />
-
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     {lang === "bn"
@@ -1075,6 +1078,21 @@ function TodayPanel({
                               onAdvance={(next) => void advanceStatus(String(t.id), next)}
                             />
                           )}
+                          <CareLabReportBlock
+                            compact
+                            booking={{
+                              id: String(t.id),
+                              org_id: String(t.org_id || detailPrimary.org_id || orgId),
+                              status: st,
+                              report_url: t.report_url ?? null,
+                              report_path: t.report_path ?? null,
+                              report_file_name: t.report_file_name ?? null,
+                              report_uploaded_at: t.report_uploaded_at ?? null,
+                            }}
+                            lang={lang}
+                            canEdit={canManage}
+                            onChanged={() => void refreshDetail()}
+                          />
                         </li>
                       );
                     })}

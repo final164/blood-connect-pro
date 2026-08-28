@@ -756,7 +756,11 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                     </p>
                     <CareLabProgressMini status={groupStatus} lang={lang} />
                     <CareLabScheduleChips schedule={primary} lang={lang} />
-                    <CareLabReportChip hasReport={hasLabReport(primary)} lang={lang} />
+                    <CareLabReportChip
+                      hasReport={g.items.some((b) => hasLabReport(b))}
+                      count={g.items.filter((b) => hasLabReport(b)).length || undefined}
+                      lang={lang}
+                    />
                     {g.items.length > 1 && (
                       <p className="text-[10px] text-muted-foreground truncate">
                         {g.items

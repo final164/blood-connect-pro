@@ -637,13 +637,13 @@ export async function setLabReport(
     _url: input.url ?? null,
     _path: input.path,
     _file_name: input.fileName ?? null,
-    _apply_group: input.applyGroup !== false,
+    _apply_group: input.applyGroup === true,
   } as never);
   if (error) throw new Error(error.message);
   return data as CareLabBooking;
 }
 
-export async function clearLabReport(bookingId: string, applyGroup = true) {
+export async function clearLabReport(bookingId: string, applyGroup = false) {
   const { data, error } = await supabase.rpc("care_clear_lab_report", {
     _booking_id: bookingId,
     _apply_group: applyGroup,

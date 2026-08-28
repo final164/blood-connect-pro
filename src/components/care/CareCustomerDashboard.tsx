@@ -344,7 +344,11 @@ export function CareCustomerDashboard({
                         </p>
                         <CareLabProgressMini status={groupStatus} lang={lang} />
                         <CareLabScheduleChips schedule={primary} lang={lang} />
-                        <CareLabReportChip hasReport={hasLabReport(primary)} lang={lang} />
+                        <CareLabReportChip
+                          hasReport={g.items.some((b) => hasLabReport(b))}
+                          count={g.items.filter((b) => hasLabReport(b)).length || undefined}
+                          lang={lang}
+                        />
                         {g.items.length > 1 && (
                           <ul className="space-y-1.5 pt-0.5 border-t border-dashed">
                             {g.items.map((b) => (
