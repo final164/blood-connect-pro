@@ -149,7 +149,7 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
               </div>
 
               {rows.length <= 1 ? (
-                <CareLabProgressBar status={primary.status} lang={lang} />
+                <CareLabProgressBar status={primary.status} lang={lang} schedule={primary} />
               ) : (
                 <ul className="space-y-3">
                   {rows.map((r) => {
@@ -185,7 +185,7 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
                             {labStatusLabel(r.status, lang)}
                           </span>
                         </div>
-                        <CareLabProgressBar status={r.status} lang={lang} />
+                        <CareLabProgressBar status={r.status} lang={lang} schedule={r} />
                       </li>
                     );
                   })}

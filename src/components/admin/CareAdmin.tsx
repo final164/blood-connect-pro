@@ -29,6 +29,8 @@ import {
 } from "@/lib/care-cms";
 import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm";
 import { CareInvoiceAdmin } from "@/components/admin/CareInvoiceAdmin";
+import { CareDoctorsAdmin } from "@/components/admin/CareDoctorsAdmin";
+import { CareOperationCatalogAdmin } from "@/components/admin/CareOperationCatalogAdmin";
 import { CareInvoiceLetterheadForm } from "@/components/care/CareInvoiceLetterheadForm";
 import {
   bookingFieldsFromFlags,
@@ -48,6 +50,8 @@ type Sub =
   | "hub"
   | "vendors"
   | "specialties"
+  | "doctors"
+  | "operations"
   | "tests"
   | "statuses"
   | "policies"
@@ -68,6 +72,8 @@ export function CareAdmin() {
     { id: "hub", bn: "হাব মডিউল", en: "Hub modules" },
     { id: "vendors", bn: "ভেন্ডর টাইপ", en: "Vendor types" },
     { id: "specialties", bn: "স্পেশালিটি", en: "Specialties" },
+    { id: "doctors", bn: "ডাক্তার", en: "Doctors" },
+    { id: "operations", bn: "অপারেশন ক্যাটালগ", en: "Operation catalog" },
     { id: "tests", bn: "টেস্ট ক্যাটালগ", en: "Test catalog" },
     { id: "statuses", bn: "স্ট্যাটাস", en: "Statuses" },
     { id: "policies", bn: "পলিসি / ফ্ল্যাগ", en: "Policies / flags" },
@@ -102,6 +108,8 @@ export function CareAdmin() {
       {sub === "hub" && <HubPanel canEdit={canEdit} lang={lang} />}
       {sub === "vendors" && <VendorTypesPanel canEdit={canEdit} lang={lang} />}
       {sub === "specialties" && <SpecialtiesPanel canEdit={canEdit} lang={lang} />}
+      {sub === "doctors" && <CareDoctorsAdmin canEdit={canEdit} lang={lang} />}
+      {sub === "operations" && <CareOperationCatalogAdmin canEdit={canEdit} lang={lang} />}
       {sub === "tests" && <TestsPanel canEdit={canEdit} lang={lang} />}
       {sub === "statuses" && <StatusesPanel canEdit={canEdit} lang={lang} />}
       {sub === "policies" && <PoliciesPanel canEdit={canEdit} lang={lang} />}

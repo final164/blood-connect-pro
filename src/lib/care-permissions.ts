@@ -10,6 +10,9 @@ export type CarePermissionKey =
   | "lab.offerings"
   | "lab.calendar"
   | "lab.checkin"
+  | "operation.view"
+  | "operation.manage"
+  | "operation.schedule"
   | "staff.manage"
   | "roles.manage"
   | "settings.edit"
@@ -36,6 +39,9 @@ export const CARE_PERMISSION_FALLBACK: CarePermissionDef[] = [
   { key: "lab.offerings", group: "lab", label_en: "Manage test offerings", label_bn: "টেস্ট অফার" },
   { key: "lab.calendar", group: "lab", label_en: "Manage lab calendar", label_bn: "ল্যাব ক্যালেন্ডার" },
   { key: "lab.checkin", group: "lab", label_en: "Lab check-in / status", label_bn: "ল্যাব চেক-ইন" },
+  { key: "operation.view", group: "operation", label_en: "View operation bookings", label_bn: "অপারেশন বুকিং দেখা" },
+  { key: "operation.manage", group: "operation", label_en: "Manage operation offerings", label_bn: "অপারেশন অফার ম্যানেজ" },
+  { key: "operation.schedule", group: "operation", label_en: "Schedule operations", label_bn: "অপারেশন তারিখ নির্ধারণ" },
   { key: "staff.manage", group: "staff", label_en: "Manage staff", label_bn: "স্টাফ ম্যানেজ" },
   { key: "roles.manage", group: "staff", label_en: "Manage roles", label_bn: "রোল ম্যানেজ" },
   { key: "settings.edit", group: "settings", label_en: "Edit org settings", label_bn: "অর্গ সেটিংস" },
@@ -50,7 +56,7 @@ export const ALL_CARE_PERMISSION_KEYS = CARE_PERMISSION_FALLBACK.map((p) => p.ke
 
 export const DEFAULT_CARE_ROLE_PERMISSIONS: Record<string, CarePermissionKey[]> = {
   owner: [...ALL_CARE_PERMISSION_KEYS],
-  reception: ["overview.view", "queue.view", "queue.manage", "serial.issue", "lab.checkin"],
+  reception: ["overview.view", "queue.view", "queue.manage", "serial.issue", "lab.checkin", "operation.view", "operation.schedule"],
   doctor: ["overview.view", "queue.view"],
   lab_tech: ["overview.view", "lab.checkin", "lab.calendar"],
   dispatcher: ["overview.view", "ambulance.dispatch.view", "ambulance.dispatch.manage", "ambulance.requests.view", "ambulance.fleet.manage", "ambulance.pricing.manage"],

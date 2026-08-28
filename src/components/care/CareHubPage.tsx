@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   FlaskConical,
@@ -9,6 +9,7 @@ import {
   Microscope,
   Ambulance,
   Building2,
+  Scissors,
   Sparkles,
 } from "lucide-react";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
@@ -36,6 +37,16 @@ import {
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import { useAuth } from "@/lib/auth-context";
 import { CareCustomerDashboard } from "@/components/care/CareCustomerDashboard";
+import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
+import type { CareDoctorOption } from "@/lib/care-doctors-api";
+import {
+  fetchMyOperationBookings,
+  operationName,
+  operationStatusLabel,
+  searchOperationOfferings,
+  type CareOperationBookingRow,
+  type CareOperationOffering,
+} from "@/lib/care-operations-api";
 
 export function CareHubPage({
   initialTab,
@@ -83,6 +94,8 @@ export function CareHubPage({
           <BookingsPanel lang={lang} userId={user?.id} />
         ) : tab === "ambulance" ? (
           <AmbulanceTabPanel lang={lang} />
+        ) : tab === "operations" ? (
+          <OperationsPanel lang={lang} />
         ) : (
           <DoctorsPanel lang={lang} initialSpecialtyId={initialSpecialtyId} />
         )}
@@ -215,6 +228,172 @@ function DoctorsPanel({
               </li>
             );
           })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function OperationsPanel({ lang }: { lang: "bn" | "en" }) {
+  const bn = lang === "bn";
+  const [q, setQ] = useState("");
+  const [district, setDistrict] = useState<District | null>(null);
+  const [doctor, setDoctor] = useState<CareDoctorOption | null>(null);
+  const [specialtyId, setSpecialtyId] = useState("");
+  const [specialties, setSpecialties] = useState<{ id: string; name_bn: string; name_en: string }[]>([]);
+  const [rows, setRows] = useState<CareOperationOffering[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void fetchCareSpecialties().then(setSpecialties);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(() => {
+      void searchOperationOfferings({
+        q,
+        districtId: district?.id,
+        specialtyId: specialtyId || undefined,
+        doctorId: doctor && !doctor.id.startsWith("custom:") ? doctor.id : undefined,
+      })
+        .then((list) => {
+          if (!cancelled) setRows(list);
+        })
+        .catch(() => {
+          if (!cancelled) setRows([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [q, district?.id, specialtyId, doctor]);
+
+  const clinics = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of rows) {
+      const name = bn ? o.org?.name_bn || o.org?.name : o.org?.name;
+      if (o.org_id && name) map.set(o.org_id, name);
+    }
+    return [...map.entries()];
+  }, [rows, bn]);
+  const [clinicId, setClinicId] = useState("");
+  const visible = clinicId ? rows.filter((o) => o.org_id === clinicId) : rows;
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={bn ? "অপারেশন, হাসপাতাল, ডাক্তার…" : "Operation, hospital, doctor…"}
+          className="w-full rounded-xl border bg-card py-2.5 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+
+      <DoctorTypeahead
+        value={doctor}
+        onChange={setDoctor}
+        allowCustom={false}
+        placeholder={bn ? "ডাক্তার ধরে ফিল্টার" : "Filter by doctor"}
+      />
+
+      <div className="grid grid-cols-2 gap-2">
+        <DistrictTypeahead value={district} onChange={setDistrict} />
+        <select
+          value={clinicId}
+          onChange={(e) => setClinicId(e.target.value)}
+          className="rounded-xl border bg-card px-3 py-2 text-sm"
+        >
+          <option value="">{bn ? "সব হাসপাতাল" : "All hospitals"}</option>
+          {clinics.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <select
+        value={specialtyId}
+        onChange={(e) => setSpecialtyId(e.target.value)}
+        className="w-full rounded-xl border bg-card px-3 py-2 text-sm"
+      >
+        <option value="">{bn ? "সব স্পেশালিটি" : "All specialties"}</option>
+        {specialties.map((s) => (
+          <option key={s.id} value={s.id}>
+            {bn ? s.name_bn : s.name_en}
+          </option>
+        ))}
+      </select>
+
+      {doctor && (
+        <p className="rounded-xl bg-primary/5 px-3 py-2 text-[11px] text-muted-foreground">
+          {bn
+            ? `${doctor.full_name} — ${visible.length}টি ক্লিনিকে অপারেশন করেন, নিচে প্রতিটির মূল্য দেখুন।`
+            : `${doctor.full_name} operates at ${visible.length} clinic(s); prices at each are listed below.`}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-2xl border bg-muted/40" />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
+        <p className="py-12 text-center text-sm text-muted-foreground">
+          {bn ? "কোনো অপারেশন পাওয়া যায়নি।" : "No operations found."}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {visible.map((o) => (
+            <li key={o.id}>
+              <Link
+                to="/care/operation/$offeringId"
+                params={{ offeringId: o.id }}
+                className="flex items-start gap-3 rounded-2xl border bg-card px-3 py-3 transition hover:bg-muted/40"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Scissors className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{operationName(o.catalog, lang)}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {[
+                      bn ? o.org?.name_bn || o.org?.name : o.org?.name,
+                      o.location ? (bn ? o.location.name_bn || o.location.name : o.location.name) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  {!!o.doctors?.length && (
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {o.doctors
+                        .map((d) => d.doctor?.full_name)
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  <CareLabPriceDisplay
+                    listPrice={o.price_original ?? o.package_price}
+                    salePrice={o.package_price}
+                    discountPercent={o.discount_percent}
+                    lang={lang}
+                    variant="compact"
+                  />
+                </div>
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
     </div>
@@ -439,6 +618,7 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
   const [serials, setSerials] = useState<Awaited<ReturnType<typeof fetchMySerials>>>([]);
   const [labs, setLabs] = useState<Awaited<ReturnType<typeof fetchMyLabBookings>>>([]);
   const [ambulance, setAmbulance] = useState<Awaited<ReturnType<typeof fetchMyAmbulanceRequests>>>([]);
+  const [operations, setOperations] = useState<CareOperationBookingRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -447,12 +627,18 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
       return;
     }
     let cancelled = false;
-    void Promise.all([fetchMySerials(), fetchMyLabBookings(), fetchMyAmbulanceRequests()])
-      .then(([s, l, a]) => {
+    void Promise.all([
+      fetchMySerials(),
+      fetchMyLabBookings(),
+      fetchMyAmbulanceRequests(),
+      fetchMyOperationBookings(),
+    ])
+      .then(([s, l, a, o]) => {
         if (cancelled) return;
         setSerials(s);
         setLabs(l);
         setAmbulance(a);
+        setOperations(o);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -483,7 +669,7 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
     return <p className="text-sm text-muted-foreground text-center py-10">{lang === "bn" ? "লোড হচ্ছে…" : "Loading…"}</p>;
   }
 
-  if (!serials.length && !labs.length && !ambulance.length) {
+  if (!serials.length && !labs.length && !ambulance.length && !operations.length) {
     return (
       <p className="text-sm text-muted-foreground text-center py-12">
         {lang === "bn" ? "এখনো কোনো বুকিং নেই" : "No bookings yet"}
@@ -583,6 +769,42 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                 </li>
               );
             })}
+          </ul>
+        </section>
+      )}
+      {operations.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            {lang === "bn" ? "অপারেশন" : "Operations"}
+          </h2>
+          <ul className="space-y-2">
+            {operations.map((o) => (
+              <li key={o.id}>
+                <Link
+                  to="/care/operation-booking/$id"
+                  params={{ id: o.id }}
+                  className="block space-y-1 rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm font-semibold">
+                      {operationName(o.catalog, lang)}
+                    </p>
+                    <span className="shrink-0 text-[11px] font-bold tabular-nums text-primary">
+                      {formatCareMoney(o.price, lang)}
+                    </span>
+                  </div>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {o.reference_code}
+                    {o.scheduled_date
+                      ? ` · ${o.scheduled_date}`
+                      : o.requested_date
+                        ? ` · ${lang === "bn" ? "অনুরোধ" : "requested"} ${o.requested_date}`
+                        : ""}
+                    {` · ${operationStatusLabel(o.status, lang)}`}
+                  </p>
+                </Link>
+              </li>
+            ))}
           </ul>
         </section>
       )}

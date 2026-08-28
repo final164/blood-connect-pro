@@ -1,0 +1,167 @@
+import { supabase } from "@/integrations/supabase/client";
+
+export type CareDoctorOption = {
+  id: string;
+  full_name: string;
+  full_name_bn?: string | null;
+  bmdc_no?: string | null;
+  qualifications?: string | null;
+  photo_url?: string | null;
+  specialty_id?: string | null;
+  specialty_name_bn?: string | null;
+  specialty_name_en?: string | null;
+  /** How many clinics this doctor is affiliated with. */
+  org_count?: number | null;
+  /** True when already affiliated with the org that ran the search. */
+  in_org?: boolean | null;
+};
+
+/** Free-text entries carry this prefix until they are committed to the DB. */
+export const CUSTOM_DOCTOR_PREFIX = "custom:";
+
+export function customDoctor(name: string): CareDoctorOption {
+  const trimmed = name.trim();
+  return { id: `${CUSTOM_DOCTOR_PREFIX}${trimmed}`, full_name: trimmed };
+}
+
+export function isCustomDoctor(doctor: CareDoctorOption | null | undefined): boolean {
+  return !!doctor?.id.startsWith(CUSTOM_DOCTOR_PREFIX);
+}
+
+export function doctorDisplayName(doctor: CareDoctorOption, lang: "bn" | "en"): string {
+  if (lang === "bn") return doctor.full_name_bn || doctor.full_name;
+  return doctor.full_name;
+}
+
+/** Matches any substring of the name or BMDC number, server-side. */
+export async function searchCareDoctors(
+  q: string,
+  opts?: { orgId?: string | null; limit?: number },
+): Promise<CareDoctorOption[]> {
+  const { data, error } = await supabase.rpc("care_doctors_search", {
+    _q: q?.trim() || null,
+    _limit: opts?.limit ?? 20,
+    _org_id: opts?.orgId ?? null,
+  } as never);
+  if (error) {
+    // Before the migration lands, fall back to a plain table scan.
+    if (/care_doctors_search|could not find/i.test(error.message)) {
+      const retry = await supabase
+        .from("care_doctors")
+        .select("id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, specialty_id")
+        .eq("is_active", true)
+        .ilike("full_name", `%${q.trim()}%`)
+        .order("full_name")
+        .limit(opts?.limit ?? 20);
+      if (retry.error) throw new Error(retry.error.message);
+      return (retry.data ?? []) as CareDoctorOption[];
+    }
+    throw new Error(error.message);
+  }
+  return (data ?? []) as CareDoctorOption[];
+}
+
+/**
+ * Resolves a typeahead selection to a real care_doctors id, creating the record
+ * when the desk typed a name that is not in the catalog yet.
+ */
+export async function resolveDoctorId(
+  doctor: CareDoctorOption,
+  extra?: { bmdcNo?: string | null; specialtyId?: string | null; qualifications?: string | null },
+): Promise<string> {
+  if (!isCustomDoctor(doctor)) return doctor.id;
+  const { data, error } = await supabase.rpc("care_find_or_create_doctor", {
+    _full_name: doctor.full_name,
+    _bmdc_no: extra?.bmdcNo ?? doctor.bmdc_no ?? null,
+    _specialty_id: extra?.specialtyId ?? doctor.specialty_id ?? null,
+    _qualifications: extra?.qualifications ?? doctor.qualifications ?? null,
+  } as never);
+  if (error) throw new Error(error.message);
+  return String(data);
+}
+
+export type CareDoctorAdminRow = CareDoctorOption & {
+  is_active: boolean;
+  bio?: string | null;
+  created_at?: string;
+};
+
+export async function fetchDoctorsForAdmin(q: string, limit = 50): Promise<CareDoctorAdminRow[]> {
+  let query = supabase
+    .from("care_doctors")
+    .select(
+      "id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, bio, specialty_id, is_active, created_at",
+    )
+    .order("full_name")
+    .limit(limit);
+  const needle = q.trim();
+  if (needle) query = query.or(`full_name.ilike.%${needle}%,bmdc_no.ilike.%${needle}%`);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CareDoctorAdminRow[];
+}
+
+export async function updateCareDoctor(
+  id: string,
+  patch: Partial<
+    Pick<
+      CareDoctorAdminRow,
+      "full_name" | "full_name_bn" | "bmdc_no" | "qualifications" | "photo_url" | "bio" | "specialty_id"
+    > & { is_active: boolean }
+  >,
+) {
+  const { error } = await supabase.from("care_doctors").update(patch as never).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export type CareDoctorClinicRow = {
+  org_id: string;
+  org_name: string;
+  location_id: string;
+  location_name: string;
+  fee_amount: number | null;
+};
+
+/** Which clinics a doctor sits at, and the consultation fee at each. */
+export async function fetchDoctorClinics(doctorId: string): Promise<CareDoctorClinicRow[]> {
+  const { data, error } = await supabase
+    .from("care_affiliations")
+    .select("org_id, location_id, fee_amount, care_orgs(name, name_bn), care_locations(name, name_bn)")
+    .eq("doctor_id", doctorId);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => {
+    const org = r.care_orgs as { name?: string; name_bn?: string } | null;
+    const loc = r.care_locations as { name?: string; name_bn?: string } | null;
+    return {
+      org_id: String(r.org_id),
+      org_name: org?.name ?? "",
+      location_id: String(r.location_id),
+      location_name: loc?.name ?? "",
+      fee_amount: r.fee_amount != null ? Number(r.fee_amount) : null,
+    };
+  });
+}
+
+export type CareDoctorDuplicateGroup = {
+  match_key: string;
+  doctor_ids: string[];
+  full_names: string[];
+  n: number;
+};
+
+export async function fetchDoctorDuplicates(limit = 50): Promise<CareDoctorDuplicateGroup[]> {
+  const { data, error } = await supabase.rpc("care_doctor_duplicates", { _limit: limit } as never);
+  if (error) {
+    if (/care_doctor_duplicates|could not find/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as CareDoctorDuplicateGroup[];
+}
+
+export async function mergeCareDoctors(keepId: string, dropId: string) {
+  const { error } = await supabase.rpc("care_merge_doctors", {
+    _keep_id: keepId,
+    _drop_id: dropId,
+  } as never);
+  if (error) throw new Error(error.message);
+}

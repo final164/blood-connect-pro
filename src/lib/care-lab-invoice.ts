@@ -35,6 +35,12 @@ export type CareLabInvoice = {
   test_date: string;
   slot_start: string | null;
   slot_end: string | null;
+  collection_date: string | null;
+  collection_start: string | null;
+  collection_end: string | null;
+  delivery_date: string | null;
+  delivery_start: string | null;
+  delivery_end: string | null;
   test_code: string | null;
   test_name_bn: string | null;
   test_name_en: string | null;
@@ -180,6 +186,12 @@ export async function fetchCareLabInvoice(bookingId: string): Promise<CareLabInv
     test_date: primaryLine?.test_date ?? "",
     slot_start: primaryLine?.slot_start ?? null,
     slot_end: primaryLine?.slot_end ?? null,
+    collection_date: booking.collection_date ?? null,
+    collection_start: booking.collection_start ?? null,
+    collection_end: booking.collection_end ?? null,
+    delivery_date: booking.delivery_date ?? null,
+    delivery_start: booking.delivery_start ?? null,
+    delivery_end: booking.delivery_end ?? null,
     test_code: primaryLine?.test_code ?? null,
     test_name_bn: primaryLine?.test_name_bn ?? null,
     test_name_en: primaryLine?.test_name_en ?? null,

@@ -6,6 +6,10 @@ import {
   invoiceLocationLine,
   invoiceScheduleLine,
 } from "@/lib/care-invoice";
+import { formatDateTimeWindow } from "@/lib/care-time-window";
+import type { CareOperationInvoice } from "@/lib/care-operation-invoice";
+import { operationInvoiceName } from "@/lib/care-operation-invoice";
+import { priceItemLabel } from "@/lib/care-operations-api";
 import type { AmbulanceInvoice } from "@/lib/ambulance-invoice";
 import type { ResolvedCareInvoiceTemplate } from "@/lib/care-invoice-settings";
 
@@ -74,14 +78,37 @@ export type CareInvoiceAmbulanceExtra = {
   driver_phone: string | null;
 };
 
+export type CareInvoiceOperationRow = {
+  id: string;
+  code: string;
+  name: string;
+  amount: number;
+  discount: number;
+  discount_percent: number | null;
+  /** Breakdown lines are indented under the package line and never re-totalled. */
+  is_breakdown?: boolean;
+};
+
+export type CareInvoiceOperationExtra = {
+  schedule_datetime: string | null;
+  admission_date: string | null;
+  clinic: string | null;
+  includes: string | null;
+  prep: string | null;
+  desk_note: string | null;
+  doctors: { name: string; role: string; bmdc_no: string | null; qualifications: string | null }[];
+};
+
 export type CareInvoiceViewModel = {
-  kind: "lab" | "serial" | "ambulance";
+  kind: "lab" | "serial" | "ambulance" | "operation";
   org_id: string;
   invoice_no: string;
   reg_no: string;
   lab_id: string;
   date: string;
   delivery_datetime: string | null;
+  /** Sample collection window, lab invoices only. */
+  collection_datetime?: string | null;
   patient_name: string;
   patient_phone: string;
   patient_age: string | null;
@@ -94,6 +121,8 @@ export type CareInvoiceViewModel = {
   serial_extra?: CareInvoiceSerialExtra;
   ambulance_rows?: CareInvoiceAmbulanceRow[];
   ambulance_extra?: CareInvoiceAmbulanceExtra;
+  operation_rows?: CareInvoiceOperationRow[];
+  operation_extra?: CareInvoiceOperationExtra;
   money: CareInvoiceMoney;
   amount_received: number | null;
 };
@@ -202,9 +231,18 @@ export function mapLabInvoiceToViewModel(
     reg_no: inv.invoice_no,
     lab_id: inv.reference_code,
     date: fmtDate(inv.test_date || inv.created_at),
-    delivery_datetime: inv.test_date
-      ? `${fmtDate(inv.test_date)}${inv.slot_end ? ` ${String(inv.slot_end).slice(0, 5)}` : ""}`
-      : null,
+    // Desk-entered windows win; fall back to the calendar slot for older bookings.
+    delivery_datetime:
+      formatDateTimeWindow(inv.delivery_date, inv.delivery_start, inv.delivery_end, lang) ??
+      (inv.test_date
+        ? `${fmtDate(inv.test_date)}${inv.slot_end ? ` ${String(inv.slot_end).slice(0, 5)}` : ""}`
+        : null),
+    collection_datetime: formatDateTimeWindow(
+      inv.collection_date,
+      inv.collection_start,
+      inv.collection_end,
+      lang,
+    ),
     patient_name: labInvoicePatientName(inv, lang),
     patient_phone: labInvoicePatientPhone(inv),
     patient_age: inv.guest_age ?? null,
@@ -293,6 +331,84 @@ export function mapSerialInvoiceToViewModel(
       amountReceived,
     }),
     amount_received: amountReceived,
+  };
+}
+
+export function mapOperationInvoiceToViewModel(
+  inv: CareOperationInvoice,
+  template: ResolvedCareInvoiceTemplate,
+  lang: "bn" | "en",
+): CareInvoiceViewModel {
+  const bn = lang === "bn";
+  const name = operationInvoiceName(inv, lang);
+  const list = inv.price_original != null && inv.price_original > inv.price ? inv.price_original : inv.price;
+  const discount = round2(Math.max(0, list - inv.price));
+
+  const rows: CareInvoiceOperationRow[] = [
+    {
+      id: inv.booking_id,
+      code: inv.operation_code || inv.reference_code,
+      name,
+      amount: round2(list),
+      discount,
+      discount_percent:
+        discount > 0 && list > 0
+          ? inv.discount_percent && inv.discount_percent > 0
+            ? inv.discount_percent
+            : round2((discount / list) * 100)
+          : null,
+    },
+    ...inv.price_items.map((item) => ({
+      id: item.id,
+      code: "",
+      name: priceItemLabel(item, lang),
+      amount: round2(item.amount),
+      discount: 0,
+      discount_percent: null,
+      is_breakdown: true,
+    })),
+  ];
+
+  const clinic = [bn ? inv.location_name_bn || inv.location_name : inv.location_name, inv.org_address]
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    kind: "operation",
+    org_id: inv.org_id,
+    invoice_no: inv.invoice_no,
+    reg_no: inv.invoice_no,
+    lab_id: inv.reference_code,
+    date: fmtDate(inv.created_at),
+    delivery_datetime: null,
+    patient_name: inv.patient_name || (bn ? "রোগী" : "Patient"),
+    patient_phone: inv.patient_phone || "—",
+    patient_age: inv.guest_age,
+    patient_sex: inv.guest_sex,
+    patient_address: inv.guest_address,
+    referred_by: inv.referred_by,
+    payment_status: inv.payment_status,
+    lines: [],
+    operation_rows: rows,
+    operation_extra: {
+      schedule_datetime:
+        formatDateTimeWindow(inv.scheduled_date, inv.scheduled_start, inv.scheduled_end, lang) ??
+        (inv.scheduled_date ? fmtDate(inv.scheduled_date) : null),
+      admission_date: inv.admission_date ? fmtDate(inv.admission_date) : null,
+      clinic: clinic || null,
+      includes: (bn ? inv.includes_bn : inv.includes_en) || inv.includes_bn || inv.includes_en || null,
+      prep: (bn ? inv.prep_bn : inv.prep_en) || inv.prep_bn || inv.prep_en || null,
+      desk_note: inv.desk_note,
+      doctors: inv.doctors,
+    },
+    money: computeInvoiceMoney({
+      subtotal: round2(list),
+      discountAmount: discount,
+      vatPercent: template.defaults.vat_percent,
+      paymentStatus: inv.payment_status,
+      amountReceived: inv.amount_received,
+    }),
+    amount_received: inv.amount_received,
   };
 }
 

@@ -23,6 +23,8 @@ import {
 import type { CarePermissionKey } from "@/lib/care-permissions";
 import { CARE_PERMISSION_FALLBACK } from "@/lib/care-permissions";
 import { fetchCareSpecialties, fetchCareVendorTypes } from "@/lib/care-cms";
+import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
+import { resolveDoctorId, type CareDoctorOption } from "@/lib/care-doctors-api";
 import {
   approveCareSerial,
   callNextSerial,
@@ -61,6 +63,8 @@ import {
 } from "@/lib/care-org-settings";
 import type { CareOrgInvoiceSettings } from "@/lib/care-invoice-settings";
 import { fetchCarePolicies } from "@/lib/care-cms";
+import { CareOperationOfferingsPanel } from "@/components/care/CareOperationOfferingsPanel";
+import { CareOperationDeskPanel } from "@/components/care/CareOperationDeskPanel";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +72,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type DeskTab = "queue" | "create" | "doctors" | "schedule" | "staff" | "settings";
+type DeskTab =
+  | "queue"
+  | "create"
+  | "doctors"
+  | "schedule"
+  | "operations"
+  | "operation-queue"
+  | "staff"
+  | "settings";
 
 type CareDeskPageProps = {
   /** Vendor portal — separate auth & no donor onboarding */
@@ -151,6 +163,16 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
     },
     { id: "doctors", label: lang === "bn" ? "ডাক্তার" : "Doctors", show: can("doctors.manage") || can("queue.view") },
     { id: "schedule", label: lang === "bn" ? "শিডিউল" : "Schedule", show: can("schedule.manage") || can("queue.view") },
+    {
+      id: "operations",
+      label: lang === "bn" ? "অপারেশন" : "Operations",
+      show: can("operation.manage"),
+    },
+    {
+      id: "operation-queue",
+      label: lang === "bn" ? "অপারেশন বুকিং" : "Operation bookings",
+      show: can("operation.view") || can("operation.schedule"),
+    },
     { id: "staff", label: lang === "bn" ? "স্টাফ" : "Staff", show: can("staff.manage") },
     { id: "settings", label: lang === "bn" ? "সেটিংস" : "Settings", show: can("settings.edit") },
   ];
@@ -218,6 +240,12 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
         )}
         {tab === "doctors" && <DoctorsPanel orgId={orgId} canEdit={can("doctors.manage")} lang={lang} />}
         {tab === "schedule" && <SchedulePanel orgId={orgId} canEdit={can("schedule.manage")} lang={lang} />}
+        {tab === "operations" && (
+          <CareOperationOfferingsPanel orgId={orgId} canEdit={can("operation.manage")} lang={lang} />
+        )}
+        {tab === "operation-queue" && (
+          <CareOperationDeskPanel orgId={orgId} canSchedule={can("operation.schedule")} lang={lang} />
+        )}
         {tab === "staff" && <StaffPanel orgId={orgId} lang={lang} />}
         {tab === "settings" && <SettingsPanel orgId={orgId} lang={lang} />}
       </main>
@@ -940,13 +968,14 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
   const [rows, setRows] = useState<unknown[]>([]);
   const [locs, setLocs] = useState<{ id: string; name: string }[]>([]);
   const [specs, setSpecs] = useState<{ id: string; name_en: string; name_bn: string }[]>([]);
-  const [name, setName] = useState("");
+  const [doctor, setDoctor] = useState<CareDoctorOption | null>(null);
   const [bmdc, setBmdc] = useState("");
   const [specId, setSpecId] = useState("");
   const [locId, setLocId] = useState("");
   const [fee, setFee] = useState("");
   const [discType, setDiscType] = useState<"percent" | "fixed">("percent");
   const [discValue, setDiscValue] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function reload() {
     setRows(await fetchOrgDoctors(orgId));
@@ -962,25 +991,27 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
   }, [orgId]);
 
   async function add() {
-    if (!name.trim() || !locId) return;
+    if (!doctor || !locId) return;
+    setBusy(true);
     try {
-      const { data: doc, error } = await supabase
-        .from("care_doctors")
-        .insert({ full_name: name.trim(), bmdc_no: bmdc || null, specialty_id: specId || null } as never)
-        .select("id")
-        .single();
-      if (error) throw error;
+      // Reuses the existing global doctor when one matches, so the same
+      // physician at several clinics stays a single record.
+      const doctorId = await resolveDoctorId(doctor, {
+        bmdcNo: bmdc || null,
+        specialtyId: specId || null,
+      });
       const discNum = discValue.trim() ? Number(discValue) : null;
+      const hasDiscount = discNum != null && Number.isFinite(discNum) && discNum > 0;
       const { error: aErr } = await supabase.from("care_affiliations").insert({
         org_id: orgId,
-        doctor_id: (doc as { id: string }).id,
+        doctor_id: doctorId,
         location_id: locId,
         fee_amount: fee ? Number(fee) : null,
-        second_visit_discount_type: discNum != null && Number.isFinite(discNum) && discNum > 0 ? discType : null,
-        second_visit_discount_value: discNum != null && Number.isFinite(discNum) && discNum > 0 ? discNum : null,
+        second_visit_discount_type: hasDiscount ? discType : null,
+        second_visit_discount_value: hasDiscount ? discNum : null,
       } as never);
       if (aErr) throw aErr;
-      setName("");
+      setDoctor(null);
       setBmdc("");
       setFee("");
       setDiscValue("");
@@ -989,6 +1020,8 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
       toast.success(lang === "bn" ? "যোগ হয়েছে" : "Added");
     } catch (e) {
       toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -996,7 +1029,9 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
     <div className="space-y-3">
       {canEdit && (
         <div className="rounded-2xl border p-3 grid gap-2 sm:grid-cols-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={lang === "bn" ? "ডাক্তারের নাম" : "Doctor name"} className="rounded-xl border px-3 py-2 text-sm" />
+          <div className="sm:col-span-2">
+            <DoctorTypeahead value={doctor} onChange={setDoctor} orgId={orgId} />
+          </div>
           <input value={bmdc} onChange={(e) => setBmdc(e.target.value)} placeholder="BMDC" className="rounded-xl border px-3 py-2 text-sm" />
           <select value={specId} onChange={(e) => setSpecId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
             <option value="">{lang === "bn" ? "স্পেশালিটি" : "Specialty"}</option>
@@ -1051,7 +1086,12 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
               ? "সেকেন্ড টাইম: রোগী «আগেও দেখাইছি» সিলেক্ট করলে ফি থেকে এই ছাড় কাটা হবে।"
               : "Second visit: applied when patient selects “Visited before”."}
           </p>
-          <button type="button" onClick={() => void add()} className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold sm:col-span-2">
+          <button
+            type="button"
+            onClick={() => void add()}
+            disabled={busy || !doctor || !locId}
+            className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold sm:col-span-2 disabled:opacity-50"
+          >
             {lang === "bn" ? "ডাক্তার যোগ" : "Add doctor"}
           </button>
         </div>

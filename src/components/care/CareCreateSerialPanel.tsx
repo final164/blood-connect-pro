@@ -81,6 +81,7 @@ export function CareCreateSerialPanel({
   const [affs, setAffs] = useState<AffRow[]>([]);
   const [schedules, setSchedules] = useState<CareScheduleRow[]>([]);
   const [affiliationId, setAffiliationId] = useState("");
+  const [doctorQuery, setDoctorQuery] = useState("");
   const [scheduleId, setScheduleId] = useState("");
   const [sessionDate, setSessionDate] = useState(todayIso());
   const [liveSession, setLiveSession] = useState<CareSessionRow | null>(null);
@@ -107,6 +108,20 @@ export function CareCreateSerialPanel({
     () => affs.filter((a) => a.is_active !== false && a.care_doctors),
     [affs],
   );
+
+  // Substring search over name / BMDC, in the same spirit as the district select.
+  const filteredAffs = useMemo(() => {
+    const needle = doctorQuery.trim().toLowerCase();
+    if (!needle) return activeAffs;
+    return activeAffs.filter((a) => {
+      const doc = a.care_doctors;
+      const hay = [doc?.full_name, doc?.full_name_bn, a.care_locations?.name]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [activeAffs, doctorQuery]);
 
   const schedulesForAff = useMemo(
     () => schedules.filter((s) => s.affiliation_id === affiliationId),
@@ -192,7 +207,7 @@ export function CareCreateSerialPanel({
         ]);
         if (cancelled) return;
         setSettings(eff);
-        const list = (docs as AffRow[]) ?? [];
+        const list = (docs as unknown as AffRow[]) ?? [];
         setAffs(list);
         const sch = await fetchSchedulesForAffiliations(list.map((a) => a.id));
         if (cancelled) return;
@@ -439,12 +454,26 @@ export function CareCreateSerialPanel({
                   <span className="text-[11px] font-medium text-muted-foreground">
                     {lang === "bn" ? "ডাক্তার" : "Doctor"}
                   </span>
+                  {activeAffs.length > 5 && (
+                    <input
+                      value={doctorQuery}
+                      onChange={(e) => setDoctorQuery(e.target.value)}
+                      placeholder={lang === "bn" ? "ডাক্তার খুঁজুন…" : "Search doctor…"}
+                      className={`${inputCls} mb-1.5`}
+                      autoComplete="off"
+                    />
+                  )}
                   <select
                     value={affiliationId}
                     onChange={(e) => setAffiliationId(e.target.value)}
                     className={inputCls}
                   >
-                    {activeAffs.map((a) => (
+                    {filteredAffs.length === 0 && (
+                      <option value="">
+                        {lang === "bn" ? "কোনো ডাক্তার মেলেনি" : "No doctor matched"}
+                      </option>
+                    )}
+                    {filteredAffs.map((a) => (
                       <option key={a.id} value={a.id}>
                         {doctorName(a)}
                         {a.care_locations

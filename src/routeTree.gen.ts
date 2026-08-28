@@ -51,6 +51,8 @@ import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
 import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
 import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
 import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
+import { Route as AppCareOperationOfferingIdRouteImport } from './routes/_app.care.operation.$offeringId'
+import { Route as AppCareOperationBookingIdRouteImport } from './routes/_app.care.operation-booking.$id'
 import { Route as AppCareLabsOrgIdRouteImport } from './routes/_app.care.labs.$orgId'
 import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-booking.$id'
 import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
@@ -267,6 +269,18 @@ const AppCareSerialIdRoute = AppCareSerialIdRouteImport.update({
   path: '/serial/$id',
   getParentRoute: () => AppCareRoute,
 } as any)
+const AppCareOperationOfferingIdRoute =
+  AppCareOperationOfferingIdRouteImport.update({
+    id: '/operation/$offeringId',
+    path: '/operation/$offeringId',
+    getParentRoute: () => AppCareRoute,
+  } as any)
+const AppCareOperationBookingIdRoute =
+  AppCareOperationBookingIdRouteImport.update({
+    id: '/operation-booking/$id',
+    path: '/operation-booking/$id',
+    getParentRoute: () => AppCareRoute,
+  } as any)
 const AppCareLabsOrgIdRoute = AppCareLabsOrgIdRouteImport.update({
   id: '/labs/$orgId',
   path: '/labs/$orgId',
@@ -345,6 +359,8 @@ export interface FileRoutesByFullPath {
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/labs/$orgId': typeof AppCareLabsOrgIdRoute
+  '/care/operation-booking/$id': typeof AppCareOperationBookingIdRoute
+  '/care/operation/$offeringId': typeof AppCareOperationOfferingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
   '/care/test/$id': typeof AppCareTestIdRoute
 }
@@ -390,6 +406,8 @@ export interface FileRoutesByTo {
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/labs/$orgId': typeof AppCareLabsOrgIdRoute
+  '/care/operation-booking/$id': typeof AppCareOperationBookingIdRoute
+  '/care/operation/$offeringId': typeof AppCareOperationOfferingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
   '/care/test/$id': typeof AppCareTestIdRoute
 }
@@ -441,6 +459,8 @@ export interface FileRoutesById {
   '/_app/care/doctor/$id': typeof AppCareDoctorIdRoute
   '/_app/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/_app/care/labs/$orgId': typeof AppCareLabsOrgIdRoute
+  '/_app/care/operation-booking/$id': typeof AppCareOperationBookingIdRoute
+  '/_app/care/operation/$offeringId': typeof AppCareOperationOfferingIdRoute
   '/_app/care/serial/$id': typeof AppCareSerialIdRoute
   '/_app/care/test/$id': typeof AppCareTestIdRoute
 }
@@ -492,6 +512,8 @@ export interface FileRouteTypes {
     | '/care/doctor/$id'
     | '/care/lab-booking/$id'
     | '/care/labs/$orgId'
+    | '/care/operation-booking/$id'
+    | '/care/operation/$offeringId'
     | '/care/serial/$id'
     | '/care/test/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -537,6 +559,8 @@ export interface FileRouteTypes {
     | '/care/doctor/$id'
     | '/care/lab-booking/$id'
     | '/care/labs/$orgId'
+    | '/care/operation-booking/$id'
+    | '/care/operation/$offeringId'
     | '/care/serial/$id'
     | '/care/test/$id'
   id:
@@ -587,6 +611,8 @@ export interface FileRouteTypes {
     | '/_app/care/doctor/$id'
     | '/_app/care/lab-booking/$id'
     | '/_app/care/labs/$orgId'
+    | '/_app/care/operation-booking/$id'
+    | '/_app/care/operation/$offeringId'
     | '/_app/care/serial/$id'
     | '/_app/care/test/$id'
   fileRoutesById: FileRoutesById
@@ -904,6 +930,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareSerialIdRouteImport
       parentRoute: typeof AppCareRoute
     }
+    '/_app/care/operation/$offeringId': {
+      id: '/_app/care/operation/$offeringId'
+      path: '/operation/$offeringId'
+      fullPath: '/care/operation/$offeringId'
+      preLoaderRoute: typeof AppCareOperationOfferingIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/operation-booking/$id': {
+      id: '/_app/care/operation-booking/$id'
+      path: '/operation-booking/$id'
+      fullPath: '/care/operation-booking/$id'
+      preLoaderRoute: typeof AppCareOperationBookingIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
     '/_app/care/labs/$orgId': {
       id: '/_app/care/labs/$orgId'
       path: '/labs/$orgId'
@@ -986,6 +1026,8 @@ interface AppCareRouteChildren {
   AppCareDoctorIdRoute: typeof AppCareDoctorIdRoute
   AppCareLabBookingIdRoute: typeof AppCareLabBookingIdRoute
   AppCareLabsOrgIdRoute: typeof AppCareLabsOrgIdRoute
+  AppCareOperationBookingIdRoute: typeof AppCareOperationBookingIdRoute
+  AppCareOperationOfferingIdRoute: typeof AppCareOperationOfferingIdRoute
   AppCareSerialIdRoute: typeof AppCareSerialIdRoute
   AppCareTestIdRoute: typeof AppCareTestIdRoute
 }
@@ -998,6 +1040,8 @@ const AppCareRouteChildren: AppCareRouteChildren = {
   AppCareDoctorIdRoute: AppCareDoctorIdRoute,
   AppCareLabBookingIdRoute: AppCareLabBookingIdRoute,
   AppCareLabsOrgIdRoute: AppCareLabsOrgIdRoute,
+  AppCareOperationBookingIdRoute: AppCareOperationBookingIdRoute,
+  AppCareOperationOfferingIdRoute: AppCareOperationOfferingIdRoute,
   AppCareSerialIdRoute: AppCareSerialIdRoute,
   AppCareTestIdRoute: AppCareTestIdRoute,
 }

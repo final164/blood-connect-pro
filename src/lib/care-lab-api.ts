@@ -76,8 +76,43 @@ export type CareLabBooking = {
   price: number;
   price_original?: number | null;
   discount_percent?: number | null;
+  collection_date?: string | null;
+  collection_start?: string | null;
+  collection_end?: string | null;
+  delivery_date?: string | null;
+  delivery_start?: string | null;
+  delivery_end?: string | null;
   created_at: string;
 };
+
+/**
+ * Column lists are shared constants rather than inline strings: this table has
+ * grown by migration several times and every query needs the same set, plus a
+ * narrower fallback for databases where the newest migration has not run yet.
+ */
+const SCHEDULE_COLS =
+  "collection_date, collection_start, collection_end, delivery_date, delivery_start, delivery_end";
+const CATALOG_JOIN = "care_test_offerings(care_test_catalog(code, name_bn, name_en))";
+
+/** Before 20260828010000_lab_schedule_window. */
+const BOOKING_COLS_NO_SCHEDULE =
+  "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at";
+
+/**
+ * Current schema. Built with concatenation, not a template literal: PostgREST
+ * types parse literal select strings and reject template-literal types.
+ */
+const BOOKING_COLS: string = BOOKING_COLS_NO_SCHEDULE + ", " + SCHEDULE_COLS;
+/** Before the invoice-group / patient-detail migrations. */
+const BOOKING_COLS_LEGACY =
+  "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at";
+/** Oldest shape still seen in the wild. */
+const BOOKING_COLS_MINIMAL =
+  "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at";
+
+const withCatalog = (cols: string): string => cols + ", " + CATALOG_JOIN;
+
+const MISSING_SCHEDULE_RE = /collection_date|collection_start|delivery_date|delivery_start/i;
 
 export type CareLabFacility = {
   id: string;
@@ -446,30 +481,26 @@ export async function reserveLabBundle(params: {
 }
 
 export async function fetchMyLabBookings(): Promise<(CareLabBooking & { offering?: CareOffering["catalog"] })[]> {
-  const selectWithGroup =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))";
-  const selectNoGroup =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))";
-
-  let { data, error } = await supabase
-    .from("care_lab_bookings")
-    .select(selectWithGroup)
-    .order("created_at", { ascending: false })
-    .limit(80);
-  if (error && /invoice_group_id/i.test(error.message)) {
-    const retry = await supabase
+  async function query(cols: string) {
+    return supabase
       .from("care_lab_bookings")
-      .select(selectNoGroup)
+      .select(withCatalog(cols))
       .order("created_at", { ascending: false })
       .limit(80);
-    data = retry.data as typeof data;
-    error = retry.error;
+  }
+
+  let { data, error } = await query(BOOKING_COLS);
+  if (error && MISSING_SCHEDULE_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
+  }
+  if (error && /invoice_group_id/i.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_LEGACY));
   }
   if (error) {
     if (missing(error)) return [];
     throw new Error(error.message);
   }
-  return ((data as Record<string, unknown>[]) ?? []).map((row) => {
+  return ((data as unknown as Record<string, unknown>[]) ?? []).map((row) => {
     const off = row.care_test_offerings as { care_test_catalog?: CareOffering["catalog"] } | null;
     return {
       ...(row as unknown as CareLabBooking),
@@ -479,27 +510,20 @@ export async function fetchMyLabBookings(): Promise<(CareLabBooking & { offering
 }
 
 export async function fetchLabBooking(id: string) {
-  let { data, error } = await supabase
-    .from("care_lab_bookings")
-    .select(
-      "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  async function query(cols: string) {
+    return supabase.from("care_lab_bookings").select(cols).eq("id", id).maybeSingle();
+  }
+
+  let { data, error } = await query(BOOKING_COLS);
+  if (error && MISSING_SCHEDULE_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
+  }
   if (error && /invoice_group_id/i.test(error.message)) {
-    const retry = await supabase
-      .from("care_lab_bookings")
-      .select(
-        "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at",
-      )
-      .eq("id", id)
-      .maybeSingle();
-    data = retry.data as typeof data;
-    error = retry.error;
+    ({ data, error } = await query(BOOKING_COLS_LEGACY));
   }
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return data as CareLabBooking;
+  return data as unknown as CareLabBooking;
 }
 
 /** All bookings that share the same invoice (group or single). */
@@ -507,28 +531,24 @@ export async function fetchLabBookingsForInvoice(bookingId: string): Promise<Car
   const primary = await fetchLabBooking(bookingId);
   if (!primary) return [];
 
-  const selectWithCatalog =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))";
-  const selectPlain =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at";
-
   async function loadBy(column: "invoice_group_id" | "invoice_no", value: string) {
-    let { data, error } = await supabase
-      .from("care_lab_bookings")
-      .select(selectWithCatalog)
-      .eq(column, value)
-      .order("created_at", { ascending: true });
-    if (error && /care_test_offerings|invoice_group_id|guest_sex|amount_received|referred_by/i.test(error.message)) {
-      const plain = await supabase
+    async function query(cols: string) {
+      return supabase
         .from("care_lab_bookings")
-        .select(selectPlain)
+        .select(cols)
         .eq(column, value)
         .order("created_at", { ascending: true });
-      data = plain.data as typeof data;
-      error = plain.error;
+    }
+
+    let { data, error } = await query(withCatalog(BOOKING_COLS));
+    if (error && MISSING_SCHEDULE_RE.test(error.message)) {
+      ({ data, error } = await query(withCatalog(BOOKING_COLS_NO_SCHEDULE)));
+    }
+    if (error && /care_test_offerings|invoice_group_id|guest_sex|amount_received|referred_by/i.test(error.message)) {
+      ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
     }
     if (error || !data?.length) return null;
-    return (data as Record<string, unknown>[]).map((row) => {
+    return (data as unknown as Record<string, unknown>[]).map((row) => {
       const off = row.care_test_offerings as { care_test_catalog?: CareOffering["catalog"] } | null;
       return {
         ...(row as unknown as CareLabBooking),
@@ -549,6 +569,34 @@ export async function fetchLabBookingsForInvoice(bookingId: string): Promise<Car
   }
 
   return [primary];
+}
+
+export type LabScheduleInput = {
+  collectionDate?: string | null;
+  collectionStart?: string | null;
+  collectionEnd?: string | null;
+  deliveryDate?: string | null;
+  deliveryStart?: string | null;
+  deliveryEnd?: string | null;
+  /** Apply to every test on the same invoice (default), not just this row. */
+  applyGroup?: boolean;
+};
+
+/** Lab desk sets the sample collection time and the report delivery window. */
+export async function setLabSchedule(bookingId: string, input: LabScheduleInput) {
+  const blank = (v?: string | null) => (v && v.trim() ? v.trim() : null);
+  const { data, error } = await supabase.rpc("care_set_lab_schedule", {
+    _booking_id: bookingId,
+    _collection_date: blank(input.collectionDate),
+    _collection_start: blank(input.collectionStart),
+    _collection_end: blank(input.collectionEnd),
+    _delivery_date: blank(input.deliveryDate),
+    _delivery_start: blank(input.deliveryStart),
+    _delivery_end: blank(input.deliveryEnd),
+    _apply_group: input.applyGroup !== false,
+  } as never);
+  if (error) throw new Error(error.message);
+  return data as CareLabBooking;
 }
 
 export async function setLabBookingStatus(id: string, status: string) {
@@ -602,34 +650,30 @@ export async function fetchOrgLabBookings(
   const ids = (cals ?? []).map((c: { id: string }) => c.id);
   if (!ids.length) return { rows: [], hasMore: false };
 
-  const selectWithGroup =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))";
-  const selectNoGroup =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))";
-  const selectLegacy =
-    "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, created_at, care_test_offerings(care_test_catalog(code, name_bn, name_en))";
-
-  async function query(select: string) {
+  async function query(cols: string) {
     return supabase
       .from("care_lab_bookings")
-      .select(select)
+      .select(withCatalog(cols))
       .eq("org_id", orgId)
       .in("calendar_id", ids)
       .order("created_at", { ascending: true })
       .range(offset, offset + limit - 1);
   }
 
-  let { data, error } = await query(selectWithGroup);
+  let { data, error } = await query(BOOKING_COLS);
 
+  if (error && MISSING_SCHEDULE_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_SCHEDULE));
+  }
   if (error && /invoice_group_id/i.test(error.message)) {
-    ({ data, error } = await query(selectNoGroup));
+    ({ data, error } = await query(BOOKING_COLS_LEGACY));
   }
   if (error && /price_original|discount_percent/i.test(error.message)) {
-    ({ data, error } = await query(selectLegacy));
+    ({ data, error } = await query(BOOKING_COLS_MINIMAL));
   }
   if (error) throw new Error(error.message);
 
-  const rows = (data ?? []) as Record<string, unknown>[];
+  const rows = (data ?? []) as unknown as Record<string, unknown>[];
   const hasMore = rows.length >= limit;
 
   const patientIds = [

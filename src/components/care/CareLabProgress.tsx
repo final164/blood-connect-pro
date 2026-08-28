@@ -1,5 +1,6 @@
-import { Check } from "lucide-react";
+import { CalendarClock, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDateTimeWindow } from "@/lib/care-time-window";
 
 export const LAB_FLOW = ["reserved", "checked_in", "sample_taken", "completed"] as const;
 
@@ -84,9 +85,19 @@ export function CareLabProgressMini({
 export function CareLabProgressBar({
   status,
   lang,
+  schedule,
 }: {
   status: string;
   lang: "bn" | "en";
+  /** Desk-confirmed collection / report delivery windows, when set. */
+  schedule?: {
+    collection_date?: string | null;
+    collection_start?: string | null;
+    collection_end?: string | null;
+    delivery_date?: string | null;
+    delivery_start?: string | null;
+    delivery_end?: string | null;
+  } | null;
 }) {
   const terminal = status === "cancelled" || status === "no_show";
   const step = labStatusStepIndex(status);
@@ -153,6 +164,47 @@ export function CareLabProgressBar({
           );
         })}
       </div>
+      <LabScheduleChips schedule={schedule} lang={lang} />
+    </div>
+  );
+}
+
+function LabScheduleChips({
+  schedule,
+  lang,
+}: {
+  schedule?: Parameters<typeof CareLabProgressBar>[0]["schedule"];
+  lang: "bn" | "en";
+}) {
+  if (!schedule) return null;
+  const collection = formatDateTimeWindow(
+    schedule.collection_date,
+    schedule.collection_start,
+    schedule.collection_end,
+    lang,
+  );
+  const delivery = formatDateTimeWindow(
+    schedule.delivery_date,
+    schedule.delivery_start,
+    schedule.delivery_end,
+    lang,
+  );
+  if (!collection && !delivery) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-0.5">
+      {collection && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/5 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+          <CalendarClock className="h-3 w-3" />
+          {lang === "bn" ? "নমুনা সংগ্রহ" : "Collection"} · {collection}
+        </span>
+      )}
+      {delivery && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+          <CalendarClock className="h-3 w-3" />
+          {lang === "bn" ? "রিপোর্ট" : "Report"} · {delivery}
+        </span>
+      )}
     </div>
   );
 }

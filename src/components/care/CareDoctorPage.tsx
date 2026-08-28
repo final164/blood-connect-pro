@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { Stethoscope } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Scissors, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
@@ -28,6 +28,12 @@ import {
 } from "@/lib/care-org-settings";
 import { clampPhoneDigits } from "@/lib/phone-auth";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { formatCareMoney } from "@/lib/care-invoice";
+import {
+  fetchDoctorOperations,
+  operationName,
+  type CareOperationOffering,
+} from "@/lib/care-operations-api";
 
 function ageFromDob(dob: string | null | undefined): string {
   if (!dob) return "";
@@ -372,6 +378,8 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
               })}
             </div>
 
+            <DoctorOperationsSection doctorId={doctorId} lang={lang} />
+
             {selected && (
               <section className="rounded-2xl border-2 border-primary/30 bg-card p-4 space-y-3 shadow-sm">
                 <div>
@@ -540,5 +548,76 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Every clinic where this doctor operates, so prices can be compared side by side. */
+function DoctorOperationsSection({ doctorId, lang }: { doctorId: string; lang: "bn" | "en" }) {
+  const bn = lang === "bn";
+  const [rows, setRows] = useState<CareOperationOffering[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void fetchDoctorOperations(doctorId)
+      .then((list) => {
+        if (!cancelled) setRows(list);
+      })
+      .catch(() => {
+        if (!cancelled) setRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId]);
+
+  if (loading || !rows.length) return null;
+
+  const clinicCount = new Set(rows.map((r) => r.org_id)).size;
+
+  return (
+    <section className="space-y-2 rounded-2xl border bg-card p-3">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          {bn ? "অপারেশন" : "Operations"}
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          {bn
+            ? `${clinicCount}টি ক্লিনিকে ${rows.length}টি অপারেশন — মূল্য তুলনা করুন`
+            : `${rows.length} operations across ${clinicCount} clinic(s) — compare prices`}
+        </p>
+      </div>
+      <ul className="space-y-1.5">
+        {rows.map((o) => (
+          <li key={o.id}>
+            <Link
+              to="/care/operation/$offeringId"
+              params={{ offeringId: o.id }}
+              className="flex items-center gap-2 rounded-xl border px-3 py-2 hover:bg-muted/40"
+            >
+              <Scissors className="h-4 w-4 shrink-0 text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{operationName(o.catalog, lang)}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {[
+                    bn ? o.org?.name_bn || o.org?.name : o.org?.name,
+                    o.location ? (bn ? o.location.name_bn || o.location.name : o.location.name) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-bold text-primary">
+                {formatCareMoney(o.package_price, lang)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

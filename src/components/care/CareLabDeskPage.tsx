@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarClock,
   Check,
   ChevronRight,
   FlaskConical,
@@ -33,6 +34,11 @@ import {
   offeringSalePrice,
 } from "@/lib/care-lab-price";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
+import {
+  CareLabScheduleForm,
+  labCollectionLine,
+  labDeliveryLine,
+} from "@/components/care/CareLabScheduleForm";
 import { fetchOrgLocations } from "@/lib/care-api";
 import { supabase } from "@/integrations/supabase/client";
 import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
@@ -74,6 +80,12 @@ type DeskBookingRow = Record<string, unknown> & {
   price?: number | null;
   price_original?: number | null;
   discount_percent?: number | null;
+  collection_date?: string | null;
+  collection_start?: string | null;
+  collection_end?: string | null;
+  delivery_date?: string | null;
+  delivery_start?: string | null;
+  delivery_end?: string | null;
   created_at?: string;
   care_test_offerings?: {
     care_test_catalog?: { name_bn?: string; name_en?: string; code?: string };
@@ -201,6 +213,28 @@ function LabStepActions({
       >
         {lang === "bn" ? "নো-শো" : "No-show"}
       </button>
+    </div>
+  );
+}
+
+function LabScheduleChips({ row, lang }: { row: DeskBookingRow; lang: "bn" | "en" }) {
+  const collection = labCollectionLine(row, lang);
+  const delivery = labDeliveryLine(row, lang);
+  if (!collection && !delivery) return null;
+  return (
+    <div className="pl-10 flex flex-wrap gap-1.5">
+      {collection && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/5 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+          <CalendarClock className="h-3 w-3" />
+          {lang === "bn" ? "সংগ্রহ" : "Collection"} · {collection}
+        </span>
+      )}
+      {delivery && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+          <CalendarClock className="h-3 w-3" />
+          {lang === "bn" ? "ডেলিভারি" : "Delivery"} · {delivery}
+        </span>
+      )}
     </div>
   );
 }
@@ -521,28 +555,30 @@ function TodayPanel({
     };
   }, [detailId, rows]);
 
+  async function refreshDetail() {
+    await reload();
+    if (!detailId) return;
+    const list = await fetchLabBookingsForInvoice(detailId);
+    setDetailRows(
+      list.map((b) => {
+        const fromList = rows.find((r) => r.id === b.id);
+        const raw = b as DeskBookingRow;
+        return {
+          ...raw,
+          care_test_offerings: raw.care_test_offerings ?? fromList?.care_test_offerings ?? null,
+          profile_name: fromList?.profile_name ?? null,
+          profile_phone: fromList?.profile_phone ?? null,
+        };
+      }),
+    );
+  }
+
   async function advanceStatus(bookingId: string, status: string) {
     setDetailBusy(true);
     setRowBusyId(bookingId);
     try {
       await setLabBookingStatus(bookingId, status);
-      await reload();
-      if (detailId) {
-        const list = await fetchLabBookingsForInvoice(detailId);
-        setDetailRows(
-          list.map((b) => {
-            const fromList = rows.find((r) => r.id === b.id);
-            const raw = b as DeskBookingRow;
-            return {
-              ...raw,
-              care_test_offerings:
-                raw.care_test_offerings ?? fromList?.care_test_offerings ?? null,
-              profile_name: fromList?.profile_name ?? null,
-              profile_phone: fromList?.profile_phone ?? null,
-            };
-          }),
-        );
-      }
+      await refreshDetail();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -783,6 +819,8 @@ function TodayPanel({
                       />
                     </div>
                   </div>
+
+                  <LabScheduleChips row={r} lang={lang} />
                 </div>
 
                 {/* Mobile only: details sheet */}
@@ -914,6 +952,14 @@ function TodayPanel({
                 </div>
 
                 <LabProgressBar status={String(detailPrimary.status || "reserved")} lang={lang} />
+
+                <CareLabScheduleForm
+                  booking={{ ...detailPrimary, id: String(detailPrimary.id) }}
+                  lang={lang}
+                  canEdit={canManage}
+                  multiTest={detailRows.length > 1}
+                  onSaved={() => void refreshDetail()}
+                />
 
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">

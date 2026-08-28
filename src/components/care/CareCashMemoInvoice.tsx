@@ -77,6 +77,11 @@ function LabInvoiceBody({ vm, template, lang, L }: MemoCtx) {
 
       <div className="cm-bottom">
         <div className="cm-delivery">
+          {vm.collection_datetime ? (
+            <p>
+              <b>{lang === "bn" ? "নমুনা সংগ্রহ" : "Sample collection"}:</b> {vm.collection_datetime}
+            </p>
+          ) : null}
           <p>
             <b>{L("delivery_time")}:</b> {vm.delivery_datetime || "—"}
           </p>
@@ -248,6 +253,94 @@ function AmbulanceInvoiceBody({ vm, template, lang, L }: MemoCtx) {
   );
 }
 
+function OperationInvoiceBody({ vm, template, lang, L }: MemoCtx) {
+  const rows = vm.operation_rows ?? [];
+  const extra = vm.operation_extra;
+  const bn = lang === "bn";
+
+  return (
+    <>
+      <table className="cm-table cm-table-operation">
+        <thead>
+          <tr>
+            <th className="cm-sl">{L("col_sl")}</th>
+            <th className="cm-name">{bn ? "অপারেশন / খাত" : "Operation / item"}</th>
+            <th>{bn ? "কোড" : "Code"}</th>
+            <th className="cm-amt">{L("col_amount")}</th>
+            <th className="cm-disc">{L("col_discount")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.id} className={row.is_breakdown ? "cm-op-sub" : undefined}>
+              <td className="cm-sl">{row.is_breakdown ? "" : i + 1}</td>
+              <td className="cm-name">{row.is_breakdown ? `— ${row.name}` : row.name}</td>
+              <td>{row.code || ""}</td>
+              <td className="cm-amt">{row.amount.toFixed(2)}</td>
+              <td className="cm-disc">
+                {row.is_breakdown ? (
+                  ""
+                ) : (
+                  <>
+                    {row.discount.toFixed(2)}
+                    {row.discount_percent != null && row.discount_percent > 0 ? (
+                      <span className="cm-disc-pct">({row.discount_percent.toFixed(0)}%)</span>
+                    ) : null}
+                  </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {extra && extra.doctors.length ? (
+        <div className="cm-serial-extra">
+          {extra.doctors.map((d, i) => (
+            <span key={i} className="cm-grow">
+              <b>{d.role === "lead_surgeon" ? (bn ? "প্রধান সার্জন" : "Lead surgeon") : bn ? "সহযোগী" : "Team"}:</b>{" "}
+              {d.name}
+              {d.bmdc_no ? ` · BMDC ${d.bmdc_no}` : ""}
+              {d.qualifications ? ` · ${d.qualifications}` : ""}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="cm-bottom">
+        <div className="cm-delivery">
+          <p>
+            <b>{bn ? "অপারেশনের তারিখ ও সময়" : "Operation date & time"}:</b>{" "}
+            {extra?.schedule_datetime ||
+              (bn ? "ডেস্ক থেকে নিশ্চিত করা হবে" : "To be confirmed by the desk")}
+          </p>
+          {extra?.admission_date ? (
+            <p>
+              <b>{bn ? "ভর্তির তারিখ" : "Admission date"}:</b> {extra.admission_date}
+            </p>
+          ) : null}
+          {extra?.clinic ? (
+            <p>
+              <b>{bn ? "স্থান" : "Venue"}:</b> {extra.clinic}
+            </p>
+          ) : null}
+          {extra?.includes ? (
+            <p>
+              <b>{bn ? "প্যাকেজে অন্তর্ভুক্ত" : "Package includes"}:</b> {extra.includes}
+            </p>
+          ) : null}
+          {extra?.prep ? (
+            <p>
+              <b>{bn ? "প্রস্তুতি" : "Preparation"}:</b> {extra.prep}
+            </p>
+          ) : null}
+        </div>
+        <InvoiceTotals vm={vm} template={template} lang={lang} L={L} />
+      </div>
+    </>
+  );
+}
+
 /** Cash Memo / Bill — colorful on screen; print pipeline forces B&W; PDF keeps color. */
 export function CareCashMemoInvoice({
   vm,
@@ -280,8 +373,23 @@ export function CareCashMemoInvoice({
   const scale = style.font_scale || 1;
   const isSerial = vm.kind === "serial";
   const isAmbulance = vm.kind === "ambulance";
-  const claimLabel = isSerial ? L("serial_claim_code") : isAmbulance ? L("ambulance_ref_code") : L("lab_id");
-  const titleText = isAmbulance ? L("title_ambulance") : L("title");
+  const isOperation = vm.kind === "operation";
+  const claimLabel = isSerial
+    ? L("serial_claim_code")
+    : isAmbulance
+      ? L("ambulance_ref_code")
+      : isOperation
+        ? lang === "bn"
+          ? "রেফারেন্স"
+          : "Reference"
+        : L("lab_id");
+  const titleText = isAmbulance
+    ? L("title_ambulance")
+    : isOperation
+      ? lang === "bn"
+        ? "অপারেশন বিল"
+        : "Operation Bill"
+      : L("title");
   const disclaimerText = isAmbulance ? L("amb_disclaimer") : L("disclaimer");
   const ctx: MemoCtx = { vm, template, lang, L };
 
@@ -312,6 +420,9 @@ export function CareCashMemoInvoice({
 .cm-table .cm-amt{width:4rem}
 .cm-table-serial{font-size:.7rem}
 .cm-table-ambulance{font-size:.7rem}
+.cm-table-operation{font-size:.72rem}
+.cm-table-operation .cm-op-sub td{color:#475569;font-size:.95em}
+.cm-table-operation .cm-op-sub .cm-name{padding-left:14px}
 .cm-amb-extra{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.7rem;margin:-4px 0 10px;padding:6px 8px;background:#f8fafc;border:1px solid #99f6e4;border-radius:4px}
 .cm-amb-extra b{color:#0f766e}
 .cm-bottom-ambulance{justify-content:flex-end}
@@ -345,6 +456,7 @@ export function CareCashMemoInvoice({
   .cm-table th,.cm-table td{border-color:#111!important}
   .cm-table thead th{background:#fff!important;color:#111!important}
   .cm-table tbody tr:nth-child(even) td{background:#fff!important}
+  .cm-table-operation .cm-op-sub td{color:#111!important}
   .cm-disc,.cm-tot-row.cm-disc-total span:last-child{color:#111!important;font-weight:400!important}
   .cm-totals{border-color:#111!important}
   .cm-strong{background:transparent!important;color:#111!important;padding:0!important;margin-top:2px!important}
@@ -438,7 +550,15 @@ export function CareCashMemoInvoice({
           ) : null}
         </div>
 
-        {isSerial ? <SerialInvoiceBody {...ctx} /> : isAmbulance ? <AmbulanceInvoiceBody {...ctx} /> : <LabInvoiceBody {...ctx} />}
+        {isSerial ? (
+          <SerialInvoiceBody {...ctx} />
+        ) : isAmbulance ? (
+          <AmbulanceInvoiceBody {...ctx} />
+        ) : isOperation ? (
+          <OperationInvoiceBody {...ctx} />
+        ) : (
+          <LabInvoiceBody {...ctx} />
+        )}
 
         {style.show_signature && (
           <div className="cm-sign">

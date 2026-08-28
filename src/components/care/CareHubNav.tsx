@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   Microscope,
+  Scissors,
   Sparkles,
   Stethoscope,
   Ticket,
@@ -24,6 +25,7 @@ const ICONS: Record<string, typeof Stethoscope> = {
   Ambulance,
   Sparkles,
   LayoutDashboard,
+  Scissors,
 };
 
 const PATIENT_ACCENTS: Record<string, string> = {
@@ -31,6 +33,7 @@ const PATIENT_ACCENTS: Record<string, string> = {
   doctors: "border-teal-200 text-teal-800 hover:bg-teal-50/90 hover:border-teal-400",
   ai_tests: "border-violet-200 text-violet-800 hover:bg-violet-50/90 hover:border-violet-400",
   tests: "border-cyan-200 text-cyan-800 hover:bg-cyan-50/90 hover:border-cyan-400",
+  operations: "border-rose-200 text-rose-800 hover:bg-rose-50/90 hover:border-rose-400",
   bookings: "border-amber-200 text-amber-900 hover:bg-amber-50/90 hover:border-amber-400",
   ambulance: "border-orange-200 text-orange-800 hover:bg-orange-50/90 hover:border-orange-400",
   desk: "border-slate-200 text-slate-800 hover:bg-slate-50/90 hover:border-slate-400",
