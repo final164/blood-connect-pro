@@ -1,6 +1,10 @@
 import { Link } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { LandingSettings } from "@/lib/landing-settings";
-import { AppDownloadButton } from "@/components/AppDownloadButton";
+
+const AppDownloadButton = lazy(() =>
+  import("@/components/AppDownloadButton").then((m) => ({ default: m.AppDownloadButton })),
+);
 
 export function LandingNav({
   settings,
@@ -14,6 +18,18 @@ export function LandingNav({
   const nav = settings.nav;
   const customLogo =
     nav.logo_url && !/\/icon-192\.png|\/icon-512\.png|\/icon\.svg/i.test(nav.logo_url);
+  const [showDownload, setShowDownload] = useState(false);
+
+  useEffect(() => {
+    const show = () => setShowDownload(true);
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(show, { timeout: 2500 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(show, 900);
+    return () => window.clearTimeout(t);
+  }, []);
+
   return (
     <header
       className="sticky top-0 z-40 border-b border-black/8 bg-[color:var(--landing-bg)]/95 supports-[backdrop-filter]:bg-[color:var(--landing-bg)]/90"
@@ -67,7 +83,11 @@ export function LandingNav({
               {lang === "bn" ? "EN" : "বাং"}
             </button>
           )}
-          <AppDownloadButton lang={lang} variant="nav" force />
+          {showDownload ? (
+            <Suspense fallback={null}>
+              <AppDownloadButton lang={lang} variant="nav" force />
+            </Suspense>
+          ) : null}
           <Link
             to="/auth"
             search={{}}

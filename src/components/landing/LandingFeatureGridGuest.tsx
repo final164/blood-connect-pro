@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import {
   Ambulance,
   CalendarDays,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import type { LandingFeatureGrid, LandingFeatureIcon, LandingFeatureTile } from "@/lib/landing-settings";
 import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
-import { useAuth } from "@/lib/auth-context";
 
 const ICON_MAP: Record<LandingFeatureIcon, LucideIcon> = {
   droplet: Droplet,
@@ -38,64 +36,37 @@ function pick(lang: "bn" | "en", bn: string, en: string) {
   return lang === "bn" ? bn : en;
 }
 
-function parseAppHref(href: string): { pathname: string; search: Record<string, string> } {
-  const raw = (href || "/").trim() || "/";
-  const [pathPart, qs = ""] = raw.split("?");
-  const search: Record<string, string> = {};
-  if (qs) {
-    new URLSearchParams(qs).forEach((v, k) => {
-      search[k] = v;
-    });
-  }
-  return { pathname: pathPart || "/", search };
-}
-
-export function useSmartLandingNav() {
-  const navigate = useNavigate();
-  const { session, isAnonymous, loading } = useAuth();
-  const loggedIn = !!session && !isAnonymous && !loading;
-
-  return function goToTile(tile: LandingFeatureTile) {
-    const href = (tile.href || "/").trim() || "/";
-    if (href.startsWith("#") || href.startsWith("http") || href.startsWith("tel:") || href.startsWith("mailto:")) {
-      window.location.assign(href);
-      return;
-    }
-    if ((tile.requires_auth || hrefRequiresLogin(href)) && !loggedIn) {
-      void navigate({ to: "/auth", search: { next: href } as never });
-      return;
-    }
-    const { pathname, search } = parseAppHref(href);
-    if (pathname === "/auth" || pathname.startsWith("/auth/")) {
-      void navigate({ to: "/auth", search: search.next ? { next: search.next } : {} });
-      return;
-    }
-    if (pathname.startsWith("/care/auth")) {
-      void navigate({
-        to: "/care/auth",
-        search: {
-          mode: search.mode === "register" ? ("register" as const) : undefined,
-          next: search.next || undefined,
-        },
-      });
-      return;
-    }
-    void navigate({ to: pathname as never, search: Object.keys(search).length ? (search as never) : undefined });
-  };
-}
-
-export function LandingFeatureGridPanel({
+/**
+ * Guest landing hero grid — no AuthProvider / supabase on the critical path.
+ * Soft navigate via location (+ auth?next= when login required).
+ */
+export function LandingFeatureGridGuest({
   grid,
   lang,
+  onAiHealth,
 }: {
   grid: LandingFeatureGrid;
   lang: "bn" | "en";
+  /** When set, AI health tile opens inline panel instead of navigating away. */
+  onAiHealth?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const go = useSmartLandingNav();
   const primary = grid.tiles.filter((t) => !t.more);
   const extra = grid.tiles.filter((t) => t.more);
   const visible = expanded ? [...primary, ...extra] : primary;
+
+  function go(tile: LandingFeatureTile) {
+    if (tile.id === "ai_health" && onAiHealth) {
+      onAiHealth();
+      return;
+    }
+    const href = (tile.href || "/").trim() || "/";
+    if (tile.requires_auth || hrefRequiresLogin(href)) {
+      window.location.assign(authWithNext(href));
+      return;
+    }
+    window.location.assign(href);
+  }
 
   return (
     <div className="landing-feature-grid landing-hero-card w-full px-3 pt-3 pb-2 sm:px-4">
@@ -140,5 +111,3 @@ export function LandingFeatureGridPanel({
     </div>
   );
 }
-
-export { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGridGuest";

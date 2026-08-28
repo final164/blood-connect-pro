@@ -58,12 +58,10 @@ export const Route = createFileRoute("/")({
     const seo = loaderData?.seo ?? DEFAULT_SEO_SETTINGS;
     const settings = loaderData?.settings ?? DEFAULT_LANDING_SETTINGS;
     const { meta, links } = buildHead(seo, "bn");
-    const gridOn = settings.hero?.feature_grid?.enabled !== false;
     const heroLcp =
       ensureHeroSlides(settings.hero?.background_images, settings.hero?.background_url)[0] ||
       LANDING_MEDIA.hero;
     const preload = heroLcpPreload(heroLcp);
-    const logo = settings.nav?.logo_url || LANDING_MEDIA.logo;
     return {
       meta,
       links: [
@@ -78,16 +76,6 @@ export const Route = createFileRoute("/")({
             ? { imageSrcSet: preload.imageSrcSet, imageSizes: preload.imageSizes }
             : {}),
         },
-        ...(gridOn
-          ? [
-              {
-                rel: "preload" as const,
-                as: "image" as const,
-                href: logo,
-                fetchPriority: "low" as const,
-              },
-            ]
-          : []),
       ],
     };
   },
@@ -123,26 +111,32 @@ function LandingPage() {
       if (!cancelled) setBelowReady(true);
     };
 
-    // Desktop: show full landing immediately (hero + sections + YouTube layout).
-    if (window.matchMedia("(min-width: 768px)").matches) {
-      reveal();
-      return () => {
-        cancelled = true;
-      };
+    const schedule = () => {
+      const desktop = window.matchMedia("(min-width: 768px)").matches;
+      // Wait for idle after load so LCP image wins the network on Slow 4G.
+      if (typeof requestIdleCallback === "function") {
+        const id = requestIdleCallback(reveal, { timeout: desktop ? 900 : 4200 });
+        return () => cancelIdleCallback(id);
+      }
+      const t = window.setTimeout(reveal, desktop ? 450 : 2200);
+      return () => window.clearTimeout(t);
+    };
+
+    let cancelSchedule: (() => void) | undefined;
+    const onReady = () => {
+      cancelSchedule = schedule();
+    };
+
+    if (document.readyState === "complete") {
+      onReady();
+    } else {
+      window.addEventListener("load", onReady, { once: true });
     }
 
-    // Mobile: defer below-fold chunk so LCP stays fast.
-    if (typeof requestIdleCallback === "function") {
-      const id = requestIdleCallback(reveal, { timeout: 3200 });
-      return () => {
-        cancelled = true;
-        cancelIdleCallback(id);
-      };
-    }
-    const t = window.setTimeout(reveal, 1800);
     return () => {
       cancelled = true;
-      window.clearTimeout(t);
+      window.removeEventListener("load", onReady);
+      cancelSchedule?.();
     };
   }, []);
 

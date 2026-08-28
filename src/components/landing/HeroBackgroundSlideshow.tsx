@@ -64,7 +64,8 @@ function HeroSlideImg({
     alt: "",
     width: HERO_LCP.width,
     height: HERO_LCP.height,
-    decoding: (priority ? "sync" : "async") as "sync" | "async",
+    /** Async decode — sync blocks first paint on Slow 4G. */
+    decoding: "async" as const,
     loading: (priority ? "eager" : "lazy") as "eager" | "lazy",
     draggable: false,
     className: "hero-bg-layer absolute inset-0 h-full w-full object-cover",
@@ -79,9 +80,8 @@ function HeroSlideImg({
       <img
         {...common}
         src={HERO_LCP.webp}
-        {...(priority
-          ? {}
-          : { srcSet: HERO_LCP.srcSet, sizes: HERO_LCP.sizes })}
+        srcSet={HERO_LCP.srcSet}
+        sizes={HERO_LCP.sizes}
         fetchPriority={priority ? "high" : "low"}
       />
     );

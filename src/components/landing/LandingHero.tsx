@@ -6,7 +6,7 @@ import {
   HeroBackgroundSlideshow,
   ensureHeroSlides,
 } from "@/components/landing/HeroBackgroundSlideshow";
-import { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGrid";
+import { LandingFeatureGridGuest } from "@/components/landing/LandingFeatureGridGuest";
 import { parseYoutubeId } from "@/lib/youtube";
 import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
 
@@ -138,16 +138,18 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   useEffect(() => {
     const startSlides = () => setSlidesReady(true);
     const startAi = () => setAiReady(true);
+    const mobile =
+      typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
     if (typeof requestIdleCallback === "function") {
-      const a = requestIdleCallback(startSlides, { timeout: 1800 });
-      const b = requestIdleCallback(startAi, { timeout: 2800 });
+      const a = requestIdleCallback(startSlides, { timeout: mobile ? 4500 : 1800 });
+      const b = requestIdleCallback(startAi, { timeout: mobile ? 6500 : 2800 });
       return () => {
         cancelIdleCallback(a);
         cancelIdleCallback(b);
       };
     }
-    const t1 = window.setTimeout(startSlides, 700);
-    const t2 = window.setTimeout(startAi, 1400);
+    const t1 = window.setTimeout(startSlides, mobile ? 2000 : 700);
+    const t2 = window.setTimeout(startAi, mobile ? 3200 : 1400);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);

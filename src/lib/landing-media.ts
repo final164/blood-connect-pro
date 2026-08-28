@@ -62,7 +62,10 @@ export function landingImageSrcSet(
     .join(", ");
 }
 
-/** Best preload href + optional imagesrcset for the LCP hero. */
+/** Best preload href + optional imagesrcset for the LCP hero.
+ * Must match the priority <img> src/srcSet exactly so the browser
+ * does not double-fetch (huge LCP win on Slow 4G).
+ */
 export function heroLcpPreload(url: string | null | undefined): {
   href: string;
   imageSrcSet?: string;

@@ -8,10 +8,14 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AppProviders } from "@/components/AppProviders";
+
+/** Keep supabase/auth off the landing critical JS path. */
+const AppProviders = lazy(() =>
+  import("@/components/AppProviders").then((m) => ({ default: m.AppProviders })),
+);
 
 function NotFoundComponent() {
   return (
@@ -127,8 +131,10 @@ function RootComponent() {
   if (isLanding) return <Outlet />;
 
   return (
-    <AppProviders queryClient={queryClient}>
-      <Outlet />
-    </AppProviders>
+    <Suspense fallback={null}>
+      <AppProviders queryClient={queryClient}>
+        <Outlet />
+      </AppProviders>
+    </Suspense>
   );
 }
