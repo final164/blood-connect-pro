@@ -11,6 +11,7 @@ import {
   Sparkles,
   Stethoscope,
   Ticket,
+  Video,
 } from "lucide-react";
 import { fetchCareHubModules, type CareHubModule } from "@/lib/care-cms";
 import { fetchMyCareMemberships } from "@/lib/care-access";
@@ -26,6 +27,7 @@ const ICONS: Record<string, typeof Stethoscope> = {
   Sparkles,
   LayoutDashboard,
   Scissors,
+  Video,
 };
 
 const PATIENT_ACCENTS: Record<string, string> = {
@@ -36,6 +38,7 @@ const PATIENT_ACCENTS: Record<string, string> = {
   operations: "border-rose-200 text-rose-800 hover:bg-rose-50/90 hover:border-rose-400",
   bookings: "border-amber-200 text-amber-900 hover:bg-amber-50/90 hover:border-amber-400",
   ambulance: "border-orange-200 text-orange-800 hover:bg-orange-50/90 hover:border-orange-400",
+  video: "border-blue-200 text-blue-800 hover:bg-blue-50/90 hover:border-blue-400",
   desk: "border-slate-200 text-slate-800 hover:bg-slate-50/90 hover:border-slate-400",
   lab: "border-indigo-200 text-indigo-800 hover:bg-indigo-50/90 hover:border-indigo-400",
 };
@@ -44,6 +47,8 @@ function moduleHref(m: CareHubModule): string {
   if (m.href.includes("/desk")) return "/care/portal/desk";
   if (m.href.includes("/portal/lab")) return "/care/portal/lab";
   if (m.href.includes("/portal/ambulance")) return "/care/portal/ambulance";
+  if (m.href.includes("/portal/tele") || m.slug === "tele_desk") return "/care/portal/tele";
+  if (m.slug === "video" || m.href.includes("/care/video")) return "/care/video";
   if (m.slug === "ambulance" || m.href === "/ambulance") return "/ambulance";
   if (m.slug === "ai_tests" || m.href.includes("/care/ai-tests")) return "/care/ai-tests";
   if (m.href.startsWith("/care")) return m.href;

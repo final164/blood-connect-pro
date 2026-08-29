@@ -38,6 +38,7 @@ import { Route as CarePortalIndexRouteImport } from './routes/care.portal.index'
 import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
 import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
 import { Route as AppAmbulanceIndexRouteImport } from './routes/_app.ambulance.index'
+import { Route as CarePortalTeleRouteImport } from './routes/care.portal.tele'
 import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.onboarding'
 import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
 import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
@@ -45,10 +46,13 @@ import { Route as CarePortalAmbulanceRouteImport } from './routes/care.portal.am
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
+import { Route as AppCareVideoRouteImport } from './routes/_app.care.video'
 import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
 import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
 import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
 import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
+import { Route as AppCareVideoIndexRouteImport } from './routes/_app.care.video.index'
+import { Route as AppCareVideoCheckoutRouteImport } from './routes/_app.care.video.checkout'
 import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
 import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
 import { Route as AppCareOperationOfferingIdRouteImport } from './routes/_app.care.operation.$offeringId'
@@ -59,6 +63,8 @@ import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$
 import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulance.request.$id'
 import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
 import { Route as AppAmbulanceInvoiceIdRouteImport } from './routes/_app.ambulance.invoice.$id'
+import { Route as AppCareVideoDoctorIdRouteImport } from './routes/_app.care.video.doctor.$id'
+import { Route as AppCareVideoBookingIdRouteImport } from './routes/_app.care.video.booking.$id'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -204,6 +210,11 @@ const AppAmbulanceIndexRoute = AppAmbulanceIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppAmbulanceRoute,
 } as any)
+const CarePortalTeleRoute = CarePortalTeleRouteImport.update({
+  id: '/tele',
+  path: '/tele',
+  getParentRoute: () => CarePortalRoute,
+} as any)
 const CarePortalOnboardingRoute = CarePortalOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -239,6 +250,11 @@ const AppChatPeerIdRoute = AppChatPeerIdRouteImport.update({
   path: '/$peerId',
   getParentRoute: () => AppChatRoute,
 } as any)
+const AppCareVideoRoute = AppCareVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => AppCareRoute,
+} as any)
 const AppCareLabRoute = AppCareLabRouteImport.update({
   id: '/lab',
   path: '/lab',
@@ -258,6 +274,16 @@ const AppAmbulanceRequestRoute = AppAmbulanceRequestRouteImport.update({
   id: '/request',
   path: '/request',
   getParentRoute: () => AppAmbulanceRoute,
+} as any)
+const AppCareVideoIndexRoute = AppCareVideoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCareVideoRoute,
+} as any)
+const AppCareVideoCheckoutRoute = AppCareVideoCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => AppCareVideoRoute,
 } as any)
 const AppCareTestIdRoute = AppCareTestIdRouteImport.update({
   id: '/test/$id',
@@ -312,6 +338,16 @@ const AppAmbulanceInvoiceIdRoute = AppAmbulanceInvoiceIdRouteImport.update({
   path: '/invoice/$id',
   getParentRoute: () => AppAmbulanceRoute,
 } as any)
+const AppCareVideoDoctorIdRoute = AppCareVideoDoctorIdRouteImport.update({
+  id: '/doctor/$id',
+  path: '/doctor/$id',
+  getParentRoute: () => AppCareVideoRoute,
+} as any)
+const AppCareVideoBookingIdRoute = AppCareVideoBookingIdRouteImport.update({
+  id: '/booking/$id',
+  path: '/booking/$id',
+  getParentRoute: () => AppCareVideoRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -342,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/care/ai-tests': typeof AppCareAiTestsRoute
   '/care/desk': typeof AppCareDeskRoute
   '/care/lab': typeof AppCareLabRoute
+  '/care/video': typeof AppCareVideoRouteWithChildren
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
@@ -349,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/care/portal/tele': typeof CarePortalTeleRoute
   '/ambulance/': typeof AppAmbulanceIndexRoute
   '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
@@ -363,6 +401,10 @@ export interface FileRoutesByFullPath {
   '/care/operation/$offeringId': typeof AppCareOperationOfferingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
   '/care/test/$id': typeof AppCareTestIdRoute
+  '/care/video/checkout': typeof AppCareVideoCheckoutRoute
+  '/care/video/': typeof AppCareVideoIndexRoute
+  '/care/video/booking/$id': typeof AppCareVideoBookingIdRoute
+  '/care/video/doctor/$id': typeof AppCareVideoDoctorIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -396,6 +438,7 @@ export interface FileRoutesByTo {
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/care/portal/tele': typeof CarePortalTeleRoute
   '/ambulance': typeof AppAmbulanceIndexRoute
   '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
@@ -410,6 +453,10 @@ export interface FileRoutesByTo {
   '/care/operation/$offeringId': typeof AppCareOperationOfferingIdRoute
   '/care/serial/$id': typeof AppCareSerialIdRoute
   '/care/test/$id': typeof AppCareTestIdRoute
+  '/care/video/checkout': typeof AppCareVideoCheckoutRoute
+  '/care/video': typeof AppCareVideoIndexRoute
+  '/care/video/booking/$id': typeof AppCareVideoBookingIdRoute
+  '/care/video/doctor/$id': typeof AppCareVideoDoctorIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -442,6 +489,7 @@ export interface FileRoutesById {
   '/_app/care/ai-tests': typeof AppCareAiTestsRoute
   '/_app/care/desk': typeof AppCareDeskRoute
   '/_app/care/lab': typeof AppCareLabRoute
+  '/_app/care/video': typeof AppCareVideoRouteWithChildren
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
@@ -449,6 +497,7 @@ export interface FileRoutesById {
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/care/portal/tele': typeof CarePortalTeleRoute
   '/_app/ambulance/': typeof AppAmbulanceIndexRoute
   '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
@@ -463,6 +512,10 @@ export interface FileRoutesById {
   '/_app/care/operation/$offeringId': typeof AppCareOperationOfferingIdRoute
   '/_app/care/serial/$id': typeof AppCareSerialIdRoute
   '/_app/care/test/$id': typeof AppCareTestIdRoute
+  '/_app/care/video/checkout': typeof AppCareVideoCheckoutRoute
+  '/_app/care/video/': typeof AppCareVideoIndexRoute
+  '/_app/care/video/booking/$id': typeof AppCareVideoBookingIdRoute
+  '/_app/care/video/doctor/$id': typeof AppCareVideoDoctorIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -495,6 +548,7 @@ export interface FileRouteTypes {
     | '/care/ai-tests'
     | '/care/desk'
     | '/care/lab'
+    | '/care/video'
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
@@ -502,6 +556,7 @@ export interface FileRouteTypes {
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/care/portal/tele'
     | '/ambulance/'
     | '/care/'
     | '/profile/'
@@ -516,6 +571,10 @@ export interface FileRouteTypes {
     | '/care/operation/$offeringId'
     | '/care/serial/$id'
     | '/care/test/$id'
+    | '/care/video/checkout'
+    | '/care/video/'
+    | '/care/video/booking/$id'
+    | '/care/video/doctor/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -549,6 +608,7 @@ export interface FileRouteTypes {
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/care/portal/tele'
     | '/ambulance'
     | '/care'
     | '/profile'
@@ -563,6 +623,10 @@ export interface FileRouteTypes {
     | '/care/operation/$offeringId'
     | '/care/serial/$id'
     | '/care/test/$id'
+    | '/care/video/checkout'
+    | '/care/video'
+    | '/care/video/booking/$id'
+    | '/care/video/doctor/$id'
   id:
     | '__root__'
     | '/'
@@ -594,6 +658,7 @@ export interface FileRouteTypes {
     | '/_app/care/ai-tests'
     | '/_app/care/desk'
     | '/_app/care/lab'
+    | '/_app/care/video'
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
@@ -601,6 +666,7 @@ export interface FileRouteTypes {
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/care/portal/tele'
     | '/_app/ambulance/'
     | '/_app/care/'
     | '/_app/profile/'
@@ -615,6 +681,10 @@ export interface FileRouteTypes {
     | '/_app/care/operation/$offeringId'
     | '/_app/care/serial/$id'
     | '/_app/care/test/$id'
+    | '/_app/care/video/checkout'
+    | '/_app/care/video/'
+    | '/_app/care/video/booking/$id'
+    | '/_app/care/video/doctor/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -839,6 +909,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAmbulanceIndexRouteImport
       parentRoute: typeof AppAmbulanceRoute
     }
+    '/care/portal/tele': {
+      id: '/care/portal/tele'
+      path: '/tele'
+      fullPath: '/care/portal/tele'
+      preLoaderRoute: typeof CarePortalTeleRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
     '/care/portal/onboarding': {
       id: '/care/portal/onboarding'
       path: '/onboarding'
@@ -888,6 +965,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppChatPeerIdRouteImport
       parentRoute: typeof AppChatRoute
     }
+    '/_app/care/video': {
+      id: '/_app/care/video'
+      path: '/video'
+      fullPath: '/care/video'
+      preLoaderRoute: typeof AppCareVideoRouteImport
+      parentRoute: typeof AppCareRoute
+    }
     '/_app/care/lab': {
       id: '/_app/care/lab'
       path: '/lab'
@@ -915,6 +999,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/ambulance/request'
       preLoaderRoute: typeof AppAmbulanceRequestRouteImport
       parentRoute: typeof AppAmbulanceRoute
+    }
+    '/_app/care/video/': {
+      id: '/_app/care/video/'
+      path: '/'
+      fullPath: '/care/video/'
+      preLoaderRoute: typeof AppCareVideoIndexRouteImport
+      parentRoute: typeof AppCareVideoRoute
+    }
+    '/_app/care/video/checkout': {
+      id: '/_app/care/video/checkout'
+      path: '/checkout'
+      fullPath: '/care/video/checkout'
+      preLoaderRoute: typeof AppCareVideoCheckoutRouteImport
+      parentRoute: typeof AppCareVideoRoute
     }
     '/_app/care/test/$id': {
       id: '/_app/care/test/$id'
@@ -986,6 +1084,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAmbulanceInvoiceIdRouteImport
       parentRoute: typeof AppAmbulanceRoute
     }
+    '/_app/care/video/doctor/$id': {
+      id: '/_app/care/video/doctor/$id'
+      path: '/doctor/$id'
+      fullPath: '/care/video/doctor/$id'
+      preLoaderRoute: typeof AppCareVideoDoctorIdRouteImport
+      parentRoute: typeof AppCareVideoRoute
+    }
+    '/_app/care/video/booking/$id': {
+      id: '/_app/care/video/booking/$id'
+      path: '/booking/$id'
+      fullPath: '/care/video/booking/$id'
+      preLoaderRoute: typeof AppCareVideoBookingIdRouteImport
+      parentRoute: typeof AppCareVideoRoute
+    }
   }
 }
 
@@ -1018,10 +1130,29 @@ const AppAmbulanceRouteWithChildren = AppAmbulanceRoute._addFileChildren(
   AppAmbulanceRouteChildren,
 )
 
+interface AppCareVideoRouteChildren {
+  AppCareVideoCheckoutRoute: typeof AppCareVideoCheckoutRoute
+  AppCareVideoIndexRoute: typeof AppCareVideoIndexRoute
+  AppCareVideoBookingIdRoute: typeof AppCareVideoBookingIdRoute
+  AppCareVideoDoctorIdRoute: typeof AppCareVideoDoctorIdRoute
+}
+
+const AppCareVideoRouteChildren: AppCareVideoRouteChildren = {
+  AppCareVideoCheckoutRoute: AppCareVideoCheckoutRoute,
+  AppCareVideoIndexRoute: AppCareVideoIndexRoute,
+  AppCareVideoBookingIdRoute: AppCareVideoBookingIdRoute,
+  AppCareVideoDoctorIdRoute: AppCareVideoDoctorIdRoute,
+}
+
+const AppCareVideoRouteWithChildren = AppCareVideoRoute._addFileChildren(
+  AppCareVideoRouteChildren,
+)
+
 interface AppCareRouteChildren {
   AppCareAiTestsRoute: typeof AppCareAiTestsRoute
   AppCareDeskRoute: typeof AppCareDeskRoute
   AppCareLabRoute: typeof AppCareLabRoute
+  AppCareVideoRoute: typeof AppCareVideoRouteWithChildren
   AppCareIndexRoute: typeof AppCareIndexRoute
   AppCareDoctorIdRoute: typeof AppCareDoctorIdRoute
   AppCareLabBookingIdRoute: typeof AppCareLabBookingIdRoute
@@ -1036,6 +1167,7 @@ const AppCareRouteChildren: AppCareRouteChildren = {
   AppCareAiTestsRoute: AppCareAiTestsRoute,
   AppCareDeskRoute: AppCareDeskRoute,
   AppCareLabRoute: AppCareLabRoute,
+  AppCareVideoRoute: AppCareVideoRouteWithChildren,
   AppCareIndexRoute: AppCareIndexRoute,
   AppCareDoctorIdRoute: AppCareDoctorIdRoute,
   AppCareLabBookingIdRoute: AppCareLabBookingIdRoute,
@@ -1111,6 +1243,7 @@ interface CarePortalRouteChildren {
   CarePortalDeskRoute: typeof CarePortalDeskRoute
   CarePortalLabRoute: typeof CarePortalLabRoute
   CarePortalOnboardingRoute: typeof CarePortalOnboardingRoute
+  CarePortalTeleRoute: typeof CarePortalTeleRoute
   CarePortalIndexRoute: typeof CarePortalIndexRoute
 }
 
@@ -1119,6 +1252,7 @@ const CarePortalRouteChildren: CarePortalRouteChildren = {
   CarePortalDeskRoute: CarePortalDeskRoute,
   CarePortalLabRoute: CarePortalLabRoute,
   CarePortalOnboardingRoute: CarePortalOnboardingRoute,
+  CarePortalTeleRoute: CarePortalTeleRoute,
   CarePortalIndexRoute: CarePortalIndexRoute,
 }
 

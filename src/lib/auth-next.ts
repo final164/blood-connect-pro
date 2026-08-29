@@ -55,6 +55,11 @@ export function isGuestBrowsePath(
       return false;
     // Doctor profiles + booking
     if (pathname.startsWith("/care/doctor")) return false;
+    // Video consult browse is public; checkout/booking need login (layout soft-gate)
+    if (pathname === "/care/video" || pathname === "/care/video/" || pathname.startsWith("/care/video/doctor"))
+      return true;
+    if (pathname.startsWith("/care/video/checkout") || pathname.startsWith("/care/video/booking"))
+      return false;
     // Care hub: default tab is doctors; doctors/bookings need login
     if (pathname === "/care" || pathname === "/care/") {
       const tab = careHubTab(search);

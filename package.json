@@ -14,6 +14,7 @@
     "bootstrap:admin": "bun --env-file=.env run scripts/bootstrap-admin.mjs",
     "seed:hospitals": "bun --env-file=.env run scripts/seed-hospitals.mjs",
     "seed:care-vendors": "bun --env-file=.env run scripts/seed-care-vendors.mjs",
+    "seed:tele-doctors": "bun --env-file=.env run scripts/seed-tele-doctors.mjs",
     "seed:ambulance-vendors": "bun --env-file=.env run scripts/seed-ambulance-vendors.mjs",
     "seed:operations": "bun --env-file=.env run scripts/seed-operations.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs",

@@ -24,6 +24,24 @@ export function notificationCopy(
     };
   }
 
+  if (
+    kind.startsWith("tele_") ||
+    String(n.title || "").startsWith("tele_")
+  ) {
+    const map: Record<string, { bn: string; en: string }> = {
+      tele_booking_confirmed: { bn: "ভিডিও বুকিং নিশ্চিত", en: "Video booking confirmed" },
+      tele_doctor_assigned: { bn: "ডাক্তার বরাদ্দ", en: "Doctor assigned" },
+      tele_ready_to_join: { bn: "কল যোগ দিন", en: "Ready to join" },
+      tele_summary_ready: { bn: "সারসংক্ষেপ প্রস্তুত", en: "Summary ready" },
+      tele_rx_signed: { bn: "প্রেসক্রিপশন প্রস্তুত", en: "Prescription ready" },
+    };
+    const hit = map[kind] || map[String(n.title)];
+    return {
+      title: hit ? (lang === "bn" ? hit.bn : hit.en) : n.title || "Video",
+      body: n.body,
+    };
+  }
+
   if (kind.startsWith("care_") || String(n.title || "").startsWith("care_")) {
     const map: Record<string, { bn: string; en: string }> = {
       care_serial_booked: { bn: "সিরিয়াল নিশ্চিত", en: "Serial confirmed" },

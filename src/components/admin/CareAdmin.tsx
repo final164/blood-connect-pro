@@ -31,6 +31,7 @@ import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm
 import { CareInvoiceAdmin } from "@/components/admin/CareInvoiceAdmin";
 import { CareDoctorsAdmin } from "@/components/admin/CareDoctorsAdmin";
 import { CareOperationCatalogAdmin } from "@/components/admin/CareOperationCatalogAdmin";
+import { TeleConsultAdmin } from "@/components/admin/TeleConsultAdmin";
 import { CareInvoiceLetterheadForm } from "@/components/care/CareInvoiceLetterheadForm";
 import {
   bookingFieldsFromFlags,
@@ -51,6 +52,7 @@ type Sub =
   | "vendors"
   | "specialties"
   | "doctors"
+  | "video"
   | "operations"
   | "tests"
   | "statuses"
@@ -73,6 +75,7 @@ export function CareAdmin() {
     { id: "vendors", bn: "ভেন্ডর টাইপ", en: "Vendor types" },
     { id: "specialties", bn: "স্পেশালিটি", en: "Specialties" },
     { id: "doctors", bn: "ডাক্তার", en: "Doctors" },
+    { id: "video", bn: "ভিডিও কনসালট", en: "Video consult" },
     { id: "operations", bn: "অপারেশন ক্যাটালগ", en: "Operation catalog" },
     { id: "tests", bn: "টেস্ট ক্যাটালগ", en: "Test catalog" },
     { id: "statuses", bn: "স্ট্যাটাস", en: "Statuses" },
@@ -109,6 +112,7 @@ export function CareAdmin() {
       {sub === "vendors" && <VendorTypesPanel canEdit={canEdit} lang={lang} />}
       {sub === "specialties" && <SpecialtiesPanel canEdit={canEdit} lang={lang} />}
       {sub === "doctors" && <CareDoctorsAdmin canEdit={canEdit} lang={lang} />}
+      {sub === "video" && <TeleConsultAdmin />}
       {sub === "operations" && <CareOperationCatalogAdmin canEdit={canEdit} lang={lang} />}
       {sub === "tests" && <TestsPanel canEdit={canEdit} lang={lang} />}
       {sub === "statuses" && <StatusesPanel canEdit={canEdit} lang={lang} />}

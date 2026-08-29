@@ -7,3 +7,15 @@ enable_signup = true
 
 [functions.send-push]
 verify_jwt = false
+
+[functions.zoom-webhook]
+verify_jwt = false
+
+[functions.tele-summarize]
+verify_jwt = false
+
+[functions.zoom-meetings]
+verify_jwt = true
+
+[functions.tele-link-doctor]
+verify_jwt = true
