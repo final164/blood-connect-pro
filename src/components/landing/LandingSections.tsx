@@ -554,21 +554,41 @@ export function LandingCareVendor({ settings, lang }: { settings: LandingSetting
                 <Microscope className="h-4 w-4 shrink-0 text-teal-700" />
                 {lang === "bn" ? "ল্যাব ডেস্ক — বুকিং ও চেক-ইন" : "Lab desk — bookings & check-in"}
               </li>
+              <li className="flex items-center gap-2">
+                <Stethoscope className="h-4 w-4 shrink-0 text-rose-700" />
+                {lang === "bn" ? "ডাক্তার পোর্টাল — অনুমোদন ও সিরিয়াল" : "Doctor portal — approvals & serials"}
+              </li>
             </ul>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:min-w-[220px]">
-            <LandingHref
-              href="/care/auth?mode=register"
-              className="inline-flex items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-900/20 hover:bg-teal-700"
-            >
-              {pick(lang, c.register_bn, c.register_en)}
-            </LandingHref>
-            <LandingHref
-              href="/care/auth"
-              className="inline-flex items-center justify-center rounded-2xl border border-teal-700/25 bg-white/70 px-5 py-3 text-sm font-semibold text-teal-900"
-            >
-              {pick(lang, c.login_bn, c.login_en)}
-            </LandingHref>
+          <div className="flex flex-col gap-3 lg:min-w-[220px]">
+            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+              <LandingHref
+                href="/care/auth?mode=register"
+                className="inline-flex items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-900/20 hover:bg-teal-700"
+              >
+                {pick(lang, c.register_bn, c.register_en)}
+              </LandingHref>
+              <LandingHref
+                href="/care/auth"
+                className="inline-flex items-center justify-center rounded-2xl border border-teal-700/25 bg-white/70 px-5 py-3 text-sm font-semibold text-teal-900"
+              >
+                {pick(lang, c.login_bn, c.login_en)}
+              </LandingHref>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+              <LandingHref
+                href="/care/doctor/register"
+                className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-rose-900/20 hover:bg-rose-700"
+              >
+                {pick(lang, c.doctor_join_bn, c.doctor_join_en)}
+              </LandingHref>
+              <LandingHref
+                href="/care/doctor/auth"
+                className="inline-flex items-center justify-center rounded-2xl border border-rose-700/25 bg-white/70 px-5 py-3 text-sm font-semibold text-rose-900"
+              >
+                {pick(lang, c.doctor_login_bn, c.doctor_login_en)}
+              </LandingHref>
+            </div>
           </div>
         </div>
       </div>

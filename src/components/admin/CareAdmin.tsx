@@ -430,6 +430,34 @@ function DoctorOnboardingPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn"
       <p className="text-xs text-slate-400">
         {lang === "bn" ? "ডাক্তার রেজিস্ট্রেশন ফর্ম ফিল্ড নিয়ন্ত্রণ" : "Doctor registration form field controls"}
       </p>
+      <div className="rounded-xl border border-slate-800 p-3 space-y-2">
+        <label className="flex items-center gap-2 text-xs text-slate-200">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={settings.auto_approve_registration}
+            onChange={(e) =>
+              setSettings((p) => (p ? { ...p, auto_approve_registration: e.target.checked } : p))
+            }
+          />
+          {lang === "bn"
+            ? "নতুন রেজিস্ট্রেশন অটো-অ্যাপ্রুভ"
+            : "Auto-approve new doctor registrations"}
+        </label>
+        <label className="flex items-center gap-2 text-xs text-slate-200">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={settings.auto_approve_video_claim}
+            onChange={(e) =>
+              setSettings((p) => (p ? { ...p, auto_approve_video_claim: e.target.checked } : p))
+            }
+          />
+          {lang === "bn"
+            ? "ভিডিও কনসালট্যান্সি জয়েন অটো-অ্যাপ্রুভ"
+            : "Auto-approve video consultancy joins"}
+        </label>
+      </div>
       <div className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full text-xs">
           <thead className="bg-slate-900 text-slate-400">

@@ -134,6 +134,7 @@ export type CareDoctorFieldKey =
   | "bmdc"
   | "doctor_type"
   | "mobile"
+  | "pin"
   | "email"
   | "password"
   | "specialty"
@@ -142,6 +143,8 @@ export type CareDoctorFieldKey =
 
 export type CareDoctorOnboardingSettings = {
   fields: Record<CareDoctorFieldKey, CareVendorFieldConfig>;
+  auto_approve_registration: boolean;
+  auto_approve_video_claim: boolean;
 };
 
 const DEFAULT_VENDOR_ONBOARDING: CareVendorOnboardingSettings = {
@@ -182,12 +185,15 @@ const DEFAULT_DOCTOR_ONBOARDING: CareDoctorOnboardingSettings = {
     },
     doctor_type: { enabled: true, required: true, label_bn: "ডাক্তারের ধরন", label_en: "Doctor Type" },
     mobile: { enabled: true, required: true, label_bn: "মোবাইল নম্বর", label_en: "Mobile number" },
-    email: { enabled: true, required: true, label_bn: "ইমেইল", label_en: "Email" },
-    password: { enabled: true, required: true, label_bn: "পাসওয়ার্ড", label_en: "Password" },
+    pin: { enabled: true, required: true, label_bn: "পিন (৪ সংখ্যা)", label_en: "PIN (4 digits)" },
+    email: { enabled: true, required: false, label_bn: "ইমেইল", label_en: "Email" },
+    password: { enabled: true, required: false, label_bn: "পাসওয়ার্ড", label_en: "Password" },
     specialty: { enabled: true, required: false, label_bn: "স্পেশালিটি", label_en: "Specialty" },
     qualifications: { enabled: true, required: false, label_bn: "যোগ্যতা", label_en: "Qualifications" },
     terms: { enabled: true, required: true, label_bn: "শর্তাবলী", label_en: "Terms & conditions" },
   },
+  auto_approve_registration: false,
+  auto_approve_video_claim: false,
 };
 
 export const FALLBACK_HUB_MODULES: CareHubModule[] = [
@@ -510,8 +516,12 @@ export async function saveCareVendorOnboarding(settings: CareVendorOnboardingSet
 
 function normalizeDoctorOnboarding(raw: unknown): CareDoctorOnboardingSettings {
   const base = DEFAULT_DOCTOR_ONBOARDING;
-  if (!raw || typeof raw !== "object") return base;
-  const r = raw as { fields?: Record<string, Partial<CareVendorFieldConfig>> };
+  if (!raw || typeof raw !== "object") return { ...base, fields: { ...base.fields } };
+  const r = raw as {
+    fields?: Record<string, Partial<CareVendorFieldConfig>>;
+    auto_approve_registration?: boolean;
+    auto_approve_video_claim?: boolean;
+  };
   const fields = { ...base.fields };
   for (const key of Object.keys(base.fields) as CareDoctorFieldKey[]) {
     const f = r.fields?.[key];
@@ -523,7 +533,11 @@ function normalizeDoctorOnboarding(raw: unknown): CareDoctorOnboardingSettings {
       label_en: f.label_en?.trim() || base.fields[key].label_en,
     };
   }
-  return { fields };
+  return {
+    fields,
+    auto_approve_registration: r.auto_approve_registration === true,
+    auto_approve_video_claim: r.auto_approve_video_claim === true,
+  };
 }
 
 export async function fetchCareDoctorOnboarding(): Promise<CareDoctorOnboardingSettings> {

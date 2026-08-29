@@ -482,3 +482,7 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.care_doctors_search(TEXT, INT, UUID) TO authenticated, anon;
+
+
+
+

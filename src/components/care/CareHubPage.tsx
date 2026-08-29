@@ -79,6 +79,12 @@ export function CareHubPage({
             <h1 className="text-sm font-bold truncate">{t("careHub")}</h1>
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
+            <Link
+              to="/care/doctor/register"
+              className="mr-1 rounded-xl border border-rose-200 bg-rose-50 px-2 py-1.5 text-[10px] font-bold text-rose-800 whitespace-nowrap"
+            >
+              {lang === "bn" ? "ডাক্তার জয়েন" : "Join as doctor"}
+            </Link>
             <ProfileHeaderButton />
             <AlertsHeaderButton />
           </div>

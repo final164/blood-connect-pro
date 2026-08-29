@@ -101,8 +101,17 @@ export function ConsultantTeleDesk() {
   async function claim(id: string) {
     setClaiming(true);
     try {
-      await claimTeleDoctor(id);
-      toast.success(bn ? "ডাক্তার প্রোফাইল লিংক হয়েছে" : "Doctor profile linked");
+      const res = await claimTeleDoctor(id);
+      const status = (res as { claimStatus?: string }).claimStatus;
+      if (status === "pending") {
+        toast.success(
+          bn
+            ? "অ্যাডমিন অনুমোদনের জন্য অনুরোধ পাঠানো হয়েছে"
+            : "Request sent for admin approval",
+        );
+      } else {
+        toast.success(bn ? "ডাক্তার প্রোফাইল লিংক হয়েছে" : "Doctor profile linked");
+      }
       if (user?.id) await loadDoctor(user.id);
     } catch (e) {
       toast.error((e as Error).message);
@@ -161,8 +170,8 @@ export function ConsultantTeleDesk() {
         <div className="px-3 py-6 max-w-lg mx-auto space-y-4">
           <p className="text-sm text-muted-foreground">
             {bn
-              ? "আপনার অ্যাকাউন্টে এখনও কোনো ভিডিও ডাক্তার লিংক নেই। নিচ থেকে একটি প্রোফাইল বেছে নিন (ডেমো/আনলিংকড)।"
-              : "No video doctor is linked to your account yet. Pick an unlinked profile below."}
+              ? "ভিডিও কনসালট্যান্সির জন্য একটি প্রোফাইল বেছে নিন। অ্যাডমিন অটো-অ্যাপ্রুভ বন্ধ থাকলে অনুমোদনের অপেক্ষা করতে হবে।"
+              : "Pick a profile to join video consultancy. If admin auto-approve is off, wait for approval."}
           </p>
           {claimable.length === 0 ? (
             <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
@@ -188,7 +197,13 @@ export function ConsultantTeleDesk() {
                     onClick={() => void claim(d.doctor_id)}
                     className="shrink-0 rounded-lg bg-sky-600 text-white px-3 py-1.5 text-xs font-semibold"
                   >
-                    {claiming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : bn ? "লিংক করুন" : "Link"}
+                    {claiming ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : bn ? (
+                      "ভিডিও কনসালট্যান্সিতে জয়েন"
+                    ) : (
+                      "Join for video consultancy"
+                    )}
                   </button>
                 </li>
               ))}

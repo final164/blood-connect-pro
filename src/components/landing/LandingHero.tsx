@@ -87,6 +87,26 @@ export function LandingHref({
     );
   }
 
+  if (h.startsWith("/care/doctor/")) {
+    const path = h.split("?")[0] as
+      | "/care/doctor/register"
+      | "/care/doctor/auth"
+      | "/care/doctor/portal";
+    return (
+      <Link to={path} className={className} style={style}>
+        {children}
+      </Link>
+    );
+  }
+
+  if (h.startsWith("/care/video")) {
+    return (
+      <Link to="/care/video" className={className} style={style}>
+        {children}
+      </Link>
+    );
+  }
+
   if (h.startsWith("/care/portal")) {
     const path = h.split("?")[0] as "/care/portal" | "/care/portal/desk" | "/care/portal/lab";
     return (

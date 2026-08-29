@@ -253,25 +253,130 @@ async function must(res, label) {
   return res.data;
 }
 
+const TELE_DEMO_PASSWORD = "TeleDemo1!";
+const TELE_DEMO_PIN = "1234";
+const AUTH_EMAIL = (phone) => `bd${phone}@bloodlink.app`;
+const pinToPassword = (pin) => `bl${pin}xx`;
+
+function teleDemoPhone(bmdcNo) {
+  const n = Number(bmdcNo.replace("TELE-DEMO-", ""));
+  return `017110000${String(n).padStart(2, "0")}`;
+}
+
+function teleDemoEmail(bmdcNo) {
+  const n = bmdcNo.replace("TELE-DEMO-", "");
+  return `tele.demo.${n}@muktosheba.app`;
+}
+
+async function findUserIdByEmail(email) {
+  for (let page = 1; page <= 8; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(`listUsers: ${error.message}`);
+    const hit = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (hit) return hit.id;
+    if (!data.users.length || data.users.length < 200) break;
+  }
+  return null;
+}
+
+async function ensureAuthUser({ email, password, fullName, phone, pin, bmdcNo }) {
+  let userId = await findUserIdByEmail(email);
+  const meta = {
+    full_name: fullName,
+    account_kind: "care_doctor",
+    bmdc_no: bmdcNo,
+    ...(phone ? { phone } : {}),
+    ...(pin ? { pin } : {}),
+  };
+  if (!userId) {
+    const { data, error } = await sb.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: meta,
+    });
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("already") || msg.includes("exists") || msg.includes("registered")) {
+        userId = await findUserIdByEmail(email);
+      } else {
+        throw new Error(`createUser ${email}: ${error.message}`);
+      }
+    } else {
+      userId = data.user?.id ?? null;
+    }
+  } else {
+    await sb.auth.admin.updateUserById(userId, {
+      password,
+      email_confirm: true,
+      user_metadata: meta,
+    });
+  }
+  if (!userId) throw new Error(`No user id for ${email}`);
+
+  await sb.from("profiles").upsert({
+    id: userId,
+    full_name: fullName,
+    ...(phone ? { phone } : {}),
+  });
+  if (phone && pin) {
+    await sb.from("user_login_credentials").upsert(
+      { user_id: userId, phone, pin },
+      { onConflict: "user_id" },
+    );
+  }
+  return userId;
+}
+
+async function ensureTeleDoctorUser(d) {
+  const phone = teleDemoPhone(d.bmdc_no);
+  const pin = TELE_DEMO_PIN;
+  const phoneEmail = AUTH_EMAIL(phone);
+
+  const userId = await ensureAuthUser({
+    email: phoneEmail,
+    password: pinToPassword(pin),
+    fullName: d.full_name,
+    phone,
+    pin,
+    bmdcNo: d.bmdc_no,
+  });
+
+  return {
+    userId,
+    email: teleDemoEmail(d.bmdc_no),
+    password: TELE_DEMO_PASSWORD,
+    phone,
+    pin,
+  };
+}
+
 async function main() {
   const specs = await must(await sb.from("care_specialties").select("id, slug"), "specialties");
   const specBySlug = Object.fromEntries((specs ?? []).map((s) => [s.slug, s.id]));
 
   await sb.from("care_doctors").delete().like("bmdc_no", "TELE-DEMO-%");
 
-  console.log("Seeding 10 tele demo doctors…");
+  console.log("Seeding 10 tele demo doctors + login accounts…\n");
+  const creds = [];
 
   for (const d of DOCTORS) {
     const specialty_id = specBySlug[d.spec] ?? specBySlug.general ?? null;
+    const { userId, email, password, phone, pin } = await ensureTeleDoctorUser(d);
+    const doctorCode = `DR-TELE-${d.bmdc_no.replace("TELE-DEMO-", "")}`;
+
     await must(
       await sb.from("care_doctors").upsert({
         id: d.id,
+        user_id: userId,
         full_name: d.full_name,
         full_name_bn: d.full_name_bn,
         bmdc_no: d.bmdc_no,
-        doctor_code: `DR-TELE-${d.bmdc_no.replace("TELE-DEMO-", "")}`,
+        doctor_code: doctorCode,
         title: "Dr.",
         doctor_type: "MBBS",
+        email,
+        phone,
         registration_status: "active",
         specialty_id,
         qualifications: d.qualifications,
@@ -339,7 +444,16 @@ async function main() {
       `slots ${d.bmdc_no}`,
     );
 
-    console.log(`  ✓ ${d.full_name} · DR-TELE-${d.bmdc_no.replace("TELE-DEMO-", "")} · ৳${d.fee_amount} · ${d.spec}`);
+    creds.push({
+      name: d.full_name,
+      code: doctorCode,
+      email,
+      password,
+      phone,
+      pin,
+      spec: d.spec,
+    });
+    console.log(`  ✓ ${d.full_name} · ${doctorCode} · ${phone} / ${pin}`);
   }
 
   for (const slug of Object.keys(specBySlug)) {
@@ -376,7 +490,14 @@ async function main() {
       .eq("id", 1);
   }
 
-  console.log("\nDone. Open /care/video — pick any doctor → Book Appointment.");
+  console.log("\n========== Consultant login credentials ==========");
+  console.log("Portal: /care/doctor/auth  →  Phone + PIN tab");
+  console.log(`PIN (all): ${TELE_DEMO_PIN}\n`);
+  for (const c of creds) {
+    console.log(`${c.code.padEnd(12)}  ${c.phone} / ${c.pin}  · ${c.name} (${c.spec})`);
+  }
+  console.log("=================================================\n");
+  console.log("Done. Patient booking: /care/video");
 }
 
 main().catch((e) => {

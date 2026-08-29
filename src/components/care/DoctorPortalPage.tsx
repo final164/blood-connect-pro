@@ -28,6 +28,16 @@ import {
   type DoctorOperationRow,
   type DoctorSerialSummary,
 } from "@/lib/care-doctor-portal-api";
+import {
+  fetchMyPendingVideoClaim,
+  requestVideoClaim,
+} from "@/lib/care-doctors-api";
+import {
+  fetchTeleDoctor,
+  fetchUnlinkedVideoDoctors,
+  setDoctorOnline,
+  type TeleVideoDoctor,
+} from "@/lib/tele-api";
 import { formatCareMoney } from "@/lib/care-invoice";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +46,7 @@ type Tab = "overview" | "approvals" | "chambers" | "serials" | "operations" | "v
 export function DoctorPortalPage() {
   const { lang } = useI18n();
   const bn = lang === "bn";
-  const { session, loading: authLoading, isAnonymous } = useAuth();
+  const { session, loading: authLoading, isAnonymous, user } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<CareDoctorProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +56,15 @@ export function DoctorPortalPage() {
   const [serials, setSerials] = useState<DoctorSerialSummary[]>([]);
   const [operations, setOperations] = useState<DoctorOperationRow[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [teleProfile, setTeleProfile] = useState<TeleVideoDoctor | null>(null);
+  const [claimable, setClaimable] = useState<TeleVideoDoctor[]>([]);
+  const [pendingVideoClaim, setPendingVideoClaim] = useState<{
+    id: string;
+    doctor_id: string;
+    doctor_name?: string | null;
+  } | null>(null);
+  const [claimBusy, setClaimBusy] = useState(false);
+  const [onlineBusy, setOnlineBusy] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -63,17 +82,23 @@ export function DoctorPortalPage() {
           return;
         }
         setProfile(p);
-        const [reqs, affs, ser, ops] = await Promise.all([
+        const [reqs, affs, ser, ops, tele, unlinked, myClaim] = await Promise.all([
           fetchDoctorLinkRequests(p.id),
           fetchDoctorAffiliations(p.id),
           fetchDoctorUpcomingSerials(p.id),
           fetchDoctorOperations(p.id),
+          fetchTeleDoctor(p.id),
+          fetchUnlinkedVideoDoctors(),
+          user?.id ? fetchMyPendingVideoClaim(user.id) : Promise.resolve(null),
         ]);
         if (cancelled) return;
         setRequests(reqs);
         setAffiliations(affs);
         setSerials(ser);
         setOperations(ops);
+        setTeleProfile(tele);
+        setClaimable(unlinked);
+        setPendingVideoClaim(myClaim);
         if (reqs.some((r) => r.status === "pending")) setTab("approvals");
       })
       .catch((e) => toast.error((e as Error).message))
@@ -83,7 +108,43 @@ export function DoctorPortalPage() {
     return () => {
       cancelled = true;
     };
-  }, [session, authLoading, isAnonymous, navigate]);
+  }, [session, authLoading, isAnonymous, navigate, user?.id]);
+
+  async function joinVideo(doctorId: string) {
+    setClaimBusy(true);
+    try {
+      const res = await requestVideoClaim(doctorId);
+      if (res.status === "pending") {
+        toast.success(bn ? "অ্যাডমিন অনুমোদনের অপেক্ষায়" : "Awaiting admin approval");
+        if (user?.id) setPendingVideoClaim(await fetchMyPendingVideoClaim(user.id));
+      } else {
+        toast.success(bn ? "ভিডিও প্রোফাইল লিংক হয়েছে" : "Video profile linked");
+        const tele = await fetchTeleDoctor(doctorId);
+        setTeleProfile(tele);
+        setPendingVideoClaim(null);
+        setClaimable([]);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setClaimBusy(false);
+    }
+  }
+
+  async function toggleOnline() {
+    if (!profile || !teleProfile) return;
+    setOnlineBusy(true);
+    try {
+      const next = !teleProfile.is_online;
+      await setDoctorOnline(profile.id, next);
+      setTeleProfile({ ...teleProfile, is_online: next });
+      toast.success(next ? (bn ? "অনলাইন" : "Online") : bn ? "অফলাইন" : "Offline");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setOnlineBusy(false);
+    }
+  }
 
   async function respond(id: string, approve: boolean) {
     setBusyId(id);
@@ -171,6 +232,14 @@ export function DoctorPortalPage() {
       </AutoHideHeader>
 
       <div className="flex-1 px-3 py-4 max-w-2xl mx-auto w-full space-y-3 pb-24">
+        {profile.registration_status === "pending" && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            {bn
+              ? "আপনার রেজিস্ট্রেশন অ্যাডমিন অনুমোদনের অপেক্ষায়। অনুমোদনের পর সব ফিচার চালু হবে।"
+              : "Your registration is awaiting admin approval. Features unlock after approval."}
+          </div>
+        )}
+
         {tab === "overview" && (
           <div className="rounded-2xl border bg-card p-4 space-y-2">
             <p className="text-xs text-muted-foreground">{bn ? "ডাক্তার কোড" : "Doctor code"}</p>
@@ -192,7 +261,32 @@ export function DoctorPortalPage() {
                 <dt className="text-[10px] text-muted-foreground">{bn ? "যোগ্যতা" : "Qualifications"}</dt>
                 <dd className="font-semibold">{profile.qualifications || "—"}</dd>
               </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "মোবাইল" : "Mobile"}</dt>
+                <dd className="font-semibold">{profile.phone || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "ইমেইল" : "Email"}</dt>
+                <dd className="font-semibold truncate">{profile.email || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "লিঙ্গ" : "Gender"}</dt>
+                <dd className="font-semibold">{profile.gender || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "জন্ম তারিখ" : "DOB"}</dt>
+                <dd className="font-semibold">{profile.date_of_birth || "—"}</dd>
+              </div>
             </dl>
+            {teleProfile ? (
+              <p className="text-xs text-emerald-700 pt-2">
+                {bn ? "ভিডিও কনসালট: " : "Video consult: "}
+                {teleProfile.is_online ? (bn ? "অনলাইন" : "Online") : bn ? "অফলাইন" : "Offline"}
+                {teleProfile.fee_amount != null
+                  ? ` · ${formatCareMoney(teleProfile.fee_amount, lang)}`
+                  : ""}
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -311,19 +405,93 @@ export function DoctorPortalPage() {
         )}
 
         {tab === "video" && (
-          <div className="rounded-2xl border bg-card p-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {bn
-                ? "ভিডিও কনসালট ডেস্ক থেকে কিউ, শিডিউল ও প্রেসক্রিপশন ম্যানেজ করুন।"
-                : "Manage queue, schedule and prescriptions from the video consult desk."}
-            </p>
-            <Link
-              to="/care/portal/tele"
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 text-white px-4 py-2.5 text-sm font-semibold"
-            >
-              <Video className="h-4 w-4" />
-              {bn ? "ভিডিও ডেস্ক খুলুন" : "Open video desk"}
-            </Link>
+          <div className="space-y-3">
+            {teleProfile ? (
+              <div className="rounded-2xl border bg-card p-4 space-y-3">
+                <p className="text-sm font-semibold">
+                  {bn ? teleProfile.full_name_bn || teleProfile.full_name : teleProfile.full_name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {bn ? teleProfile.specialty_name_bn : teleProfile.specialty_name_en}
+                  {teleProfile.fee_amount != null
+                    ? ` · ${formatCareMoney(teleProfile.fee_amount, lang)}`
+                    : ""}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={onlineBusy}
+                    onClick={() => void toggleOnline()}
+                    className={cn(
+                      "rounded-xl px-4 py-2 text-sm font-semibold",
+                      teleProfile.is_online
+                        ? "bg-emerald-600 text-white"
+                        : "border bg-background",
+                    )}
+                  >
+                    {teleProfile.is_online
+                      ? bn
+                        ? "অনলাইন — অফ করুন"
+                        : "Online — go offline"
+                      : bn
+                        ? "অনলাইন হোন"
+                        : "Go online"}
+                  </button>
+                  <Link
+                    to="/care/portal/tele"
+                    className="inline-flex items-center gap-2 rounded-xl bg-sky-600 text-white px-4 py-2 text-sm font-semibold"
+                  >
+                    <Video className="h-4 w-4" />
+                    {bn ? "ভিডিও ডেস্ক" : "Video desk"}
+                  </Link>
+                </div>
+              </div>
+            ) : pendingVideoClaim ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                {bn
+                  ? `ভিডিও জয়েন অনুরোধ অপেক্ষমাণ${pendingVideoClaim.doctor_name ? ` — ${pendingVideoClaim.doctor_name}` : ""}`
+                  : `Video join request pending${pendingVideoClaim.doctor_name ? ` — ${pendingVideoClaim.doctor_name}` : ""}`}
+              </div>
+            ) : (
+              <div className="rounded-2xl border bg-card p-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {bn
+                    ? "অনলাইন কনসালট্যান্সিতে জয়েন করতে একটি প্রোফাইল বেছে নিন। অ্যাডমিন অ্যাপ্রুভাল লাগতে পারে।"
+                    : "Pick a profile to join online consultancy. Admin approval may be required."}
+                </p>
+                {!claimable.length ? (
+                  <p className="text-xs text-muted-foreground">
+                    {bn ? "এখন কোনো আনলিংকড প্রোফাইল নেই" : "No unlinked profiles available"}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {claimable.map((d) => (
+                      <li key={d.doctor_id} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">
+                            {bn ? d.full_name_bn || d.full_name : d.full_name}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {bn ? d.specialty_name_bn : d.specialty_name_en}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={claimBusy}
+                          onClick={() => void joinVideo(d.doctor_id)}
+                          className="shrink-0 rounded-lg bg-sky-600 text-white px-3 py-1.5 text-xs font-semibold"
+                        >
+                          {bn ? "জয়েন" : "Join"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link to="/care/portal/tele" className="text-xs font-semibold text-sky-700">
+                  {bn ? "ভিডিও ডেস্ক খুলুন →" : "Open video desk →"}
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

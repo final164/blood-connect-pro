@@ -120,9 +120,21 @@ export function LandingNav({
             {lang === "bn" ? nav.cta_login_bn : nav.cta_login_en}
           </AuthEntryButton>
           <Link
+            to="/care/video"
+            className="inline-flex text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl border border-sky-700/30 text-sky-900 bg-sky-50/80 whitespace-nowrap"
+          >
+            {lang === "bn" ? "কনসালট্যান্ট" : "Consultant"}
+          </Link>
+          <Link
+            to="/care/doctor/register"
+            className="inline-flex text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl border border-rose-700/30 text-rose-900 bg-rose-50/80 whitespace-nowrap"
+          >
+            {lang === "bn" ? "ডাক্তার জয়েন" : "Join as doctor"}
+          </Link>
+          <Link
             to="/care/auth"
             search={{ mode: "register", next: undefined }}
-            className="inline-flex text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl border border-teal-700/30 text-teal-800 bg-teal-50/80 whitespace-nowrap"
+            className="hidden md:inline-flex text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-2 rounded-xl border border-teal-700/30 text-teal-800 bg-teal-50/80 whitespace-nowrap"
           >
             {lang === "bn" ? "Care ভেন্ডর" : "Care vendor"}
           </Link>

@@ -13,6 +13,7 @@ import {
   Store,
   User,
   Users,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 import type { LandingFeatureGrid, LandingFeatureIcon, LandingFeatureTile } from "@/lib/landing-settings";
@@ -32,6 +33,7 @@ const ICON_MAP: Record<LandingFeatureIcon, LucideIcon> = {
   store: Store,
   user: User,
   settings: Settings,
+  video: Video,
 };
 
 function pick(lang: "bn" | "en", bn: string, en: string) {
@@ -78,6 +80,10 @@ export function useSmartLandingNav() {
           next: search.next || undefined,
         },
       });
+      return;
+    }
+    if (pathname.startsWith("/care/doctor/")) {
+      void navigate({ to: pathname as never });
       return;
     }
     void navigate({ to: pathname as never, search: Object.keys(search).length ? (search as never) : undefined });

@@ -321,16 +321,14 @@ export async function setDoctorOnline(doctorId: string, online: boolean) {
   if (error) throw new Error(error.message);
 }
 
-/** Link current login to an unlinked video doctor (consultant desk claim). */
+/** Request video consultancy link (may auto-approve). */
 export async function claimTeleDoctor(doctorId: string) {
-  const { data: session } = await supabase.auth.getSession();
-  const token = session.session?.access_token;
-  if (!token) throw new Error("Not authenticated");
-  const { teleLinkDoctorFn } = await import("@/lib/tele-link-doctor.server");
-  const res = await teleLinkDoctorFn({
-    data: { action: "claim", doctorId, accessToken: token },
-  });
-  return res.doctor as { id: string; user_id: string | null; full_name: string };
+  const { requestVideoClaim } = await import("@/lib/care-doctors-api");
+  const res = await requestVideoClaim(doctorId);
+  if (res.status === "approved" || res.status === "already_linked") {
+    return { id: doctorId, user_id: null, full_name: "", claimStatus: res.status as string };
+  }
+  return { id: doctorId, user_id: null, full_name: "", claimStatus: "pending" as const };
 }
 
 /** Admin: link any user UUID to a care doctor. */

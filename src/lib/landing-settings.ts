@@ -134,7 +134,8 @@ export type LandingFeatureIcon =
   | "calendar"
   | "store"
   | "user"
-  | "settings";
+  | "settings"
+  | "video";
 
 export type LandingFeatureTile = {
   id: string;
@@ -219,12 +220,29 @@ export const DEFAULT_FEATURE_GRID_TILES: LandingFeatureTile[] = [
     requires_auth: true,
   },
   {
+    id: "consultant",
+    label_bn: "কনসালট্যান্ট",
+    label_en: "Consultant",
+    href: "/care/video",
+    icon: "video",
+    requires_auth: false,
+  },
+  {
     id: "doctors",
     label_bn: "ডাক্তার",
     label_en: "Doctors",
     href: "/care?tab=doctors",
     icon: "stethoscope",
     requires_auth: true,
+  },
+  {
+    id: "join_doctor",
+    label_bn: "ডাক্তার জয়েন",
+    label_en: "Join as doctor",
+    href: "/care/doctor/register",
+    icon: "stethoscope",
+    requires_auth: false,
+    more: true,
   },
   {
     id: "lab_tests",
@@ -343,6 +361,10 @@ export type LandingCareVendorBlock = {
   register_en: string;
   login_bn: string;
   login_en: string;
+  doctor_join_bn: string;
+  doctor_join_en: string;
+  doctor_login_bn: string;
+  doctor_login_en: string;
 };
 
 /** Islamic inspiration section (text-first cards; no heavy media). */
@@ -558,6 +580,7 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
       { id: "campaigns", label_bn: "ক্যাম্পেইন", label_en: "Campaigns", href: "#campaigns" },
       { id: "community", label_bn: "কমিউনিটি", label_en: "Community", href: "#community" },
       { id: "care-vendor", label_bn: "Care ভেন্ডর", label_en: "Care vendor", href: "#care-vendor" },
+      { id: "consultant", label_bn: "কনসালট্যান্ট", label_en: "Consultant", href: "/care/video" },
       { id: "gallery", label_bn: "গ্যালারি", label_en: "Gallery", href: "#gallery" },
       { id: "faq", label_bn: "প্রশ্নোত্তর", label_en: "FAQ", href: "#faq" },
     ],
@@ -610,13 +633,17 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     title_bn: "Muktosheba Care — চেম্বার, ক্লিনিক ও ল্যাব",
     title_en: "Muktosheba Care — chambers, clinics & labs",
     body_bn:
-      "ডাক্তার সিরিয়াল, কিউ, ওয়াক-ইন ও ল্যাব বুকিং পরিচালনার জন্য আলাদা পেশাদার পোর্টাল। চেম্বার বা ডায়াগনস্টিক ল্যাব হিসেবে নিবন্ধন করুন।",
+      "ডাক্তার সিরিয়াল, কিউ, ওয়াক-ইন ও ল্যাব বুকিং পরিচালনার জন্য আলাদা পেশাদার পোর্টাল। চেম্বার বা ডায়াগনস্টিক ল্যাব হিসেবে নিবন্ধন করুন। ডাক্তাররা আলাদাভাবে জয়েন করে চেম্বার/অপস অনুমোদন ও ভিডিও কনসালট চালাতে পারেন।",
     body_en:
-      "A dedicated professional portal for doctor serials, queues, walk-ins, and lab bookings. Register as a chamber or diagnostic lab.",
+      "A dedicated professional portal for doctor serials, queues, walk-ins, and lab bookings. Register as a chamber or diagnostic lab. Doctors can join separately to approve chamber/ops links and run video consults.",
     register_bn: "ভেন্ডর নিবন্ধন",
     register_en: "Vendor registration",
     login_bn: "ভেন্ডর লগইন",
     login_en: "Vendor login",
+    doctor_join_bn: "ডাক্তার হিসেবে জয়েন",
+    doctor_join_en: "Join as doctor",
+    doctor_login_bn: "ডাক্তার লগইন",
+    doctor_login_en: "Doctor login",
   },
   cta_band: {
     title_bn: "আজই একজনের জীবন বদলান",
@@ -644,6 +671,9 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
           { label_bn: "সাইন আপ", label_en: "Sign up", href: "/auth" },
           { label_bn: "Care ভেন্ডর নিবন্ধন", label_en: "Care vendor register", href: "/care/auth?mode=register" },
           { label_bn: "Care ভেন্ডর লগইন", label_en: "Care vendor login", href: "/care/auth" },
+          { label_bn: "ডাক্তার হিসেবে জয়েন", label_en: "Join as doctor", href: "/care/doctor/register" },
+          { label_bn: "ডাক্তার লগইন", label_en: "Doctor login", href: "/care/doctor/auth" },
+          { label_bn: "ভিডিও কনসালট্যান্ট", label_en: "Video consultant", href: "/care/video" },
           { label_bn: "কীভাবে কাজ করে", label_en: "How it works", href: "#how" },
         ],
       },
@@ -867,6 +897,7 @@ const FEATURE_ICONS = new Set<LandingFeatureIcon>([
   "store",
   "user",
   "settings",
+  "video",
 ]);
 
 function normalizeFeatureGrid(raw: unknown, d: LandingFeatureGrid): LandingFeatureGrid {
@@ -898,6 +929,14 @@ function normalizeFeatureGrid(raw: unknown, d: LandingFeatureGrid): LandingFeatu
         };
       })
       .filter((t) => t.label_bn || t.label_en);
+    // Ensure newer product CTAs appear even when CMS saved an older tile list.
+    const have = new Set(tiles.map((t) => t.id));
+    for (const fb of d.tiles) {
+      if ((fb.id === "consultant" || fb.id === "join_doctor") && !have.has(fb.id)) {
+        tiles.push({ ...fb });
+        have.add(fb.id);
+      }
+    }
   } else {
     tiles = d.tiles.map((t) => ({ ...t }));
   }
@@ -1094,6 +1133,10 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       register_en: str(careVendorRaw.register_en, d.care_vendor.register_en),
       login_bn: str(careVendorRaw.login_bn, d.care_vendor.login_bn),
       login_en: str(careVendorRaw.login_en, d.care_vendor.login_en),
+      doctor_join_bn: str(careVendorRaw.doctor_join_bn, d.care_vendor.doctor_join_bn),
+      doctor_join_en: str(careVendorRaw.doctor_join_en, d.care_vendor.doctor_join_en),
+      doctor_login_bn: str(careVendorRaw.doctor_login_bn, d.care_vendor.doctor_login_bn),
+      doctor_login_en: str(careVendorRaw.doctor_login_en, d.care_vendor.doctor_login_en),
     },
     cta_band: {
       title_bn: str(ctaRaw.title_bn, d.cta_band.title_bn),

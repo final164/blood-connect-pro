@@ -55,6 +55,8 @@ export function DoctorRegistrationPage() {
   const [bmdc, setBmdc] = useState("");
   const [doctorType, setDoctorType] = useState("");
   const [phone, setPhone] = useState("");
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [specialtyId, setSpecialtyId] = useState("");
@@ -95,15 +97,24 @@ export function DoctorRegistrationPage() {
         bmdcNo: bmdc,
         doctorType,
         phone,
+        pin,
+        confirmPin,
         email,
         password,
         confirmPassword: password,
         specialtyId: specialtyId || null,
         qualifications,
         acceptTerms: terms,
+        authMode: "phone_pin",
       });
       setIssuedCode(profile.doctor_code);
-      toast.success(bn ? "রেজিস্ট্রেশন সফল" : "Registration successful");
+      if (profile.registration_status === "pending") {
+        toast.success(
+          bn ? "রেজিস্ট্রেশন হয়েছে — অ্যাডমিন অনুমোদনের অপেক্ষায়" : "Registered — awaiting admin approval",
+        );
+      } else {
+        toast.success(bn ? "রেজিস্ট্রেশন সফল" : "Registration successful");
+      }
     } catch (err) {
       toast.error(doctorAuthErrorMessage((err as Error).message, lang));
     } finally {
@@ -311,8 +322,38 @@ export function DoctorRegistrationPage() {
                 inputMode="tel"
                 maxLength={11}
                 required={req("mobile")}
+                placeholder="01XXXXXXXXX"
               />
             </Field>
+          )}
+
+          {show("pin") && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={label("pin") || (bn ? "পিন" : "PIN")} required={req("pin")}>
+                <input
+                  className={inp}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  inputMode="numeric"
+                  maxLength={4}
+                  required={req("pin")}
+                  autoComplete="new-password"
+                  placeholder="••••"
+                />
+              </Field>
+              <Field label={bn ? "পিন নিশ্চিত" : "Confirm PIN"} required={req("pin")}>
+                <input
+                  className={inp}
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  inputMode="numeric"
+                  maxLength={4}
+                  required={req("pin")}
+                  autoComplete="new-password"
+                  placeholder="••••"
+                />
+              </Field>
+            </div>
           )}
 
           {show("email") && (
@@ -327,7 +368,7 @@ export function DoctorRegistrationPage() {
             </Field>
           )}
 
-          {show("password") && (
+          {show("password") && req("password") && (
             <Field label={label("password")} required={req("password")}>
               <div className="relative">
                 <input

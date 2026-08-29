@@ -9,7 +9,13 @@ import {
   suggestUsername,
 } from "@/lib/email-auth";
 import { fetchCareDoctorOnboarding, type CareDoctorFieldKey } from "@/lib/care-cms";
-import { clampPhoneDigits, isValidPhone, normalizePhone } from "@/lib/phone-auth";
+import {
+  clampPhoneDigits,
+  isValidPhone,
+  isValidPin,
+  normalizePhone,
+} from "@/lib/phone-auth";
+import { loginWithPhonePin, registerWithPhonePin } from "@/lib/phone-session";
 
 export type DoctorRegistrationInput = {
   title: string;
@@ -22,12 +28,16 @@ export type DoctorRegistrationInput = {
   bmdcNo: string;
   doctorType: string;
   phone: string;
+  pin: string;
+  confirmPin: string;
   email: string;
   password: string;
   confirmPassword: string;
   specialtyId: string | null;
   qualifications: string;
   acceptTerms: boolean;
+  /** Prefer phone+PIN auth (default). */
+  authMode?: "phone_pin" | "email_password";
 };
 
 export type CareDoctorProfile = {
@@ -37,6 +47,10 @@ export type CareDoctorProfile = {
   title: string | null;
   first_name: string | null;
   last_name: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  district_id?: string | null;
+  nid_passport?: string | null;
   bmdc_no: string | null;
   doctor_type: string | null;
   phone: string | null;
@@ -46,6 +60,7 @@ export type CareDoctorProfile = {
   user_id: string | null;
   photo_url: string | null;
   qualifications: string | null;
+  bio?: string | null;
 };
 
 export function doctorFieldEnabled(
@@ -62,62 +77,27 @@ export function doctorFieldRequired(
   return fields[key]?.enabled !== false && fields[key]?.required === true;
 }
 
+const PROFILE_SELECT =
+  "id, doctor_code, full_name, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, bmdc_no, doctor_type, phone, email, specialty_id, registration_status, user_id, photo_url, qualifications, bio";
+
 export async function fetchMyDoctorProfile(): Promise<CareDoctorProfile | null> {
   const { data: session } = await supabase.auth.getSession();
   const uid = session.session?.user?.id;
   if (!uid) return null;
   const { data, error } = await supabase
     .from("care_doctors")
-    .select(
-      "id, doctor_code, full_name, title, first_name, last_name, bmdc_no, doctor_type, phone, email, specialty_id, registration_status, user_id, photo_url, qualifications",
-    )
+    .select(PROFILE_SELECT)
     .eq("user_id", uid)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as CareDoctorProfile | null) ?? null;
 }
 
-export async function registerDoctorAccount(input: DoctorRegistrationInput): Promise<CareDoctorProfile> {
-  const settings = await fetchCareDoctorOnboarding();
-  const f = settings.fields;
-
-  const email = normalizeEmail(input.email);
-  const phone = normalizePhone(clampPhoneDigits(input.phone));
-  const firstName = input.firstName.trim();
-  const lastName = input.lastName.trim();
-  const fullName = [input.title.trim(), firstName, lastName].filter(Boolean).join(" ").trim();
-
-  if (doctorFieldRequired(f, "terms") && !input.acceptTerms) {
-    throw new Error("TERMS_REQUIRED");
-  }
-  if (doctorFieldRequired(f, "first_name") && !firstName) throw new Error("NAME_REQUIRED");
-  if (doctorFieldRequired(f, "last_name") && !lastName) throw new Error("NAME_REQUIRED");
-  if (doctorFieldRequired(f, "email") && !isValidEmail(email)) throw new Error("INVALID_EMAIL");
-  if (doctorFieldRequired(f, "mobile") && !isValidPhone(phone)) throw new Error("INVALID_PHONE");
-  if (doctorFieldRequired(f, "password")) {
-    if (!isValidPassword(input.password)) throw new Error("WEAK_PASSWORD");
-    if (input.password !== input.confirmPassword) throw new Error("PASSWORDS_DO_NOT_MATCH");
-  }
-  if (doctorFieldRequired(f, "bmdc") && !input.bmdcNo.trim()) throw new Error("BMDC_REQUIRED");
-  if (doctorFieldRequired(f, "date_of_birth") && !input.dateOfBirth) throw new Error("DOB_REQUIRED");
-  if (doctorFieldRequired(f, "gender") && !input.gender.trim()) throw new Error("GENDER_REQUIRED");
-  if (doctorFieldRequired(f, "district") && !input.districtId) throw new Error("DISTRICT_REQUIRED");
-  if (doctorFieldRequired(f, "nid_passport") && !input.nidPassport.trim()) throw new Error("NID_REQUIRED");
-  if (doctorFieldRequired(f, "doctor_type") && !input.doctorType.trim()) throw new Error("TYPE_REQUIRED");
-
-  const username = await resolveFreeUsername(suggestUsername(email || fullName || "doctor"));
-  await registerWithEmailPassword({
-    fullName,
-    username,
-    email,
-    password: input.password,
-    confirmPassword: input.confirmPassword,
-  });
-
+async function callRegisterDoctorRpc(input: DoctorRegistrationInput, phone: string, email: string | null) {
   const { data, error } = await supabase.rpc("care_register_doctor", {
     _title: input.title.trim() || null,
-    _first_name: firstName || null,
-    _last_name: lastName || null,
+    _first_name: input.firstName.trim() || null,
+    _last_name: input.lastName.trim() || null,
     _date_of_birth: input.dateOfBirth || null,
     _gender: input.gender.trim() || null,
     _district_id: input.districtId || null,
@@ -129,9 +109,74 @@ export async function registerDoctorAccount(input: DoctorRegistrationInput): Pro
     _specialty_id: input.specialtyId || null,
     _qualifications: input.qualifications.trim() || null,
   } as never);
-
   if (error) throw new Error(error.message);
   return data as CareDoctorProfile;
+}
+
+export async function registerDoctorAccount(input: DoctorRegistrationInput): Promise<CareDoctorProfile> {
+  const settings = await fetchCareDoctorOnboarding();
+  const f = settings.fields;
+
+  const email = normalizeEmail(input.email);
+  const phone = normalizePhone(clampPhoneDigits(input.phone));
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+  const fullName = [input.title.trim(), firstName, lastName].filter(Boolean).join(" ").trim();
+  const authMode = input.authMode ?? "phone_pin";
+
+  if (doctorFieldRequired(f, "terms") && !input.acceptTerms) {
+    throw new Error("TERMS_REQUIRED");
+  }
+  if (doctorFieldRequired(f, "first_name") && !firstName) throw new Error("NAME_REQUIRED");
+  if (doctorFieldRequired(f, "last_name") && !lastName) throw new Error("NAME_REQUIRED");
+  if (doctorFieldRequired(f, "mobile") && !isValidPhone(phone)) throw new Error("INVALID_PHONE");
+  if (doctorFieldRequired(f, "pin") || authMode === "phone_pin") {
+    if (!isValidPin(input.pin)) throw new Error("INVALID_PIN");
+    if (input.pin !== input.confirmPin) throw new Error("PINS_DO_NOT_MATCH");
+  }
+  if (doctorFieldRequired(f, "email") && !isValidEmail(email)) throw new Error("INVALID_EMAIL");
+  if (doctorFieldRequired(f, "password")) {
+    if (!isValidPassword(input.password)) throw new Error("WEAK_PASSWORD");
+    if (input.password !== input.confirmPassword) throw new Error("PASSWORDS_DO_NOT_MATCH");
+  }
+  if (doctorFieldRequired(f, "bmdc") && !input.bmdcNo.trim()) throw new Error("BMDC_REQUIRED");
+  if (doctorFieldRequired(f, "date_of_birth") && !input.dateOfBirth) throw new Error("DOB_REQUIRED");
+  if (doctorFieldRequired(f, "gender") && !input.gender.trim()) throw new Error("GENDER_REQUIRED");
+  if (doctorFieldRequired(f, "district") && !input.districtId) throw new Error("DISTRICT_REQUIRED");
+  if (doctorFieldRequired(f, "nid_passport") && !input.nidPassport.trim()) throw new Error("NID_REQUIRED");
+  if (doctorFieldRequired(f, "doctor_type") && !input.doctorType.trim()) throw new Error("TYPE_REQUIRED");
+
+  if (authMode === "phone_pin") {
+    if (!isValidPhone(phone)) throw new Error("INVALID_PHONE");
+    await registerWithPhonePin({
+      phone,
+      pin: input.pin,
+      confirmPin: input.confirmPin,
+      fullName: fullName || phone,
+    });
+  } else {
+    if (!isValidEmail(email)) throw new Error("INVALID_EMAIL");
+    if (!isValidPassword(input.password)) throw new Error("WEAK_PASSWORD");
+    if (input.password !== input.confirmPassword) throw new Error("PASSWORDS_DO_NOT_MATCH");
+    const username = await resolveFreeUsername(suggestUsername(email || fullName || "doctor"));
+    await registerWithEmailPassword({
+      fullName,
+      username,
+      email,
+      password: input.password,
+      confirmPassword: input.confirmPassword,
+    });
+  }
+
+  return callRegisterDoctorRpc(input, phone, email || null);
+}
+
+export async function loginDoctorWithPhonePin(phone: string, pin: string) {
+  await loginWithPhonePin({ phone, pin });
+  const profile = await fetchMyDoctorProfile();
+  if (!profile) throw new Error("NOT_A_DOCTOR");
+  if (profile.registration_status === "suspended") throw new Error("DOCTOR_SUSPENDED");
+  return profile;
 }
 
 export async function loginDoctor(email: string, password: string) {
@@ -154,6 +199,10 @@ export function doctorAuthErrorMessage(raw: string, lang: "bn" | "en"): string {
       return bn ? "সঠিক ইমেইল দিন" : "Enter a valid email";
     case "INVALID_PHONE":
       return bn ? "সঠিক মোবাইল নম্বর দিন" : "Enter a valid mobile number";
+    case "INVALID_PIN":
+      return bn ? "পিন ৪ সংখ্যার হতে হবে" : "PIN must be 4 digits";
+    case "PINS_DO_NOT_MATCH":
+      return bn ? "পিন মিলছে না" : "PINs do not match";
     case "WEAK_PASSWORD":
       return bn ? "পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে" : "Password must be at least 8 characters";
     case "PASSWORDS_DO_NOT_MATCH":
@@ -176,6 +225,8 @@ export function doctorAuthErrorMessage(raw: string, lang: "bn" | "en"): string {
         : "No doctor profile on this account — please register first";
     case "DOCTOR_SUSPENDED":
       return bn ? "আপনার অ্যাকাউন্ট সাসপেন্ড করা হয়েছে" : "Your doctor account is suspended";
+    case "INVALID_CREDENTIALS":
+      return bn ? "মোবাইল বা পিন ভুল" : "Wrong phone or PIN";
     default:
       return code || (bn ? "কিছু সমস্যা হয়েছে" : "Something went wrong");
   }

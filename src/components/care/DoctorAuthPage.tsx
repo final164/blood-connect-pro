@@ -4,13 +4,21 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
-import { doctorAuthErrorMessage, loginDoctor } from "@/lib/care-doctor-auth";
+import {
+  doctorAuthErrorMessage,
+  loginDoctor,
+  loginDoctorWithPhonePin,
+} from "@/lib/care-doctor-auth";
+import { clampPhoneDigits } from "@/lib/phone-auth";
 import { cn } from "@/lib/utils";
 
 export function DoctorAuthPage() {
   const { lang, setLang } = useI18n();
   const bn = lang === "bn";
   const navigate = useNavigate();
+  const [mode, setMode] = useState<"phone" | "email">("phone");
+  const [phone, setPhone] = useState("");
+  const [pin, setPin] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -20,7 +28,11 @@ export function DoctorAuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await loginDoctor(email, password);
+      if (mode === "phone") {
+        await loginDoctorWithPhonePin(phone, pin);
+      } else {
+        await loginDoctor(email, password);
+      }
       toast.success(bn ? "লগইন সফল" : "Signed in");
       void navigate({ to: "/care/doctor/portal" });
     } catch (err) {
@@ -46,39 +58,90 @@ export function DoctorAuthPage() {
         <h1 className="text-2xl font-black text-slate-900 mb-2">
           {bn ? "ডাক্তার সাইন ইন" : "Doctor Sign in"}
         </h1>
-        <p className="text-sm text-muted-foreground mb-5">
-          {bn ? "ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন" : "Sign in with email and password"}
-        </p>
+        <div className="mb-4 flex gap-2 rounded-xl border bg-white p-1">
+          <button
+            type="button"
+            onClick={() => setMode("phone")}
+            className={cn(
+              "flex-1 rounded-lg py-2 text-xs font-bold",
+              mode === "phone" ? "bg-sky-600 text-white" : "text-muted-foreground",
+            )}
+          >
+            {bn ? "মোবাইল + পিন" : "Phone + PIN"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("email")}
+            className={cn(
+              "flex-1 rounded-lg py-2 text-xs font-bold",
+              mode === "email" ? "bg-sky-600 text-white" : "text-muted-foreground",
+            )}
+          >
+            {bn ? "ইমেইল" : "Email"}
+          </button>
+        </div>
         <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
-          <label className="block space-y-1">
-            <span className="text-xs font-semibold">{bn ? "ইমেইল" : "Email"}</span>
-            <input
-              type="email"
-              className={inp}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs font-semibold">{bn ? "পাসওয়ার্ড" : "Password"}</span>
-            <div className="relative">
-              <input
-                type={showPw ? "text" : "password"}
-                className={cn(inp, "pr-10")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                onClick={() => setShowPw((v) => !v)}
-              >
-                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </label>
+          {mode === "phone" ? (
+            <>
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold">{bn ? "মোবাইল" : "Mobile"}</span>
+                <input
+                  className={inp}
+                  value={phone}
+                  onChange={(e) => setPhone(clampPhoneDigits(e.target.value))}
+                  inputMode="tel"
+                  maxLength={11}
+                  required
+                  placeholder="01XXXXXXXXX"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold">{bn ? "পিন" : "PIN"}</span>
+                <input
+                  className={inp}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  inputMode="numeric"
+                  maxLength={4}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••"
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold">{bn ? "ইমেইল" : "Email"}</span>
+                <input
+                  type="email"
+                  className={inp}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold">{bn ? "পাসওয়ার্ড" : "Password"}</span>
+                <div className="relative">
+                  <input
+                    type={showPw ? "text" : "password"}
+                    className={cn(inp, "pr-10")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowPw((v) => !v)}
+                  >
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </label>
+            </>
+          )}
           <button
             type="submit"
             disabled={busy}
