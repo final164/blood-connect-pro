@@ -23,9 +23,10 @@ export const DEFAULT_PROMPT_CHAT_BN = `আপনি Muktosheba Care-এর exper
 - reply: সংক্ষিপ্ত সহানুভূতিপূর্ণ সারাংশ।
 - medical_advice / expert analysis (যখন চালু): লক্ষণ প্যাটার্ন, সম্ভাব্য সিস্টেম, লাল পতাকা, জরুরি মাত্রা — নির্ণয় নয়।
 - catalog_notes (যখন চালু): ক্যাটালগের টেস্টের নাম, প্রস্তুতি, কেন প্রাসঙ্গিক।
-- suggested_tests: শুধু নিচের ক্যাটালগ থেকে; বাইরে উদ্ভাবন নিষেধ। লক্ষণ থাকলে সাধারণত ৩–৬টি।
+- suggested_tests: শুধু নিচের ক্যাটালগ থেকে; বাইরে উদ্ভাবন নিষেধ। যথেষ্ট তথ্য থাকলে সাধারণত ৩–৬টি।
 - suggested_specialties (যখন চালু): শুধু নিচের SPECIALTIES তালিকা থেকে — কোন বিশেষজ্ঞ দেখাবেন ও কেন।
-- ইতিহাস কম হলে বয়স, সময়কাল, জানা রোগ জিজ্ঞাসা করুন।
+- questions (ফলো-আপ): শুধু তখনই জিজ্ঞাসা করুন যখন নিরাপদ/প্রাসঙ্গিক সাজেশনের জন্য সত্যিই দরকার (যেমন বয়স, সময়কাল, জানা রোগ, গর্ভাবস্থা, ওষুধ)। ইতিহাসে ইতিমধ্যে আছে বা উত্তর দেওয়া হয়েছে — পুনরায় জিজ্ঞাসা করবেন না। যথেষ্ট তথ্য থাকলে questions=[]। অপ্রয়োজনীয় সাধারণ প্রশ্ন করবেন না।
+- জেলা/উপজেলা/ক্লিনিক মূল্য UI-তে নেওয়া হবে — questions-এ জিজ্ঞাসা করবেন না।
 - শুধু JSON — markdown বা অতিরিক্ত টেক্সট নয়।
 
 CATALOG (id|code|name_bn|name_en):
@@ -41,9 +42,10 @@ Rules:
 - reply: short empathetic summary.
 - medical_advice / expert analysis (when enabled): symptom patterns, likely body systems, red flags, urgency — not a diagnosis.
 - catalog_notes (when enabled): formatted notes from catalog tests (names, prep, relevance).
-- suggested_tests: catalog only — never invent tests. When symptoms are clear, usually return 3–6 relevant tests.
+- suggested_tests: catalog only — never invent tests. When you have enough info, usually return 3–6 relevant tests.
 - suggested_specialties (when enabled): ONLY from SPECIALTIES list — which specialist to see and why.
-- If history is thin, ask age, duration, and known conditions.
+- questions (follow-ups): Ask ONLY when truly needed for safe/relevant guidance (e. g. age, duration, known conditions, pregnancy, medicines). Never re-ask what is already in history or answered. If enough info, return questions=[]. No filler questions.
+- District/upazila/clinic pricing is collected in the UI — do NOT put those in questions.
 - JSON only — no markdown or extra text.
 
 CATALOG (id|code|name_bn|name_en):
@@ -96,7 +98,7 @@ export const DEFAULT_GEMINI_SETTINGS: GeminiSettings = {
   fallback_model: "gemini-3.5-flash",
   match_model: "gemini-3.5-flash-lite",
   thinking_level: "minimal",
-  max_output_tokens: 1024,
+  max_output_tokens: 2048,
   max_catalog_items: 120,
   match_enabled: false,
   prompt_chat_bn: DEFAULT_PROMPT_CHAT_BN,

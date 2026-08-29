@@ -168,6 +168,14 @@ const UI_FIELDS: Record<UiTab, (keyof GeminiUiCopy)[]> = {
     "specialty_cta_en",
     "first_aid_button_bn",
     "first_aid_button_en",
+    "lab_geo_title_bn",
+    "lab_geo_title_en",
+    "lab_geo_hint_bn",
+    "lab_geo_hint_en",
+    "lab_clinics_heading_bn",
+    "lab_clinics_heading_en",
+    "lab_geo_cta_bn",
+    "lab_geo_cta_en",
   ],
   prescription: [
     "prescription_attach_bn",
@@ -224,6 +232,14 @@ const UI_LABELS: Record<keyof GeminiUiCopy, { bn: string; en: string }> = {
   prescription_disclaimer_en: { bn: "প্রেসক্রিপশন ডিসক্লেইমার (English)", en: "Rx disclaimer (English)" },
   prescription_analyzing_bn: { bn: "অ্যানালাইজিং (বাংলা)", en: "Analyzing (Bangla)" },
   prescription_analyzing_en: { bn: "অ্যানালাইজিং (English)", en: "Analyzing (English)" },
+  lab_geo_title_bn: { bn: "ল্যাব জিও শিরোনাম (বাংলা)", en: "Lab geo title (Bangla)" },
+  lab_geo_title_en: { bn: "ল্যাব জিও শিরোনাম (English)", en: "Lab geo title (English)" },
+  lab_geo_hint_bn: { bn: "ল্যাব জিও হিন্ট (বাংলা)", en: "Lab geo hint (Bangla)" },
+  lab_geo_hint_en: { bn: "ল্যাব জিও হিন্ট (English)", en: "Lab geo hint (English)" },
+  lab_clinics_heading_bn: { bn: "ক্লিনিক হেডিং (বাংলা)", en: "Clinics heading (Bangla)" },
+  lab_clinics_heading_en: { bn: "ক্লিনিক হেডিং (English)", en: "Clinics heading (English)" },
+  lab_geo_cta_bn: { bn: "ল্যাব জিও CTA (বাংলা)", en: "Lab geo CTA (Bangla)" },
+  lab_geo_cta_en: { bn: "ল্যাব জিও CTA (English)", en: "Lab geo CTA (English)" },
 };
 
 function defaultExtended(): GeminiSettingsExtended {

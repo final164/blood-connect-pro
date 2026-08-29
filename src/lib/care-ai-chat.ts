@@ -9,6 +9,7 @@ import {
 } from "@/lib/gemini-ai-config";
 export type { CareAiPublicConfig } from "@/lib/gemini-ai-config";
 import { fillPrompt } from "@/lib/gemini-shared";
+import { refineFollowUpQuestions } from "@/lib/care-ai-followup";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CareAiChatMessage = { role: "user" | "assistant"; text: string };
@@ -429,7 +430,7 @@ export const careAiTestChat = createServerFn({ method: "POST" })
     }) => {
       const messages = Array.isArray(data?.messages) ? data.messages : [];
       const cleaned: CareAiChatMessage[] = messages
-        .slice(-6)
+        .slice(-12)
         .map((m) => {
           const role: CareAiChatMessage["role"] = m?.role === "assistant" ? "assistant" : "user";
           return { role, text: String(m?.text ?? "").trim().slice(0, 2000) };
@@ -592,7 +593,8 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       asString(parsed.medical_advice).length > 24 ||
       asString(parsed.analysis_summary).length > 24 ||
       (Array.isArray(parsed.suggested_tests) && parsed.suggested_tests.length > 0) ||
-      suggested.length > 0;
+      suggested.length > 0 ||
+      asString(parsed.reply).length > 40;
     if (
       !prescriptionMode &&
       features.specialty_suggestions &&
@@ -620,9 +622,26 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       }
     }
 
-    const questions =
+    const rawQuestions =
       !prescriptionMode && features.follow_up_questions && Array.isArray(parsed.questions)
-        ? parsed.questions.map(asString).filter(Boolean).slice(0, settings.max_questions)
+        ? parsed.questions.map(asString).filter(Boolean)
+        : [];
+    const needMoreInfo =
+      typeof parsed.need_more_info === "boolean"
+        ? parsed.need_more_info
+        : typeof parsed.needMoreInfo === "boolean"
+          ? parsed.needMoreInfo
+          : undefined;
+    const questions =
+      !prescriptionMode && features.follow_up_questions
+        ? refineFollowUpQuestions({
+            questions: rawQuestions,
+            messages: data.messages,
+            max: settings.max_questions,
+            lang: data.lang,
+            looksClinical,
+            needMoreInfo,
+          })
         : [];
     const reply =
       asString(parsed.reply) ||

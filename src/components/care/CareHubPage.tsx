@@ -18,6 +18,7 @@ import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
 import { fetchCareSpecialties, fetchTestCategories, locName } from "@/lib/care-cms";
@@ -405,6 +406,7 @@ function OperationsPanel({ lang }: { lang: "bn" | "en" }) {
 function TestsPanel({ lang }: { lang: "bn" | "en" }) {
   const [q, setQ] = useState("");
   const [district, setDistrict] = useState<District | null>(null);
+  const [upazila, setUpazila] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [cats, setCats] = useState<{ id: string; name_bn: string; name_en: string }[]>([]);
   const [view, setView] = useState<"labs" | "tests">("tests");
@@ -423,6 +425,7 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
       const opts = {
         q,
         districtId: district?.id,
+        upazila: upazila.trim() || undefined,
         categoryId: categoryId || undefined,
       };
       const job =
@@ -454,7 +457,7 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [q, district?.id, categoryId, view]);
+  }, [q, district?.id, upazila, categoryId, view]);
 
   return (
     <div className="space-y-3">
@@ -509,21 +512,28 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
           className="w-full rounded-xl border bg-card pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <DistrictTypeahead value={district} onChange={setDistrict} />
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="rounded-xl border bg-card px-3 py-2 text-sm"
-        >
-          <option value="">{lang === "bn" ? "সব ক্যাটাগরি" : "All categories"}</option>
-          {cats.map((c) => (
-            <option key={c.id} value={c.id}>
-              {lang === "bn" ? c.name_bn : c.name_en}
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <DistrictTypeahead
+          value={district}
+          onChange={(d) => {
+            setDistrict(d);
+            setUpazila("");
+          }}
+        />
+        <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
       </div>
+      <select
+        value={categoryId}
+        onChange={(e) => setCategoryId(e.target.value)}
+        className="w-full rounded-xl border bg-card px-3 py-2 text-sm"
+      >
+        <option value="">{lang === "bn" ? "সব ক্যাটাগরি" : "All categories"}</option>
+        {cats.map((c) => (
+          <option key={c.id} value={c.id}>
+            {lang === "bn" ? c.name_bn : c.name_en}
+          </option>
+        ))}
+      </select>
 
       {view === "labs" ? (
         loading ? (

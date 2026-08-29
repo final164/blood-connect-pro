@@ -20,6 +20,9 @@ export type BundleClinicGroup = {
   orgId: string;
   orgName: string;
   orgNameBn: string | null;
+  upazila?: string | null;
+  address?: string | null;
+  verified?: boolean;
   items: BundleItem[];
   subtotal: number;
 };
@@ -98,6 +101,9 @@ export function packCheapestSameClinic(catalogIds: string[], offerings: CareOffe
       orgId: best.orgId,
       orgName: sample.org?.name ?? "Clinic",
       orgNameBn: sample.org?.name_bn ?? null,
+      upazila: sample.location?.upazila ?? (sample.org as { upazila?: string | null } | null | undefined)?.upazila ?? null,
+      address: (sample.org as { address?: string | null } | null | undefined)?.address ?? null,
+      verified: (sample.org as { is_verified?: boolean } | null | undefined)?.is_verified !== false,
       items: best.picks.map((offering) => ({ catalogId: offering.catalog_id, offering })),
       subtotal: best.sum,
     });
@@ -111,11 +117,92 @@ export function packCheapestSameClinic(catalogIds: string[], offerings: CareOffe
   };
 }
 
-export async function loadBundlePlan(catalogIds: string[], districtId?: string): Promise<BundlePlan> {
+export async function loadBundlePlan(
+  catalogIds: string[],
+  districtId?: string,
+  upazila?: string,
+  preferredOrgId?: string,
+): Promise<BundlePlan> {
   const ids = [...new Set(catalogIds.filter(Boolean))];
-  if (!ids.length) return { groups: [], uncovered: [], total: 0 };
-  const offerings = await searchTestOfferings({ catalogIds: ids, districtId });
+  if (!ids.length) return { groups: [], uncovered: ids, total: 0 };
+
+  const upz = upazila?.trim();
+  let offerings = await searchTestOfferings({
+    catalogIds: ids,
+    districtId,
+    upazila: upz || undefined,
+  });
+  if (preferredOrgId) {
+    const scoped = offerings.filter((o) => o.org_id === preferredOrgId);
+    if (scoped.length) offerings = scoped;
+  }
   return packCheapestSameClinic(ids, offerings);
+}
+
+export type RankedLabClinic = {
+  orgId: string;
+  name: string;
+  nameBn: string | null;
+  upazila: string | null;
+  address: string | null;
+  verified: boolean;
+  testCount: number;
+  catalogIds: string[];
+  subtotal: number;
+  sampleOfferingId: string | null;
+};
+
+/** Rank verified clinics covering suggested tests: more tests first, then lower price. */
+export function rankNearbyLabsForTests(
+  catalogIds: string[],
+  offerings: CareOffering[],
+  limit = 5,
+): RankedLabClinic[] {
+  const want = new Set(catalogIds.filter(Boolean));
+  if (!want.size) return [];
+  const byOrg = new Map<string, CareOffering[]>();
+  for (const o of offerings) {
+    if (!want.has(o.catalog_id)) continue;
+    const list = byOrg.get(o.org_id) ?? [];
+    list.push(o);
+    byOrg.set(o.org_id, list);
+  }
+  const ranked: RankedLabClinic[] = [];
+  for (const [orgId, rows] of byOrg) {
+    const cheap = cheapestPerCatalog(rows);
+    const picks = [...cheap.values()];
+    if (!picks.length) continue;
+    const sample = picks[0];
+    const org = sample.org as
+      | {
+          name?: string;
+          name_bn?: string | null;
+          address?: string | null;
+          upazila?: string | null;
+          is_verified?: boolean;
+        }
+      | null
+      | undefined;
+    ranked.push({
+      orgId,
+      name: org?.name ?? "Clinic",
+      nameBn: org?.name_bn ?? null,
+      upazila: sample.location?.upazila ?? org?.upazila ?? null,
+      address: org?.address ?? null,
+      verified: org?.is_verified !== false,
+      testCount: picks.length,
+      catalogIds: picks.map((p) => p.catalog_id),
+      subtotal: picks.reduce((n, p) => n + offeringSalePrice(p), 0),
+      sampleOfferingId: sample.id,
+    });
+  }
+  ranked.sort((a, b) => {
+    if (b.testCount !== a.testCount) return b.testCount - a.testCount;
+    if (a.subtotal !== b.subtotal) return a.subtotal - b.subtotal;
+    if (a.verified !== b.verified) return a.verified ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return ranked.slice(0, limit);
 }
 
 async function firstOpenCalendar(offering: CareOffering): Promise<CareLabCalendar> {

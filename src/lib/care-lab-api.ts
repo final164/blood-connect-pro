@@ -30,7 +30,16 @@ export type CareOffering = {
     sample_type: string | null;
     category_id: string | null;
   } | null;
-  org?: { id: string; name: string; name_bn: string | null; district_id: string | null } | null;
+  org?: {
+    id: string;
+    name: string;
+    name_bn: string | null;
+    district_id: string | null;
+    address?: string | null;
+    upazila?: string | null;
+    phone?: string | null;
+    is_verified?: boolean;
+  } | null;
   location?: { id: string; name: string; name_bn: string | null; upazila: string | null; district_id: string | null } | null;
 };
 
@@ -266,11 +275,13 @@ export async function searchTestOfferings(opts: {
 export async function searchLabFacilities(opts: {
   q?: string;
   districtId?: string;
+  upazila?: string;
   categoryId?: string;
 }): Promise<CareLabFacility[]> {
   const offerings = await searchTestOfferings({
     q: opts.q,
     districtId: opts.districtId,
+    upazila: opts.upazila,
     categoryId: opts.categoryId,
   });
 

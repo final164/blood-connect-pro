@@ -142,9 +142,13 @@ export function CareAiBundleSheet({
         </SheetHeader>
 
         {!plan || plan.groups.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">
-            {lang === "bn" ? "এই টেস্টগুলোর অফার পাওয়া যায়নি।" : "No priced offerings found for these tests."}
-          </p>
+          <div className="space-y-3 py-4">
+            <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5">
+              {lang === "bn"
+                ? "এই এলাকায় এই টেস্টগুলোর অফার পাওয়া যায়নি। অন্য জেলা/উপজেলা চেষ্টা করুন, অথবা ক্লিনিক কার্ড থেকে আবার বুক করুন।"
+                : "No priced offerings found for these tests in this area. Try another district/upazila, or book again from a clinic card."}
+            </p>
+          </div>
         ) : (
           <div className="space-y-4 py-3">
             {plan.groups.map((g) => (
@@ -155,6 +159,11 @@ export function CareAiBundleSheet({
                     · {g.items.length} {lang === "bn" ? "টেস্ট" : "tests"}
                   </span>
                 </p>
+                {(g.upazila || g.address) && (
+                  <p className="text-[11px] text-muted-foreground line-clamp-2">
+                    {[g.upazila, g.address].filter(Boolean).join(" · ")}
+                  </p>
+                )}
                 <ul className="text-sm space-y-1">
                   {g.items.map((item) => (
                     <li key={item.offering.id} className="flex justify-between gap-2">

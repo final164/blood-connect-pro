@@ -52,9 +52,13 @@ function nextDates(count = 14) {
 export function CareLabFacilityPage({
   orgId,
   initialSelectId,
+  initialSelectIds,
+  initialCatalogIds,
 }: {
   orgId: string;
   initialSelectId?: string;
+  initialSelectIds?: string[];
+  initialCatalogIds?: string[];
 }) {
   const { lang } = useI18n();
   const { session, user, isAnonymous } = useAuth();
@@ -84,9 +88,27 @@ export function CareLabFacilityPage({
         if (cancelled) return;
         setFacility(f);
         setOfferings(list);
-        if (initialSelectId && list.some((o) => o.id === initialSelectId)) {
-          setSelected(new Set([initialSelectId]));
+        const next = new Set<string>();
+        const offeringIds = [
+          ...(initialSelectIds ?? []),
+          ...(initialSelectId ? [initialSelectId] : []),
+        ];
+        for (const id of offeringIds) {
+          if (list.some((o) => o.id === id)) next.add(id);
         }
+        if (initialCatalogIds?.length) {
+          const want = new Set(initialCatalogIds);
+          const cheapestByCatalog = new Map<string, CareOffering>();
+          for (const o of list) {
+            if (!want.has(o.catalog_id)) continue;
+            const prev = cheapestByCatalog.get(o.catalog_id);
+            if (!prev || offeringSalePrice(o) < offeringSalePrice(prev)) {
+              cheapestByCatalog.set(o.catalog_id, o);
+            }
+          }
+          for (const o of cheapestByCatalog.values()) next.add(o.id);
+        }
+        if (next.size) setSelected(next);
       })
       .catch(() => {
         if (cancelled) return;
@@ -99,7 +121,13 @@ export function CareLabFacilityPage({
     return () => {
       cancelled = true;
     };
-  }, [orgId, initialSelectId]);
+  }, [
+    orgId,
+    initialSelectId,
+    // Stabilize array deps from search params
+    initialSelectIds?.join(","),
+    initialCatalogIds?.join(","),
+  ]);
 
   useEffect(() => {
     if (!user?.id || isAnonymous) {

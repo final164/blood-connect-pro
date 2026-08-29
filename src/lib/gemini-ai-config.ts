@@ -64,6 +64,14 @@ export type GeminiUiCopy = {
   prescription_disclaimer_en: string;
   prescription_analyzing_bn: string;
   prescription_analyzing_en: string;
+  lab_geo_title_bn: string;
+  lab_geo_title_en: string;
+  lab_geo_hint_bn: string;
+  lab_geo_hint_en: string;
+  lab_clinics_heading_bn: string;
+  lab_clinics_heading_en: string;
+  lab_geo_cta_bn: string;
+  lab_geo_cta_en: string;
 };
 
 export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
@@ -83,9 +91,9 @@ export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
 
 export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
   welcome_bn:
-    "আপনার লক্ষণ বা সমস্যা লিখুন। আমি বিশ্লেষণ করে সম্ভাব্য বিশেষজ্ঞ, সাধারণ স্বাস্থ্য তথ্য এবং ক্যাটালগ-ভিত্তিক টেস্ট সাজেশন দেব। চিকিৎসকের বিকল্প নয় — জরুরি হলে হাসপাতালে যান।",
+    "আপনার লক্ষণ বা সমস্যা লিখুন। প্রয়োজন হলে আমি বয়স/সময়কালের মতো সংক্ষিপ্ত প্রশ্ন করব, তারপর বিশেষজ্ঞ ও টেস্ট সাজেশন দেব। টেস্ট লাগলে জেলা ও উপজেলা দিয়ে নিকটস্থ কম মূল্যের ভালো ল্যাব দেখাব। চিকিৎসকের বিকল্প নয় — জরুরি হলে হাসপাতালে যান।",
   welcome_en:
-    "Describe your symptoms or concern. I will analyze and suggest likely specialists, general health guidance, and catalog-based tests. Not a substitute for a doctor — seek emergency care when needed.",
+    "Describe your symptoms. I’ll only ask short follow-ups when needed (age, duration, etc.), then suggest specialists and tests. When tests are needed, pick district & upazila for nearby quality labs at the best price. Not a substitute for a doctor — seek emergency care when needed.",
   disclaimer_bn: "তথ্যমূলক সহায়তা; চিকিৎসকের পরামর্শের বিকল্প নয়।",
   disclaimer_en: "Informational support only — not a substitute for professional medical care.",
   thinking_bn: "আপনার জন্য expert বিশ্লেষণ প্রস্তুত করছি…",
@@ -124,6 +132,16 @@ export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
     "Likely reading of handwriting — only what is on the Rx. Not a substitute for your doctor.",
   prescription_analyzing_bn: "প্রেসক্রিপশন পড়ছি…",
   prescription_analyzing_en: "Reading your prescription…",
+  lab_geo_title_bn: "নিকটস্থ ল্যাব সাজেশনের জন্য জেলা ও উপজেলা নির্বাচন করুন",
+  lab_geo_title_en: "Select district & upazila for nearby lab suggestions",
+  lab_geo_hint_bn:
+    "আমি আপনার নিকটস্থ হাসপাতাল/ক্লিনিকে সবচেয়ে কম মূল্যে ভালো মানের টেস্ট সাজেশন দেব — তারপর সরাসরি বুক করতে পারবেন।",
+  lab_geo_hint_en:
+    "I'll suggest quality tests at the lowest prices near you — then you can book directly.",
+  lab_clinics_heading_bn: "নিকটস্থ কম মূল্যের ভেরিফায়েড ক্লিনিক/ল্যাব",
+  lab_clinics_heading_en: "Nearby low-price verified clinics/labs",
+  lab_geo_cta_bn: "সাজেশন দেখুন",
+  lab_geo_cta_en: "Show suggestions",
 };
 
 export type GeminiSettingsExtended = GeminiSettings & {
@@ -452,6 +470,13 @@ export type CareAiUrgency = "routine" | "soon" | "urgent" | "emergency";
 
 export function buildJsonSchema(features: GeminiAiFeatures): string {
   const fields = ['"reply":"string — short friendly summary"'];
+  // Put questions early so they are less likely to be truncated by max_output_tokens.
+  if (features.follow_up_questions) {
+    fields.push(
+      '"need_more_info":boolean — true only if you truly cannot safely guide without answers',
+      '"questions":["string"] — ask ONLY missing clinically useful items; return [] when enough info already exists in history',
+    );
+  }
   if (features.medical_advice) {
     fields.push('"medical_advice":"string — general wellness guidance, not diagnosis, no prescription"');
   }
@@ -465,9 +490,6 @@ export function buildJsonSchema(features: GeminiAiFeatures): string {
   }
   if (features.catalog_notes) {
     fields.push('"catalog_notes":"string — formatted notes using ONLY catalog tests (names, prep, why relevant)"');
-  }
-  if (features.follow_up_questions) {
-    fields.push('"questions":["string"]');
   }
   if (features.test_suggestions) {
     fields.push(
@@ -622,8 +644,8 @@ export function buildChatSystemPrompt(
   if (settings.features.follow_up_questions) {
     featureLines.push(
       lang === "bn"
-        ? `- questions: সর্বোচ্চ ${settings.max_questions}টি ফলো-আপ প্রশ্ন।`
-        : `- questions: max ${settings.max_questions} follow-ups.`,
+        ? `- questions: সর্বোচ্চ ${settings.max_questions}টি। শুধু প্রয়োজন হলে (বয়স/সময়কাল/জানা রোগ/গর্ভাবস্থা ইত্যাদি)। ইতিহাসে থাকলে বা [উত্তর] ট্যাগ থাকলে পুনরায় জিজ্ঞাসা নিষেধ। যথেষ্ট তথ্য → questions=[] এবং need_more_info=false। অপ্রয়োজনীয় প্রশ্ন করবেন না। জেলা/উপজেলা questions-এ নয়।`
+        : `- questions: max ${settings.max_questions}. Ask ONLY when needed (age/duration/known conditions/pregnancy etc.). Never re-ask if already in history or under [Answer] tags. Enough info → questions=[] and need_more_info=false. No filler. Do not ask district/upazila in questions.`,
     );
   }
   if (settings.features.bundle_offer && settings.features.test_suggestions) {
@@ -647,6 +669,14 @@ export function buildChatSystemPrompt(
           ? `\n\n${marker} — suggested_specialties শুধু এখান থেকে (specialty_id + slug বাধ্যতামূলক):\n${specialties}\nলক্ষণ থাকলে অবশ্যই ১–${Math.max(1, settings.max_specialties)}টি বিশেষজ্ঞ দিন।`
           : `\n\n${marker} — suggested_specialties MUST use only these rows (specialty_id + slug required):\n${specialties}\nWhen symptoms are described, ALWAYS return 1–${Math.max(1, settings.max_specialties)} specialties.`;
     }
+  }
+
+  // Always reinforce ask-only-when-needed (even if Admin custom prompt is stale).
+  if (settings.features.follow_up_questions) {
+    prompt +=
+      lang === "bn"
+        ? `\n\nFOLLOW-UP POLICY (বাধ্যতামূলক): questions শুধু ক্লিনিক্যালি দরকারি মিসিং তথ্যের জন্য। ইতিমধ্যে জানা/উত্তর দেওয়া বিষয় পুনরায় জিজ্ঞাসা করবেন না। যথেষ্ট তথ্য থাকলে questions=[]। জেলা ও উপজেলা UI সংগ্রহ করবে — questions এ লিখবেন না।`
+        : `\n\nFOLLOW-UP POLICY (mandatory): questions only for clinically missing info. Never re-ask answered items. If enough info, questions=[]. District/upazila are collected in the UI — never put them in questions.`;
   }
 
   return prompt;
@@ -681,6 +711,10 @@ export function getPublicAiConfig(settings: GeminiSettingsExtended, lang: "bn" |
         lang === "bn" ? ui.prescription_disclaimer_bn : ui.prescription_disclaimer_en,
       prescriptionAnalyzing:
         lang === "bn" ? ui.prescription_analyzing_bn : ui.prescription_analyzing_en,
+      labGeoTitle: lang === "bn" ? ui.lab_geo_title_bn : ui.lab_geo_title_en,
+      labGeoHint: lang === "bn" ? ui.lab_geo_hint_bn : ui.lab_geo_hint_en,
+      labClinicsHeading: lang === "bn" ? ui.lab_clinics_heading_bn : ui.lab_clinics_heading_en,
+      labGeoCta: lang === "bn" ? ui.lab_geo_cta_bn : ui.lab_geo_cta_en,
     },
     limits: {
       maxPrescriptionImages: settings.max_prescription_images,

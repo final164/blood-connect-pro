@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { FlaskConical, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
+import { BadgeCheck, FlaskConical, Sparkles, ShoppingBag, Stethoscope, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
-import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import type { District } from "@/lib/api";
 import { fetchTestCatalog } from "@/lib/care-cms";
 import { searchTestOfferings, type CareOffering } from "@/lib/care-lab-api";
@@ -24,8 +23,12 @@ import {
 } from "@/lib/care-ai-chat";
 import { CareAiExpertBlock, CareAiFirstAidBlock, CareAiSpecialtyCards } from "@/components/care/CareAiInsightBlocks";
 import { CareAiMedicineBlock } from "@/components/care/CareAiMedicineBlock";
-import { loadBundlePlan, type BundlePlan } from "@/lib/care-ai-bundle";
-import { CareAiBundleSheet } from "@/components/care/CareAiBundleSheet";
+import { CareAiLabGeoSheet } from "@/components/care/CareAiLabGeoSheet";
+import {
+  loadBundlePlan,
+  rankNearbyLabsForTests,
+  type RankedLabClinic,
+} from "@/lib/care-ai-bundle";
 import { CareAiFollowUpPanel } from "@/components/care/CareAiFollowUpPanel";
 import { CareAiChatComposer, type CareAiPendingImage } from "@/components/care/CareAiChatComposer";
 import { compressImageForAi } from "@/lib/care-ai-image";
@@ -119,10 +122,15 @@ export function CareAiTestsPage() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [district, setDistrict] = useState<District | null>(null);
+  const [upazila, setUpazila] = useState("");
+  const [pendingSuggestions, setPendingSuggestions] = useState<CareAiSuggestedTest[]>([]);
+  const [rankedClinics, setRankedClinics] = useState<RankedLabClinic[]>([]);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const [geoSheetOpen, setGeoSheetOpen] = useState(false);
+  const [pendingBookIds, setPendingBookIds] = useState<string[]>([]);
+  const [pendingOrgId, setPendingOrgId] = useState<string | null>(null);
   const [cart, setCart] = useState<string[]>([]);
   const [cards, setCards] = useState<CatalogCard[]>([]);
-  const [plan, setPlan] = useState<BundlePlan | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [bookBusy, setBookBusy] = useState(false);
   const [pendingImages, setPendingImages] = useState<CareAiPendingImage[]>([]);
   const [activeFollowUp, setActiveFollowUp] = useState<FollowUpQuestion | null>(null);
@@ -206,6 +214,67 @@ export function CareAiTestsPage() {
     if (draft) setInput(draft);
   }, []);
 
+  const geoReady = !!district?.id;
+
+  const refreshLabSuggestions = useCallback(
+    async (suggestions: CareAiSuggestedTest[], dist: District | null, upz: string) => {
+      if (!suggestions.length) {
+        setCards([]);
+        setRankedClinics([]);
+        return;
+      }
+      setGeoBusy(true);
+      try {
+        const catalog = await fetchTestCatalog();
+        const catMap = new Map(catalog.map((c) => [c.id, c]));
+        if (!dist?.id) {
+          setCards(
+            suggestions.map((s) => {
+              const sample = catMap.get(s.catalog_id);
+              return {
+                catalogId: s.catalog_id,
+                code: sample?.code || s.code,
+                reason: s.reason,
+                nameBn: sample?.name_bn || s.code,
+                nameEn: sample?.name_en || s.code,
+                cheapest: null,
+                listPrice: null,
+                discountPercent: 0,
+                clinicCount: 0,
+                cheapestOfferingId: null,
+              };
+            }),
+          );
+          setRankedClinics([]);
+          return;
+        }
+        const ids = suggestions.map((s) => s.catalog_id);
+        const rows = await searchTestOfferings({
+          catalogIds: ids,
+          districtId: dist.id,
+          upazila: upz.trim() || undefined,
+        });
+        setCards(buildCards(suggestions, rows, catalog));
+        setRankedClinics(rankNearbyLabsForTests(ids, rows, 5));
+      } catch (e) {
+        toast.error((e as Error).message);
+      } finally {
+        setGeoBusy(false);
+      }
+    },
+    [],
+  );
+
+  // Catalog names for suggested tests (prices/clinics only after district+upazila via Book).
+  useEffect(() => {
+    if (!pendingSuggestions.length) {
+      setCards([]);
+      setRankedClinics([]);
+      return;
+    }
+    void refreshLabSuggestions(pendingSuggestions, null, "");
+  }, [pendingSuggestions, refreshLabSuggestions]);
+
   useEffect(() => {
     if (!hydrated || !aiConfig) return;
     persistChat(messages, cards, cart, threadIdRef.current);
@@ -237,6 +306,11 @@ export function CareAiTestsPage() {
     ]);
     setCards([]);
     setCart([]);
+    setPendingSuggestions([]);
+    setRankedClinics([]);
+    setPendingBookIds([]);
+    setPendingOrgId(null);
+    setGeoSheetOpen(false);
     setActiveFollowUp(null);
     setAnsweredFollowUps(new Set());
     setInput("");
@@ -252,6 +326,12 @@ export function CareAiTestsPage() {
     setMessages((snap.messages as ChatBubble[]) ?? []);
     setCards((snap.cards as CatalogCard[]) ?? []);
     setCart(snap.cart ?? []);
+    const restoredSuggestions =
+      ((snap.messages as ChatBubble[]) ?? [])
+        .filter((m) => m.role === "assistant" && m.suggestions?.length)
+        .at(-1)?.suggestions ?? [];
+    setPendingSuggestions(restoredSuggestions);
+    setRankedClinics([]);
     setActiveFollowUp(null);
     setAnsweredFollowUps(new Set());
     refreshThreadList();
@@ -387,17 +467,16 @@ export function CareAiTestsPage() {
       setAnsweredFollowUps(new Set());
       setActiveFollowUp(null);
       if (res.suggested_tests.length) {
-        const ids = res.suggested_tests.map((s) => s.catalog_id);
-        const [offerings, catalog] = await Promise.all([
-          searchTestOfferings({ catalogIds: ids, districtId: district?.id }),
-          fetchTestCatalog(),
-        ]);
-        const built = buildCards(res.suggested_tests, offerings, catalog);
-        setCards(built);
-        // Prescription: pre-select all matched tests so Book opens the form immediately.
-        const nextCart = res.from_prescription ? built.map((c) => c.catalogId) : cart;
+        setPendingSuggestions(res.suggested_tests);
+        const nextCart = res.from_prescription
+          ? res.suggested_tests.map((s) => s.catalog_id)
+          : cart;
         if (res.from_prescription) setCart(nextCart);
-        persistChat(withAssistant, built, nextCart);
+        persistChat(withAssistant, [], nextCart);
+      } else {
+        setPendingSuggestions([]);
+        setCards([]);
+        setRankedClinics([]);
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -458,22 +537,71 @@ export function CareAiTestsPage() {
     });
   }
 
-  async function openBundle(catalogIds?: string[]) {
+  function requestBook(catalogIds?: string[], opts?: { orgId?: string }) {
     const ids = catalogIds?.length
       ? catalogIds
       : cart.length
         ? cart
         : cards.map((c) => c.catalogId);
-    if (!ids.length) return toast.error(lang === "bn" ? "আগে টেস্ট বেছে নিন" : "Select tests first");
+    if (!ids.length) {
+      toast.error(lang === "bn" ? "আগে টেস্ট বেছে নিন" : "Select tests first");
+      return;
+    }
     if (isGuest) {
       void navigate({ to: "/auth", search: { next: AI_CHAT_RESUME_PATH } as never });
       return;
     }
+    setCart(ids);
+    setPendingBookIds(ids);
+    setPendingOrgId(opts?.orgId ?? null);
+
+    // Already have district (+ optional upazila) and a clinic → open lab page with tests selected.
+    if (opts?.orgId && district?.id) {
+      void navigate({
+        to: "/care/labs/$orgId",
+        params: { orgId: opts.orgId },
+        search: { catalogs: ids.join(",") },
+      });
+      return;
+    }
+    setGeoSheetOpen(true);
+  }
+
+  async function continueBookAfterGeo() {
+    if (!district?.id || !pendingBookIds.length) {
+      toast.error(lang === "bn" ? "জেলা সিলেক্ট করুন" : "Select a district");
+      return;
+    }
     setBookBusy(true);
     try {
-      const packed = await loadBundlePlan(ids, district?.id);
-      setPlan(packed);
-      setSheetOpen(true);
+      const upz = upazila.trim() || undefined;
+      await refreshLabSuggestions(pendingSuggestions, district, upazila);
+      const packed = await loadBundlePlan(
+        pendingBookIds,
+        district.id,
+        upz,
+        pendingOrgId ?? undefined,
+      );
+      if (!packed.groups.length) {
+        toast.error(
+          lang === "bn"
+            ? "এই জেলায় এই টেস্টের অফার নেই। অন্য জেলা/উপজেলা চেষ্টা করুন।"
+            : "No offerings for these tests in this district. Try another area.",
+        );
+        return;
+      }
+      // Prefer preferred clinic, else the group covering the most tests.
+      const primary =
+        (pendingOrgId && packed.groups.find((g) => g.orgId === pendingOrgId)) ||
+        packed.groups.slice().sort((a, b) => b.items.length - a.items.length)[0];
+      const catalogIds = primary.items.map((i) => i.catalogId);
+      setCart(catalogIds);
+      setGeoSheetOpen(false);
+      void navigate({
+        to: "/care/labs/$orgId",
+        params: { orgId: primary.orgId },
+        search: { catalogs: catalogIds.join(",") },
+      });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -534,8 +662,6 @@ export function CareAiTestsPage() {
             "calc(var(--care-ai-composer-h, 7rem) + var(--app-bottom-nav-h, 0px) + 0.5rem)",
         }}
       >
-        <DistrictTypeahead value={district} onChange={setDistrict} />
-
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
@@ -654,75 +780,168 @@ export function CareAiTestsPage() {
           />
         )}
 
-        {showSuggestions && cards.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground px-1">
-              {ui?.suggestionsHeading ?? (lang === "bn" ? "সাজেস্টেড টেস্ট" : "Suggested tests")}
+        {showSuggestions && pendingSuggestions.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-[11px] text-muted-foreground px-1 leading-relaxed">
+              {lang === "bn"
+                ? "বুক চাপলে জেলা সিলেক্ট করতে বলা হবে (উপজেলা ঐচ্ছিক) — তারপর সেই এলাকার ক্লিনিক/মূল্য দেখাবে।"
+                : "Tap Book to choose a district (upazila optional) — then clinics/prices from that area are shown."}
             </p>
-            <ul className="space-y-2">
-              {cards.map((c) => {
-                const inCart = cart.includes(c.catalogId);
-                return (
-                  <li key={c.catalogId} className="rounded-2xl border bg-card px-3 py-3 space-y-1.5">
-                    <div className="flex items-start gap-3">
-                      <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                        <FlaskConical className="h-4 w-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate">{lang === "bn" ? c.nameBn : c.nameEn}</p>
+
+            {geoReady && geoBusy && (
+              <p className="text-xs text-muted-foreground animate-pulse px-1">
+                {lang === "bn" ? "এই এলাকার ল্যাব খুঁজছি…" : "Finding labs in this area…"}
+              </p>
+            )}
+
+            {geoReady && rankedClinics.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground px-1">
+                  {ui?.labClinicsHeading ??
+                    (lang === "bn"
+                      ? "নির্বাচিত জেলা/উপজেলার কম মূল্যের ভেরিফায়েড ক্লিনিক/ল্যাব"
+                      : "Low-price verified clinics/labs in your selected area")}
+                </p>
+                <ul className="space-y-2">
+                  {rankedClinics.map((clinic) => (
+                    <li
+                      key={clinic.orgId}
+                      className="rounded-2xl border bg-card px-3 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate inline-flex items-center gap-1.5">
+                          {lang === "bn" && clinic.nameBn ? clinic.nameBn : clinic.name}
+                          {clinic.verified ? (
+                            <BadgeCheck className="h-3.5 w-3.5 text-sky-600 shrink-0" aria-label="verified" />
+                          ) : null}
+                        </p>
                         <p className="text-[11px] text-muted-foreground">
-                          {[c.code, c.clinicCount ? `${c.clinicCount} ${lang === "bn" ? "ক্লিনিক" : "clinics"}` : null]
+                          {[
+                            clinic.upazila,
+                            `${clinic.testCount} ${lang === "bn" ? "টেস্ট" : "tests"}`,
+                            `৳${Math.round(clinic.subtotal)}`,
+                          ]
                             .filter(Boolean)
                             .join(" · ")}
                         </p>
-                        {c.listPrice != null ? (
-                          <div className="mt-1">
-                            <CareLabPriceDisplay
-                              listPrice={c.listPrice}
-                              salePrice={c.cheapest}
-                              discountPercent={c.discountPercent}
-                              lang={lang}
-                              variant="inline"
-                            />
-                          </div>
+                        {clinic.address ? (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{clinic.address}</p>
                         ) : null}
-                        {c.reason && <p className="text-xs text-muted-foreground mt-1">{c.reason}</p>}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {c.cheapestOfferingId && (
-                        <Link
-                          to="/care/test/$id"
-                          params={{ id: c.cheapestOfferingId }}
-                          className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold"
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        {clinic.sampleOfferingId ? (
+                          <Link
+                            to="/care/labs/$orgId"
+                            params={{ orgId: clinic.orgId }}
+                            className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold"
+                          >
+                            {lang === "bn" ? "বিস্তারিত" : "Details"}
+                          </Link>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={bookBusy}
+                          onClick={() => {
+                            setCart(clinic.catalogIds);
+                            requestBook(clinic.catalogIds, { orgId: clinic.orgId });
+                          }}
+                          className="rounded-lg bg-sky-600 text-white px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50"
                         >
-                          {lang === "bn" ? "ক্লিনিক" : "Clinic"}
-                        </Link>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCart((prev) => (inCart ? prev.filter((id) => id !== c.catalogId) : [...prev, c.catalogId]))
-                        }
-                        className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
-                          inCart ? "bg-primary text-primary-foreground" : "border"
-                        }`}
-                      >
-                        {inCart ? (lang === "bn" ? "কার্টে আছে" : "In cart") : lang === "bn" ? "কার্টে যোগ" : "Add"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={bookBusy}
-                        onClick={() => void openBundle([c.catalogId])}
-                        className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50"
-                      >
-                        {lang === "bn" ? "বুক করুন" : "Book"}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                          {lang === "bn" ? "বুক করুন" : "Book"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {cards.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground px-1">
+                  {ui?.suggestionsHeading ?? (lang === "bn" ? "সাজেস্টেড টেস্ট" : "Suggested tests")}
+                </p>
+                <ul className="space-y-2">
+                  {cards.map((c) => {
+                    const inCart = cart.includes(c.catalogId);
+                    return (
+                      <li key={c.catalogId} className="rounded-2xl border bg-card px-3 py-3 space-y-1.5">
+                        <div className="flex items-start gap-3">
+                          <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                            <FlaskConical className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate">
+                              {lang === "bn" ? c.nameBn : c.nameEn}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {[
+                                c.code,
+                                geoReady && c.clinicCount
+                                  ? `${c.clinicCount} ${lang === "bn" ? "ক্লিনিক" : "clinics"}`
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                            {geoReady && c.listPrice != null ? (
+                              <div className="mt-1">
+                                <CareLabPriceDisplay
+                                  listPrice={c.listPrice}
+                                  salePrice={c.cheapest}
+                                  discountPercent={c.discountPercent}
+                                  lang={lang}
+                                  variant="inline"
+                                />
+                              </div>
+                            ) : null}
+                            {c.reason && <p className="text-xs text-muted-foreground mt-1">{c.reason}</p>}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {geoReady && c.cheapestOfferingId && (
+                            <Link
+                              to="/care/test/$id"
+                              params={{ id: c.cheapestOfferingId }}
+                              className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold"
+                            >
+                              {lang === "bn" ? "ক্লিনিক" : "Clinic"}
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCart((prev) =>
+                                inCart ? prev.filter((id) => id !== c.catalogId) : [...prev, c.catalogId],
+                              )
+                            }
+                            className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
+                              inCart ? "bg-primary text-primary-foreground" : "border"
+                            }`}
+                          >
+                            {inCart
+                              ? lang === "bn"
+                                ? "কার্টে আছে"
+                                : "In cart"
+                              : lang === "bn"
+                                ? "কার্টে যোগ"
+                                : "Add"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={bookBusy}
+                            onClick={() => requestBook([c.catalogId])}
+                            className="rounded-lg bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                          >
+                            {lang === "bn" ? "বুক করুন" : "Book"}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         )}
         <div ref={bottomRef} />
@@ -752,7 +971,11 @@ export function CareAiTestsPage() {
             <button
               type="button"
               disabled={bookBusy || (cartCount === 0 && cards.length === 0)}
-              onClick={() => void openBundle()}
+              onClick={() => {
+                const ids = cart.length ? cart : cards.map((c) => c.catalogId);
+                if (ids.length) setCart(ids);
+                requestBook(ids);
+              }}
               className="w-full rounded-xl bg-primary text-primary-foreground px-3 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <ShoppingBag className="h-4 w-4" />
@@ -769,13 +992,31 @@ export function CareAiTestsPage() {
         }
       />
 
-      <CareAiBundleSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        plan={plan}
-        lang={lang}
-        busy={bookBusy}
-        setBusy={setBookBusy}
+      <CareAiLabGeoSheet
+        open={geoSheetOpen}
+        onOpenChange={setGeoSheetOpen}
+        district={district}
+        upazila={upazila}
+        onDistrictChange={setDistrict}
+        onUpazilaChange={setUpazila}
+        title={
+          ui?.labGeoTitle ??
+          (lang === "bn"
+            ? "বুকিংয়ের আগে জেলা নির্বাচন করুন"
+            : "Select district before booking")
+        }
+        hint={
+          ui?.labGeoHint ??
+          (lang === "bn"
+            ? "জেলা বাধ্যতামূলক; উপজেলা ঐচ্ছিক। এরপর সেই এলাকার হাসপাতাল/ক্লিনিক পেজে আপনার টেস্টগুলো সিলেক্ট অবস্থায় খুলবে।"
+            : "District required; upazila optional. Then the hospital/clinic page opens with your tests already selected.")
+        }
+        ctaLabel={
+          lang === "bn" ? "ল্যাবে টেস্ট দেখুন" : "View tests at lab"
+        }
+        cancelLabel={lang === "bn" ? "ফিরে যান" : "Back"}
+        busy={bookBusy || geoBusy}
+        onContinue={() => void continueBookAfterGeo()}
       />
     </div>
   );
