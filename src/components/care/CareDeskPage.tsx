@@ -24,7 +24,12 @@ import type { CarePermissionKey } from "@/lib/care-permissions";
 import { CARE_PERMISSION_FALLBACK } from "@/lib/care-permissions";
 import { fetchCareSpecialties, fetchCareVendorTypes } from "@/lib/care-cms";
 import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
-import { resolveDoctorId, type CareDoctorOption } from "@/lib/care-doctors-api";
+import {
+  isCustomDoctor,
+  requestDoctorLink,
+  resolveDoctorId,
+  type CareDoctorOption,
+} from "@/lib/care-doctors-api";
 import {
   approveCareSerial,
   callNextSerial,
@@ -975,21 +980,50 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
     if (!doctor || !locId) return;
     setBusy(true);
     try {
-      // Reuses the existing global doctor when one matches, so the same
-      // physician at several clinics stays a single record.
+      const discNum = discValue.trim() ? Number(discValue) : null;
+      const hasDiscount = discNum != null && Number.isFinite(discNum) && discNum > 0;
+      const feePayload = {
+        fee_amount: fee ? Number(fee) : null,
+        second_visit_discount_type: hasDiscount ? discType : null,
+        second_visit_discount_value: hasDiscount ? discNum : null,
+        specialty_id: specId || null,
+        bmdc_no: bmdc || null,
+      };
+
+      // Registered doctors (linked account) must approve chamber affiliation.
+      if (!isCustomDoctor(doctor) && doctor.has_account) {
+        await requestDoctorLink({
+          doctorId: doctor.id,
+          orgId,
+          kind: "affiliation",
+          locationId: locId,
+          payload: feePayload,
+        });
+        setDoctor(null);
+        setBmdc("");
+        setFee("");
+        setDiscValue("");
+        setDiscType("percent");
+        toast.success(
+          lang === "bn"
+            ? "অনুমোদনের জন্য অনুরোধ পাঠানো হয়েছে"
+            : "Approval request sent to doctor",
+        );
+        return;
+      }
+
+      // Legacy / unregistered catalog names: affiliate immediately.
       const doctorId = await resolveDoctorId(doctor, {
         bmdcNo: bmdc || null,
         specialtyId: specId || null,
       });
-      const discNum = discValue.trim() ? Number(discValue) : null;
-      const hasDiscount = discNum != null && Number.isFinite(discNum) && discNum > 0;
       const { error: aErr } = await supabase.from("care_affiliations").insert({
         org_id: orgId,
         doctor_id: doctorId,
         location_id: locId,
-        fee_amount: fee ? Number(fee) : null,
-        second_visit_discount_type: hasDiscount ? discType : null,
-        second_visit_discount_value: hasDiscount ? discNum : null,
+        fee_amount: feePayload.fee_amount,
+        second_visit_discount_type: feePayload.second_visit_discount_type,
+        second_visit_discount_value: feePayload.second_visit_discount_value,
       } as never);
       if (aErr) throw aErr;
       setDoctor(null);

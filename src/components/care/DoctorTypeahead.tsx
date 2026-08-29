@@ -117,7 +117,9 @@ export function DoctorTypeahead({
         <input
           className="flex-1 bg-transparent text-sm outline-none disabled:cursor-not-allowed"
           value={q}
-          placeholder={placeholder ?? (bn ? "ডাক্তারের নাম বা BMDC…" : "Doctor name or BMDC…")}
+          placeholder={
+            placeholder ?? (bn ? "নাম, কোড বা BMDC…" : "Name, doctor code or BMDC…")
+          }
           required={required && !value}
           disabled={disabled}
           onFocus={() => setOpen(true)}
@@ -198,12 +200,22 @@ export function DoctorTypeahead({
                   onClick={() => pick(d)}
                 >
                   <span className="font-medium">{doctorDisplayName(d, lang)}</span>
+                  {d.doctor_code ? (
+                    <span className="ml-2 text-[10px] font-semibold text-sky-700">
+                      {d.doctor_code}
+                    </span>
+                  ) : null}
                   {d.bmdc_no && (
                     <span className="ml-2 text-[10px] text-muted-foreground">BMDC {d.bmdc_no}</span>
                   )}
                   <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
                     {bn ? d.specialty_name_bn : d.specialty_name_en}
                   </span>
+                  {d.has_account ? (
+                    <span className="ml-2 text-[10px] font-bold text-emerald-700">
+                      {bn ? "নিবন্ধিত" : "registered"}
+                    </span>
+                  ) : null}
                   {d.in_org ? (
                     <span className="ml-2 text-[10px] font-bold text-primary">
                       {bn ? "এই প্রতিষ্ঠানে" : "here"}

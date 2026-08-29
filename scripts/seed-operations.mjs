@@ -297,12 +297,17 @@ async function main() {
 
   const doctorByBmdc = {};
   for (const s of SURGEONS) {
+    const doctorCode = `DR-${s.bmdc.replace(/^DEMO-/, "")}`;
     const { data, error } = await sb
       .from("care_doctors")
       .insert({
         full_name: s.name,
         full_name_bn: s.name_bn,
         bmdc_no: s.bmdc,
+        doctor_code: doctorCode,
+        title: s.name.startsWith("Prof") ? "Prof. Dr." : "Dr.",
+        doctor_type: "MBBS",
+        registration_status: "active",
         specialty_id: specBySlug[s.spec] ?? specBySlug.surgery ?? null,
         qualifications: s.qual,
         bio: `${s.name} performs surgery at partner hospitals on the platform.`,
@@ -313,6 +318,7 @@ async function main() {
       .single();
     if (error) throw new Error(`surgeon ${s.bmdc}: ${error.message}`);
     doctorByBmdc[s.bmdc] = data.id;
+    console.log(`  · ${s.name} · ${doctorCode}`);
   }
   console.log(`✓ ${SURGEONS.length} demo surgeons`);
 

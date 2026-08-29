@@ -5,6 +5,7 @@ export type CareDoctorOption = {
   full_name: string;
   full_name_bn?: string | null;
   bmdc_no?: string | null;
+  doctor_code?: string | null;
   qualifications?: string | null;
   photo_url?: string | null;
   specialty_id?: string | null;
@@ -14,6 +15,8 @@ export type CareDoctorOption = {
   org_count?: number | null;
   /** True when already affiliated with the org that ran the search. */
   in_org?: boolean | null;
+  registration_status?: string | null;
+  has_account?: boolean | null;
 };
 
 /** Free-text entries carry this prefix until they are committed to the DB. */
@@ -84,18 +87,27 @@ export type CareDoctorAdminRow = CareDoctorOption & {
   is_active: boolean;
   bio?: string | null;
   created_at?: string;
+  registration_status?: string | null;
+  user_id?: string | null;
+  doctor_code?: string | null;
+  phone?: string | null;
+  email?: string | null;
 };
 
 export async function fetchDoctorsForAdmin(q: string, limit = 50): Promise<CareDoctorAdminRow[]> {
   let query = supabase
     .from("care_doctors")
     .select(
-      "id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, bio, specialty_id, is_active, created_at",
+      "id, full_name, full_name_bn, bmdc_no, doctor_code, qualifications, photo_url, bio, specialty_id, is_active, created_at, registration_status, user_id, phone, email",
     )
     .order("full_name")
     .limit(limit);
   const needle = q.trim();
-  if (needle) query = query.or(`full_name.ilike.%${needle}%,bmdc_no.ilike.%${needle}%`);
+  if (needle) {
+    query = query.or(
+      `full_name.ilike.%${needle}%,bmdc_no.ilike.%${needle}%,doctor_code.ilike.%${needle}%`,
+    );
+  }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as CareDoctorAdminRow[];
@@ -106,12 +118,51 @@ export async function updateCareDoctor(
   patch: Partial<
     Pick<
       CareDoctorAdminRow,
-      "full_name" | "full_name_bn" | "bmdc_no" | "qualifications" | "photo_url" | "bio" | "specialty_id"
+      | "full_name"
+      | "full_name_bn"
+      | "bmdc_no"
+      | "qualifications"
+      | "photo_url"
+      | "bio"
+      | "specialty_id"
+      | "doctor_code"
+      | "registration_status"
     > & { is_active: boolean }
   >,
 ) {
   const { error } = await supabase.from("care_doctors").update(patch as never).eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+export async function requestDoctorLink(input: {
+  doctorId: string;
+  orgId: string;
+  kind: "affiliation" | "operation";
+  locationId?: string | null;
+  offeringId?: string | null;
+  role?: string | null;
+  payload?: Record<string, unknown>;
+}) {
+  const { data, error } = await supabase.rpc("care_request_doctor_link", {
+    _doctor_id: input.doctorId,
+    _org_id: input.orgId,
+    _kind: input.kind,
+    _location_id: input.locationId ?? null,
+    _offering_id: input.offeringId ?? null,
+    _role: input.role ?? null,
+    _payload: input.payload ?? {},
+  } as never);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function respondDoctorLink(requestId: string, approve: boolean) {
+  const { data, error } = await supabase.rpc("care_respond_doctor_link", {
+    _request_id: requestId,
+    _approve: approve,
+  } as never);
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export type CareDoctorClinicRow = {

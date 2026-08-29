@@ -43,6 +43,9 @@ import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.o
 import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
 import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
 import { Route as CarePortalAmbulanceRouteImport } from './routes/care.portal.ambulance'
+import { Route as CareDoctorRegisterRouteImport } from './routes/care.doctor.register'
+import { Route as CareDoctorPortalRouteImport } from './routes/care.doctor.portal'
+import { Route as CareDoctorAuthRouteImport } from './routes/care.doctor.auth'
 import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
 import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
 import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
@@ -235,6 +238,21 @@ const CarePortalAmbulanceRoute = CarePortalAmbulanceRouteImport.update({
   path: '/ambulance',
   getParentRoute: () => CarePortalRoute,
 } as any)
+const CareDoctorRegisterRoute = CareDoctorRegisterRouteImport.update({
+  id: '/care/doctor/register',
+  path: '/care/doctor/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareDoctorPortalRoute = CareDoctorPortalRouteImport.update({
+  id: '/care/doctor/portal',
+  path: '/care/doctor/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareDoctorAuthRoute = CareDoctorAuthRouteImport.update({
+  id: '/care/doctor/auth',
+  path: '/care/doctor/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
@@ -382,6 +400,9 @@ export interface FileRoutesByFullPath {
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/doctor/auth': typeof CareDoctorAuthRoute
+  '/care/doctor/portal': typeof CareDoctorPortalRoute
+  '/care/doctor/register': typeof CareDoctorRegisterRoute
   '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
@@ -434,6 +455,9 @@ export interface FileRoutesByTo {
   '/chat/$peerId': typeof AppChatPeerIdRoute
   '/me/$view': typeof AppMeViewRoute
   '/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/doctor/auth': typeof CareDoctorAuthRoute
+  '/care/doctor/portal': typeof CareDoctorPortalRoute
+  '/care/doctor/register': typeof CareDoctorRegisterRoute
   '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
@@ -493,6 +517,9 @@ export interface FileRoutesById {
   '/_app/chat/$peerId': typeof AppChatPeerIdRoute
   '/_app/me/$view': typeof AppMeViewRoute
   '/_app/profile/$userId': typeof AppProfileUserIdRoute
+  '/care/doctor/auth': typeof CareDoctorAuthRoute
+  '/care/doctor/portal': typeof CareDoctorPortalRoute
+  '/care/doctor/register': typeof CareDoctorRegisterRoute
   '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
@@ -552,6 +579,9 @@ export interface FileRouteTypes {
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/doctor/auth'
+    | '/care/doctor/portal'
+    | '/care/doctor/register'
     | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
@@ -604,6 +634,9 @@ export interface FileRouteTypes {
     | '/chat/$peerId'
     | '/me/$view'
     | '/profile/$userId'
+    | '/care/doctor/auth'
+    | '/care/doctor/portal'
+    | '/care/doctor/register'
     | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
@@ -662,6 +695,9 @@ export interface FileRouteTypes {
     | '/_app/chat/$peerId'
     | '/_app/me/$view'
     | '/_app/profile/$userId'
+    | '/care/doctor/auth'
+    | '/care/doctor/portal'
+    | '/care/doctor/register'
     | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
@@ -702,6 +738,9 @@ export interface RootRouteChildren {
   AuthResetRoute: typeof AuthResetRoute
   CareAuthRoute: typeof CareAuthRoute
   CarePortalRoute: typeof CarePortalRouteWithChildren
+  CareDoctorAuthRoute: typeof CareDoctorAuthRoute
+  CareDoctorPortalRoute: typeof CareDoctorPortalRoute
+  CareDoctorRegisterRoute: typeof CareDoctorRegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -943,6 +982,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/care/portal/ambulance'
       preLoaderRoute: typeof CarePortalAmbulanceRouteImport
       parentRoute: typeof CarePortalRoute
+    }
+    '/care/doctor/register': {
+      id: '/care/doctor/register'
+      path: '/care/doctor/register'
+      fullPath: '/care/doctor/register'
+      preLoaderRoute: typeof CareDoctorRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/doctor/portal': {
+      id: '/care/doctor/portal'
+      path: '/care/doctor/portal'
+      fullPath: '/care/doctor/portal'
+      preLoaderRoute: typeof CareDoctorPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/doctor/auth': {
+      id: '/care/doctor/auth'
+      path: '/care/doctor/auth'
+      fullPath: '/care/doctor/auth'
+      preLoaderRoute: typeof CareDoctorAuthRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/profile/$userId': {
       id: '/_app/profile/$userId'
@@ -1275,6 +1335,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthResetRoute: AuthResetRoute,
   CareAuthRoute: CareAuthRoute,
   CarePortalRoute: CarePortalRouteWithChildren,
+  CareDoctorAuthRoute: CareDoctorAuthRoute,
+  CareDoctorPortalRoute: CareDoctorPortalRoute,
+  CareDoctorRegisterRoute: CareDoctorRegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

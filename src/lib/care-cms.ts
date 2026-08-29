@@ -123,6 +123,27 @@ export type CareVendorOnboardingSettings = {
   fields: Record<CareVendorFieldKey, CareVendorFieldConfig>;
 };
 
+export type CareDoctorFieldKey =
+  | "title"
+  | "first_name"
+  | "last_name"
+  | "date_of_birth"
+  | "gender"
+  | "district"
+  | "nid_passport"
+  | "bmdc"
+  | "doctor_type"
+  | "mobile"
+  | "email"
+  | "password"
+  | "specialty"
+  | "qualifications"
+  | "terms";
+
+export type CareDoctorOnboardingSettings = {
+  fields: Record<CareDoctorFieldKey, CareVendorFieldConfig>;
+};
+
 const DEFAULT_VENDOR_ONBOARDING: CareVendorOnboardingSettings = {
   fields: {
     owner_name: { enabled: true, required: true, label_bn: "মালিকের নাম", label_en: "Owner name" },
@@ -136,6 +157,36 @@ const DEFAULT_VENDOR_ONBOARDING: CareVendorOnboardingSettings = {
     address: { enabled: true, required: true, label_bn: "ঠিকানা", label_en: "Address" },
     location_name: { enabled: true, required: false, label_bn: "শাখা / চেম্বার", label_en: "Branch / chamber" },
     description: { enabled: true, required: false, label_bn: "বিবরণ", label_en: "Description" },
+  },
+};
+
+const DEFAULT_DOCTOR_ONBOARDING: CareDoctorOnboardingSettings = {
+  fields: {
+    title: { enabled: true, required: true, label_bn: "উপাধি", label_en: "Title" },
+    first_name: { enabled: true, required: true, label_bn: "নামের প্রথম অংশ", label_en: "First Name" },
+    last_name: { enabled: true, required: true, label_bn: "নামের শেষ অংশ", label_en: "Last Name" },
+    date_of_birth: { enabled: true, required: true, label_bn: "জন্ম তারিখ", label_en: "Date of birth" },
+    gender: { enabled: true, required: true, label_bn: "লিঙ্গ", label_en: "Gender" },
+    district: { enabled: true, required: true, label_bn: "জেলা", label_en: "District" },
+    nid_passport: {
+      enabled: true,
+      required: true,
+      label_bn: "জাতীয় পরিচয়পত্র / পাসপোর্ট",
+      label_en: "National ID / Passport Number",
+    },
+    bmdc: {
+      enabled: true,
+      required: true,
+      label_bn: "রেজিস্ট্রেশন নম্বর (BMDC)",
+      label_en: "Registration Number (BMDC)",
+    },
+    doctor_type: { enabled: true, required: true, label_bn: "ডাক্তারের ধরন", label_en: "Doctor Type" },
+    mobile: { enabled: true, required: true, label_bn: "মোবাইল নম্বর", label_en: "Mobile number" },
+    email: { enabled: true, required: true, label_bn: "ইমেইল", label_en: "Email" },
+    password: { enabled: true, required: true, label_bn: "পাসওয়ার্ড", label_en: "Password" },
+    specialty: { enabled: true, required: false, label_bn: "স্পেশালিটি", label_en: "Specialty" },
+    qualifications: { enabled: true, required: false, label_bn: "যোগ্যতা", label_en: "Qualifications" },
+    terms: { enabled: true, required: true, label_bn: "শর্তাবলী", label_en: "Terms & conditions" },
   },
 };
 
@@ -453,6 +504,42 @@ export async function saveCareVendorOnboarding(settings: CareVendorOnboardingSet
   const { error } = await supabase.from("app_settings").upsert({
     id: 1,
     care_vendor_onboarding: settings,
+  } as never);
+  if (error) throw new Error(error.message);
+}
+
+function normalizeDoctorOnboarding(raw: unknown): CareDoctorOnboardingSettings {
+  const base = DEFAULT_DOCTOR_ONBOARDING;
+  if (!raw || typeof raw !== "object") return base;
+  const r = raw as { fields?: Record<string, Partial<CareVendorFieldConfig>> };
+  const fields = { ...base.fields };
+  for (const key of Object.keys(base.fields) as CareDoctorFieldKey[]) {
+    const f = r.fields?.[key];
+    if (!f) continue;
+    fields[key] = {
+      enabled: f.enabled !== false,
+      required: f.required === true,
+      label_bn: f.label_bn?.trim() || base.fields[key].label_bn,
+      label_en: f.label_en?.trim() || base.fields[key].label_en,
+    };
+  }
+  return { fields };
+}
+
+export async function fetchCareDoctorOnboarding(): Promise<CareDoctorOnboardingSettings> {
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("care_doctor_onboarding")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error || !data) return DEFAULT_DOCTOR_ONBOARDING;
+  return normalizeDoctorOnboarding((data as { care_doctor_onboarding?: unknown }).care_doctor_onboarding);
+}
+
+export async function saveCareDoctorOnboarding(settings: CareDoctorOnboardingSettings) {
+  const { error } = await supabase.from("app_settings").upsert({
+    id: 1,
+    care_doctor_onboarding: settings,
   } as never);
   if (error) throw new Error(error.message);
 }

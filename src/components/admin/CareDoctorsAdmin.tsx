@@ -178,6 +178,8 @@ function DoctorRow({
         photo_url: form.photo_url?.trim() || null,
         bio: form.bio?.trim() || null,
         specialty_id: form.specialty_id || null,
+        doctor_code: form.doctor_code?.trim() || null,
+        registration_status: form.registration_status || "active",
         is_active: form.is_active,
       });
       toast.success(bn ? "সেভ হয়েছে" : "Saved");
@@ -202,11 +204,20 @@ function DoctorRow({
             {doctor.full_name}
           </span>
           <span className="block truncate text-[10px] text-slate-500">
-            {[doctor.bmdc_no ? `BMDC ${doctor.bmdc_no}` : null, doctor.qualifications]
+            {[
+              doctor.doctor_code,
+              doctor.bmdc_no ? `BMDC ${doctor.bmdc_no}` : null,
+              doctor.qualifications,
+            ]
               .filter(Boolean)
               .join(" · ") || (bn ? "তথ্য অসম্পূর্ণ" : "Details missing")}
           </span>
         </span>
+        {doctor.registration_status === "suspended" && (
+          <span className="shrink-0 rounded-full border border-amber-700/50 px-2 py-0.5 text-[9px] text-amber-300">
+            suspended
+          </span>
+        )}
         {!doctor.is_active && (
           <span className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[9px] text-slate-400">
             {bn ? "নিষ্ক্রিয়" : "inactive"}
@@ -240,6 +251,26 @@ function DoctorRow({
                 disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, bmdc_no: e.target.value })}
               />
+            </Field>
+            <Field label={bn ? "ডাক্তার কোড" : "Doctor code"}>
+              <input
+                className={ainp}
+                value={form.doctor_code ?? ""}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, doctor_code: e.target.value })}
+              />
+            </Field>
+            <Field label={bn ? "স্ট্যাটাস" : "Status"}>
+              <select
+                className={ainp}
+                value={form.registration_status ?? "active"}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, registration_status: e.target.value })}
+              >
+                <option value="active">active</option>
+                <option value="pending">pending</option>
+                <option value="suspended">suspended</option>
+              </select>
             </Field>
             <Field label={bn ? "স্পেশালিটি" : "Specialty"}>
               <select

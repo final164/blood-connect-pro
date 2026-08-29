@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Scissors, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { fetchOrgLocations } from "@/lib/care-api";
-import { resolveDoctorId, type CareDoctorOption } from "@/lib/care-doctors-api";
+import {
+  isCustomDoctor,
+  requestDoctorLink,
+  resolveDoctorId,
+  type CareDoctorOption,
+} from "@/lib/care-doctors-api";
 import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { CareOperationPriceBreakdown, operationPriceMath } from "@/components/care/CareOperationPriceBreakdown";
@@ -323,6 +328,22 @@ function OfferingDoctors({
     }
     setBusy(true);
     try {
+      if (!isCustomDoctor(doctor) && doctor.has_account) {
+        await requestDoctorLink({
+          doctorId: doctor.id,
+          orgId,
+          kind: "operation",
+          offeringId: offering.id,
+          role,
+          payload: { sort_order: (offering.doctors?.length ?? 0) * 10 },
+        });
+        setDoctor(null);
+        toast.success(
+          bn ? "অনুমোদনের জন্য অনুরোধ পাঠানো হয়েছে" : "Approval request sent to doctor",
+        );
+        return;
+      }
+
       const doctorId = await resolveDoctorId(doctor);
       await addOperationOfferingDoctor(
         offering.id,

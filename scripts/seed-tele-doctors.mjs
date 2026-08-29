@@ -269,6 +269,10 @@ async function main() {
         full_name: d.full_name,
         full_name_bn: d.full_name_bn,
         bmdc_no: d.bmdc_no,
+        doctor_code: `DR-TELE-${d.bmdc_no.replace("TELE-DEMO-", "")}`,
+        title: "Dr.",
+        doctor_type: "MBBS",
+        registration_status: "active",
         specialty_id,
         qualifications: d.qualifications,
         photo_url: d.photo_url,
@@ -335,7 +339,7 @@ async function main() {
       `slots ${d.bmdc_no}`,
     );
 
-    console.log(`  ✓ ${d.full_name} · ৳${d.fee_amount} · ${d.spec}`);
+    console.log(`  ✓ ${d.full_name} · DR-TELE-${d.bmdc_no.replace("TELE-DEMO-", "")} · ৳${d.fee_amount} · ${d.spec}`);
   }
 
   for (const slug of Object.keys(specBySlug)) {

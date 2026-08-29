@@ -336,13 +336,21 @@ async function main() {
     }
 
     for (const doc of v.doctors) {
+      const doctorCode = `DR-${doc.bmdc.replace(/^DEMO-/, "")}`;
+      const doctorEmail = `${doc.bmdc.toLowerCase().replace(/[^a-z0-9]+/g, ".")}@demo.muktosheba.app`;
       const { data: doctor, error: dErr } = await sb
         .from("care_doctors")
         .insert({
-          user_id: doc === v.doctors[0] ? userId : null,
+          user_id: null,
           full_name: doc.name,
           full_name_bn: doc.name_bn,
           bmdc_no: doc.bmdc,
+          doctor_code: doctorCode,
+          title: doc.name.startsWith("Prof") ? "Prof. Dr." : "Dr.",
+          doctor_type: "MBBS",
+          phone: v.phone,
+          email: doctorEmail,
+          registration_status: "active",
           specialty_id: specBySlug[doc.spec] ?? specBySlug.general ?? null,
           qualifications: "MBBS, MD",
           bio: `${doc.name} consults at ${v.name}.`,
@@ -352,6 +360,7 @@ async function main() {
         .select("id")
         .single();
       if (dErr) throw new Error(`doctor: ${dErr.message}`);
+      console.log(`    doctor ${doc.name} · ${doctorCode}`);
       const locId = locIds[doc.loc] ?? locIds[0];
       const { data: aff, error: aErr } = await sb
         .from("care_affiliations")
@@ -453,7 +462,72 @@ async function main() {
     console.log(`    portal /care/auth`);
   }
 
+  // Optional doctor portal demo logins (email + password).
+  const demoDoctors = [
+    {
+      bmdc: "DEMO-GL-01",
+      email: "dr.ayesha.demo@muktosheba.app",
+      password: "DoctorDemo1!",
+      name: "Prof. Dr. Ayesha Rahman",
+    },
+    {
+      bmdc: "DEMO-PC-01",
+      email: "dr.rezaul.demo@muktosheba.app",
+      password: "DoctorDemo1!",
+      name: "Prof. Dr. Rezaul Karim",
+    },
+  ];
+  console.log("\nLinking demo doctor portal accounts…");
+  for (const d of demoDoctors) {
+    const { data: row } = await sb
+      .from("care_doctors")
+      .select("id, doctor_code")
+      .eq("bmdc_no", d.bmdc)
+      .maybeSingle();
+    if (!row) {
+      console.warn(`  (skip ${d.bmdc} — doctor not found)`);
+      continue;
+    }
+    let doctorUserId = await findUserIdByEmail(d.email);
+    if (!doctorUserId) {
+      const created = await sb.auth.admin.createUser({
+        email: d.email,
+        password: d.password,
+        email_confirm: true,
+        user_metadata: { full_name: d.name, account_kind: "care_doctor" },
+      });
+      if (created.error) {
+        console.warn(`  ! ${d.email}: ${created.error.message}`);
+        continue;
+      }
+      doctorUserId = created.data.user?.id ?? null;
+    } else {
+      await sb.auth.admin.updateUserById(doctorUserId, {
+        password: d.password,
+        email_confirm: true,
+        user_metadata: { full_name: d.name, account_kind: "care_doctor" },
+      });
+    }
+    if (!doctorUserId) continue;
+    await sb.from("profiles").upsert({
+      id: doctorUserId,
+      full_name: d.name,
+    });
+    await sb
+      .from("care_doctors")
+      .update({
+        user_id: doctorUserId,
+        email: d.email,
+        registration_status: "active",
+      })
+      .eq("id", row.id);
+    console.log(`  ✓ ${d.name} · ${row.doctor_code ?? d.bmdc}`);
+    console.log(`    login ${d.email} / ${d.password}`);
+    console.log(`    portal /care/doctor/auth`);
+  }
+
   console.log("\nDone. Login at /care/auth with any phone + PIN above.\n");
+  console.log("Doctor portal: /care/doctor/auth (demo emails above).\n");
 }
 
 function dRand(dateStr) {

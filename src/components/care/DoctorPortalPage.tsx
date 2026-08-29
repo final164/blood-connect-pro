@@ -1,0 +1,332 @@
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import {
+  Building2,
+  Check,
+  ClipboardList,
+  Loader2,
+  Scissors,
+  Stethoscope,
+  Video,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { PageBackButton } from "@/components/nav/PageBackButton";
+import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
+import { fetchMyDoctorProfile, type CareDoctorProfile } from "@/lib/care-doctor-auth";
+import {
+  approveDoctorLink,
+  fetchDoctorAffiliations,
+  fetchDoctorLinkRequests,
+  fetchDoctorOperations,
+  fetchDoctorUpcomingSerials,
+  rejectDoctorLink,
+  type DoctorAffiliationRow,
+  type DoctorLinkRequest,
+  type DoctorOperationRow,
+  type DoctorSerialSummary,
+} from "@/lib/care-doctor-portal-api";
+import { formatCareMoney } from "@/lib/care-invoice";
+import { cn } from "@/lib/utils";
+
+type Tab = "overview" | "approvals" | "chambers" | "serials" | "operations" | "video";
+
+export function DoctorPortalPage() {
+  const { lang } = useI18n();
+  const bn = lang === "bn";
+  const { session, loading: authLoading, isAnonymous } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<CareDoctorProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [requests, setRequests] = useState<DoctorLinkRequest[]>([]);
+  const [affiliations, setAffiliations] = useState<DoctorAffiliationRow[]>([]);
+  const [serials, setSerials] = useState<DoctorSerialSummary[]>([]);
+  const [operations, setOperations] = useState<DoctorOperationRow[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!session || isAnonymous) {
+      void navigate({ to: "/care/doctor/auth" });
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    void fetchMyDoctorProfile()
+      .then(async (p) => {
+        if (cancelled) return;
+        if (!p) {
+          void navigate({ to: "/care/doctor/register" });
+          return;
+        }
+        setProfile(p);
+        const [reqs, affs, ser, ops] = await Promise.all([
+          fetchDoctorLinkRequests(p.id),
+          fetchDoctorAffiliations(p.id),
+          fetchDoctorUpcomingSerials(p.id),
+          fetchDoctorOperations(p.id),
+        ]);
+        if (cancelled) return;
+        setRequests(reqs);
+        setAffiliations(affs);
+        setSerials(ser);
+        setOperations(ops);
+        if (reqs.some((r) => r.status === "pending")) setTab("approvals");
+      })
+      .catch((e) => toast.error((e as Error).message))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, authLoading, isAnonymous, navigate]);
+
+  async function respond(id: string, approve: boolean) {
+    setBusyId(id);
+    try {
+      if (approve) await approveDoctorLink(id);
+      else await rejectDoctorLink(id);
+      toast.success(approve ? (bn ? "অনুমোদিত" : "Approved") : bn ? "প্রত্যাখ্যান" : "Rejected");
+      if (profile) {
+        const [reqs, affs, ops] = await Promise.all([
+          fetchDoctorLinkRequests(profile.id),
+          fetchDoctorAffiliations(profile.id),
+          fetchDoctorOperations(profile.id),
+        ]);
+        setRequests(reqs);
+        setAffiliations(affs);
+        setOperations(ops);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const pending = requests.filter((r) => r.status === "pending");
+
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-dvh grid place-items-center">
+        <Loader2 className="h-6 w-6 animate-spin text-sky-600" />
+      </div>
+    );
+  }
+
+  if (!profile) return null;
+
+  const tabs: { id: Tab; bn: string; en: string; icon: typeof Stethoscope; badge?: number }[] = [
+    { id: "overview", bn: "ওভারভিউ", en: "Overview", icon: Stethoscope },
+    { id: "approvals", bn: "অনুমোদন", en: "Approvals", icon: Check, badge: pending.length },
+    { id: "chambers", bn: "চেম্বার", en: "Chambers", icon: Building2 },
+    { id: "serials", bn: "সিরিয়াল", en: "Serials", icon: ClipboardList },
+    { id: "operations", bn: "অপারেশন", en: "Operations", icon: Scissors },
+    { id: "video", bn: "ভিডিও", en: "Video", icon: Video },
+  ];
+
+  return (
+    <div className="min-h-dvh bg-gradient-to-b from-sky-50/80 to-background flex flex-col">
+      <AutoHideHeader className="z-30 border-b bg-background/95 safe-top">
+        <div className="flex items-center gap-2 px-3 py-2">
+          <PageBackButton fallbackTo={{ to: "/care" }} shape="xl" />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm font-bold truncate">{profile.full_name}</h1>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {[profile.doctor_code, profile.bmdc_no ? `BMDC ${profile.bmdc_no}` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-1 overflow-x-auto px-2 pb-2">
+          {tabs.map((t) => {
+            const Icon = t.icon;
+            const on = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-semibold border",
+                  on ? "bg-sky-600 text-white border-sky-600" : "bg-card border-border",
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {bn ? t.bn : t.en}
+                {t.badge ? (
+                  <span className="ml-0.5 rounded-full bg-rose-500 text-white text-[9px] px-1.5">
+                    {t.badge}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </AutoHideHeader>
+
+      <div className="flex-1 px-3 py-4 max-w-2xl mx-auto w-full space-y-3 pb-24">
+        {tab === "overview" && (
+          <div className="rounded-2xl border bg-card p-4 space-y-2">
+            <p className="text-xs text-muted-foreground">{bn ? "ডাক্তার কোড" : "Doctor code"}</p>
+            <p className="text-2xl font-black text-sky-700 tracking-wide">{profile.doctor_code}</p>
+            <dl className="grid grid-cols-2 gap-2 text-sm pt-2">
+              <div>
+                <dt className="text-[10px] text-muted-foreground">BMDC</dt>
+                <dd className="font-semibold">{profile.bmdc_no || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "ধরন" : "Type"}</dt>
+                <dd className="font-semibold">{profile.doctor_type || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "স্ট্যাটাস" : "Status"}</dt>
+                <dd className="font-semibold">{profile.registration_status}</dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-muted-foreground">{bn ? "যোগ্যতা" : "Qualifications"}</dt>
+                <dd className="font-semibold">{profile.qualifications || "—"}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
+
+        {tab === "approvals" && (
+          <div className="space-y-2">
+            {!pending.length ? (
+              <p className="text-sm text-muted-foreground text-center py-10">
+                {bn ? "কোনো অপেক্ষমাণ অনুরোধ নেই" : "No pending requests"}
+              </p>
+            ) : (
+              pending.map((r) => (
+                <div key={r.id} className="rounded-2xl border bg-card px-3 py-3 space-y-2">
+                  <p className="text-sm font-semibold">
+                    {bn ? r.org_name_bn || r.org_name : r.org_name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {r.kind === "affiliation"
+                      ? bn
+                        ? `চেম্বার সিরিয়াল · ${r.location_name || ""}`
+                        : `Chamber serial · ${r.location_name || ""}`
+                      : bn
+                        ? `অপারেশন · ${r.role || ""}`
+                        : `Operation · ${r.role || ""}`}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId === r.id}
+                      onClick={() => void respond(r.id, true)}
+                      className="flex-1 rounded-xl bg-emerald-600 text-white py-2 text-xs font-bold inline-flex items-center justify-center gap-1"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      {bn ? "অনুমোদন" : "Approve"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === r.id}
+                      onClick={() => void respond(r.id, false)}
+                      className="flex-1 rounded-xl border py-2 text-xs font-bold inline-flex items-center justify-center gap-1"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      {bn ? "না" : "Reject"}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "chambers" && (
+          <ul className="space-y-2">
+            {!affiliations.length ? (
+              <p className="text-sm text-muted-foreground text-center py-10">
+                {bn ? "কোনো চেম্বার যুক্ত নেই" : "No chambers linked yet"}
+              </p>
+            ) : (
+              affiliations.map((a) => (
+                <li key={a.id} className="rounded-2xl border bg-card px-3 py-3">
+                  <p className="text-sm font-semibold">
+                    {bn ? a.org_name_bn || a.org_name : a.org_name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {bn ? a.location_name_bn || a.location_name : a.location_name}
+                    {a.fee_amount != null
+                      ? ` · ${formatCareMoney(a.fee_amount, lang)}`
+                      : ""}
+                  </p>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+
+        {tab === "serials" && (
+          <ul className="space-y-2">
+            {!serials.length ? (
+              <p className="text-sm text-muted-foreground text-center py-10">
+                {bn ? "আসন্ন সিরিয়াল সেশন নেই" : "No upcoming serial sessions"}
+              </p>
+            ) : (
+              serials.map((s) => (
+                <li key={s.session_id} className="rounded-2xl border bg-card px-3 py-3 flex justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{s.session_date}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {s.org_name} · {s.location_name}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold tabular-nums">
+                    {s.serial_count} {bn ? "সিরিয়াল" : "serials"}
+                  </p>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+
+        {tab === "operations" && (
+          <ul className="space-y-2">
+            {!operations.length ? (
+              <p className="text-sm text-muted-foreground text-center py-10">
+                {bn ? "কোনো অপারেশন টিম নেই" : "No operation teams yet"}
+              </p>
+            ) : (
+              operations.map((o) => (
+                <li key={o.id} className="rounded-2xl border bg-card px-3 py-3">
+                  <p className="text-sm font-semibold">{o.catalog_name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {o.org_name} · {o.location_name} · {o.role}
+                  </p>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+
+        {tab === "video" && (
+          <div className="rounded-2xl border bg-card p-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {bn
+                ? "ভিডিও কনসালট ডেস্ক থেকে কিউ, শিডিউল ও প্রেসক্রিপশন ম্যানেজ করুন।"
+                : "Manage queue, schedule and prescriptions from the video consult desk."}
+            </p>
+            <Link
+              to="/care/portal/tele"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-600 text-white px-4 py-2.5 text-sm font-semibold"
+            >
+              <Video className="h-4 w-4" />
+              {bn ? "ভিডিও ডেস্ক খুলুন" : "Open video desk"}
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

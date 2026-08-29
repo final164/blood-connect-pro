@@ -9,6 +9,7 @@ import {
   fetchCarePolicies,
   fetchCareSpecialties,
   fetchCareVendorOnboarding,
+  fetchCareDoctorOnboarding,
   fetchCareVendorTypes,
   fetchLabBookingStatuses,
   fetchSerialStatuses,
@@ -16,6 +17,7 @@ import {
   fetchTestCategories,
   saveCarePolicies,
   saveCareVendorOnboarding,
+  saveCareDoctorOnboarding,
   type CareBookingPolicies,
   type CareFeatureFlags,
   type CareHubModule,
@@ -25,6 +27,8 @@ import {
   type CareTestCategory,
   type CareVendorFieldKey,
   type CareVendorOnboardingSettings,
+  type CareDoctorFieldKey,
+  type CareDoctorOnboardingSettings,
   type CareVendorType,
 } from "@/lib/care-cms";
 import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm";
@@ -48,6 +52,7 @@ const ainp =
 type Sub =
   | "orgs"
   | "onboarding"
+  | "doctor_reg"
   | "hub"
   | "vendors"
   | "specialties"
@@ -70,7 +75,8 @@ export function CareAdmin() {
 
   const tabs: { id: Sub; bn: string; en: string }[] = [
     { id: "orgs", bn: "ভেন্ডর / KYC", en: "Vendors / KYC" },
-    { id: "onboarding", bn: "অনবোর্ডিং ফিল্ড", en: "Onboarding fields" },
+    { id: "onboarding", bn: "ভেন্ডর অনবোর্ডিং", en: "Vendor onboarding" },
+    { id: "doctor_reg", bn: "ডাক্তার রেজিস্ট্রেশন", en: "Doctor registration" },
     { id: "hub", bn: "হাব মডিউল", en: "Hub modules" },
     { id: "vendors", bn: "ভেন্ডর টাইপ", en: "Vendor types" },
     { id: "specialties", bn: "স্পেশালিটি", en: "Specialties" },
@@ -108,6 +114,7 @@ export function CareAdmin() {
       </div>
       {sub === "orgs" && <OrgsPanel canKyc={canKyc} lang={lang} />}
       {sub === "onboarding" && <VendorOnboardingPanel canEdit={canEdit} lang={lang} />}
+      {sub === "doctor_reg" && <DoctorOnboardingPanel canEdit={canEdit} lang={lang} />}
       {sub === "hub" && <HubPanel canEdit={canEdit} lang={lang} />}
       {sub === "vendors" && <VendorTypesPanel canEdit={canEdit} lang={lang} />}
       {sub === "specialties" && <SpecialtiesPanel canEdit={canEdit} lang={lang} />}
@@ -404,6 +411,106 @@ function VendorOnboardingPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn"
       </div>
       {canEdit && (
         <button type="button" onClick={() => void saveCareVendorOnboarding(settings).then(() => toast.success(lang === "bn" ? "সেভ" : "Saved"))} className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white">
+          {lang === "bn" ? "সেভ" : "Save"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DoctorOnboardingPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" }) {
+  const [settings, setSettings] = useState<CareDoctorOnboardingSettings | null>(null);
+  useEffect(() => {
+    void fetchCareDoctorOnboarding().then(setSettings);
+  }, []);
+  if (!settings) return null;
+  const keys = Object.keys(settings.fields) as CareDoctorFieldKey[];
+  return (
+    <div className="space-y-3 max-w-2xl">
+      <p className="text-xs text-slate-400">
+        {lang === "bn" ? "ডাক্তার রেজিস্ট্রেশন ফর্ম ফিল্ড নিয়ন্ত্রণ" : "Doctor registration form field controls"}
+      </p>
+      <div className="overflow-x-auto rounded-xl border border-slate-800">
+        <table className="w-full text-xs">
+          <thead className="bg-slate-900 text-slate-400">
+            <tr>
+              <th className="px-2 py-2 text-left">Field</th>
+              <th className="px-2 py-2 text-left">BN</th>
+              <th className="px-2 py-2 text-left">EN</th>
+              <th className="px-2 py-2">On</th>
+              <th className="px-2 py-2">Req</th>
+            </tr>
+          </thead>
+          <tbody>
+            {keys.map((key) => {
+              const f = settings.fields[key];
+              return (
+                <tr key={key} className="border-t border-slate-800">
+                  <td className="px-2 py-2 font-mono">{key}</td>
+                  <td className="px-2 py-2">
+                    <input
+                      disabled={!canEdit}
+                      className={ainp}
+                      value={f.label_bn}
+                      onChange={(e) =>
+                        setSettings((p) =>
+                          p ? { ...p, fields: { ...p.fields, [key]: { ...f, label_bn: e.target.value } } } : p,
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      disabled={!canEdit}
+                      className={ainp}
+                      value={f.label_en}
+                      onChange={(e) =>
+                        setSettings((p) =>
+                          p ? { ...p, fields: { ...p.fields, [key]: { ...f, label_en: e.target.value } } } : p,
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      type="checkbox"
+                      disabled={!canEdit}
+                      checked={f.enabled}
+                      onChange={(e) =>
+                        setSettings((p) =>
+                          p ? { ...p, fields: { ...p.fields, [key]: { ...f, enabled: e.target.checked } } } : p,
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      type="checkbox"
+                      disabled={!canEdit || !f.enabled}
+                      checked={f.required}
+                      onChange={(e) =>
+                        setSettings((p) =>
+                          p ? { ...p, fields: { ...p.fields, [key]: { ...f, required: e.target.checked } } } : p,
+                        )
+                      }
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={() =>
+            void saveCareDoctorOnboarding(settings).then(() =>
+              toast.success(lang === "bn" ? "সেভ" : "Saved"),
+            )
+          }
+          className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white"
+        >
           {lang === "bn" ? "সেভ" : "Save"}
         </button>
       )}
