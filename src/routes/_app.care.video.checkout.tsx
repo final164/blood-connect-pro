@@ -6,6 +6,8 @@ type Search = {
   doctorId?: string;
   specialtyId?: string;
   offerId?: string;
+  slotStart?: string;
+  slotEnd?: string;
 };
 
 export const Route = createFileRoute("/_app/care/video/checkout")({
@@ -22,6 +24,8 @@ export const Route = createFileRoute("/_app/care/video/checkout")({
       doctorId,
       specialtyId: typeof s.specialtyId === "string" ? s.specialtyId : undefined,
       offerId: typeof s.offerId === "string" ? s.offerId : undefined,
+      slotStart: typeof s.slotStart === "string" ? s.slotStart : undefined,
+      slotEnd: typeof s.slotEnd === "string" ? s.slotEnd : undefined,
     };
   },
   component: () => {
@@ -32,6 +36,8 @@ export const Route = createFileRoute("/_app/care/video/checkout")({
         doctorId={search.doctorId}
         specialtyId={search.specialtyId}
         offerId={search.offerId}
+        slotStart={search.slotStart}
+        slotEnd={search.slotEnd}
       />
     );
   },

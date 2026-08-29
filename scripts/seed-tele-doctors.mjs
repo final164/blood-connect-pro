@@ -218,14 +218,34 @@ const DOCTORS = [
   },
 ];
 
-const SLOTS = [
-  { weekday: 0, start_time: "18:00:00", end_time: "21:00:00" },
-  { weekday: 1, start_time: "18:00:00", end_time: "21:00:00" },
-  { weekday: 2, start_time: "18:00:00", end_time: "21:00:00" },
-  { weekday: 3, start_time: "18:00:00", end_time: "21:00:00" },
-  { weekday: 4, start_time: "18:00:00", end_time: "21:00:00" },
+const SLOTS_DEFAULT = [
+  { weekday: 0, start_time: "14:40:00", end_time: "23:50:00" },
+  { weekday: 1, start_time: "14:40:00", end_time: "23:50:00" },
+  { weekday: 2, start_time: "14:40:00", end_time: "23:50:00" },
+  { weekday: 3, start_time: "14:40:00", end_time: "23:50:00" },
+  { weekday: 4, start_time: "14:40:00", end_time: "23:50:00" },
+  { weekday: 5, start_time: "14:40:00", end_time: "23:50:00" },
+  { weekday: 6, start_time: "14:40:00", end_time: "23:50:00" },
+];
+
+const SLOTS_MORNING_EXTRA = [
+  { weekday: 0, start_time: "09:00:00", end_time: "12:00:00" },
+  { weekday: 1, start_time: "09:00:00", end_time: "12:00:00" },
+  { weekday: 2, start_time: "09:00:00", end_time: "12:00:00" },
+  { weekday: 3, start_time: "09:00:00", end_time: "12:00:00" },
+  { weekday: 4, start_time: "09:00:00", end_time: "12:00:00" },
+  { weekday: 5, start_time: "09:00:00", end_time: "12:00:00" },
   { weekday: 6, start_time: "09:00:00", end_time: "12:00:00" },
-  { weekday: 6, start_time: "16:00:00", end_time: "19:00:00" },
+];
+
+const SLOTS_CARDIO = [
+  { weekday: 0, start_time: "16:00:00", end_time: "21:00:00" },
+  { weekday: 1, start_time: "16:00:00", end_time: "21:00:00" },
+  { weekday: 2, start_time: "16:00:00", end_time: "21:00:00" },
+  { weekday: 3, start_time: "16:00:00", end_time: "21:00:00" },
+  { weekday: 4, start_time: "16:00:00", end_time: "21:00:00" },
+  { weekday: 5, start_time: "16:00:00", end_time: "21:00:00" },
+  { weekday: 6, start_time: "16:00:00", end_time: "21:00:00" },
 ];
 
 async function must(res, label) {
@@ -259,32 +279,58 @@ async function main() {
       d.bmdc_no,
     );
 
-    await must(
-      await sb.from("tele_doctor_profiles").upsert({
-        doctor_id: d.id,
-        video_enabled: true,
-        instant_enabled: d.instant_enabled,
-        is_online: d.instant_enabled,
-        is_popular: d.is_popular,
-        about_bn: d.about_bn,
-        about_en: d.about_en,
-        experience_years: d.experience_years,
-        workplace_bn: d.workplace_bn,
-        workplace_en: d.workplace_en,
-        hero_image_url: d.photo_url,
-        fee_amount: d.fee_amount,
-        rating_avg: d.rating_avg,
-        rating_count: d.rating_count,
-        sort_order: d.sort_order,
-        updated_at: new Date().toISOString(),
-      }),
-      `profile ${d.bmdc_no}`,
-    );
+    const baseProfile = {
+      doctor_id: d.id,
+      video_enabled: true,
+      instant_enabled: d.instant_enabled,
+      is_online: d.instant_enabled,
+      is_popular: d.is_popular,
+      about_bn: d.about_bn,
+      about_en: d.about_en,
+      experience_years: d.experience_years,
+      workplace_bn: d.workplace_bn,
+      workplace_en: d.workplace_en,
+      hero_image_url: d.photo_url,
+      fee_amount: d.fee_amount,
+      rating_avg: d.rating_avg,
+      rating_count: d.rating_count,
+      sort_order: d.sort_order,
+      updated_at: new Date().toISOString(),
+    };
+    let profRes = await sb.from("tele_doctor_profiles").upsert({
+      ...baseProfile,
+      slot_minutes: 15,
+      schedule_public: true,
+      follow_up_fee: Math.round(d.fee_amount * 0.6),
+      follow_up_days: 7,
+      avg_consult_minutes: 15,
+      doctor_code: `TD${d.bmdc_no.replace("TELE-DEMO-", "")}`,
+      patients_attended: d.rating_count * 8,
+      joined_at: "2024-01-15",
+      specialty_tags_en: [d.spec],
+      specialty_tags_bn: [d.spec],
+      notice_bn: "জরুরি, অচেতন বা পুলিশ কেস রোগীর জন্য এই সেবা নয়।",
+      notice_en: "Not for emergency, unconscious, or police-case patients.",
+      instructions_bn: "ভিডিও কলে শান্ত পরিবেশ রাখুন।\nহেডফোন ব্যবহার করুন।\nলক্ষণ ও পুরনো রিপোর্ট প্রস্তুত রাখুন।",
+      instructions_en: "Keep a quiet room.\nUse headphones.\nPrepare symptoms and prior reports.",
+      helpline: "09612885599",
+    });
+    if (profRes.error && /column|schema cache/i.test(profRes.error.message)) {
+      console.warn(`  ! ${d.bmdc_no}: extended columns missing — apply migration 20260829130000`);
+      profRes = await sb.from("tele_doctor_profiles").upsert(baseProfile);
+    }
+    await must(profRes, `profile ${d.bmdc_no}`);
+
+    let windows = SLOTS_DEFAULT;
+    if (d.bmdc_no === "TELE-DEMO-002" || d.bmdc_no === "TELE-DEMO-010") windows = SLOTS_CARDIO;
+    if (d.bmdc_no === "TELE-DEMO-004" || d.bmdc_no === "TELE-DEMO-007") {
+      windows = [...SLOTS_DEFAULT, ...SLOTS_MORNING_EXTRA];
+    }
 
     await sb.from("tele_doctor_slots").delete().eq("doctor_id", d.id);
     await must(
       await sb.from("tele_doctor_slots").insert(
-        SLOTS.map((s) => ({ ...s, doctor_id: d.id, is_active: true })),
+        windows.map((s) => ({ ...s, doctor_id: d.id, is_active: true })),
       ),
       `slots ${d.bmdc_no}`,
     );

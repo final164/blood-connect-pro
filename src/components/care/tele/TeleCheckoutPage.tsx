@@ -25,11 +25,15 @@ export function TeleCheckoutPage({
   doctorId,
   specialtyId,
   offerId,
+  slotStart,
+  slotEnd,
 }: {
   mode: "named" | "instant";
   doctorId?: string;
   specialtyId?: string;
   offerId?: string;
+  slotStart?: string;
+  slotEnd?: string;
 }) {
   const { lang } = useI18n();
   const bn = lang === "bn";
@@ -76,7 +80,18 @@ export function TeleCheckoutPage({
 
   async function submit() {
     if (!session || isAnonymous) {
-      window.location.assign(authWithNext("/care/video/checkout"));
+      const q = new URLSearchParams();
+      if (mode) q.set("mode", mode);
+      if (doctorId) q.set("doctorId", doctorId);
+      if (specialtyId) q.set("specialtyId", specialtyId);
+      if (offerId) q.set("offerId", offerId);
+      if (slotStart) q.set("slotStart", slotStart);
+      if (slotEnd) q.set("slotEnd", slotEnd);
+      window.location.assign(authWithNext(`/care/video/checkout?${q.toString()}`));
+      return;
+    }
+    if (mode === "named" && settings?.require_slot_for_named !== false && (!slotStart || !slotEnd)) {
+      toast.error(bn ? "প্রথমে সময় স্লট বেছে নিন" : "Please select a time slot first");
       return;
     }
     setBusy(true);
@@ -86,6 +101,8 @@ export function TeleCheckoutPage({
         doctorId: mode === "named" ? doctorId : undefined,
         specialtyId: specialtyId || offer?.specialty_id || doctor?.specialty_id || undefined,
         offerCardId: offerId,
+        slotStart,
+        slotEnd,
         patientPhone: phone,
         patientName: name,
       });
@@ -144,12 +161,40 @@ export function TeleCheckoutPage({
               className="w-full rounded-xl bg-sky-600 text-white py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {bn ? "বুকিং নিশ্চিত করুন" : "Confirm booking"}
+              {bn ? settings?.ui.checkout_confirm_bn : settings?.ui.checkout_confirm_en}
             </button>
           </div>
 
-          <div className="rounded-2xl border p-4 space-y-2 text-sm">
+          <div className="rounded-2xl border p-4 space-y-2 text-sm bg-white shadow-sm">
             <h2 className="font-bold">{bn ? "পেমেন্ট বিবরণ" : "Payment Details"}</h2>
+            {slotStart && (
+              <div className="rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-900">
+                <p className="font-semibold">{bn ? "নির্বাচিত স্লট" : "Selected slot"}</p>
+                <p>
+                  {new Date(slotStart).toLocaleString(bn ? "bn-BD" : "en-US", {
+                    timeZone: "Asia/Dhaka",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                  {slotEnd
+                    ? ` – ${new Date(slotEnd).toLocaleTimeString(bn ? "bn-BD" : "en-US", {
+                        timeZone: "Asia/Dhaka",
+                        timeStyle: "short",
+                      })}`
+                    : ""}
+                </p>
+              </div>
+            )}
+            {(settings?.trust_bullets_bn?.length || settings?.trust_bullets_en?.length) ? (
+              <ul className="space-y-1 text-[10px] text-muted-foreground">
+                {(bn ? settings!.trust_bullets_bn : settings!.trust_bullets_en).map((t) => (
+                  <li key={t} className="flex gap-1.5">
+                    <Check className="h-3 w-3 text-emerald-600 shrink-0 mt-0.5" />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="flex justify-between text-xs">
               <span>{bn ? "কনসালটেশন ফি" : "Consultation Fee"}</span>
               <span>{formatCareMoney(fee)}</span>

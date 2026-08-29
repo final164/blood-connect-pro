@@ -15,24 +15,21 @@ import {
   saveTeleSettings,
   upsertTeleFormulary,
   upsertTeleOfferCard,
-  type TeleDoctorSlot,
   type TeleFormularyItem,
   type TeleOfferCard,
   type TeleSettings,
 } from "@/lib/tele-cms";
 import {
   fetchAllTeleBookingsAdmin,
-  fetchTeleDoctorSlots,
-  replaceTeleDoctorSlots,
   searchTeleDoctors,
   setTelePayment,
   setTeleStatus,
   upsertTeleDoctorProfile,
   adminLinkTeleDoctor,
-  WEEKDAY_LABELS,
   type TeleBooking,
   type TeleVideoDoctor,
 } from "@/lib/tele-api";
+import { TeleScheduleEditor } from "@/components/care/tele/TeleScheduleEditor";
 
 const ainp =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-1 focus:ring-rose-500/40";
@@ -116,6 +113,8 @@ function SettingsPanel({ canEdit, bn }: { canEdit: boolean; bn: boolean }) {
             ["instant_enabled", "Instant pool"],
             ["require_payment_before_join", "Pay before join"],
             ["ai_summary_enabled", "AI summary"],
+            ["consultant_can_edit_schedule", "Consultant can edit schedule"],
+            ["require_slot_for_named", "Require slot for named booking"],
           ] as const
         ).map(([key, label]) => (
           <label key={key} className="flex items-center gap-2">
@@ -146,6 +145,24 @@ function SettingsPanel({ canEdit, bn }: { canEdit: boolean; bn: boolean }) {
             value={s.default_duration_minutes}
             disabled={!canEdit}
             onChange={(e) => setS({ ...s, default_duration_minutes: Number(e.target.value) })}
+          />
+        </Field>
+        <Field label="Default slot minutes">
+          <input
+            className={ainp}
+            type="number"
+            value={s.default_slot_minutes}
+            disabled={!canEdit}
+            onChange={(e) => setS({ ...s, default_slot_minutes: Number(e.target.value) })}
+          />
+        </Field>
+        <Field label="Slot horizon (days)">
+          <input
+            className={ainp}
+            type="number"
+            value={s.slot_horizon_days}
+            disabled={!canEdit}
+            onChange={(e) => setS({ ...s, slot_horizon_days: Number(e.target.value) })}
           />
         </Field>
         <Field label="VAT % (blank = invoice default)">
@@ -564,113 +581,23 @@ function DoctorsPanel({ canEdit, bn }: { canEdit: boolean; bn: boolean }) {
               </button>
             </div>
           )}
-          {canEdit && <DoctorSlotsEditor doctorId={d.doctor_id} bn={bn} />}
+          {canEdit && (
+            <div className="sm:col-span-5">
+              <TeleScheduleEditor
+                doctorId={d.doctor_id}
+                bn={bn}
+                canEdit={canEdit}
+                variant="dark"
+                profile={{
+                  slot_minutes: d.slot_minutes ?? 15,
+                  schedule_public: d.schedule_public !== false,
+                }}
+              />
+            </div>
+          )}
         </div>
         );
       })}
-    </div>
-  );
-}
-
-function DoctorSlotsEditor({ doctorId, bn }: { doctorId: string; bn: boolean }) {
-  const [slots, setSlots] = useState<{ weekday: number; start_time: string; end_time: string }[]>([]);
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    void fetchTeleDoctorSlots(doctorId)
-      .then((rows: TeleDoctorSlot[]) =>
-        setSlots(rows.map((r) => ({ weekday: r.weekday, start_time: r.start_time, end_time: r.end_time }))),
-      )
-      .catch(() => undefined);
-  }, [doctorId, open]);
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="sm:col-span-5 text-left text-[10px] text-sky-400"
-        onClick={() => setOpen(true)}
-      >
-        {bn ? "স্লট এডিট" : "Edit slots"}
-      </button>
-    );
-  }
-
-  return (
-    <div className="sm:col-span-5 space-y-2 rounded-lg border border-slate-700 p-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-slate-200">{bn ? "সাপ্তাহিক স্লট" : "Weekly slots"}</p>
-        <button type="button" className="text-[10px] text-slate-400" onClick={() => setOpen(false)}>
-          Close
-        </button>
-      </div>
-      {slots.map((sl, i) => (
-        <div key={i} className="grid grid-cols-4 gap-1">
-          <select
-            className={ainp}
-            value={sl.weekday}
-            onChange={(e) =>
-              setSlots((prev) =>
-                prev.map((x, j) => (j === i ? { ...x, weekday: Number(e.target.value) } : x)),
-              )
-            }
-          >
-            {WEEKDAY_LABELS.en.map((lab, wi) => (
-              <option key={wi} value={wi}>
-                {bn ? WEEKDAY_LABELS.bn[wi] : lab}
-              </option>
-            ))}
-          </select>
-          <input
-            className={ainp}
-            type="time"
-            value={sl.start_time.slice(0, 5)}
-            onChange={(e) =>
-              setSlots((prev) =>
-                prev.map((x, j) => (j === i ? { ...x, start_time: `${e.target.value}:00` } : x)),
-              )
-            }
-          />
-          <input
-            className={ainp}
-            type="time"
-            value={sl.end_time.slice(0, 5)}
-            onChange={(e) =>
-              setSlots((prev) =>
-                prev.map((x, j) => (j === i ? { ...x, end_time: `${e.target.value}:00` } : x)),
-              )
-            }
-          />
-          <button
-            type="button"
-            className="text-[10px] text-rose-400"
-            onClick={() => setSlots((prev) => prev.filter((_, j) => j !== i))}
-          >
-            Remove
-          </button>
-        </div>
-      ))}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          className="text-[10px] text-sky-400"
-          onClick={() => setSlots((prev) => [...prev, { weekday: 0, start_time: "09:00:00", end_time: "12:00:00" }])}
-        >
-          + Slot
-        </button>
-        <button
-          type="button"
-          className="rounded bg-rose-600 px-2 py-1 text-[10px] text-white"
-          onClick={() =>
-            void replaceTeleDoctorSlots(doctorId, slots)
-              .then(() => toast.success(bn ? "স্লট সেভ" : "Slots saved"))
-              .catch((e) => toast.error((e as Error).message))
-          }
-        >
-          Save slots
-        </button>
-      </div>
     </div>
   );
 }

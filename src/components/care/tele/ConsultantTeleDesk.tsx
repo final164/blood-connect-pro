@@ -6,7 +6,6 @@ import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { supabase } from "@/integrations/supabase/client";
 import {
   ensureTeleZoomMeeting,
   fetchConsultantTeleQueue,
@@ -17,9 +16,13 @@ import {
   setTeleStatus,
   type TeleBooking,
   type TeleVideoDoctor,
+  fetchTeleDoctor,
+  fetchTeleAiSummary,
 } from "@/lib/tele-api";
 import { TeleRxEditor } from "@/components/care/tele/TeleRxEditor";
-import { fetchTeleAiSummary } from "@/lib/tele-api";
+import { TeleScheduleEditor } from "@/components/care/tele/TeleScheduleEditor";
+import { fetchTeleSettings } from "@/lib/tele-cms";
+import { teleStatusLabel, teleStatusTone } from "@/lib/tele-status";
 
 export function ConsultantTeleDesk() {
   const { lang } = useI18n();
@@ -34,6 +37,9 @@ export function ConsultantTeleDesk() {
   const [claimable, setClaimable] = useState<TeleVideoDoctor[]>([]);
   const [claiming, setClaiming] = useState(false);
   const [resolving, setResolving] = useState(true);
+  const [deskTab, setDeskTab] = useState<"queue" | "schedule">("queue");
+  const [profile, setProfile] = useState<TeleVideoDoctor | null>(null);
+  const [canEditSchedule, setCanEditSchedule] = useState(true);
 
   async function loadDoctor(uid: string) {
     setResolving(true);
@@ -41,14 +47,13 @@ export function ConsultantTeleDesk() {
       const id = await fetchMyLinkedTeleDoctorId(uid);
       setDoctorId(id);
       if (id) {
-        const { data: prof } = await supabase
-          .from("tele_doctor_profiles")
-          .select("is_online")
-          .eq("doctor_id", id)
-          .maybeSingle();
-        setOnline(!!(prof as { is_online?: boolean } | null)?.is_online);
+        const [prof, settings] = await Promise.all([fetchTeleDoctor(id), fetchTeleSettings()]);
+        setProfile(prof);
+        setOnline(!!prof?.is_online);
+        setCanEditSchedule(settings.consultant_can_edit_schedule !== false);
         setClaimable([]);
       } else {
+        setProfile(null);
         setClaimable(await fetchUnlinkedVideoDoctors());
       }
     } finally {
@@ -215,7 +220,54 @@ export function ConsultantTeleDesk() {
         </div>
       </AutoHideHeader>
 
-      <div className="px-3 py-4 max-w-3xl mx-auto grid gap-4 md:grid-cols-2 pb-10">
+      <div className="px-3 py-4 max-w-3xl mx-auto space-y-4 pb-10">
+        <div className="flex gap-2">
+          {(
+            [
+              ["queue", bn ? "কিউ" : "Queue"],
+              ["schedule", bn ? "শিডিউল" : "Schedule"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setDeskTab(id)}
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                deskTab === id ? "bg-sky-600 text-white" : "border text-muted-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {deskTab === "schedule" && doctorId && (
+          <div className="space-y-2">
+            {!canEditSchedule && (
+              <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
+                {bn
+                  ? "অ্যাডমিন শিডিউল এডিট বন্ধ রেখেছে — শুধু দেখা যাবে।"
+                  : "Admin disabled schedule editing — view only."}
+              </p>
+            )}
+            <TeleScheduleEditor
+              doctorId={doctorId}
+              bn={bn}
+              canEdit={canEditSchedule}
+              profile={
+                profile
+                  ? { slot_minutes: profile.slot_minutes ?? 15, schedule_public: profile.schedule_public !== false }
+                  : { slot_minutes: 15, schedule_public: true }
+              }
+              onProfileSaved={() => {
+                if (user?.id) void loadDoctor(user.id);
+              }}
+            />
+          </div>
+        )}
+
+        {deskTab === "queue" && (
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <h2 className="text-sm font-bold">{bn ? "আজকের কিউ" : "Today queue"}</h2>
           {queue.length === 0 && (
@@ -227,9 +279,17 @@ export function ConsultantTeleDesk() {
               className={`rounded-xl border p-3 space-y-2 ${active === b.id ? "border-sky-500 bg-sky-50/50" : ""}`}
             >
               <button type="button" className="w-full text-left" onClick={() => setActive(b.id)}>
-                <p className="text-xs font-semibold capitalize">{b.status.replace(/_/g, " ")}</p>
-                <p className="text-[10px] text-muted-foreground">
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${teleStatusTone(b.status)}`}>
+                  {teleStatusLabel(b.status, bn)}
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-1">
                   {b.patient_name || b.patient_phone || b.id.slice(0, 8)} · ৳{b.net_amount}
+                  {b.slot_start
+                    ? ` · ${new Date(b.slot_start).toLocaleTimeString(bn ? "bn-BD" : "en-US", {
+                        timeZone: "Asia/Dhaka",
+                        timeStyle: "short",
+                      })}`
+                    : ""}
                 </p>
               </button>
               <div className="flex flex-wrap gap-1">
@@ -289,6 +349,8 @@ export function ConsultantTeleDesk() {
             {bn ? "রোগী ভিউ ›" : "Patient view ›"}
           </Link>
         </div>
+      </div>
+        )}
       </div>
     </div>
   );

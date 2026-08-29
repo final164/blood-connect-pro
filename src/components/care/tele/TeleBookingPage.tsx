@@ -18,8 +18,8 @@ import {
   type TeleBooking,
   type TeleVideoDoctor,
 } from "@/lib/tele-api";
-import { fetchTelePrescription } from "@/lib/tele-prescription";
 import { TeleRxView } from "@/components/care/tele/TeleRxView";
+import { telePaymentLabel, teleStatusLabel, teleStatusTone } from "@/lib/tele-status";
 
 export function TeleBookingPage({ bookingId }: { bookingId: string }) {
   const { lang } = useI18n();
@@ -28,6 +28,7 @@ export function TeleBookingPage({ bookingId }: { bookingId: string }) {
   const [doctor, setDoctor] = useState<TeleVideoDoctor | null>(null);
   const [summary, setSummary] = useState<TeleAiSummary | null>(null);
   const [disclaimer, setDisclaimer] = useState("");
+  const [joinCta, setJoinCta] = useState("");
   const [joining, setJoining] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -41,9 +42,10 @@ export function TeleBookingPage({ bookingId }: { bookingId: string }) {
 
   useEffect(() => {
     void reload().catch((e) => toast.error((e as Error).message));
-    void fetchTeleSettings().then((s) =>
-      setDisclaimer(bn ? s.ui.summary_disclaimer_bn : s.ui.summary_disclaimer_en),
-    );
+    void fetchTeleSettings().then((s) => {
+      setDisclaimer(bn ? s.ui.summary_disclaimer_bn : s.ui.summary_disclaimer_en);
+      setJoinCta(bn ? s.ui.join_cta_bn : s.ui.join_cta_en);
+    });
   }, [bookingId, bn]);
 
   async function join() {
@@ -88,15 +90,42 @@ export function TeleBookingPage({ bookingId }: { bookingId: string }) {
       </AutoHideHeader>
 
       <div className="px-3 py-4 max-w-2xl mx-auto space-y-4 pb-10">
-        <div className="rounded-2xl border p-4 space-y-2">
-          <div className="flex justify-between text-xs">
-            <span className="rounded-full bg-sky-100 text-sky-800 px-2 py-0.5 font-semibold capitalize">
-              {booking.status.replace(/_/g, " ")}
+        <div className="rounded-2xl border bg-white shadow-sm p-4 space-y-3">
+          <div className="flex justify-between items-start gap-2 text-xs">
+            <span className={`rounded-full px-2.5 py-0.5 font-semibold ${teleStatusTone(booking.status)}`}>
+              {teleStatusLabel(booking.status, bn)}
             </span>
-            <span className="text-muted-foreground">{booking.payment_status}</span>
+            <span className="text-muted-foreground font-medium">{telePaymentLabel(booking.payment_status, bn)}</span>
           </div>
           {doctor && (
-            <p className="text-sm font-bold">{bn ? doctor.full_name_bn || doctor.full_name : doctor.full_name}</p>
+            <div className="flex gap-3 items-center">
+              <div className="h-12 w-12 rounded-xl overflow-hidden bg-muted shrink-0">
+                {(doctor.photo_url || doctor.hero_image_url) && (
+                  <img
+                    src={doctor.hero_image_url || doctor.photo_url || ""}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate">
+                  {bn ? doctor.full_name_bn || doctor.full_name : doctor.full_name}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {bn ? doctor.specialty_name_bn : doctor.specialty_name_en}
+                </p>
+              </div>
+            </div>
+          )}
+          {booking.slot_start && (
+            <p className="text-xs text-muted-foreground rounded-xl bg-sky-50 px-3 py-2">
+              {new Date(booking.slot_start).toLocaleString(bn ? "bn-BD" : "en-US", {
+                timeZone: "Asia/Dhaka",
+                dateStyle: "full",
+                timeStyle: "short",
+              })}
+            </p>
           )}
           <p className="text-lg font-bold text-sky-800">{formatCareMoney(booking.net_amount)}</p>
           {canJoin && (
@@ -104,10 +133,10 @@ export function TeleBookingPage({ bookingId }: { bookingId: string }) {
               type="button"
               disabled={joining}
               onClick={() => void join()}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 text-white py-2.5 text-sm font-semibold"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 text-white py-2.5 text-sm font-semibold shadow-sm"
             >
               {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-              {bn ? "Zoom-এ যোগ দিন" : "Join Zoom"}
+              {joinCta || (bn ? "Zoom-এ যোগ দিন" : "Join Zoom")}
             </button>
           )}
         </div>

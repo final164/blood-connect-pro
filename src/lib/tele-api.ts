@@ -82,6 +82,27 @@ async function mapVideoDoctors(
     if (!d) continue;
     out.push({
       ...p,
+      slot_minutes: Number((p as TeleDoctorProfile).slot_minutes ?? 15),
+      follow_up_fee: (p as TeleDoctorProfile).follow_up_fee ?? null,
+      follow_up_days: Number((p as TeleDoctorProfile).follow_up_days ?? 7),
+      avg_consult_minutes: Number((p as TeleDoctorProfile).avg_consult_minutes ?? 15),
+      doctor_code: (p as TeleDoctorProfile).doctor_code ?? null,
+      patients_attended: Number((p as TeleDoctorProfile).patients_attended ?? 0),
+      joined_at: (p as TeleDoctorProfile).joined_at ?? null,
+      specialty_tags_bn: Array.isArray((p as TeleDoctorProfile).specialty_tags_bn)
+        ? (p as TeleDoctorProfile).specialty_tags_bn
+        : [],
+      specialty_tags_en: Array.isArray((p as TeleDoctorProfile).specialty_tags_en)
+        ? (p as TeleDoctorProfile).specialty_tags_en
+        : [],
+      notice_bn: (p as TeleDoctorProfile).notice_bn ?? null,
+      notice_en: (p as TeleDoctorProfile).notice_en ?? null,
+      instructions_bn: (p as TeleDoctorProfile).instructions_bn ?? null,
+      instructions_en: (p as TeleDoctorProfile).instructions_en ?? null,
+      helpline: (p as TeleDoctorProfile).helpline ?? null,
+      chamber_address_bn: (p as TeleDoctorProfile).chamber_address_bn ?? null,
+      chamber_address_en: (p as TeleDoctorProfile).chamber_address_en ?? null,
+      schedule_public: (p as TeleDoctorProfile).schedule_public !== false,
       full_name: d.full_name,
       full_name_bn: d.full_name_bn,
       photo_url: d.photo_url,
@@ -150,6 +171,26 @@ export async function fetchTeleDoctorSlots(doctorId: string): Promise<TeleDoctor
   if (error) throw new Error(error.message);
   return (data ?? []) as TeleDoctorSlot[];
 }
+
+export async function fetchDoctorBookedSlotStarts(
+  doctorId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("tele_bookings")
+    .select("slot_start")
+    .eq("doctor_id", doctorId)
+    .not("slot_start", "is", null)
+    .gte("slot_start", fromIso)
+    .lte("slot_start", toIso)
+    .not("status", "in", "(cancelled,no_show)");
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map((r) => (r as { slot_start?: string | null }).slot_start)
+    .filter((s): s is string => !!s);
+}
+
 
 export async function replaceTeleDoctorSlots(
   doctorId: string,
