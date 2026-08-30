@@ -20,6 +20,7 @@ import {
 import { offeringSalePrice } from "@/lib/care-lab-price";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { CareInstituteDetailsSheet } from "@/components/care/CareInstituteDetailsSheet";
 import { clampPhoneDigits } from "@/lib/phone-auth";
 import { cn } from "@/lib/utils";
 import {
@@ -78,6 +79,7 @@ export function CareLabFacilityPage({
   const [patientAddress, setPatientAddress] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const dates = useMemo(() => nextDates(14), []);
 
   useEffect(() => {
@@ -309,9 +311,17 @@ export function CareLabFacilityPage({
         ) : (
           <>
             <div className="rounded-2xl border bg-card p-4 flex gap-3">
-              <span className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                <Building2 className="h-5 w-5" />
-              </span>
+              {facility.logo_url ? (
+                <img
+                  src={facility.logo_url}
+                  alt=""
+                  className="h-12 w-12 rounded-xl object-cover shrink-0 border bg-muted"
+                />
+              ) : (
+                <span className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                  <Building2 className="h-5 w-5" />
+                </span>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-bold leading-snug">{title}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -322,7 +332,14 @@ export function CareLabFacilityPage({
                     ? `${facility.offering_count}টি টেস্ট উপলব্ধ · একাধিক বেছে এক ইনভয়েস`
                     : `${facility.offering_count} tests available · multi-select, one invoice`}
                 </p>
-                <div className="mt-2.5">
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDetailsOpen(true)}
+                    className="rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                  >
+                    {lang === "bn" ? "বিস্তারিত" : "Details"}
+                  </button>
                   <CareOrgChatButton
                     orgId={facility.id}
                     phone={facility.phone}
@@ -332,6 +349,13 @@ export function CareLabFacilityPage({
                 </div>
               </div>
             </div>
+
+            <CareInstituteDetailsSheet
+              orgId={facility.id}
+              open={detailsOpen}
+              onOpenChange={setDetailsOpen}
+              lang={lang}
+            />
 
             <input
               value={q}

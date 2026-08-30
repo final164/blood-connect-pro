@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { resolveOrgImageUrl } from "@/lib/care-lab-api";
 
 export type CareOperationCategory = {
   id: string;
@@ -63,7 +64,14 @@ export type CareOperationOffering = {
     typical_stay_days?: number | null;
     specialty_id?: string | null;
   };
-  org?: { name: string; name_bn: string | null; district_id: string | null; upazila: string | null };
+  org?: {
+    name: string;
+    name_bn: string | null;
+    district_id: string | null;
+    upazila: string | null;
+    logo_url?: string | null;
+    phone?: string | null;
+  };
   location?: { name: string; name_bn: string | null };
   doctors?: CareOperationOfferingDoctor[];
   price_items?: CareOperationPriceItem[];
@@ -167,15 +175,25 @@ const ITEMS_JOIN =
 function mapOffering(row: Record<string, unknown>): CareOperationOffering {
   const doctors = (row.care_operation_offering_doctors ?? []) as Record<string, unknown>[];
   const items = (row.care_operation_price_items ?? []) as Record<string, unknown>[];
-  const org = row.care_orgs as CareOperationOffering["org"] | null;
+  const orgRaw = row.care_orgs as Record<string, unknown> | null;
   const loc = row.care_locations as CareOperationOffering["location"] | null;
+  const org: CareOperationOffering["org"] | undefined = orgRaw
+    ? {
+        name: String(orgRaw.name ?? ""),
+        name_bn: (orgRaw.name_bn as string | null) ?? null,
+        district_id: (orgRaw.district_id as string | null) ?? null,
+        upazila: (orgRaw.upazila as string | null) ?? null,
+        phone: (orgRaw.phone as string | null) ?? null,
+        logo_url: resolveOrgImageUrl(orgRaw.logo_url as string | null, orgRaw.settings),
+      }
+    : undefined;
   return {
     ...(row as unknown as CareOperationOffering),
     package_price: Number(row.package_price ?? 0),
     price_original: row.price_original != null ? Number(row.price_original) : null,
     discount_percent: row.discount_percent != null ? Number(row.discount_percent) : null,
     catalog: (row.care_operation_catalog ?? undefined) as CareOperationOffering["catalog"],
-    org: org ?? undefined,
+    org,
     location: loc ?? undefined,
     doctors: doctors
       .map((d) => ({
@@ -208,7 +226,7 @@ export async function fetchOperationOffering(id: string): Promise<CareOperationO
   const { data, error } = await supabase
     .from("care_operation_offerings")
     .select(
-      `${OFFERING_COLS}, ${CATALOG_JOIN}, ${DOCTORS_JOIN}, ${ITEMS_JOIN}, care_locations(name, name_bn), care_orgs(name, name_bn, district_id, upazila)`,
+      `${OFFERING_COLS}, ${CATALOG_JOIN}, ${DOCTORS_JOIN}, ${ITEMS_JOIN}, care_locations(name, name_bn), care_orgs(name, name_bn, district_id, upazila, logo_url, settings, phone)`,
     )
     .eq("id", id)
     .maybeSingle();
@@ -233,7 +251,7 @@ export async function searchOperationOfferings(opts?: {
   let query = supabase
     .from("care_operation_offerings")
     .select(
-      `${OFFERING_COLS}, ${CATALOG_JOIN}, ${DOCTORS_JOIN}, ${ITEMS_JOIN}, care_locations(name, name_bn), care_orgs(name, name_bn, district_id, upazila, is_verified, is_listed, is_active)`,
+      `${OFFERING_COLS}, ${CATALOG_JOIN}, ${DOCTORS_JOIN}, ${ITEMS_JOIN}, care_locations(name, name_bn), care_orgs(name, name_bn, district_id, upazila, logo_url, settings, phone, is_verified, is_listed, is_active)`,
     )
     .eq("is_active", true)
     .limit(opts?.limit ?? 60);
@@ -276,7 +294,7 @@ export async function fetchDoctorOperations(doctorId: string): Promise<CareOpera
   const { data, error } = await supabase
     .from("care_operation_offering_doctors")
     .select(
-      `offering_id, role, care_operation_offerings(${OFFERING_COLS}, ${CATALOG_JOIN}, ${ITEMS_JOIN}, care_locations(name, name_bn), care_orgs(name, name_bn, district_id, upazila))`,
+      `offering_id, role, care_operation_offerings(${OFFERING_COLS}, ${CATALOG_JOIN}, ${ITEMS_JOIN}, care_locations(name, name_bn), care_orgs(name, name_bn, district_id, upazila, logo_url, settings, phone))`,
     )
     .eq("doctor_id", doctorId);
   if (error) {
@@ -370,6 +388,28 @@ export async function addOperationOfferingDoctor(
 
 export async function removeOperationOfferingDoctor(id: string) {
   const { error } = await supabase.from("care_operation_offering_doctors").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+/** Replace full surgical team on an offering (lead / assistants / etc.). */
+export async function replaceOperationOfferingDoctors(
+  offeringId: string,
+  doctors: { doctorId: string; role: CareOperationDoctorRole; sortOrder?: number }[],
+) {
+  const del = await supabase
+    .from("care_operation_offering_doctors")
+    .delete()
+    .eq("offering_id", offeringId);
+  if (del.error) throw new Error(del.error.message);
+  if (!doctors.length) return;
+  const { error } = await supabase.from("care_operation_offering_doctors").insert(
+    doctors.map((d, idx) => ({
+      offering_id: offeringId,
+      doctor_id: d.doctorId,
+      role: d.role,
+      sort_order: d.sortOrder ?? idx * 10,
+    })) as never,
+  );
   if (error) throw new Error(error.message);
 }
 

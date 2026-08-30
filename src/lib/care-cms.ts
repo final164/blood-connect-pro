@@ -99,6 +99,8 @@ export type CareBookingPolicies = {
   no_show_requeue: boolean;
   /** Lab desk “Today” list page size (infinite scroll) */
   lab_desk_page_size: number;
+  /** Max photos per org About gallery (portal upload) */
+  org_gallery_max_images: number;
 };
 
 export type CareFeatureFlags = {
@@ -324,6 +326,7 @@ const DEFAULT_POLICIES: CareBookingPolicies = {
   allow_vendor_price: true,
   no_show_requeue: true,
   lab_desk_page_size: 10,
+  org_gallery_max_images: 8,
 };
 
 const DEFAULT_FLAGS: CareFeatureFlags = {
@@ -476,11 +479,15 @@ export function normalizeCareFeatureFlags(raw?: Partial<CareFeatureFlags> | null
 export function normalizeCarePolicies(raw?: Partial<CareBookingPolicies> | null): CareBookingPolicies {
   const merged = { ...DEFAULT_POLICIES, ...(raw ?? {}) };
   const page = Math.round(Number(merged.lab_desk_page_size));
+  const galleryMax = Math.round(Number(merged.org_gallery_max_images));
   return {
     ...merged,
     booking_window_hours: Math.max(1, Math.round(Number(merged.booking_window_hours)) || 12),
     cancel_cutoff_hours: Math.max(0, Math.round(Number(merged.cancel_cutoff_hours)) || 0),
     lab_desk_page_size: Number.isFinite(page) ? Math.min(100, Math.max(5, page)) : 10,
+    org_gallery_max_images: Number.isFinite(galleryMax)
+      ? Math.min(30, Math.max(1, galleryMax))
+      : 8,
   };
 }
 
@@ -488,6 +495,12 @@ export function normalizeCarePolicies(raw?: Partial<CareBookingPolicies> | null)
 export async function fetchLabDeskPageSize(): Promise<number> {
   const { policies } = await fetchCarePolicies();
   return policies.lab_desk_page_size;
+}
+
+/** Max About-institute gallery images (admin Care policies). */
+export async function fetchOrgGalleryMaxImages(): Promise<number> {
+  const { policies } = await fetchCarePoliciesCached();
+  return policies.org_gallery_max_images;
 }
 
 export async function saveCarePolicies(policies: CareBookingPolicies, flags: CareFeatureFlags) {

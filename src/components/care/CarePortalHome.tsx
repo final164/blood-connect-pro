@@ -218,6 +218,13 @@ export function CarePortalHome() {
 
         <div className="flex flex-wrap gap-2 pt-2">
           <Link
+            to="/care/portal/about"
+            className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            {lang === "bn" ? "প্রতিষ্ঠান সম্পর্কে" : "About institute"}
+          </Link>
+          <Link
             to="/care/portal/onboarding"
             search={{}}
             className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium"

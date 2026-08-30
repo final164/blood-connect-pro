@@ -241,51 +241,60 @@ export function CareCustomerDashboard({
                 {serials.map((s) => {
                   const pending = s.status === "pending_approval";
                   const orgId = s.session?.org_id;
+                  const doctorId = s.session?.doctor_id;
                   return (
                     <li
                       key={s.id}
-                      className="rounded-2xl border bg-card flex items-stretch overflow-hidden"
+                      className="rounded-2xl border bg-card px-3 py-3 space-y-2"
                     >
-                      <Link
-                        to="/care/serial/$id"
-                        params={{ id: s.id }}
-                        className="min-w-0 flex-1 px-3 py-3 hover:bg-muted/40 space-y-1.5"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold min-w-0">
-                            {lang === "bn"
-                              ? `সিরিয়াল #${s.serial_no ?? "—"}`
-                              : `Serial #${s.serial_no ?? "—"}`}
-                          </p>
-                          <span
-                            className={cn(
-                              "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                              serialTone(s.status, pending),
-                            )}
-                          >
-                            {pending
-                              ? lang === "bn"
-                                ? "অনুমোদন বাকি"
-                                : "Pending"
-                              : s.status}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">
-                          {s.session?.session_date}
-                          {s.claim_code ? ` · ${s.claim_code}` : ""}
-                          {s.online_serial_no != null
-                            ? lang === "bn"
-                              ? ` · অনলাইন #${s.online_serial_no}`
-                              : ` · online #${s.online_serial_no}`
-                            : ""}
-                          {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold min-w-0">
+                          {lang === "bn"
+                            ? `সিরিয়াল #${s.serial_no ?? "—"}`
+                            : `Serial #${s.serial_no ?? "—"}`}
                         </p>
-                      </Link>
-                      {orgId ? (
-                        <div className="shrink-0 flex items-center pr-2">
-                          <CareOrgChatButton orgId={orgId} variant="icon" />
-                        </div>
-                      ) : null}
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                            serialTone(s.status, pending),
+                          )}
+                        >
+                          {pending
+                            ? lang === "bn"
+                              ? "অনুমোদন বাকি"
+                              : "Pending"
+                            : s.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {s.session?.session_date}
+                        {s.claim_code ? ` · ${s.claim_code}` : ""}
+                        {s.online_serial_no != null
+                          ? lang === "bn"
+                            ? ` · অনলাইন #${s.online_serial_no}`
+                            : ` · online #${s.online_serial_no}`
+                          : ""}
+                        {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to="/care/serial/$id"
+                          params={{ id: s.id }}
+                          className="rounded-xl border px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+                        >
+                          {lang === "bn" ? "বিস্তারিত" : "Details"}
+                        </Link>
+                        {doctorId ? (
+                          <Link
+                            to="/care/doctor/$id"
+                            params={{ id: doctorId }}
+                            className="rounded-xl border px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-muted"
+                          >
+                            {lang === "bn" ? "ডাক্তার প্রোফাইল" : "Doctor profile"}
+                          </Link>
+                        ) : null}
+                        {orgId ? <CareOrgChatButton orgId={orgId} variant="icon" /> : null}
+                      </div>
                     </li>
                   );
                 })}

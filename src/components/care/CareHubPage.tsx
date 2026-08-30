@@ -369,8 +369,12 @@ function OperationsPanel({ lang }: { lang: "bn" | "en" }) {
                 params={{ offeringId: o.id }}
                 className="flex items-start gap-3 rounded-2xl border bg-card px-3 py-3 transition hover:bg-muted/40"
               >
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <Scissors className="h-5 w-5" />
+                <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+                  {o.org?.logo_url ? (
+                    <img src={o.org.logo_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Scissors className="h-5 w-5" />
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{operationName(o.catalog, lang)}</p>
@@ -564,9 +568,17 @@ function TestsPanel({ lang }: { lang: "bn" | "en" }) {
                     params={{ orgId: f.id }}
                     className="flex items-start gap-3 rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
                   >
-                    <span className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                      <Building2 className="h-5 w-5" />
-                    </span>
+                    {f.logo_url ? (
+                      <img
+                        src={f.logo_url}
+                        alt=""
+                        className="h-11 w-11 rounded-xl object-cover shrink-0 border bg-muted"
+                      />
+                    ) : (
+                      <span className="h-11 w-11 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                        <Building2 className="h-5 w-5" />
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold truncate">{name}</p>
                       <p className="text-[11px] text-muted-foreground truncate">
@@ -704,31 +716,43 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
           </h2>
           <ul className="space-y-2">
             {serials.map((s) => (
-              <li key={s.id}>
-                <Link
-                  to="/care/serial/$id"
-                  params={{ id: s.id }}
-                  className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40"
-                >
-                  <p className="text-sm font-semibold">
-                    {s.status === "pending_approval"
-                      ? lang === "bn"
-                        ? `সিরিয়াল #${s.serial_no ?? "—"} · অনুমোদন বাকি`
-                        : `Serial #${s.serial_no ?? "—"} · pending approval`
-                      : lang === "bn"
-                        ? `সিরিয়াল #${s.serial_no ?? "—"} · ${s.status}`
-                        : `Serial #${s.serial_no ?? "—"} · ${s.status}`}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {s.session?.session_date} · {s.claim_code}
-                    {s.online_serial_no != null
-                      ? lang === "bn"
-                        ? ` · অনলাইন #${s.online_serial_no}`
-                        : ` · online #${s.online_serial_no}`
-                      : ""}
-                    {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
-                  </p>
-                </Link>
+              <li key={s.id} className="rounded-2xl border bg-card px-3 py-3 space-y-2">
+                <p className="text-sm font-semibold">
+                  {s.status === "pending_approval"
+                    ? lang === "bn"
+                      ? `সিরিয়াল #${s.serial_no ?? "—"} · অনুমোদন বাকি`
+                      : `Serial #${s.serial_no ?? "—"} · pending approval`
+                    : lang === "bn"
+                      ? `সিরিয়াল #${s.serial_no ?? "—"} · ${s.status}`
+                      : `Serial #${s.serial_no ?? "—"} · ${s.status}`}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {s.session?.session_date} · {s.claim_code}
+                  {s.online_serial_no != null
+                    ? lang === "bn"
+                      ? ` · অনলাইন #${s.online_serial_no}`
+                      : ` · online #${s.online_serial_no}`
+                    : ""}
+                  {s.fee_amount != null ? ` · ৳${s.fee_amount}` : ""}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to="/care/serial/$id"
+                    params={{ id: s.id }}
+                    className="rounded-xl border px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+                  >
+                    {lang === "bn" ? "বিস্তারিত" : "Details"}
+                  </Link>
+                  {s.session?.doctor_id ? (
+                    <Link
+                      to="/care/doctor/$id"
+                      params={{ id: s.session.doctor_id }}
+                      className="rounded-xl border px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-muted"
+                    >
+                      {lang === "bn" ? "ডাক্তার প্রোফাইল" : "Doctor profile"}
+                    </Link>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

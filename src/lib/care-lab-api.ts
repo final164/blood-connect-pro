@@ -142,12 +142,30 @@ export type CareLabFacility = {
   address: string | null;
   upazila: string | null;
   phone: string | null;
+  /** Logo or first About-gallery image URL */
+  logo_url: string | null;
   kind_slug: string | null;
   kind_name_bn: string | null;
   kind_name_en: string | null;
   offering_count: number;
   from_price: number;
 };
+
+/** Prefer org logo; else first settings.about.gallery image. */
+export function resolveOrgImageUrl(
+  logoUrl: string | null | undefined,
+  settings: unknown,
+): string | null {
+  const logo = typeof logoUrl === "string" ? logoUrl.trim() : "";
+  if (logo) return logo;
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return null;
+  const about = (settings as { about?: unknown }).about;
+  if (!about || typeof about !== "object" || Array.isArray(about)) return null;
+  const gallery = (about as { gallery?: unknown }).gallery;
+  if (!Array.isArray(gallery)) return null;
+  const first = gallery.map((u) => String(u ?? "").trim()).find(Boolean);
+  return first ?? null;
+}
 
 export type CareLabBundleResult = {
   invoice_group_id: string;
@@ -316,7 +334,7 @@ export async function searchLabFacilities(opts: {
   const { data: orgs, error } = await supabase
     .from("care_orgs")
     .select(
-      "id, name, name_bn, district_id, address, upazila, phone, org_kind_id, care_vendor_types(slug, name_bn, name_en)",
+      "id, name, name_bn, district_id, address, upazila, phone, logo_url, settings, org_kind_id, care_vendor_types(slug, name_bn, name_en)",
     )
     .in("id", orgIds)
     .eq("is_verified", true)
@@ -332,6 +350,7 @@ export async function searchLabFacilities(opts: {
         address: m.org.address ?? null,
         upazila: m.org.upazila ?? null,
         phone: m.org.phone ?? null,
+        logo_url: null,
         kind_slug: null,
         kind_name_bn: null,
         kind_name_en: null,
@@ -360,6 +379,7 @@ export async function searchLabFacilities(opts: {
       address: (row.address as string | null) ?? null,
       upazila: (row.upazila as string | null) ?? null,
       phone: (row.phone as string | null) ?? null,
+      logo_url: resolveOrgImageUrl(row.logo_url as string | null, row.settings),
       kind_slug: kind?.slug ?? null,
       kind_name_bn: kind?.name_bn ?? null,
       kind_name_en: kind?.name_en ?? null,
@@ -380,7 +400,7 @@ export async function fetchLabFacility(orgId: string): Promise<CareLabFacility |
   const { data, error } = await supabase
     .from("care_orgs")
     .select(
-      "id, name, name_bn, district_id, address, upazila, phone, is_verified, is_listed, is_active, care_vendor_types(slug, name_bn, name_en)",
+      "id, name, name_bn, district_id, address, upazila, phone, logo_url, settings, is_verified, is_listed, is_active, care_vendor_types(slug, name_bn, name_en)",
     )
     .eq("id", orgId)
     .maybeSingle();
@@ -397,6 +417,7 @@ export async function fetchLabFacility(orgId: string): Promise<CareLabFacility |
     address: (row.address as string | null) ?? null,
     upazila: (row.upazila as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
+    logo_url: resolveOrgImageUrl(row.logo_url as string | null, row.settings),
     kind_slug: kind?.slug ?? null,
     kind_name_bn: kind?.name_bn ?? null,
     kind_name_en: kind?.name_en ?? null,

@@ -321,6 +321,112 @@ export async function setDoctorOnline(doctorId: string, online: boolean) {
   if (error) throw new Error(error.message);
 }
 
+export type ConsultantProfileCarePatch = {
+  full_name?: string | null;
+  full_name_bn?: string | null;
+  qualifications?: string | null;
+  photo_url?: string | null;
+  bmdc_no?: string | null;
+  specialty_id?: string | null;
+  bio?: string | null;
+  bio_bn?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+export type ConsultantProfileTelePatch = Partial<
+  Pick<
+    TeleDoctorProfile,
+    | "about_bn"
+    | "about_en"
+    | "experience_years"
+    | "workplace_bn"
+    | "workplace_en"
+    | "hero_image_url"
+    | "fee_amount"
+    | "follow_up_fee"
+    | "follow_up_days"
+    | "avg_consult_minutes"
+    | "specialty_tags_bn"
+    | "specialty_tags_en"
+    | "notice_bn"
+    | "notice_en"
+    | "instructions_bn"
+    | "instructions_en"
+    | "helpline"
+    | "chamber_address_bn"
+    | "chamber_address_en"
+    | "instant_enabled"
+    | "video_enabled"
+    | "schedule_public"
+    | "slot_minutes"
+    | "doctor_code"
+  >
+>;
+
+/** Doctor self-service: update care_doctors (RPC) + tele_doctor_profiles. */
+export async function saveMyConsultantProfile(input: {
+  doctorId: string;
+  care: ConsultantProfileCarePatch;
+  tele: ConsultantProfileTelePatch;
+}): Promise<TeleVideoDoctor | null> {
+  const { data: careRow, error: careErr } = await supabase.rpc("care_doctor_update_my_profile", {
+    _patch: input.care,
+  } as never);
+  if (careErr) throw new Error(careErr.message);
+  void careRow;
+
+  await upsertTeleDoctorProfile({
+    doctor_id: input.doctorId,
+    video_enabled: input.tele.video_enabled !== false,
+    instant_enabled: input.tele.instant_enabled !== false,
+    about_bn: input.tele.about_bn ?? null,
+    about_en: input.tele.about_en ?? null,
+    experience_years: input.tele.experience_years ?? null,
+    workplace_bn: input.tele.workplace_bn ?? null,
+    workplace_en: input.tele.workplace_en ?? null,
+    hero_image_url: input.tele.hero_image_url ?? null,
+    fee_amount: input.tele.fee_amount ?? null,
+    follow_up_fee: input.tele.follow_up_fee ?? null,
+    follow_up_days: input.tele.follow_up_days ?? 7,
+    avg_consult_minutes: input.tele.avg_consult_minutes ?? 15,
+    specialty_tags_bn: input.tele.specialty_tags_bn ?? [],
+    specialty_tags_en: input.tele.specialty_tags_en ?? [],
+    notice_bn: input.tele.notice_bn ?? null,
+    notice_en: input.tele.notice_en ?? null,
+    instructions_bn: input.tele.instructions_bn ?? null,
+    instructions_en: input.tele.instructions_en ?? null,
+    helpline: input.tele.helpline ?? null,
+    chamber_address_bn: input.tele.chamber_address_bn ?? null,
+    chamber_address_en: input.tele.chamber_address_en ?? null,
+    schedule_public: input.tele.schedule_public !== false,
+    slot_minutes: input.tele.slot_minutes ?? 15,
+    doctor_code: input.tele.doctor_code ?? null,
+  });
+
+  return fetchTeleDoctor(input.doctorId);
+}
+
+export async function uploadDoctorPhoto(file: File): Promise<string> {
+  const { uploadAppImage } = await import("@/lib/google-drive");
+  const result = await uploadAppImage(file, "media", async (f) => {
+    const ext = (f.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `care-doctor/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from("feed-carousel").upload(path, f, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: f.type || "image/jpeg",
+    });
+    if (error) return { url: null, error };
+    const { data } = supabase.storage.from("feed-carousel").getPublicUrl(path);
+    return { url: data.publicUrl, error: null };
+  });
+  if (result.error || !result.url) {
+    throw result.error ?? new Error("Upload failed");
+  }
+  return result.url;
+}
+
 /** Request video consultancy link (may auto-approve). */
 export async function claimTeleDoctor(doctorId: string) {
   const { requestVideoClaim } = await import("@/lib/care-doctors-api");

@@ -21,8 +21,10 @@ import {
 } from "@/lib/tele-api";
 import { TeleRxEditor } from "@/components/care/tele/TeleRxEditor";
 import { TeleScheduleEditor } from "@/components/care/tele/TeleScheduleEditor";
+import { TeleConsultantProfileEditor } from "@/components/care/tele/TeleConsultantProfileEditor";
 import { fetchTeleSettings } from "@/lib/tele-cms";
 import { teleStatusLabel, teleStatusTone } from "@/lib/tele-status";
+import { fetchMyDoctorProfile, type CareDoctorProfile } from "@/lib/care-doctor-auth";
 
 export function ConsultantTeleDesk() {
   const { lang } = useI18n();
@@ -37,8 +39,9 @@ export function ConsultantTeleDesk() {
   const [claimable, setClaimable] = useState<TeleVideoDoctor[]>([]);
   const [claiming, setClaiming] = useState(false);
   const [resolving, setResolving] = useState(true);
-  const [deskTab, setDeskTab] = useState<"queue" | "schedule">("queue");
+  const [deskTab, setDeskTab] = useState<"queue" | "schedule" | "profile">("queue");
   const [profile, setProfile] = useState<TeleVideoDoctor | null>(null);
+  const [careProfile, setCareProfile] = useState<CareDoctorProfile | null>(null);
   const [canEditSchedule, setCanEditSchedule] = useState(true);
 
   async function loadDoctor(uid: string) {
@@ -47,13 +50,19 @@ export function ConsultantTeleDesk() {
       const id = await fetchMyLinkedTeleDoctorId(uid);
       setDoctorId(id);
       if (id) {
-        const [prof, settings] = await Promise.all([fetchTeleDoctor(id), fetchTeleSettings()]);
+        const [prof, settings, care] = await Promise.all([
+          fetchTeleDoctor(id),
+          fetchTeleSettings(),
+          fetchMyDoctorProfile(),
+        ]);
         setProfile(prof);
+        setCareProfile(care);
         setOnline(!!prof?.is_online);
         setCanEditSchedule(settings.consultant_can_edit_schedule !== false);
         setClaimable([]);
       } else {
         setProfile(null);
+        setCareProfile(null);
         setClaimable(await fetchUnlinkedVideoDoctors());
       }
     } finally {
@@ -236,11 +245,12 @@ export function ConsultantTeleDesk() {
       </AutoHideHeader>
 
       <div className="px-3 py-4 max-w-3xl mx-auto space-y-4 pb-10">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {(
             [
               ["queue", bn ? "কিউ" : "Queue"],
               ["schedule", bn ? "শিডিউল" : "Schedule"],
+              ["profile", bn ? "প্রোফাইল" : "Profile"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -255,6 +265,20 @@ export function ConsultantTeleDesk() {
             </button>
           ))}
         </div>
+
+        {deskTab === "profile" && doctorId && (
+          <TeleConsultantProfileEditor
+            doctorId={doctorId}
+            bn={bn}
+            careProfile={careProfile}
+            teleProfile={profile}
+            onSaved={(tele) => {
+              setProfile(tele);
+              setOnline(!!tele?.is_online);
+              if (user?.id) void loadDoctor(user.id);
+            }}
+          />
+        )}
 
         {deskTab === "schedule" && doctorId && (
           <div className="space-y-2">

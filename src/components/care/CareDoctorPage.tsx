@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Scissors, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
@@ -14,11 +14,12 @@ import {
   fetchSessionByScheduleDate,
   applySecondVisitDiscount,
   nextDatesForWeekday,
+  publicBmdcNo,
   WEEKDAY_BN,
   WEEKDAY_EN,
   type CareScheduleRow,
 } from "@/lib/care-api";
-import { locName, fetchCarePolicies } from "@/lib/care-cms";
+import { careDoctorTypeLabel, locName, fetchCarePolicies } from "@/lib/care-cms";
 import {
   DEFAULT_BOOKING_FIELDS,
   fetchOrgSettingsMap,
@@ -33,6 +34,7 @@ import {
   operationName,
   type CareOperationOffering,
 } from "@/lib/care-operations-api";
+import { fetchTeleDoctor } from "@/lib/tele-api";
 
 function ageFromDob(dob: string | null | undefined): string {
   if (!dob) return "";
@@ -75,6 +77,13 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
   const [secondVisit, setSecondVisit] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [fieldsByOrg, setFieldsByOrg] = useState<Record<string, CareSerialBookingFields>>({});
+  const [teleAbout, setTeleAbout] = useState<{
+    experience_years: number | null;
+    workplace: string | null;
+    fee: number | null;
+    videoId: string | null;
+  } | null>(null);
+  const serialFormRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,18 +95,32 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
       if (!cancelled) setSchedules(sch);
 
       const orgIds = Array.from(new Set(d?.chambers.map((c) => c.org_id) ?? []));
-      const [{ flags }, orgMap] = await Promise.all([fetchCarePolicies(), fetchOrgSettingsMap(orgIds)]);
+      const [{ flags }, orgMap, tele] = await Promise.all([
+        fetchCarePolicies(),
+        fetchOrgSettingsMap(orgIds),
+        fetchTeleDoctor(doctorId).catch(() => null),
+      ]);
       if (cancelled) return;
       const next: Record<string, CareSerialBookingFields> = {};
       for (const oid of orgIds) {
         next[oid] = resolveDeskSerialSettings(flags, orgMap[oid]).booking_fields;
       }
       setFieldsByOrg(next);
+      if (tele) {
+        setTeleAbout({
+          experience_years: tele.experience_years,
+          workplace: lang === "bn" ? tele.workplace_bn || tele.workplace_en : tele.workplace_en || tele.workplace_bn,
+          fee: tele.fee_amount,
+          videoId: tele.video_enabled ? tele.doctor_id : null,
+        });
+      } else {
+        setTeleAbout(null);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [doctorId]);
+  }, [doctorId, lang]);
 
   useEffect(() => {
     if (!user?.id || isAnonymous) {
@@ -172,6 +195,12 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
     setSelected(slot);
     setSecondVisit(false);
     void loadSeats(slot.scheduleId, slot.date);
+    // Scroll after the “Serial selected” panel mounts / updates
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        serialFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    });
   }
 
   const selectedChamber = useMemo(() => {
@@ -279,24 +308,95 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
           <div className="h-32 rounded-2xl border bg-muted/40 animate-pulse" />
         ) : (
           <>
-            <div className="flex gap-3">
-              <span className="h-16 w-16 rounded-2xl bg-primary/10 text-primary grid place-items-center overflow-hidden shrink-0">
-                {doc.photo_url ? (
-                  <img src={doc.photo_url} alt="" className="h-16 w-16 object-cover" />
-                ) : (
-                  <Stethoscope className="h-7 w-7" />
-                )}
-              </span>
-              <div className="min-w-0">
-                <p className="font-bold">{name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {[spec, doc.qualifications, doc.bmdc_no && `BMDC ${doc.bmdc_no}`].filter(Boolean).join(" · ")}
-                </p>
+            <div className="rounded-2xl border bg-card p-4 space-y-3">
+              <div className="flex gap-3">
+                <span className="h-16 w-16 rounded-2xl bg-primary/10 text-primary grid place-items-center overflow-hidden shrink-0 border">
+                  {doc.photo_url ? (
+                    <img src={doc.photo_url} alt="" className="h-16 w-16 object-cover" />
+                  ) : (
+                    <Stethoscope className="h-7 w-7" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold leading-snug">{name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {[spec, doc.qualifications].filter(Boolean).join(" · ")}
+                  </p>
+                  {doc.doctor_type ? (
+                    <span className="mt-1.5 inline-flex rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-800">
+                      {careDoctorTypeLabel(doc.doctor_type, lang)}
+                    </span>
+                  ) : null}
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                {doc.bmdc_no ? (
+                  <div className="rounded-xl border bg-muted/20 px-2.5 py-2">
+                    <p className="text-muted-foreground">BMDC</p>
+                    <p className="font-semibold">{doc.bmdc_no}</p>
+                  </div>
+                ) : null}
+                {doc.doctor_code ? (
+                  <div className="rounded-xl border bg-muted/20 px-2.5 py-2">
+                    <p className="text-muted-foreground">{lang === "bn" ? "কোড" : "Code"}</p>
+                    <p className="font-semibold">{doc.doctor_code}</p>
+                  </div>
+                ) : null}
+                {teleAbout?.experience_years != null ? (
+                  <div className="rounded-xl border bg-muted/20 px-2.5 py-2">
+                    <p className="text-muted-foreground">{lang === "bn" ? "অভিজ্ঞতা" : "Experience"}</p>
+                    <p className="font-semibold">
+                      {lang === "bn"
+                        ? `${teleAbout.experience_years}+ বছর`
+                        : `${teleAbout.experience_years}+ years`}
+                    </p>
+                  </div>
+                ) : null}
+                {teleAbout?.fee != null ? (
+                  <div className="rounded-xl border bg-muted/20 px-2.5 py-2">
+                    <p className="text-muted-foreground">{lang === "bn" ? "ভিডিও ফি" : "Video fee"}</p>
+                    <p className="font-semibold">{formatCareMoney(teleAbout.fee, lang)}</p>
+                  </div>
+                ) : null}
+              </div>
+
+              {teleAbout?.workplace ? (
+                <p className="text-xs text-muted-foreground">
+                  {lang === "bn" ? "কর্মরত" : "Works at"}:{" "}
+                  <span className="font-medium text-foreground">{teleAbout.workplace}</span>
+                </p>
+              ) : null}
+
+              {(bio || teleAbout) && (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                    {lang === "bn" ? "ডাক্তার সম্পর্কে" : "About doctor"}
+                  </p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {bio ||
+                      (lang === "bn"
+                        ? "অভিজ্ঞ চিকিৎসক — সিরিয়াল ও ভিডিও কনসালটেশন উপলব্ধ।"
+                        : "Experienced physician — serial and video consultation available.")}
+                  </p>
+                </div>
+              )}
+
+              {teleAbout?.videoId ? (
+                <Link
+                  to="/care/video/doctor/$id"
+                  params={{ id: teleAbout.videoId }}
+                  className="inline-flex rounded-xl border px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-muted"
+                >
+                  {lang === "bn" ? "ভিডিও প্রোফাইল দেখুন" : "View video profile"}
+                </Link>
+              ) : null}
             </div>
-            {bio && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{bio}</p>}
 
             <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                {lang === "bn" ? "চেম্বার ও সিরিয়াল" : "Chambers & serials"}
+              </p>
               {doc.chambers.map((ch) => {
                 const schs = byAff.get(ch.affiliation_id) ?? [];
                 const orgLabel = lang === "bn" ? ch.org_name_bn || ch.org_name : ch.org_name;
@@ -376,10 +476,12 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
               })}
             </div>
 
-            <DoctorOperationsSection doctorId={doctorId} lang={lang} />
-
             {selected && (
-              <section className="rounded-2xl border-2 border-primary/30 bg-card p-4 space-y-3 shadow-sm">
+              <section
+                ref={serialFormRef}
+                id="serial-selected"
+                className="scroll-mt-20 rounded-2xl border-2 border-primary/30 bg-card p-4 space-y-3 shadow-sm"
+              >
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-primary">
                     {lang === "bn" ? "সিরিয়াল নির্বাচিত" : "Serial selected"}
@@ -542,6 +644,8 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
                 </div>
               </section>
             )}
+
+            <DoctorOperationsSection doctorId={doctorId} lang={lang} />
           </>
         )}
       </div>
@@ -597,7 +701,15 @@ function DoctorOperationsSection({ doctorId, lang }: { doctorId: string; lang: "
               params={{ offeringId: o.id }}
               className="flex items-center gap-2 rounded-xl border px-3 py-2 hover:bg-muted/40"
             >
-              <Scissors className="h-4 w-4 shrink-0 text-primary" />
+              {o.org?.logo_url ? (
+                <img
+                  src={o.org.logo_url}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-lg border object-cover"
+                />
+              ) : (
+                <Scissors className="h-4 w-4 shrink-0 text-primary" />
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{operationName(o.catalog, lang)}</p>
                 <p className="truncate text-[11px] text-muted-foreground">

@@ -20,11 +20,13 @@ import {
   operationName,
   priceItemLabel,
   removeOperationOfferingDoctor,
+  replaceOperationOfferingDoctors,
   replaceOperationPriceItems,
   saveOperationOffering,
   type CareOperationCatalogItem,
   type CareOperationDoctorRole,
   type CareOperationOffering,
+  type CareOperationOfferingDoctor,
   type CareOperationPriceItem,
 } from "@/lib/care-operations-api";
 import { formatCareMoney } from "@/lib/care-invoice";
@@ -52,6 +54,20 @@ const DOCTOR_ROLES: CareOperationDoctorRole[] = [
 
 function money(n: number, bn: boolean) {
   return formatCareMoney(n, bn ? "bn" : "en");
+}
+
+function optionFromOfferingDoctor(d: CareOperationOfferingDoctor): CareDoctorOption | null {
+  if (!d.doctor_id) return null;
+  return {
+    id: d.doctor_id,
+    full_name: d.doctor?.full_name || "—",
+    full_name_bn: d.doctor?.full_name_bn ?? null,
+    bmdc_no: d.doctor?.bmdc_no ?? null,
+  };
+}
+
+function doctorLabel(d: CareDoctorOption, bn: boolean) {
+  return (bn ? d.full_name_bn || d.full_name : d.full_name) || "—";
 }
 
 export function CareOperationOfferingsPanel({
@@ -475,7 +491,21 @@ function OfferingForm({
       amount: String(i.amount),
     })),
   );
+  const [leadSurgeon, setLeadSurgeon] = useState<CareDoctorOption | null>(() => {
+    const hit = (existing?.doctors ?? []).find((d) => d.role === "lead_surgeon");
+    return hit ? optionFromOfferingDoctor(hit) : null;
+  });
+  const [assistants, setAssistants] = useState<CareDoctorOption[]>(() =>
+    (existing?.doctors ?? [])
+      .filter((d) => d.role === "assistant")
+      .map(optionFromOfferingDoctor)
+      .filter((d): d is CareDoctorOption => !!d),
+  );
+  const [assistantPick, setAssistantPick] = useState<CareDoctorOption | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const selectedCatalog = catalog.find((c) => c.id === catalogId) ?? existing?.catalog ?? null;
+  const selectedLocation = locations.find((l) => l.id === locationId);
 
   const filteredCatalog = useMemo(() => {
     const needle = catalogQuery.trim().toLowerCase();
@@ -503,6 +533,53 @@ function OfferingForm({
       })),
   });
 
+  function addAssistant() {
+    if (!assistantPick || isCustomDoctor(assistantPick)) {
+      toast.error(bn ? "রেজিস্টার্ড ডাক্তার নির্বাচন করুন" : "Select a registered doctor");
+      return;
+    }
+    if (leadSurgeon?.id === assistantPick.id) {
+      toast.error(bn ? "প্রধান সার্জন ইতিমধ্যে নির্বাচিত" : "Already selected as lead surgeon");
+      return;
+    }
+    if (assistants.some((a) => a.id === assistantPick.id)) {
+      toast.error(bn ? "ইতিমধ্যে যোগ করা আছে" : "Already added");
+      return;
+    }
+    setAssistants((prev) => [...prev, assistantPick]);
+    setAssistantPick(null);
+  }
+
+  async function syncSurgeons(offeringId: string) {
+    const team: { doctorId: string; role: CareOperationDoctorRole; sortOrder: number }[] = [];
+    async function pushDoctor(doc: CareDoctorOption, role: CareOperationDoctorRole, sortOrder: number) {
+      if (isCustomDoctor(doc)) return;
+      if (doc.has_account) {
+        await requestDoctorLink({
+          doctorId: doc.id,
+          orgId,
+          kind: "operation",
+          offeringId,
+          role,
+          payload: { sort_order: sortOrder },
+        });
+      }
+      team.push({ doctorId: doc.id, role, sortOrder });
+    }
+    if (leadSurgeon) await pushDoctor(leadSurgeon, "lead_surgeon", 0);
+    for (let i = 0; i < assistants.length; i++) {
+      await pushDoctor(assistants[i]!, "assistant", (i + 1) * 10);
+    }
+    const preserve = (existing?.doctors ?? []).filter(
+      (d) => d.role === "anesthetist" || d.role === "consultant",
+    );
+    for (const d of preserve) {
+      if (team.some((t) => t.doctorId === d.doctor_id)) continue;
+      team.push({ doctorId: d.doctor_id, role: d.role, sortOrder: d.sort_order ?? 100 });
+    }
+    await replaceOperationOfferingDoctors(offeringId, team);
+  }
+
   async function submit() {
     if (!catalogId) {
       toast.error(bn ? "অপারেশন নির্বাচন করুন" : "Pick an operation");
@@ -515,6 +592,10 @@ function OfferingForm({
     const price = Number(packagePrice);
     if (!Number.isFinite(price) || price <= 0) {
       toast.error(bn ? "সঠিক প্যাকেজ মূল্য দিন" : "Enter a valid package price");
+      return;
+    }
+    if (!leadSurgeon || isCustomDoctor(leadSurgeon)) {
+      toast.error(bn ? "প্রধান সার্জন নির্বাচন করুন" : "Select a lead surgeon");
       return;
     }
     setSaving(true);
@@ -541,6 +622,7 @@ function OfferingForm({
             amount: Number(i.amount),
           })),
       );
+      await syncSurgeons(offeringId);
       toast.success(bn ? "সংরক্ষিত হয়েছে" : "Saved");
       onSaved();
     } catch (e) {
@@ -706,29 +788,135 @@ function OfferingForm({
         )}
       </div>
 
-      {Number(packagePrice) > 0 && (
-        <div className="space-y-1 rounded-xl border bg-muted/30 px-3 py-2.5 text-xs">
-          <div className="flex justify-between gap-2">
-            <span className="text-muted-foreground">{bn ? "মূল্য" : "Price"}</span>
-            <span className="tabular-nums font-medium">{money(preview.list, bn)}</span>
-          </div>
-          {preview.discountAmount > 0 && (
-            <div className="flex justify-between gap-2 text-rose-700">
-              <span>
-                {bn ? "ছাড়" : "Discount"}
-                {preview.discountPercent > 0
-                  ? ` (${preview.discountPercent % 1 === 0 ? preview.discountPercent : preview.discountPercent.toFixed(1)}%)`
-                  : ""}
-              </span>
-              <span className="tabular-nums font-semibold">− {money(preview.discountAmount, bn)}</span>
-            </div>
+      <div className="space-y-2 rounded-xl border border-dashed p-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {bn ? "সার্জিক্যাল টিম" : "Surgical team"}
+        </p>
+        <Field label={bn ? "প্রধান সার্জন" : "Lead surgeon"}>
+          <DoctorTypeahead
+            value={leadSurgeon}
+            onChange={(d) => {
+              if (d && assistants.some((a) => a.id === d.id)) {
+                toast.error(bn ? "সহকারী তালিকায় আছে" : "Already in assistants");
+                return;
+              }
+              setLeadSurgeon(d && !isCustomDoctor(d) ? d : null);
+            }}
+            orgId={orgId}
+          />
+        </Field>
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold">{bn ? "সহকারী সার্জন (একাধিক)" : "Assistant surgeons (multiple)"}</p>
+          {assistants.length > 0 && (
+            <ul className="space-y-1">
+              {assistants.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5 text-xs"
+                >
+                  <span className="min-w-0 flex-1 truncate font-medium">{doctorLabel(a, bn)}</span>
+                  {a.bmdc_no ? (
+                    <span className="shrink-0 text-[10px] text-muted-foreground">BMDC {a.bmdc_no}</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setAssistants((prev) => prev.filter((x) => x.id !== a.id))}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          <div className="flex justify-between gap-2 border-t border-dashed pt-1.5 font-bold text-emerald-700">
-            <span>{bn ? "মোট" : "Total"}</span>
-            <span className="tabular-nums">{money(preview.payable, bn)}</span>
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1">
+              <DoctorTypeahead value={assistantPick} onChange={setAssistantPick} orgId={orgId} />
+            </div>
+            <button
+              type="button"
+              onClick={addAssistant}
+              disabled={!assistantPick}
+              className="shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold disabled:opacity-50"
+            >
+              {bn ? "যোগ" : "Add"}
+            </button>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-teal-700/20 bg-teal-700/[0.04] p-3">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-teal-900 dark:text-teal-100">
+          {bn ? "প্রিভিউ" : "Preview"}
+        </p>
+        <div className="space-y-1.5 text-xs">
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{bn ? "অপারেশন" : "Operation"}</span>
+            <span className="max-w-[60%] truncate text-right font-semibold">
+              {selectedCatalog
+                ? bn
+                  ? selectedCatalog.name_bn || selectedCatalog.name_en
+                  : selectedCatalog.name_en || selectedCatalog.name_bn
+                : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{bn ? "লোকেশন" : "Location"}</span>
+            <span className="font-medium">
+              {selectedLocation
+                ? bn
+                  ? selectedLocation.name_bn || selectedLocation.name
+                  : selectedLocation.name
+                : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{bn ? "প্রধান সার্জন" : "Lead surgeon"}</span>
+            <span className="max-w-[60%] truncate text-right font-medium">
+              {leadSurgeon ? doctorLabel(leadSurgeon, bn) : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{bn ? "সহকারী" : "Assistants"}</span>
+            <span className="max-w-[60%] text-right font-medium">
+              {assistants.length
+                ? assistants.map((a) => doctorLabel(a, bn)).join(", ")
+                : bn
+                  ? "নেই"
+                  : "None"}
+            </span>
+          </div>
+          {includes.trim() ? (
+            <p className="border-t border-dashed pt-1.5 text-muted-foreground">
+              <span className="font-semibold text-foreground">{bn ? "প্যাকেজ: " : "Includes: "}</span>
+              {includes.trim()}
+            </p>
+          ) : null}
+          {Number(packagePrice) > 0 ? (
+            <>
+              <div className="flex justify-between gap-2 border-t border-dashed pt-1.5">
+                <span className="text-muted-foreground">{bn ? "মূল্য" : "Price"}</span>
+                <span className="tabular-nums font-medium">{money(preview.list, bn)}</span>
+              </div>
+              {preview.discountAmount > 0 && (
+                <div className="flex justify-between gap-2 text-rose-700">
+                  <span>
+                    {bn ? "ছাড়" : "Discount"}
+                    {preview.discountPercent > 0
+                      ? ` (${preview.discountPercent % 1 === 0 ? preview.discountPercent : preview.discountPercent.toFixed(1)}%)`
+                      : ""}
+                  </span>
+                  <span className="tabular-nums font-semibold">− {money(preview.discountAmount, bn)}</span>
+                </div>
+              )}
+              <div className="flex justify-between gap-2 font-bold text-emerald-700">
+                <span>{bn ? "মোট" : "Total"}</span>
+                <span className="tabular-nums">{money(preview.payable, bn)}</span>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
 
       <label className="flex items-center gap-2 text-xs">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />

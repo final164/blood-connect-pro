@@ -13,6 +13,7 @@ import {
   Building2,
   ClipboardList,
   Hospital,
+  Info,
   LayoutDashboard,
   LogOut,
   Microscope,
@@ -315,6 +316,14 @@ function CarePortalDesktopSidebar() {
       match: (p) => p.startsWith("/care/portal/ambulance"),
     },
     {
+      to: "/care/portal/about",
+      labelBn: "প্রতিষ্ঠান সম্পর্কে",
+      labelEn: "About institute",
+      icon: Info,
+      show: true,
+      match: (p) => p.startsWith("/care/portal/about"),
+    },
+    {
       to: "/care/portal/onboarding",
       labelBn: "প্রোফাইল / KYC",
       labelEn: "Profile / KYC",
@@ -421,6 +430,9 @@ function desktopPageTitle(pathname: string, lang: "bn" | "en") {
   }
   if (pathname.startsWith("/care/portal/ambulance")) {
     return lang === "bn" ? "অ্যাম্বুলেন্স ডেস্ক" : "Ambulance desk";
+  }
+  if (pathname.startsWith("/care/portal/about")) {
+    return lang === "bn" ? "প্রতিষ্ঠান সম্পর্কে" : "About institute";
   }
   if (pathname.startsWith("/care/portal/tele")) {
     return lang === "bn" ? "ভিডিও ডেস্ক" : "Tele desk";

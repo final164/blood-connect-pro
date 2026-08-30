@@ -56,12 +56,10 @@ export function CareOperationPriceBreakdown({
   className = "",
 }: Props) {
   const bn = lang === "bn";
-  const { list, payable, discountAmount, discountPercent, itemsTotal } = operationPriceMath(summary);
+  const { list, payable, discountAmount, discountPercent } = operationPriceMath(summary);
   const items = summary.items ?? [];
   const hasItems = items.length > 0;
   const hasDiscount = discountAmount > 0;
-  const itemsMismatch =
-    hasItems && Math.abs(itemsTotal - (hasDiscount ? list : payable)) > 0.5;
   const compact = variant === "compact";
   const money = (n: number) => formatCareMoney(n, lang);
 
@@ -133,14 +131,6 @@ export function CareOperationPriceBreakdown({
       {summary.priceNote ? (
         <p className={`border-t px-3 ${compact ? "py-1.5 text-[10px]" : "py-2 text-[11px]"} text-muted-foreground`}>
           {summary.priceNote}
-        </p>
-      ) : null}
-
-      {itemsMismatch ? (
-        <p className="border-t border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[10px] text-amber-800">
-          {bn
-            ? `খাতের যোগফল ${money(itemsTotal)} — মূল্যের সাথে মিলছে না`
-            : `Line items total ${money(itemsTotal)} — does not match the listed price`}
         </p>
       ) : null}
     </div>

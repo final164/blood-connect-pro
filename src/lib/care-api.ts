@@ -10,6 +10,11 @@ export type CareDoctorListItem = {
   specialty_id: string | null;
   specialty_name_bn: string | null;
   specialty_name_en: string | null;
+  bio?: string | null;
+  bio_bn?: string | null;
+  doctor_code?: string | null;
+  doctor_type?: string | null;
+  phone?: string | null;
   chambers: {
     affiliation_id: string;
     org_id: string;
@@ -237,12 +242,12 @@ export async function searchCareDoctors(opts: {
 export async function fetchCareDoctor(id: string) {
   const list = await searchCareDoctors({});
   const found = list.find((d) => d.id === id);
+  const extraSelect =
+    "id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, bio, bio_bn, specialty_id, doctor_code, doctor_type, phone, care_specialties(name_bn, name_en)";
   if (!found) {
     const { data, error } = await supabase
       .from("care_doctors")
-      .select(
-        "id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, bio, bio_bn, specialty_id, care_specialties(name_bn, name_en)",
-      )
+      .select(extraSelect)
       .eq("id", id)
       .maybeSingle();
     if (error || !data) return null;
@@ -260,11 +265,32 @@ export async function fetchCareDoctor(id: string) {
       specialty_id: (d.specialty_id as string) ?? null,
       specialty_name_bn: spec?.name_bn ?? null,
       specialty_name_en: spec?.name_en ?? null,
+      doctor_code: (d.doctor_code as string) ?? null,
+      doctor_type: (d.doctor_type as string) ?? null,
+      phone: (d.phone as string) ?? null,
       chambers: [] as CareDoctorListItem["chambers"],
     };
   }
-  const { data } = await supabase.from("care_doctors").select("bio, bio_bn").eq("id", id).maybeSingle();
-  return { ...found, bio: (data as { bio?: string } | null)?.bio ?? null, bio_bn: (data as { bio_bn?: string } | null)?.bio_bn ?? null };
+  const { data } = await supabase
+    .from("care_doctors")
+    .select("bio, bio_bn, doctor_code, doctor_type, phone")
+    .eq("id", id)
+    .maybeSingle();
+  const extra = data as {
+    bio?: string | null;
+    bio_bn?: string | null;
+    doctor_code?: string | null;
+    doctor_type?: string | null;
+    phone?: string | null;
+  } | null;
+  return {
+    ...found,
+    bio: extra?.bio ?? null,
+    bio_bn: extra?.bio_bn ?? null,
+    doctor_code: extra?.doctor_code ?? null,
+    doctor_type: extra?.doctor_type ?? null,
+    phone: extra?.phone ?? null,
+  };
 }
 
 export async function fetchSchedulesForAffiliations(affiliationIds: string[]): Promise<CareScheduleRow[]> {

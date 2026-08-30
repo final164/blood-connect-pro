@@ -18,9 +18,26 @@ export type CareOrgSerialSettings = {
   booking_fields?: Partial<CareSerialBookingFields>;
 };
 
+export type CareOrgFaqItem = {
+  id: string;
+  question_bn: string;
+  question_en: string;
+  answer_bn: string;
+  answer_en: string;
+};
+
+/** Stored under care_orgs.settings.about */
+export type CareOrgAboutSettings = {
+  about_bn?: string;
+  about_en?: string;
+  gallery?: string[];
+  faqs?: CareOrgFaqItem[];
+};
+
 export type CareOrgSettings = {
   serial?: CareOrgSerialSettings;
   invoice?: CareOrgInvoiceSettings;
+  about?: CareOrgAboutSettings;
 };
 
 /** Resolved effective settings for UI / booking */
@@ -100,6 +117,34 @@ export function resolveDeskSerialSettings(
   };
 }
 
+export function parseOrgAboutSettings(raw: unknown): CareOrgAboutSettings {
+  if (!raw || typeof raw !== "object") return {};
+  const o = raw as Record<string, unknown>;
+  const gallery = Array.isArray(o.gallery)
+    ? o.gallery.map((u) => String(u).trim()).filter(Boolean)
+    : [];
+  const faqsRaw = Array.isArray(o.faqs) ? o.faqs : [];
+  const faqs: CareOrgFaqItem[] = faqsRaw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const f = item as Record<string, unknown>;
+      return {
+        id: String(f.id || crypto.randomUUID()),
+        question_bn: String(f.question_bn ?? ""),
+        question_en: String(f.question_en ?? ""),
+        answer_bn: String(f.answer_bn ?? ""),
+        answer_en: String(f.answer_en ?? ""),
+      };
+    })
+    .filter((f): f is CareOrgFaqItem => !!f);
+  return {
+    about_bn: typeof o.about_bn === "string" ? o.about_bn : undefined,
+    about_en: typeof o.about_en === "string" ? o.about_en : undefined,
+    gallery,
+    faqs,
+  };
+}
+
 export function parseOrgSettings(raw: unknown): CareOrgSettings {
   if (!raw || typeof raw !== "object") return {};
   const o = raw as Record<string, unknown>;
@@ -129,6 +174,7 @@ export function parseOrgSettings(raw: unknown): CareOrgSettings {
   return {
     serial: serial ?? {},
     invoice: Object.keys(invoice).length ? invoice : {},
+    about: parseOrgAboutSettings(o.about),
   };
 }
 

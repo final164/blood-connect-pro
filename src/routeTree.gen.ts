@@ -44,6 +44,7 @@ import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.o
 import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
 import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
 import { Route as CarePortalAmbulanceRouteImport } from './routes/care.portal.ambulance'
+import { Route as CarePortalAboutRouteImport } from './routes/care.portal.about'
 import { Route as CareDoctorRegisterRouteImport } from './routes/care.doctor.register'
 import { Route as CareDoctorPortalRouteImport } from './routes/care.doctor.portal'
 import { Route as CareDoctorAuthRouteImport } from './routes/care.doctor.auth'
@@ -244,6 +245,11 @@ const CarePortalAmbulanceRoute = CarePortalAmbulanceRouteImport.update({
   path: '/ambulance',
   getParentRoute: () => CarePortalRoute,
 } as any)
+const CarePortalAboutRoute = CarePortalAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => CarePortalRoute,
+} as any)
 const CareDoctorRegisterRoute = CareDoctorRegisterRouteImport.update({
   id: '/care/doctor/register',
   path: '/care/doctor/register',
@@ -409,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/care/doctor/auth': typeof CareDoctorAuthRoute
   '/care/doctor/portal': typeof CareDoctorPortalRoute
   '/care/doctor/register': typeof CareDoctorRegisterRoute
+  '/care/portal/about': typeof CarePortalAboutRoute
   '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
@@ -465,6 +472,7 @@ export interface FileRoutesByTo {
   '/care/doctor/auth': typeof CareDoctorAuthRoute
   '/care/doctor/portal': typeof CareDoctorPortalRoute
   '/care/doctor/register': typeof CareDoctorRegisterRoute
+  '/care/portal/about': typeof CarePortalAboutRoute
   '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
@@ -528,6 +536,7 @@ export interface FileRoutesById {
   '/care/doctor/auth': typeof CareDoctorAuthRoute
   '/care/doctor/portal': typeof CareDoctorPortalRoute
   '/care/doctor/register': typeof CareDoctorRegisterRoute
+  '/care/portal/about': typeof CarePortalAboutRoute
   '/care/portal/ambulance': typeof CarePortalAmbulanceRoute
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
@@ -591,6 +600,7 @@ export interface FileRouteTypes {
     | '/care/doctor/auth'
     | '/care/doctor/portal'
     | '/care/doctor/register'
+    | '/care/portal/about'
     | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
@@ -647,6 +657,7 @@ export interface FileRouteTypes {
     | '/care/doctor/auth'
     | '/care/doctor/portal'
     | '/care/doctor/register'
+    | '/care/portal/about'
     | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
@@ -709,6 +720,7 @@ export interface FileRouteTypes {
     | '/care/doctor/auth'
     | '/care/doctor/portal'
     | '/care/doctor/register'
+    | '/care/portal/about'
     | '/care/portal/ambulance'
     | '/care/portal/desk'
     | '/care/portal/lab'
@@ -1000,6 +1012,13 @@ declare module '@tanstack/react-router' {
       path: '/ambulance'
       fullPath: '/care/portal/ambulance'
       preLoaderRoute: typeof CarePortalAmbulanceRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/about': {
+      id: '/care/portal/about'
+      path: '/about'
+      fullPath: '/care/portal/about'
+      preLoaderRoute: typeof CarePortalAboutRouteImport
       parentRoute: typeof CarePortalRoute
     }
     '/care/doctor/register': {
@@ -1318,6 +1337,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface CarePortalRouteChildren {
+  CarePortalAboutRoute: typeof CarePortalAboutRoute
   CarePortalAmbulanceRoute: typeof CarePortalAmbulanceRoute
   CarePortalDeskRoute: typeof CarePortalDeskRoute
   CarePortalLabRoute: typeof CarePortalLabRoute
@@ -1328,6 +1348,7 @@ interface CarePortalRouteChildren {
 }
 
 const CarePortalRouteChildren: CarePortalRouteChildren = {
+  CarePortalAboutRoute: CarePortalAboutRoute,
   CarePortalAmbulanceRoute: CarePortalAmbulanceRoute,
   CarePortalDeskRoute: CarePortalDeskRoute,
   CarePortalLabRoute: CarePortalLabRoute,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { CalendarClock, Clock, Scissors, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
@@ -7,6 +7,7 @@ import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { CareInstituteDetailsSheet } from "@/components/care/CareInstituteDetailsSheet";
 import { CareOperationPriceBreakdown } from "@/components/care/CareOperationPriceBreakdown";
 import {
   fetchOperationOffering,
@@ -24,6 +25,7 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
   const [offering, setOffering] = useState<CareOperationOffering | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
@@ -76,6 +78,11 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
   const catalog = offering?.catalog;
   const prep = bn ? catalog?.prep_bn : catalog?.prep_en;
   const includes = bn ? offering?.includes_bn : offering?.includes_en;
+  const orgTitle = offering
+    ? bn
+      ? offering.org?.name_bn || offering.org?.name
+      : offering.org?.name || offering.org?.name_bn
+    : "";
 
   return (
     <div className="w-full">
@@ -100,17 +107,40 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
           <>
             <section className="space-y-2 rounded-2xl border bg-card p-4">
               <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                  <Scissors className="h-5 w-5" />
-                </div>
+                {offering.org?.logo_url ? (
+                  <img
+                    src={offering.org.logo_url}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-xl border bg-muted object-cover"
+                  />
+                ) : (
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Scissors className="h-5 w-5" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <h2 className="text-base font-bold">{operationName(catalog, lang)}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {bn ? offering.org?.name_bn || offering.org?.name : offering.org?.name}
+                    {orgTitle}
                     {offering.location
                       ? ` · ${bn ? offering.location.name_bn || offering.location.name : offering.location.name}`
                       : ""}
                   </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsOpen(true)}
+                      className="rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                    >
+                      {bn ? "বিস্তারিত" : "Details"}
+                    </button>
+                    <CareOrgChatButton
+                      orgId={offering.org_id}
+                      phone={offering.org?.phone}
+                      orgLabel={orgTitle || undefined}
+                      variant="button"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -134,6 +164,13 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
               </div>
             </section>
 
+            <CareInstituteDetailsSheet
+              orgId={offering.org_id}
+              open={detailsOpen}
+              onOpenChange={setDetailsOpen}
+              lang={lang}
+            />
+
             <CareOperationPriceBreakdown
               lang={lang}
               summary={{
@@ -152,15 +189,23 @@ export function CareOperationPage({ offeringId }: { offeringId: string }) {
                 </p>
                 <ul className="space-y-1.5">
                   {offering.doctors.map((d) => (
-                    <li key={d.id} className="flex items-center gap-2 text-sm">
-                      <Stethoscope className="h-4 w-4 text-primary" />
-                      <span className="font-medium">
-                        {(bn ? d.doctor?.full_name_bn : null) || d.doctor?.full_name || "—"}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {operationDoctorRoleLabel(d.role, lang)}
-                        {d.doctor?.bmdc_no ? ` · BMDC ${d.doctor.bmdc_no}` : ""}
-                      </span>
+                    <li key={d.id}>
+                      <Link
+                        to="/care/doctor/$id"
+                        params={{ id: d.doctor_id }}
+                        className="flex items-center gap-2 rounded-xl border px-2.5 py-2 text-sm hover:bg-muted/40"
+                      >
+                        <Stethoscope className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0 flex-1 font-medium truncate">
+                          {(bn ? d.doctor?.full_name_bn : null) || d.doctor?.full_name || "—"}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {operationDoctorRoleLabel(d.role, lang)}
+                        </span>
+                        <span className="shrink-0 text-[10px] font-semibold text-sky-700">
+                          {bn ? "প্রোফাইল" : "Profile"}
+                        </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

@@ -39,6 +39,7 @@ import {
   setDoctorOnline,
   type TeleVideoDoctor,
 } from "@/lib/tele-api";
+import { TeleConsultantProfileEditor } from "@/components/care/tele/TeleConsultantProfileEditor";
 import { formatCareMoney } from "@/lib/care-invoice";
 import { cn } from "@/lib/utils";
 
@@ -406,7 +407,21 @@ export function DoctorPortalPage() {
         )}
 
         {tab === "video" && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {profile && (
+              <TeleConsultantProfileEditor
+                doctorId={profile.id}
+                bn={bn}
+                careProfile={profile}
+                teleProfile={teleProfile}
+                onSaved={(tele) => {
+                  setTeleProfile(tele);
+                  void fetchMyDoctorProfile().then((p) => {
+                    if (p) setProfile(p);
+                  });
+                }}
+              />
+            )}
             {teleProfile ? (
               <div className="rounded-2xl border bg-card p-4 space-y-3">
                 <p className="text-sm font-semibold">
@@ -457,8 +472,8 @@ export function DoctorPortalPage() {
               <div className="rounded-2xl border bg-card p-4 space-y-3">
                 <p className="text-sm text-muted-foreground">
                   {bn
-                    ? "অনলাইন কনসালট্যান্সিতে জয়েন করতে একটি প্রোফাইল বেছে নিন। অ্যাডমিন অ্যাপ্রুভাল লাগতে পারে।"
-                    : "Pick a profile to join online consultancy. Admin approval may be required."}
+                    ? "উপরে প্রোফাইল সেভ করলে ভিডিও পেজ তৈরি হবে। অথবা নিচে থেকে বিদ্যমান প্রোফাইল জয়েন করুন।"
+                    : "Save the profile above to create your video page, or join an existing profile below."}
                 </p>
                 {!claimable.length ? (
                   <p className="text-xs text-muted-foreground">

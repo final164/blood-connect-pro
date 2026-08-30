@@ -896,6 +896,10 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
       bn: "ল্যাব ডেস্ক — আজকের বুকিং পেজ সাইজ (স্ক্রলে লোড)",
       en: "Lab desk — Today bookings page size (infinite scroll)",
     },
+    org_gallery_max_images: {
+      bn: "প্রতিষ্ঠান গ্যালারি — সর্বোচ্চ ছবি (আপলোড লিমিট)",
+      en: "Institute gallery — max photos (upload limit)",
+    },
   };
 
   const flagLabel: Record<keyof CareFeatureFlags, { bn: string; en: string }> = {
@@ -948,8 +952,8 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
             <input
               className={ainp + " w-24"}
               type="number"
-              min={k === "lab_desk_page_size" ? 5 : 0}
-              max={k === "lab_desk_page_size" ? 100 : undefined}
+              min={k === "lab_desk_page_size" ? 5 : k === "org_gallery_max_images" ? 1 : 0}
+              max={k === "lab_desk_page_size" ? 100 : k === "org_gallery_max_images" ? 30 : undefined}
               value={policies[k] as number}
               onChange={(e) => setPolicies({ ...policies, [k]: Number(e.target.value) })}
             />

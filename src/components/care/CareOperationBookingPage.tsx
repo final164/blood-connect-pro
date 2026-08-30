@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { CalendarClock, Receipt, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
@@ -167,15 +168,35 @@ export function CareOperationBookingPage({ bookingId }: { bookingId: string }) {
                     {bn ? "সার্জন টিম" : "Surgical team"}
                   </p>
                   <ul className="space-y-1">
-                    {booking.doctors.map((d, i) => (
-                      <li key={i} className="flex items-center gap-1.5 text-xs">
-                        <Stethoscope className="h-3.5 w-3.5 text-primary" />
-                        <span className="font-medium">{d.doctor_name_snapshot || "—"}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {operationDoctorRoleLabel(d.role, lang)}
+                    {booking.doctors.map((d, i) => {
+                      const row = (
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-xs">
+                          <Stethoscope className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          <span className="truncate font-medium">{d.doctor_name_snapshot || "—"}</span>
+                          <span className="shrink-0 text-[10px] text-muted-foreground">
+                            {operationDoctorRoleLabel(d.role, lang)}
+                          </span>
                         </span>
-                      </li>
-                    ))}
+                      );
+                      return (
+                        <li key={i} className="rounded-lg border px-2 py-1.5">
+                          {d.doctor_id ? (
+                            <Link
+                              to="/care/doctor/$id"
+                              params={{ id: d.doctor_id }}
+                              className="flex items-center gap-2 hover:bg-muted/40"
+                            >
+                              {row}
+                              <span className="shrink-0 text-[10px] font-semibold text-sky-700">
+                                {bn ? "প্রোফাইল" : "Profile"}
+                              </span>
+                            </Link>
+                          ) : (
+                            row
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

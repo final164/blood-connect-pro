@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import {
+  fetchCareDoctor,
   fetchSerial,
   fetchSession,
   fetchSessionQueue,
@@ -20,10 +22,12 @@ import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
 
 export function CareSerialLivePage({ serialId }: { serialId: string }) {
   const { lang } = useI18n();
+  const bn = lang === "bn";
   const [ticket, setTicket] = useState<CareSerialRow | null>(null);
   const [session, setSession] = useState<CareSessionRow | null>(null);
   const [queue, setQueue] = useState<CareSerialRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [doctorName, setDoctorName] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const t = await fetchSerial(serialId);
@@ -32,7 +36,15 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
     const [sess, q] = await Promise.all([fetchSession(t.session_id), fetchSessionQueue(t.session_id)]);
     setSession(sess);
     setQueue(q);
-  }, [serialId]);
+    if (sess?.doctor_id) {
+      const d = await fetchCareDoctor(sess.doctor_id).catch(() => null);
+      setDoctorName(
+        d ? (lang === "bn" ? d.full_name_bn || d.full_name : d.full_name) : null,
+      );
+    } else {
+      setDoctorName(null);
+    }
+  }, [serialId, lang]);
 
   useEffect(() => {
     void reload();
@@ -150,6 +162,23 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
                   : "pending approval"
                 : ticket.status}
             </p>
+            {(doctorName || session?.doctor_id) && (
+              <div className="rounded-2xl border bg-card px-3 py-3 text-left space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                  {bn ? "ডাক্তার" : "Doctor"}
+                </p>
+                <p className="text-sm font-semibold">{doctorName || "—"}</p>
+                {session?.doctor_id ? (
+                  <Link
+                    to="/care/doctor/$id"
+                    params={{ id: session.doctor_id }}
+                    className="inline-flex rounded-xl border px-3 py-1.5 text-xs font-semibold hover:bg-muted"
+                  >
+                    {bn ? "বিস্তারিত / প্রোফাইল" : "Details / Profile"}
+                  </Link>
+                ) : null}
+              </div>
+            )}
             {(ticket.status === "booked" || ticket.status === "pending_approval") && (
               <button
                 type="button"
