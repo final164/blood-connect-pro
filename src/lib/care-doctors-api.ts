@@ -17,7 +17,46 @@ export type CareDoctorOption = {
   in_org?: boolean | null;
   registration_status?: string | null;
   has_account?: boolean | null;
+  title?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  district_id?: string | null;
+  nid_passport?: string | null;
+  id_document_kind?: string | null;
+  doctor_type?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  bio?: string | null;
+  bio_bn?: string | null;
 };
+
+const DOCTOR_PROFILE_SELECT =
+  "id, full_name, full_name_bn, bmdc_no, doctor_code, qualifications, photo_url, specialty_id, registration_status, user_id, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, id_document_kind, doctor_type, phone, email, bio, bio_bn";
+
+/** Full catalog row for chamber-desk autofill after typeahead select. */
+export async function fetchCareDoctorById(id: string): Promise<CareDoctorOption | null> {
+  const { data, error } = await supabase
+    .from("care_doctors")
+    .select(
+      `${DOCTOR_PROFILE_SELECT}, care_specialties ( name_bn, name_en )`,
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const row = data as CareDoctorOption & {
+    user_id?: string | null;
+    care_specialties?: { name_bn?: string | null; name_en?: string | null } | null;
+  };
+  return {
+    ...row,
+    specialty_name_bn: row.care_specialties?.name_bn ?? row.specialty_name_bn ?? null,
+    specialty_name_en: row.care_specialties?.name_en ?? row.specialty_name_en ?? null,
+    has_account: row.has_account ?? !!row.user_id,
+  };
+}
 
 /** Free-text entries carry this prefix until they are committed to the DB. */
 export const CUSTOM_DOCTOR_PREFIX = "custom:";
@@ -51,13 +90,18 @@ export async function searchCareDoctors(
     if (/care_doctors_search|could not find/i.test(error.message)) {
       const retry = await supabase
         .from("care_doctors")
-        .select("id, full_name, full_name_bn, bmdc_no, qualifications, photo_url, specialty_id")
+        .select(
+          "id, full_name, full_name_bn, bmdc_no, doctor_code, qualifications, photo_url, specialty_id, registration_status, user_id, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, doctor_type, phone, email",
+        )
         .eq("is_active", true)
         .ilike("full_name", `%${q.trim()}%`)
         .order("full_name")
         .limit(opts?.limit ?? 20);
       if (retry.error) throw new Error(retry.error.message);
-      return (retry.data ?? []) as CareDoctorOption[];
+      return ((retry.data ?? []) as (CareDoctorOption & { user_id?: string | null })[]).map((d) => ({
+        ...d,
+        has_account: !!d.user_id,
+      }));
     }
     throw new Error(error.message);
   }
@@ -68,9 +112,28 @@ export async function searchCareDoctors(
  * Resolves a typeahead selection to a real care_doctors id, creating the record
  * when the desk typed a name that is not in the catalog yet.
  */
+export type ResolveDoctorExtra = {
+  bmdcNo?: string | null;
+  specialtyId?: string | null;
+  qualifications?: string | null;
+  fullNameBn?: string | null;
+  title?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  districtId?: string | null;
+  nidPassport?: string | null;
+  idDocumentKind?: string | null;
+  doctorType?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  photoUrl?: string | null;
+};
+
 export async function resolveDoctorId(
   doctor: CareDoctorOption,
-  extra?: { bmdcNo?: string | null; specialtyId?: string | null; qualifications?: string | null },
+  extra?: ResolveDoctorExtra,
 ): Promise<string> {
   if (!isCustomDoctor(doctor)) return doctor.id;
   const { data, error } = await supabase.rpc("care_find_or_create_doctor", {
@@ -78,6 +141,19 @@ export async function resolveDoctorId(
     _bmdc_no: extra?.bmdcNo ?? doctor.bmdc_no ?? null,
     _specialty_id: extra?.specialtyId ?? doctor.specialty_id ?? null,
     _qualifications: extra?.qualifications ?? doctor.qualifications ?? null,
+    _full_name_bn: extra?.fullNameBn ?? doctor.full_name_bn ?? null,
+    _title: extra?.title ?? doctor.title ?? null,
+    _first_name: extra?.firstName ?? doctor.first_name ?? null,
+    _last_name: extra?.lastName ?? doctor.last_name ?? null,
+    _date_of_birth: extra?.dateOfBirth ?? doctor.date_of_birth ?? null,
+    _gender: extra?.gender ?? doctor.gender ?? null,
+    _district_id: extra?.districtId ?? doctor.district_id ?? null,
+    _nid_passport: extra?.nidPassport ?? doctor.nid_passport ?? null,
+    _id_document_kind: extra?.idDocumentKind ?? doctor.id_document_kind ?? null,
+    _doctor_type: extra?.doctorType ?? doctor.doctor_type ?? null,
+    _phone: extra?.phone ?? doctor.phone ?? null,
+    _email: extra?.email ?? doctor.email ?? null,
+    _photo_url: extra?.photoUrl ?? doctor.photo_url ?? null,
   } as never);
   if (error) throw new Error(error.message);
   return String(data);
@@ -100,11 +176,12 @@ export type CareDoctorAdminRow = CareDoctorOption & {
   gender?: string | null;
   district_id?: string | null;
   nid_passport?: string | null;
+  id_document_kind?: string | null;
   doctor_type?: string | null;
 };
 
 const ADMIN_DOCTOR_SELECT =
-  "id, full_name, full_name_bn, bmdc_no, doctor_code, qualifications, photo_url, bio, bio_bn, specialty_id, is_active, created_at, registration_status, user_id, phone, email, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, doctor_type";
+  "id, full_name, full_name_bn, bmdc_no, doctor_code, qualifications, photo_url, bio, bio_bn, specialty_id, is_active, created_at, registration_status, user_id, phone, email, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, id_document_kind, doctor_type";
 
 export async function fetchDoctorsForAdmin(
   q: string,
@@ -140,6 +217,7 @@ export async function createCareDoctorAdmin(input: {
   gender?: string | null;
   district_id?: string | null;
   nid_passport?: string | null;
+  id_document_kind?: string | null;
   bmdc_no?: string | null;
   doctor_type?: string | null;
   phone?: string | null;
@@ -161,6 +239,7 @@ export async function createCareDoctorAdmin(input: {
     _gender: input.gender ?? null,
     _district_id: input.district_id ?? null,
     _nid_passport: input.nid_passport ?? null,
+    _id_document_kind: input.id_document_kind ?? null,
     _bmdc_no: input.bmdc_no ?? null,
     _doctor_type: input.doctor_type ?? null,
     _phone: input.phone ?? null,
@@ -209,6 +288,7 @@ export async function updateCareDoctor(
       | "gender"
       | "district_id"
       | "nid_passport"
+      | "id_document_kind"
       | "doctor_type"
     > & { is_active: boolean }
   >,
@@ -320,6 +400,72 @@ export async function respondDoctorLink(requestId: string, approve: boolean) {
     _approve: approve,
   } as never);
   if (error) throw new Error(error.message);
+  return data;
+}
+
+export type OrgPendingDoctorLink = {
+  id: string;
+  doctor_id: string;
+  location_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+  care_doctors: {
+    id: string;
+    full_name: string;
+    full_name_bn?: string | null;
+    photo_url?: string | null;
+    bmdc_no?: string | null;
+    doctor_code?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    qualifications?: string | null;
+    doctor_type?: string | null;
+    specialty_id?: string | null;
+    care_specialties?: { name_bn?: string | null; name_en?: string | null } | null;
+  } | null;
+  care_locations: { name?: string | null; name_bn?: string | null } | null;
+};
+
+export async function fetchOrgPendingDoctorLinks(orgId: string): Promise<OrgPendingDoctorLink[]> {
+  const { data, error } = await supabase
+    .from("care_doctor_link_requests")
+    .select(
+      `id, doctor_id, location_id, payload, created_at,
+       care_doctors(
+         id, full_name, full_name_bn, photo_url, bmdc_no, doctor_code, phone, email,
+         qualifications, doctor_type, specialty_id,
+         care_specialties(name_bn, name_en)
+       ),
+       care_locations(name, name_bn)`,
+    )
+    .eq("org_id", orgId)
+    .eq("status", "pending")
+    .eq("kind", "affiliation")
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (/care_doctor_link_requests|schema cache/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as OrgPendingDoctorLink[];
+}
+
+export async function cancelOrgDoctorLink(requestId: string) {
+  const { data, error } = await supabase.rpc("care_cancel_org_doctor_link", {
+    _request_id: requestId,
+  } as never);
+  if (error) {
+    // Fallback before migration: mark rejected if RLS ever allows; else surface error.
+    if (/care_cancel_org_doctor_link|could not find/i.test(error.message)) {
+      const retry = await supabase
+        .from("care_doctor_link_requests")
+        .update({ status: "rejected", responded_at: new Date().toISOString() } as never)
+        .eq("id", requestId)
+        .eq("status", "pending");
+      if (retry.error) throw new Error(retry.error.message);
+      return null;
+    }
+    throw new Error(error.message);
+  }
   return data;
 }
 

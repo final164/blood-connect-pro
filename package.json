@@ -16,6 +16,7 @@
     "seed:care-vendors": "bun --env-file=.env run scripts/seed-care-vendors.mjs",
     "seed:tele-doctors": "bun --env-file=.env run scripts/seed-tele-doctors.mjs",
     "seed:doctor-logins": "bun --env-file=.env run scripts/seed-doctor-logins.mjs",
+    "seed:doctor-profiles": "bun --env-file=.env run scripts/seed-doctor-profiles.mjs",
     "seed:ambulance-vendors": "bun --env-file=.env run scripts/seed-ambulance-vendors.mjs",
     "seed:operations": "bun --env-file=.env run scripts/seed-operations.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs",

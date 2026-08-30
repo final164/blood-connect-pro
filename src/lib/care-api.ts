@@ -530,16 +530,100 @@ export async function setSerialStatus(serialId: string, status: string) {
   return data as CareSerialRow;
 }
 
-export async function fetchOrgDoctors(orgId: string) {
+export type OrgDoctorRow = {
+  id: string;
+  doctor_id: string;
+  location_id: string;
+  fee_amount: number | null;
+  second_visit_discount_type: string | null;
+  second_visit_discount_value: number | null;
+  is_active: boolean;
+  care_doctors: {
+    id: string;
+    full_name: string;
+    full_name_bn?: string | null;
+    photo_url?: string | null;
+    bmdc_no?: string | null;
+    doctor_code?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    qualifications?: string | null;
+    doctor_type?: string | null;
+    specialty_id?: string | null;
+    care_specialties?: { name_bn?: string | null; name_en?: string | null } | null;
+  } | null;
+  care_locations: { id: string; name: string; name_bn?: string | null } | null;
+};
+
+export async function fetchOrgDoctors(orgId: string): Promise<OrgDoctorRow[]> {
   const { data, error } = await supabase
     .from("care_affiliations")
     .select(
-      "id, doctor_id, location_id, fee_amount, second_visit_discount_type, second_visit_discount_value, is_active, care_doctors(id, full_name, full_name_bn, bmdc_no, specialty_id), care_locations(id, name, name_bn)",
+      `id, doctor_id, location_id, fee_amount, second_visit_discount_type, second_visit_discount_value, is_active,
+       care_doctors(
+         id, full_name, full_name_bn, photo_url, bmdc_no, doctor_code, phone, email,
+         qualifications, doctor_type, specialty_id,
+         care_specialties(name_bn, name_en)
+       ),
+       care_locations(id, name, name_bn)`,
     )
     .eq("org_id", orgId)
+    .eq("is_active", true)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []) as OrgDoctorRow[];
+}
+
+export async function deactivateOrgAffiliation(affiliationId: string) {
+  const { error } = await supabase
+    .from("care_affiliations")
+    .update({ is_active: false } as never)
+    .eq("id", affiliationId);
+  if (error) throw new Error(error.message);
+}
+
+/** Re-activate soft-removed affiliation or insert new (unique org+doctor+location). */
+export async function upsertOrgAffiliation(input: {
+  orgId: string;
+  doctorId: string;
+  locationId: string;
+  fee_amount?: number | null;
+  second_visit_discount_type?: string | null;
+  second_visit_discount_value?: number | null;
+}): Promise<"created" | "restored"> {
+  const { data: existing, error: findErr } = await supabase
+    .from("care_affiliations")
+    .select("id, is_active")
+    .eq("org_id", input.orgId)
+    .eq("doctor_id", input.doctorId)
+    .eq("location_id", input.locationId)
+    .maybeSingle();
+  if (findErr) throw new Error(findErr.message);
+
+  const patch = {
+    fee_amount: input.fee_amount ?? null,
+    second_visit_discount_type: input.second_visit_discount_type ?? null,
+    second_visit_discount_value: input.second_visit_discount_value ?? null,
+    is_active: true,
+  };
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from("care_affiliations")
+      .update(patch as never)
+      .eq("id", existing.id);
+    if (error) throw new Error(error.message);
+    return existing.is_active ? "created" : "restored";
+  }
+
+  const { error } = await supabase.from("care_affiliations").insert({
+    org_id: input.orgId,
+    doctor_id: input.doctorId,
+    location_id: input.locationId,
+    ...patch,
+  } as never);
+  if (error) throw new Error(error.message);
+  return "created";
 }
 
 export async function fetchOrgLocations(orgId: string) {

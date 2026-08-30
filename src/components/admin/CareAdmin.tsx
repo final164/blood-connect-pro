@@ -424,7 +424,7 @@ function DoctorOnboardingPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn"
     void fetchCareDoctorOnboarding().then(setSettings);
   }, []);
   if (!settings) return null;
-  const keys = Object.keys(settings.fields) as CareDoctorFieldKey[];
+  const keys = (Object.keys(settings.fields) as CareDoctorFieldKey[]).filter((k) => k !== "district");
   return (
     <div className="space-y-3 max-w-2xl">
       <p className="text-xs text-slate-400">

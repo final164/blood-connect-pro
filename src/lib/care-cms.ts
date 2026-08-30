@@ -141,6 +141,22 @@ export type CareDoctorFieldKey =
   | "qualifications"
   | "terms";
 
+/** Fixed options for doctor_type select (registration, desk, admin). */
+export const CARE_DOCTOR_TYPES = [
+  { value: "general", label_bn: "জেনারেল", label_en: "General" },
+  { value: "specialist", label_bn: "স্পেশালিস্ট", label_en: "Specialist" },
+  { value: "consultant", label_bn: "কনসালটেন্ট", label_en: "Consultant" },
+  { value: "surgeon", label_bn: "সার্জন", label_en: "Surgeon" },
+] as const;
+
+export function careDoctorTypeLabel(value: string | null | undefined, lang: "bn" | "en"): string {
+  const v = value?.trim();
+  if (!v) return "—";
+  const hit = CARE_DOCTOR_TYPES.find((t) => t.value === v);
+  if (!hit) return v;
+  return lang === "bn" ? hit.label_bn : hit.label_en;
+}
+
 export type CareDoctorOnboardingSettings = {
   fields: Record<CareDoctorFieldKey, CareVendorFieldConfig>;
   auto_approve_registration: boolean;
@@ -170,12 +186,12 @@ const DEFAULT_DOCTOR_ONBOARDING: CareDoctorOnboardingSettings = {
     last_name: { enabled: true, required: true, label_bn: "নামের শেষ অংশ", label_en: "Last Name" },
     date_of_birth: { enabled: true, required: true, label_bn: "জন্ম তারিখ", label_en: "Date of birth" },
     gender: { enabled: true, required: true, label_bn: "লিঙ্গ", label_en: "Gender" },
-    district: { enabled: true, required: true, label_bn: "জেলা", label_en: "District" },
+    district: { enabled: false, required: false, label_bn: "জেলা", label_en: "District" },
     nid_passport: {
       enabled: true,
       required: true,
-      label_bn: "জাতীয় পরিচয়পত্র / পাসপোর্ট",
-      label_en: "National ID / Passport Number",
+      label_bn: "পরিচয়পত্র নম্বর",
+      label_en: "ID document number",
     },
     bmdc: {
       enabled: true,
@@ -533,6 +549,8 @@ function normalizeDoctorOnboarding(raw: unknown): CareDoctorOnboardingSettings {
       label_en: f.label_en?.trim() || base.fields[key].label_en,
     };
   }
+  // Doctor flows no longer collect district.
+  fields.district = { ...fields.district, enabled: false, required: false };
   return {
     fields,
     auto_approve_registration: r.auto_approve_registration === true,

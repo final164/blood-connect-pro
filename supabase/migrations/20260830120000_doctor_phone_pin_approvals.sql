@@ -9,6 +9,7 @@ SET care_doctor_onboarding = COALESCE(care_doctor_onboarding, '{}'::jsonb)
   )
 WHERE id = 1;
 
+
 -- Ensure pin field exists in fields map (idempotent merge).
 UPDATE public.app_settings
 SET care_doctor_onboarding = jsonb_set(

@@ -3,9 +3,7 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageBackButton } from "@/components/nav/PageBackButton";
-import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { useI18n } from "@/lib/i18n";
-import type { District } from "@/lib/api";
 import {
   fetchCareDoctorOnboarding,
   fetchCareSpecialties,
@@ -21,18 +19,18 @@ import {
 } from "@/lib/care-doctor-auth";
 import { clampPhoneDigits } from "@/lib/phone-auth";
 import { cn } from "@/lib/utils";
+import { DoctorTypeSelect } from "@/components/care/DoctorTypeSelect";
+import { DoctorIdDocumentFields } from "@/components/care/DoctorIdDocumentFields";
+import {
+  DOCTOR_FORM_DEMO,
+  type CareIdDocumentKind,
+} from "@/lib/care-doctor-id-document";
 
 const TITLES = ["Dr.", "Prof.", "Prof. Dr.", "Mr.", "Ms.", "Mrs."];
 const GENDERS = [
   { v: "male", bn: "পুরুষ", en: "Male" },
   { v: "female", bn: "মহিলা", en: "Female" },
   { v: "other", bn: "অন্যান্য", en: "Other" },
-];
-const DOCTOR_TYPES = [
-  { v: "general", bn: "জেনারেল", en: "General" },
-  { v: "specialist", bn: "স্পেশালিস্ট", en: "Specialist" },
-  { v: "consultant", bn: "কনসালটেন্ট", en: "Consultant" },
-  { v: "surgeon", bn: "সার্জন", en: "Surgeon" },
 ];
 
 export function DoctorRegistrationPage() {
@@ -45,22 +43,22 @@ export function DoctorRegistrationPage() {
   const [showPw, setShowPw] = useState(false);
   const [issuedCode, setIssuedCode] = useState<string | null>(null);
 
-  const [title, setTitle] = useState("Dr.");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [dob, setDob] = useState("");
-  const [gender, setGender] = useState("");
-  const [district, setDistrict] = useState<District | null>(null);
-  const [nid, setNid] = useState("");
-  const [bmdc, setBmdc] = useState("");
-  const [doctorType, setDoctorType] = useState("");
-  const [phone, setPhone] = useState("");
-  const [pin, setPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [email, setEmail] = useState("");
+  const [title, setTitle] = useState(DOCTOR_FORM_DEMO.title);
+  const [firstName, setFirstName] = useState(DOCTOR_FORM_DEMO.firstName);
+  const [lastName, setLastName] = useState(DOCTOR_FORM_DEMO.lastName);
+  const [dob, setDob] = useState(DOCTOR_FORM_DEMO.dateOfBirth);
+  const [gender, setGender] = useState(DOCTOR_FORM_DEMO.gender);
+  const [idKind, setIdKind] = useState<CareIdDocumentKind | "">(DOCTOR_FORM_DEMO.idDocumentKind);
+  const [nid, setNid] = useState(DOCTOR_FORM_DEMO.idDocumentNo);
+  const [bmdc, setBmdc] = useState(DOCTOR_FORM_DEMO.bmdcNo);
+  const [doctorType, setDoctorType] = useState(DOCTOR_FORM_DEMO.doctorType);
+  const [phone, setPhone] = useState(DOCTOR_FORM_DEMO.phone);
+  const [pin, setPin] = useState("1234");
+  const [confirmPin, setConfirmPin] = useState("1234");
+  const [email, setEmail] = useState(DOCTOR_FORM_DEMO.email);
   const [password, setPassword] = useState("");
   const [specialtyId, setSpecialtyId] = useState("");
-  const [qualifications, setQualifications] = useState("");
+  const [qualifications, setQualifications] = useState(DOCTOR_FORM_DEMO.qualifications);
   const [terms, setTerms] = useState(false);
 
   useEffect(() => {
@@ -92,8 +90,9 @@ export function DoctorRegistrationPage() {
         lastName,
         dateOfBirth: dob,
         gender,
-        districtId: district?.id ?? null,
+        districtId: null,
         nidPassport: nid,
+        idDocumentKind: idKind,
         bmdcNo: bmdc,
         doctorType,
         phone,
@@ -236,21 +235,19 @@ export function DoctorRegistrationPage() {
             </Field>
           )}
 
-          {show("district") && (
-            <Field label={label("district")} required={req("district")}>
-              <DistrictTypeahead value={district} onChange={setDistrict} />
-            </Field>
-          )}
-
           {show("nid_passport") && (
-            <Field label={label("nid_passport")} required={req("nid_passport")}>
-              <input
-                className={inp}
-                value={nid}
-                onChange={(e) => setNid(e.target.value)}
+            <div className="sm:col-span-2">
+              <DoctorIdDocumentFields
+                kind={idKind}
+                number={nid}
+                onKindChange={(k) => setIdKind(k)}
+                onNumberChange={setNid}
+                lang={bn ? "bn" : "en"}
                 required={req("nid_passport")}
+                selectClassName={inp}
+                inputClassName={inp}
               />
-            </Field>
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-2">
@@ -266,19 +263,13 @@ export function DoctorRegistrationPage() {
             )}
             {show("doctor_type") && (
               <Field label={label("doctor_type")} required={req("doctor_type")}>
-                <select
+                <DoctorTypeSelect
                   className={inp}
                   value={doctorType}
-                  onChange={(e) => setDoctorType(e.target.value)}
+                  onChange={setDoctorType}
+                  lang={lang === "bn" ? "bn" : "en"}
                   required={req("doctor_type")}
-                >
-                  <option value="">{bn ? "নির্বাচন" : "Select"}</option>
-                  {DOCTOR_TYPES.map((t) => (
-                    <option key={t.v} value={t.v}>
-                      {bn ? t.bn : t.en}
-                    </option>
-                  ))}
-                </select>
+                />
               </Field>
             )}
           </div>

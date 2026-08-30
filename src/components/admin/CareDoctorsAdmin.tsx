@@ -24,8 +24,9 @@ import {
   type CareSpecialty,
 } from "@/lib/care-cms";
 import { formatCareMoney } from "@/lib/care-invoice";
-import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
-import type { District } from "@/lib/api";
+import { DoctorTypeSelect } from "@/components/care/DoctorTypeSelect";
+import { DoctorIdDocumentFields } from "@/components/care/DoctorIdDocumentFields";
+import type { CareIdDocumentKind } from "@/lib/care-doctor-id-document";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -325,7 +326,7 @@ function AddDoctorForm({
   const [lastName, setLastName] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("");
-  const [district, setDistrict] = useState<District | null>(null);
+  const [idKind, setIdKind] = useState<CareIdDocumentKind | "">("nid");
   const [nid, setNid] = useState("");
   const [bmdc, setBmdc] = useState("");
   const [doctorType, setDoctorType] = useState("");
@@ -352,8 +353,9 @@ function AddDoctorForm({
         last_name: lastName || null,
         date_of_birth: dob || null,
         gender: gender || null,
-        district_id: district?.id ?? null,
+        district_id: null,
         nid_passport: nid || null,
+        id_document_kind: idKind || null,
         bmdc_no: bmdc || null,
         doctor_type: doctorType || null,
         phone: phone || null,
@@ -403,17 +405,29 @@ function AddDoctorForm({
             <option value="other">other</option>
           </select>
         </Field>
-        <Field label={bn ? "জেলা" : "District"}>
-          <DistrictTypeahead value={district} onChange={setDistrict} />
-        </Field>
         <Field label="NID / Passport">
-          <input className={ainp} value={nid} onChange={(e) => setNid(e.target.value)} />
+          <div className="sm:col-span-2">
+            <DoctorIdDocumentFields
+              kind={idKind}
+              number={nid}
+              onKindChange={setIdKind}
+              onNumberChange={setNid}
+              lang={lang}
+              selectClassName={ainp}
+              inputClassName={ainp}
+            />
+          </div>
         </Field>
         <Field label="BMDC">
           <input className={ainp} value={bmdc} onChange={(e) => setBmdc(e.target.value)} />
         </Field>
-        <Field label="Type">
-          <input className={ainp} value={doctorType} onChange={(e) => setDoctorType(e.target.value)} />
+        <Field label={bn ? "ডাক্তারের ধরন" : "Doctor type"}>
+          <DoctorTypeSelect
+            className={ainp}
+            value={doctorType}
+            onChange={setDoctorType}
+            lang={lang}
+          />
         </Field>
         <Field label="Phone">
           <input className={ainp} value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -486,9 +500,6 @@ function DoctorRow({
   const [form, setForm] = useState(doctor);
   const [clinics, setClinics] = useState<CareDoctorClinicRow[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [district, setDistrict] = useState<District | null>(
-    doctor.district_id ? ({ id: doctor.district_id, name_en: "", name_bn: "" } as District) : null,
-  );
 
   useEffect(() => setForm(doctor), [doctor]);
 
@@ -520,8 +531,9 @@ function DoctorRow({
         last_name: form.last_name?.trim() || null,
         date_of_birth: form.date_of_birth || null,
         gender: form.gender?.trim() || null,
-        district_id: district?.id ?? form.district_id ?? null,
+        district_id: form.district_id ?? null,
         nid_passport: form.nid_passport?.trim() || null,
+        id_document_kind: form.id_document_kind?.trim() || null,
         doctor_type: form.doctor_type?.trim() || null,
         is_active: form.is_active,
       });
@@ -609,20 +621,32 @@ function DoctorRow({
                 <option value="other">other</option>
               </select>
             </Field>
-            <Field label={bn ? "জেলা" : "District"}>
-              <DistrictTypeahead value={district} onChange={setDistrict} />
-            </Field>
-            <Field label="NID / Passport">
-              <input className={ainp} value={form.nid_passport ?? ""} disabled={!canEdit} onChange={(e) => setForm({ ...form, nid_passport: e.target.value })} />
-            </Field>
+            <div className="sm:col-span-2">
+              <DoctorIdDocumentFields
+                kind={(form.id_document_kind as CareIdDocumentKind) || ""}
+                number={form.nid_passport ?? ""}
+                disabled={!canEdit}
+                lang={lang}
+                selectClassName={ainp}
+                inputClassName={ainp}
+                onKindChange={(k) => setForm({ ...form, id_document_kind: k || null })}
+                onNumberChange={(v) => setForm({ ...form, nid_passport: v })}
+              />
+            </div>
             <Field label="BMDC">
               <input className={ainp} value={form.bmdc_no ?? ""} disabled={!canEdit} onChange={(e) => setForm({ ...form, bmdc_no: e.target.value })} />
             </Field>
             <Field label={bn ? "ডাক্তার কোড" : "Doctor code"}>
               <input className={ainp} value={form.doctor_code ?? ""} disabled={!canEdit} onChange={(e) => setForm({ ...form, doctor_code: e.target.value })} />
             </Field>
-            <Field label="Type">
-              <input className={ainp} value={form.doctor_type ?? ""} disabled={!canEdit} onChange={(e) => setForm({ ...form, doctor_type: e.target.value })} />
+            <Field label={bn ? "ডাক্তারের ধরন" : "Doctor type"}>
+              <DoctorTypeSelect
+                className={ainp}
+                value={form.doctor_type ?? ""}
+                disabled={!canEdit}
+                lang={lang}
+                onChange={(v) => setForm({ ...form, doctor_type: v })}
+              />
             </Field>
             <Field label="Phone">
               <input className={ainp} value={form.phone ?? ""} disabled={!canEdit} onChange={(e) => setForm({ ...form, phone: e.target.value })} />

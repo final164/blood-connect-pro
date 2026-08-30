@@ -16,6 +16,7 @@ import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyDoctorProfile, type CareDoctorProfile } from "@/lib/care-doctor-auth";
+import { careDoctorTypeLabel } from "@/lib/care-cms";
 import {
   approveDoctorLink,
   fetchDoctorAffiliations,
@@ -251,7 +252,7 @@ export function DoctorPortalPage() {
               </div>
               <div>
                 <dt className="text-[10px] text-muted-foreground">{bn ? "ধরন" : "Type"}</dt>
-                <dd className="font-semibold">{profile.doctor_type || "—"}</dd>
+                <dd className="font-semibold">{careDoctorTypeLabel(profile.doctor_type, lang === "bn" ? "bn" : "en")}</dd>
               </div>
               <div>
                 <dt className="text-[10px] text-muted-foreground">{bn ? "স্ট্যাটাস" : "Status"}</dt>

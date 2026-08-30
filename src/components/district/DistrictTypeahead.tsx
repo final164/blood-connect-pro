@@ -11,6 +11,7 @@ export function DistrictTypeahead({
   required,
   placeholder,
   variant = "default",
+  disabled,
 }: {
   value: District | null;
   onChange: (d: District | null) => void;
@@ -18,6 +19,7 @@ export function DistrictTypeahead({
   placeholder?: string;
   /** `admin` = dark slate panel styles */
   variant?: "default" | "admin";
+  disabled?: boolean;
 }) {
   const { lang, t } = useI18n();
   const [q, setQ] = useState("");
@@ -67,6 +69,7 @@ export function DistrictTypeahead({
           isAdmin
             ? "border-slate-700 bg-slate-950 text-slate-100 focus-within:ring-rose-500/40"
             : "bg-background focus-within:ring-primary/25",
+          disabled && "opacity-60 pointer-events-none",
         )}
       >
         <MapPin
@@ -77,7 +80,7 @@ export function DistrictTypeahead({
         />
         <input
           className={cn(
-            "flex-1 bg-transparent text-sm outline-none",
+            "flex-1 bg-transparent text-sm outline-none disabled:cursor-not-allowed",
             isAdmin
               ? "text-slate-100 placeholder:text-slate-500"
               : "text-foreground placeholder:text-muted-foreground",
@@ -85,7 +88,8 @@ export function DistrictTypeahead({
           value={q}
           placeholder={label}
           required={required && !value}
-          onFocus={() => setOpen(true)}
+          disabled={disabled}
+          onFocus={() => !disabled && setOpen(true)}
           onChange={(e) => {
             setQ(e.target.value);
             setOpen(true);
@@ -93,7 +97,7 @@ export function DistrictTypeahead({
           }}
           autoComplete="off"
         />
-        {value && (
+        {value && !disabled && (
           <button
             type="button"
             onClick={() => {
@@ -110,7 +114,7 @@ export function DistrictTypeahead({
           </button>
         )}
       </div>
-      {open && items.length > 0 && (
+      {open && !disabled && items.length > 0 && (
         <ul
           className={cn(
             "absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-xl border shadow-lg",

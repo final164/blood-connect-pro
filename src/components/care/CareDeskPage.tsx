@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Building2,
   ClipboardList,
   LogOut,
+  Plus,
   Stethoscope,
+  Trash2,
   UserPlus,
   CalendarDays,
 } from "lucide-react";
@@ -22,18 +24,40 @@ import {
 } from "@/lib/care-access";
 import type { CarePermissionKey } from "@/lib/care-permissions";
 import { CARE_PERMISSION_FALLBACK } from "@/lib/care-permissions";
-import { fetchCareSpecialties, fetchCareVendorTypes } from "@/lib/care-cms";
-import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
 import {
+  careDoctorTypeLabel,
+  fetchCareDoctorOnboarding,
+  fetchCarePolicies,
+  fetchCareSpecialties,
+  fetchCareVendorTypes,
+  type CareDoctorFieldKey,
+  type CareDoctorOnboardingSettings,
+} from "@/lib/care-cms";
+import { DoctorTypeahead } from "@/components/care/DoctorTypeahead";
+import { DoctorTypeSelect } from "@/components/care/DoctorTypeSelect";
+import { DoctorIdDocumentFields } from "@/components/care/DoctorIdDocumentFields";
+import {
+  buildDoctorFullName,
+  DOCTOR_FORM_DEMO,
+  type CareIdDocumentKind,
+} from "@/lib/care-doctor-id-document";
+import {
+  cancelOrgDoctorLink,
+  customDoctor,
+  fetchCareDoctorById,
+  fetchOrgPendingDoctorLinks,
   isCustomDoctor,
   requestDoctorLink,
   resolveDoctorId,
   type CareDoctorOption,
+  type OrgPendingDoctorLink,
 } from "@/lib/care-doctors-api";
+import { doctorFieldEnabled } from "@/lib/care-doctor-auth";
 import {
   approveCareSerial,
   callNextSerial,
   ensureCareSession,
+  deactivateOrgAffiliation,
   fetchOrgDoctors,
   fetchOrgLocations,
   fetchOrgSerialsByRequest,
@@ -46,8 +70,10 @@ import {
   setSerialStatus,
   setSessionStatus,
   subscribeSession,
+  upsertOrgAffiliation,
   type CareSerialRow,
   type CareSessionRow,
+  type OrgDoctorRow,
 } from "@/lib/care-api";
 import { supabase } from "@/integrations/supabase/client";
 import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
@@ -67,7 +93,6 @@ import {
   type EffectiveDeskSerialSettings,
 } from "@/lib/care-org-settings";
 import type { CareOrgInvoiceSettings } from "@/lib/care-invoice-settings";
-import { fetchCarePolicies } from "@/lib/care-cms";
 import {
   Dialog,
   DialogContent,
@@ -951,88 +976,322 @@ function QueuePanel({
 }
 
 function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolean; lang: "bn" | "en" }) {
-  const [rows, setRows] = useState<unknown[]>([]);
-  const [locs, setLocs] = useState<{ id: string; name: string }[]>([]);
+  const bn = lang === "bn";
+  const [rows, setRows] = useState<OrgDoctorRow[]>([]);
+  const [pending, setPending] = useState<OrgPendingDoctorLink[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [specs, setSpecs] = useState<{ id: string; name_en: string; name_bn: string }[]>([]);
+  const [onboarding, setOnboarding] = useState<CareDoctorOnboardingSettings | null>(null);
   const [doctor, setDoctor] = useState<CareDoctorOption | null>(null);
-  const [bmdc, setBmdc] = useState("");
+  const [fullNameBn, setFullNameBn] = useState(DOCTOR_FORM_DEMO.fullNameBn);
+  const [title, setTitle] = useState(DOCTOR_FORM_DEMO.title);
+  const [firstName, setFirstName] = useState(DOCTOR_FORM_DEMO.firstName);
+  const [lastName, setLastName] = useState(DOCTOR_FORM_DEMO.lastName);
+  const [dob, setDob] = useState(DOCTOR_FORM_DEMO.dateOfBirth);
+  const [gender, setGender] = useState(DOCTOR_FORM_DEMO.gender);
+  const [idKind, setIdKind] = useState<CareIdDocumentKind | "">(DOCTOR_FORM_DEMO.idDocumentKind);
+  const [nid, setNid] = useState(DOCTOR_FORM_DEMO.idDocumentNo);
+  const [bmdc, setBmdc] = useState(DOCTOR_FORM_DEMO.bmdcNo);
+  const [doctorType, setDoctorType] = useState(DOCTOR_FORM_DEMO.doctorType);
+  const [phone, setPhone] = useState(DOCTOR_FORM_DEMO.phone);
+  const [email, setEmail] = useState(DOCTOR_FORM_DEMO.email);
+  const [qual, setQual] = useState(DOCTOR_FORM_DEMO.qualifications);
   const [specId, setSpecId] = useState("");
-  const [locId, setLocId] = useState("");
-  const [fee, setFee] = useState("");
-  const [discType, setDiscType] = useState<"percent" | "fixed">("percent");
-  const [discValue, setDiscValue] = useState("");
+  const [defaultLocId, setDefaultLocId] = useState("");
+  const [fee, setFee] = useState(DOCTOR_FORM_DEMO.fee);
+  const [discType, setDiscType] = useState<"percent" | "fixed">(DOCTOR_FORM_DEMO.discType);
+  const [discValue, setDiscValue] = useState(DOCTOR_FORM_DEMO.discValue);
+  const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const fields = onboarding?.fields;
+  const show = (key: CareDoctorFieldKey) => !fields || doctorFieldEnabled(fields, key);
+  const termsRequired = !fields || doctorFieldEnabled(fields, "terms");
+  const profileLocked = !!doctor && !isCustomDoctor(doctor) && !!doctor.has_account;
+  const inp =
+    "rounded-xl border px-3 py-2 text-sm disabled:bg-muted/40 disabled:text-muted-foreground";
+
+  function openAddForm() {
+    applyDemoValues();
+    setShowAddForm(true);
+  }
+
+  function closeAddForm() {
+    setShowAddForm(false);
+  }
+
+  function applyDemoValues() {
+    setDoctor(null);
+    setFullNameBn(DOCTOR_FORM_DEMO.fullNameBn);
+    setTitle(DOCTOR_FORM_DEMO.title);
+    setFirstName(DOCTOR_FORM_DEMO.firstName);
+    setLastName(DOCTOR_FORM_DEMO.lastName);
+    setDob(DOCTOR_FORM_DEMO.dateOfBirth);
+    setGender(DOCTOR_FORM_DEMO.gender);
+    setIdKind(DOCTOR_FORM_DEMO.idDocumentKind);
+    setNid(DOCTOR_FORM_DEMO.idDocumentNo);
+    setBmdc(DOCTOR_FORM_DEMO.bmdcNo);
+    setDoctorType(DOCTOR_FORM_DEMO.doctorType);
+    setPhone(DOCTOR_FORM_DEMO.phone);
+    setEmail(DOCTOR_FORM_DEMO.email);
+    setQual(DOCTOR_FORM_DEMO.qualifications);
+    setFee(DOCTOR_FORM_DEMO.fee);
+    setDiscType(DOCTOR_FORM_DEMO.discType);
+    setDiscValue(DOCTOR_FORM_DEMO.discValue);
+    setTerms(false);
+    if (specs[0]) setSpecId(specs[0].id);
+  }
+
+  function clearProfileFields() {
+    setFullNameBn("");
+    setTitle("Dr.");
+    setFirstName("");
+    setLastName("");
+    setDob("");
+    setGender("");
+    setIdKind("");
+    setNid("");
+    setBmdc("");
+    setDoctorType("");
+    setPhone("");
+    setEmail("");
+    setQual("");
+    setSpecId("");
+  }
+
+  function applyDoctorProfile(d: CareDoctorOption) {
+    setFullNameBn(d.full_name_bn ?? "");
+    setTitle(d.title ?? "");
+    setFirstName(d.first_name ?? "");
+    setLastName(d.last_name ?? "");
+    setDob(d.date_of_birth ? String(d.date_of_birth).slice(0, 10) : "");
+    setGender(d.gender ?? "");
+    setIdKind((d.id_document_kind as CareIdDocumentKind) || (d.nid_passport ? "nid" : ""));
+    setNid(d.nid_passport ?? "");
+    setBmdc(d.bmdc_no ?? "");
+    setDoctorType(d.doctor_type ?? "");
+    setPhone(d.phone ?? "");
+    setEmail(d.email ?? "");
+    setQual(d.qualifications ?? "");
+    setSpecId(d.specialty_id ?? "");
+  }
+
+  async function onDoctorChange(next: CareDoctorOption | null) {
+    setDoctor(next);
+    if (!next) {
+      clearProfileFields();
+      return;
+    }
+    if (isCustomDoctor(next)) {
+      clearProfileFields();
+      return;
+    }
+    try {
+      const full = await fetchCareDoctorById(next.id);
+      const merged: CareDoctorOption = {
+        ...next,
+        ...(full ?? {}),
+        has_account: full?.has_account ?? next.has_account,
+        in_org: next.in_org,
+        org_count: next.org_count,
+      };
+      setDoctor(merged);
+      applyDoctorProfile(merged);
+    } catch {
+      applyDoctorProfile(next);
+    }
+  }
+
+  function resetAffiliationForm() {
+    applyDemoValues();
+    setShowAddForm(false);
+  }
+
+  async function ensureDefaultLocation(): Promise<string | null> {
+    try {
+      const locations = (await fetchOrgLocations(orgId)) as {
+        id: string;
+        name: string;
+        is_active?: boolean | null;
+      }[];
+      const hit = locations.find((l) => l.is_active !== false) ?? locations[0];
+      if (hit?.id) {
+        setDefaultLocId(hit.id);
+        return hit.id;
+      }
+      const { data, error } = await supabase
+        .from("care_locations")
+        .insert({
+          org_id: orgId,
+          name: "Main chamber",
+          name_bn: "প্রধান চেম্বার",
+          is_active: true,
+          sort_order: 0,
+        } as never)
+        .select("id")
+        .single();
+      if (error) throw error;
+      const id = String((data as { id: string }).id);
+      setDefaultLocId(id);
+      return id;
+    } catch (e) {
+      toast.error((e as Error).message || (bn ? "লোকেশন পাওয়া যায়নি" : "No location found"));
+      return null;
+    }
+  }
 
   async function reload() {
     setRows(await fetchOrgDoctors(orgId));
-    const locations = (await fetchOrgLocations(orgId)) as { id: string; name: string }[];
-    setLocs(locations);
-    if (!locId && locations[0]) setLocId(locations[0].id);
+    setPending(await fetchOrgPendingDoctorLinks(orgId));
+    await ensureDefaultLocation();
   }
 
   useEffect(() => {
     void reload();
-    void fetchCareSpecialties().then(setSpecs);
+    void fetchCareSpecialties().then((list) => {
+      setSpecs(list);
+      if (list[0] && !specId) setSpecId(list[0].id);
+    });
+    void fetchCareDoctorOnboarding().then(setOnboarding);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
   async function add() {
-    if (!doctor || !locId) return;
+    let locId = defaultLocId;
+    if (!locId) {
+      locId = (await ensureDefaultLocation()) || "";
+    }
+    if (!locId) {
+      toast.error(bn ? "প্রতিষ্ঠানের লোকেশন নেই" : "Organization has no location");
+      return;
+    }
+    if (termsRequired && !terms) {
+      toast.error(bn ? "শর্তাবলী মেনে নিন" : "Please accept the terms");
+      return;
+    }
+    const fullName =
+      doctor && !isCustomDoctor(doctor)
+        ? doctor.full_name
+        : buildDoctorFullName({ title, firstName, lastName });
+    if (!fullName.trim()) {
+      toast.error(bn ? "নাম দিন (Title / First / Last)" : "Enter name (Title / First / Last)");
+      return;
+    }
+    if (show("nid_passport") && !profileLocked) {
+      if (!idKind) {
+        toast.error(bn ? "পরিচয়পত্রের ধরন নির্বাচন করুন" : "Select ID document type");
+        return;
+      }
+      if (!nid.trim()) {
+        toast.error(bn ? "পরিচয়পত্র নম্বর দিন" : "Enter ID document number");
+        return;
+      }
+    }
+
+    const selected =
+      doctor && !isCustomDoctor(doctor) ? doctor : customDoctor(fullName.trim());
+
     setBusy(true);
     try {
       const discNum = discValue.trim() ? Number(discValue) : null;
       const hasDiscount = discNum != null && Number.isFinite(discNum) && discNum > 0;
+      const specRow = specs.find((s) => s.id === specId);
       const feePayload = {
         fee_amount: fee ? Number(fee) : null,
         second_visit_discount_type: hasDiscount ? discType : null,
         second_visit_discount_value: hasDiscount ? discNum : null,
         specialty_id: specId || null,
+        specialty_name_en: specRow?.name_en ?? null,
+        specialty_name_bn: specRow?.name_bn ?? null,
+        full_name: fullName.trim() || null,
+        full_name_bn: fullNameBn || null,
+        photo_url:
+          doctor && !isCustomDoctor(doctor) ? doctor.photo_url ?? null : null,
+        doctor_code:
+          doctor && !isCustomDoctor(doctor) ? doctor.doctor_code ?? null : null,
         bmdc_no: bmdc || null,
+        qualifications: qual || null,
+        phone: phone || null,
+        email: email || null,
+        title: title || null,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        doctor_type: doctorType || null,
+        id_document_kind: idKind || null,
+        nid_passport: nid || null,
       };
 
-      // Registered doctors (linked account) must approve chamber affiliation.
-      if (!isCustomDoctor(doctor) && doctor.has_account) {
+      if (!isCustomDoctor(selected) && selected.has_account) {
+        const { data: prior } = await supabase
+          .from("care_affiliations")
+          .select("id, is_active")
+          .eq("org_id", orgId)
+          .eq("doctor_id", selected.id)
+          .eq("location_id", locId)
+          .maybeSingle();
+        if (prior?.id) {
+          await upsertOrgAffiliation({
+            orgId,
+            doctorId: selected.id,
+            locationId: locId,
+            fee_amount: feePayload.fee_amount,
+            second_visit_discount_type: feePayload.second_visit_discount_type,
+            second_visit_discount_value: feePayload.second_visit_discount_value,
+          });
+          resetAffiliationForm();
+          await reload();
+          toast.success(bn ? "ডাক্তার আবার যোগ হয়েছে" : "Doctor restored");
+          return;
+        }
         await requestDoctorLink({
-          doctorId: doctor.id,
+          doctorId: selected.id,
           orgId,
           kind: "affiliation",
           locationId: locId,
           payload: feePayload,
         });
-        setDoctor(null);
-        setBmdc("");
-        setFee("");
-        setDiscValue("");
-        setDiscType("percent");
+        resetAffiliationForm();
         toast.success(
-          lang === "bn"
-            ? "অনুমোদনের জন্য অনুরোধ পাঠানো হয়েছে"
-            : "Approval request sent to doctor",
+          bn ? "অনুমোদনের জন্য অনুরোধ পাঠানো হয়েছে" : "Approval request sent to doctor",
         );
         return;
       }
 
-      // Legacy / unregistered catalog names: affiliate immediately.
-      const doctorId = await resolveDoctorId(doctor, {
+      const doctorId = await resolveDoctorId(selected, {
         bmdcNo: bmdc || null,
         specialtyId: specId || null,
+        qualifications: qual || null,
+        fullNameBn: fullNameBn || null,
+        title: title || null,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        dateOfBirth: dob || null,
+        gender: gender || null,
+        nidPassport: nid || null,
+        idDocumentKind: idKind || null,
+        doctorType: doctorType || null,
+        phone: phone || null,
+        email: email || null,
       });
-      const { error: aErr } = await supabase.from("care_affiliations").insert({
-        org_id: orgId,
-        doctor_id: doctorId,
-        location_id: locId,
+      const result = await upsertOrgAffiliation({
+        orgId,
+        doctorId,
+        locationId: locId,
         fee_amount: feePayload.fee_amount,
         second_visit_discount_type: feePayload.second_visit_discount_type,
         second_visit_discount_value: feePayload.second_visit_discount_value,
-      } as never);
-      if (aErr) throw aErr;
-      setDoctor(null);
-      setBmdc("");
-      setFee("");
-      setDiscValue("");
-      setDiscType("percent");
+      });
+      resetAffiliationForm();
       await reload();
-      toast.success(lang === "bn" ? "যোগ হয়েছে" : "Added");
+      toast.success(
+        result === "restored"
+          ? bn
+            ? "ডাক্তার আবার যোগ হয়েছে"
+            : "Doctor restored"
+          : bn
+            ? "যোগ হয়েছে"
+            : "Added",
+      );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -1040,105 +1299,460 @@ function DoctorsPanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boolea
     }
   }
 
+  async function removeAffiliation(affId: string, name: string) {
+    if (!canEdit) return;
+    if (!window.confirm(bn ? `${name} সরিয়ে ফেলবেন?` : `Remove ${name}?`)) return;
+    setBusy(true);
+    try {
+      await deactivateOrgAffiliation(affId);
+      toast.success(bn ? "সরানো হয়েছে" : "Removed");
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removePending(reqId: string, name: string) {
+    if (!canEdit) return;
+    if (!window.confirm(bn ? `${name}-এর অনুরোধ বাতিল করবেন?` : `Cancel request for ${name}?`)) return;
+    setBusy(true);
+    try {
+      await cancelOrgDoctorLink(reqId);
+      toast.success(bn ? "অনুরোধ বাতিল" : "Request cancelled");
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function FieldLabel({ children }: { children: ReactNode }) {
+    return <label className="block text-[10px] font-semibold text-muted-foreground mb-0.5">{children}</label>;
+  }
+
+  function fieldLabel(key: CareDoctorFieldKey, fallbackEn: string, fallbackBn: string) {
+    const f = fields?.[key];
+    if (bn) return f?.label_bn || fallbackBn;
+    return f?.label_en || fallbackEn;
+  }
+
   return (
     <div className="space-y-3">
       {canEdit && (
-        <div className="rounded-2xl border p-3 grid gap-2 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <DoctorTypeahead value={doctor} onChange={setDoctor} orgId={orgId} />
+        <button
+          type="button"
+          onClick={openAddForm}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {bn ? "ডাক্তার যোগ করুন" : "Add doctor"}
+        </button>
+      )}
+
+      {pending.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+            {bn ? "অনুমোদনের অপেক্ষায়" : "Pending approval"}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {pending.map((p) => {
+              const d = p.care_doctors;
+              const pl = p.payload ?? {};
+              const plStr = (key: string) => {
+                const v = pl[key];
+                if (v == null || v === "") return "";
+                return String(v);
+              };
+              const name = bn
+                ? d?.full_name_bn || plStr("full_name_bn") || d?.full_name || plStr("full_name")
+                : d?.full_name || plStr("full_name") || d?.full_name_bn || plStr("full_name_bn");
+              const photo = d?.photo_url || plStr("photo_url") || null;
+              const code = d?.doctor_code || plStr("doctor_code") || null;
+              const bmdcNo = d?.bmdc_no || plStr("bmdc_no") || null;
+              const dtype = d?.doctor_type || plStr("doctor_type") || null;
+              const qualText = d?.qualifications || plStr("qualifications") || null;
+              const phoneText = d?.phone || plStr("phone") || null;
+              const emailText = d?.email || plStr("email") || null;
+              const specIdHit = d?.specialty_id || plStr("specialty_id") || "";
+              const specFromList = specs.find((s) => s.id === specIdHit);
+              const spec = bn
+                ? d?.care_specialties?.name_bn ||
+                  plStr("specialty_name_bn") ||
+                  specFromList?.name_bn
+                : d?.care_specialties?.name_en ||
+                  plStr("specialty_name_en") ||
+                  specFromList?.name_en;
+              const loc = bn
+                ? p.care_locations?.name_bn || p.care_locations?.name
+                : p.care_locations?.name;
+              const feeAmt = pl.fee_amount;
+              const discT = plStr("second_visit_discount_type");
+              const discVRaw = pl.second_visit_discount_value;
+              const discV =
+                typeof discVRaw === "number"
+                  ? discVRaw
+                  : discVRaw != null && discVRaw !== ""
+                    ? Number(discVRaw)
+                    : null;
+              return (
+                <article
+                  key={p.id}
+                  className="relative flex gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/5 p-3"
+                >
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
+                    {photo ? (
+                      <img src={photo} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full place-items-center text-muted-foreground">
+                        <Stethoscope className="h-6 w-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 pr-7">
+                    <p className="truncate text-sm font-semibold">{name || "—"}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      {[
+                        code,
+                        bmdcNo ? `BMDC ${bmdcNo}` : null,
+                        careDoctorTypeLabel(dtype, lang),
+                        spec,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    {qualText ? (
+                      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{qualText}</p>
+                    ) : null}
+                    {phoneText ? (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">{phoneText}</p>
+                    ) : null}
+                    {emailText ? (
+                      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{emailText}</p>
+                    ) : null}
+                    <p className="mt-1 text-[11px] text-foreground/80">
+                      {loc || "—"}
+                      {feeAmt != null && feeAmt !== "" ? ` · ৳${feeAmt}` : ""}
+                      {discV != null && Number.isFinite(discV) && discV > 0
+                        ? ` · 2nd −${discT === "fixed" ? "৳" : ""}${discV}${discT === "percent" ? "%" : ""}`
+                        : ""}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-amber-800">
+                      {bn ? "অনুমোদনের অপেক্ষায়" : "Pending approval"}
+                    </p>
+                  </div>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      title={bn ? "বাতিল" : "Cancel"}
+                      onClick={() => void removePending(p.id, name || "doctor")}
+                      className="absolute right-2 top-2 rounded-lg border border-amber-600/30 p-1.5 text-amber-800 hover:bg-amber-500/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </article>
+              );
+            })}
           </div>
-          <input value={bmdc} onChange={(e) => setBmdc(e.target.value)} placeholder="BMDC" className="rounded-xl border px-3 py-2 text-sm" />
-          <select value={specId} onChange={(e) => setSpecId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
-            <option value="">{lang === "bn" ? "স্পেশালিটি" : "Specialty"}</option>
-            {specs.map((s) => (
-              <option key={s.id} value={s.id}>
-                {lang === "bn" ? s.name_bn : s.name_en}
-              </option>
-            ))}
-          </select>
-          <select value={locId} onChange={(e) => setLocId(e.target.value)} className="rounded-xl border px-3 py-2 text-sm">
-            {locs.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={fee}
-            onChange={(e) => setFee(e.target.value.replace(/[^\d.]/g, ""))}
-            placeholder={lang === "bn" ? "ফি (৳)" : "Fee (৳)"}
-            className="rounded-xl border px-3 py-2 text-sm tabular-nums"
-            inputMode="decimal"
-          />
-          <div className="flex gap-1.5">
-            <select
-              value={discType}
-              onChange={(e) => setDiscType(e.target.value as "percent" | "fixed")}
-              className="rounded-xl border px-2 py-2 text-xs font-semibold shrink-0"
-              title={lang === "bn" ? "সেকেন্ড টাইম ডিসকাউন্ট ধরন" : "Second-visit discount type"}
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {rows.map((r) => {
+          const d = r.care_doctors;
+          const name = bn ? d?.full_name_bn || d?.full_name : d?.full_name;
+          const loc = bn ? r.care_locations?.name_bn || r.care_locations?.name : r.care_locations?.name;
+          const spec = bn
+            ? d?.care_specialties?.name_bn
+            : d?.care_specialties?.name_en;
+          return (
+            <article key={r.id} className="relative flex gap-3 rounded-2xl border bg-card p-3 shadow-sm">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-muted">
+                {d?.photo_url ? (
+                  <img src={d.photo_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full place-items-center text-muted-foreground">
+                    <Stethoscope className="h-6 w-6" />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 pr-7">
+                <p className="truncate text-sm font-semibold">{name || "—"}</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {[d?.doctor_code, d?.bmdc_no ? `BMDC ${d.bmdc_no}` : null, careDoctorTypeLabel(d?.doctor_type, lang), spec]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {d?.qualifications ? (
+                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{d.qualifications}</p>
+                ) : null}
+                {d?.phone ? (
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{d.phone}</p>
+                ) : null}
+                <p className="mt-1 text-[11px] text-foreground/80">
+                  {loc || "—"}
+                  {r.fee_amount != null ? ` · ৳${r.fee_amount}` : ""}
+                  {r.second_visit_discount_value != null && r.second_visit_discount_value > 0
+                    ? ` · 2nd −${r.second_visit_discount_type === "fixed" ? "৳" : ""}${r.second_visit_discount_value}${r.second_visit_discount_type === "percent" ? "%" : ""}`
+                    : ""}
+                </p>
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  title={bn ? "সরান" : "Remove"}
+                  onClick={() => void removeAffiliation(r.id, name || "doctor")}
+                  className="absolute right-2 top-2 rounded-lg border p-1.5 text-muted-foreground hover:border-destructive/40 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </article>
+          );
+        })}
+      </div>
+
+      {!rows.length && !pending.length && (
+        <p className="rounded-xl border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+          {bn ? "এখনো কোনো ডাক্তার নেই" : "No doctors yet"}
+        </p>
+      )}
+
+      <Dialog open={showAddForm} onOpenChange={(o) => (o ? setShowAddForm(true) : closeAddForm())}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{bn ? "ডাক্তার যোগ করুন" : "Add doctor"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2 sm:grid-cols-2">
+
+          <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] text-muted-foreground">
+              {bn
+                ? "ক্যাটালগ থেকে খুঁজে নিন, অথবা নিচের সব ইনপুট পূরণ করে নতুন ডাক্তার যোগ করুন।"
+                : "Search the catalog, or fill every field below to add a new doctor."}
+            </p>
+            <button
+              type="button"
+              onClick={applyDemoValues}
+              className="rounded-lg border px-2.5 py-1 text-[10px] font-semibold"
             >
-              <option value="percent">%</option>
-              <option value="fixed">৳</option>
-            </select>
+              {bn ? "ডেমো পূরণ" : "Fill demo"}
+            </button>
+          </div>
+          <div className="sm:col-span-2">
+            <FieldLabel>{bn ? "ডাক্তার খুঁজুন (ঐচ্ছিক — নাম / কোড / BMDC)" : "Find doctor (optional — name / code / BMDC)"}</FieldLabel>
+            <DoctorTypeahead value={doctor} onChange={(d) => void onDoctorChange(d)} orgId={orgId} />
+            {doctor?.doctor_code ? (
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                {bn ? "কোড" : "Code"}: <span className="font-semibold text-foreground">{doctor.doctor_code}</span>
+                {doctor.registration_status ? ` · ${doctor.registration_status}` : ""}
+                {profileLocked
+                  ? bn
+                    ? " · প্রোফাইল লক (নিবন্ধিত)"
+                    : " · profile locked (registered)"
+                  : ""}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="sm:col-span-2">
+            <FieldLabel>{bn ? "বাংলা নাম" : "Bengali name"}</FieldLabel>
             <input
-              value={discValue}
-              onChange={(e) => setDiscValue(e.target.value.replace(/[^\d.]/g, ""))}
-              placeholder={
-                lang === "bn"
-                  ? discType === "percent"
-                    ? "সেকেন্ড টাইম ছাড় %"
-                    : "সেকেন্ড টাইম ছাড় ৳"
-                  : discType === "percent"
-                    ? "2nd visit discount %"
-                    : "2nd visit discount ৳"
-              }
-              className="flex-1 rounded-xl border px-3 py-2 text-sm tabular-nums"
+              value={fullNameBn}
+              onChange={(e) => setFullNameBn(e.target.value)}
+              disabled={profileLocked}
+              className={inp + " w-full"}
+              placeholder={bn ? "বাংলায় পূর্ণ নাম" : "Full name in Bangla"}
+            />
+          </div>
+
+          {show("title") && (
+            <div>
+              <FieldLabel>{fieldLabel("title", "Title", "উপাধি")}</FieldLabel>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={profileLocked} className={inp + " w-full"} placeholder="Dr. / Prof." />
+            </div>
+          )}
+          {(show("first_name") || show("last_name")) && (
+            <div>
+              <FieldLabel>
+                {[show("first_name") ? fieldLabel("first_name", "First name", "নামের প্রথম অংশ") : null, show("last_name") ? fieldLabel("last_name", "Last name", "নামের শেষ অংশ") : null]
+                  .filter(Boolean)
+                  .join(" / ")}
+              </FieldLabel>
+              <div className="flex gap-1.5">
+                {show("first_name") && (
+                  <input value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={profileLocked} className={inp + " w-full"} placeholder="First" />
+                )}
+                {show("last_name") && (
+                  <input value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={profileLocked} className={inp + " w-full"} placeholder="Last" />
+                )}
+              </div>
+            </div>
+          )}
+          {show("date_of_birth") && (
+            <div>
+              <FieldLabel>{fieldLabel("date_of_birth", "Date of birth", "জন্ম তারিখ")}</FieldLabel>
+              <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} disabled={profileLocked} className={inp + " w-full"} />
+            </div>
+          )}
+          {show("gender") && (
+            <div>
+              <FieldLabel>{fieldLabel("gender", "Gender", "লিঙ্গ")}</FieldLabel>
+              <select value={gender} onChange={(e) => setGender(e.target.value)} disabled={profileLocked} className={inp + " w-full"}>
+                <option value="">—</option>
+                <option value="male">{bn ? "পুরুষ" : "Male"}</option>
+                <option value="female">{bn ? "নারী" : "Female"}</option>
+                <option value="other">{bn ? "অন্যান্য" : "Other"}</option>
+              </select>
+            </div>
+          )}
+          {show("nid_passport") && (
+            <div className="sm:col-span-2">
+              <DoctorIdDocumentFields
+                kind={idKind}
+                number={nid}
+                onKindChange={setIdKind}
+                onNumberChange={setNid}
+                lang={lang}
+                disabled={profileLocked}
+                selectClassName={inp + " w-full"}
+                inputClassName={inp + " w-full"}
+              />
+            </div>
+          )}
+          {show("bmdc") && (
+            <div>
+              <FieldLabel>{fieldLabel("bmdc", "BMDC", "বিএমডিসি")}</FieldLabel>
+              <input value={bmdc} onChange={(e) => setBmdc(e.target.value)} disabled={profileLocked} className={inp + " w-full"} placeholder="BMDC" />
+            </div>
+          )}
+          {show("doctor_type") && (
+            <div>
+              <FieldLabel>{fieldLabel("doctor_type", "Doctor type", "ডাক্তারের ধরন")}</FieldLabel>
+              <DoctorTypeSelect
+                value={doctorType}
+                onChange={setDoctorType}
+                lang={lang}
+                disabled={profileLocked}
+                className={inp + " w-full"}
+              />
+            </div>
+          )}
+          {show("mobile") && (
+            <div>
+              <FieldLabel>{fieldLabel("mobile", "Mobile", "মোবাইল")}</FieldLabel>
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} disabled={profileLocked} className={inp + " w-full"} inputMode="tel" />
+            </div>
+          )}
+          {show("email") && (
+            <div>
+              <FieldLabel>{fieldLabel("email", "Email", "ইমেইল")}</FieldLabel>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} disabled={profileLocked} className={inp + " w-full"} type="email" />
+            </div>
+          )}
+          {show("specialty") && (
+            <div>
+              <FieldLabel>{fieldLabel("specialty", "Specialty", "স্পেশালিটি")}</FieldLabel>
+              <select value={specId} onChange={(e) => setSpecId(e.target.value)} disabled={profileLocked} className={inp + " w-full"}>
+                <option value="">—</option>
+                {specs.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {bn ? s.name_bn : s.name_en}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {show("qualifications") && (
+            <div className="sm:col-span-2">
+              <FieldLabel>{fieldLabel("qualifications", "Qualifications", "যোগ্যতা")}</FieldLabel>
+              <input value={qual} onChange={(e) => setQual(e.target.value)} disabled={profileLocked} className={inp + " w-full"} placeholder="MBBS, FCPS…" />
+            </div>
+          )}
+
+          <div className="sm:col-span-2 border-t pt-2 mt-1">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+              {bn ? "চেম্বার অ্যাফিলিয়েশন" : "Chamber affiliation"}
+            </p>
+          </div>
+          <div>
+            <FieldLabel>{bn ? "ফি (৳)" : "Fee (৳)"}</FieldLabel>
+            <input
+              value={fee}
+              onChange={(e) => setFee(e.target.value.replace(/[^\d.]/g, ""))}
+              placeholder={bn ? "কনসালটেশন ফি" : "Consultation fee"}
+              className={inp + " w-full tabular-nums"}
               inputMode="decimal"
             />
           </div>
-          <p className="sm:col-span-2 text-[10px] text-muted-foreground">
-            {lang === "bn"
-              ? "সেকেন্ড টাইম: রোগী «আগেও দেখাইছি» সিলেক্ট করলে ফি থেকে এই ছাড় কাটা হবে।"
-              : "Second visit: applied when patient selects “Visited before”."}
-          </p>
-          <button
-            type="button"
-            onClick={() => void add()}
-            disabled={busy || !doctor || !locId}
-            className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold sm:col-span-2 disabled:opacity-50"
-          >
-            {lang === "bn" ? "ডাক্তার যোগ" : "Add doctor"}
-          </button>
-        </div>
-      )}
-      <ul className="space-y-2">
-        {(
-          rows as {
-            id: string;
-            care_doctors?: { full_name: string; bmdc_no?: string };
-            care_locations?: { name: string };
-            fee_amount?: number;
-            second_visit_discount_type?: string | null;
-            second_visit_discount_value?: number | null;
-          }[]
-        ).map((r) => (
-          <li key={r.id} className="rounded-xl border bg-card px-3 py-2 text-sm flex gap-2">
-            <Stethoscope className="h-4 w-4 text-primary mt-0.5" />
-            <span className="flex-1 min-w-0">
-              <span className="font-medium">
-                {r.care_doctors?.full_name} · {r.care_locations?.name}
+          <div className="sm:col-span-2">
+            <FieldLabel>{bn ? "সেকেন্ড ভিজিট ছাড়" : "2nd-visit discount"}</FieldLabel>
+            <div className="flex gap-1.5">
+              <select
+                value={discType}
+                onChange={(e) => setDiscType(e.target.value as "percent" | "fixed")}
+                className="rounded-xl border px-2 py-2 text-xs font-semibold shrink-0"
+              >
+                <option value="percent">%</option>
+                <option value="fixed">৳</option>
+              </select>
+              <input
+                value={discValue}
+                onChange={(e) => setDiscValue(e.target.value.replace(/[^\d.]/g, ""))}
+                placeholder={
+                  bn
+                    ? discType === "percent"
+                      ? "ছাড় %"
+                      : "ছাড় ৳"
+                    : discType === "percent"
+                      ? "Discount %"
+                      : "Discount ৳"
+                }
+                className={inp + " flex-1 tabular-nums"}
+                inputMode="decimal"
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {bn
+                ? "রোগী «আগেও দেখাইছি» সিলেক্ট করলে ফি থেকে এই ছাড় কাটা হবে।"
+                : "Applied when patient selects “Visited before”."}
+            </p>
+          </div>
+
+          {termsRequired && (
+            <label className="sm:col-span-2 flex items-start gap-2 rounded-xl border px-3 py-2 text-xs">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={terms}
+                onChange={(e) => setTerms(e.target.checked)}
+              />
+              <span>
+                {bn ? "আমি " : "I agree to the "}
+                <Link to="/terms" className="font-semibold text-primary underline-offset-2 hover:underline">
+                  {bn ? "শর্তাবলী" : "Terms & conditions"}
+                </Link>
+                {bn ? " মেনে নিচ্ছি।" : "."}
               </span>
-              {r.care_doctors?.bmdc_no ? ` · BMDC ${r.care_doctors.bmdc_no}` : ""}
-              <span className="block text-[11px] text-muted-foreground mt-0.5">
-                {r.fee_amount != null ? `৳${r.fee_amount}` : lang === "bn" ? "ফি নেই" : "No fee"}
-                {r.second_visit_discount_value != null && r.second_visit_discount_value > 0
-                  ? ` · 2nd: −${r.second_visit_discount_type === "fixed" ? "৳" : ""}${r.second_visit_discount_value}${r.second_visit_discount_type === "percent" ? "%" : ""}`
-                  : ""}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+            </label>
+          )}
+
+            <button
+              type="button"
+              onClick={() => void add()}
+              disabled={busy}
+              className="rounded-xl bg-primary text-primary-foreground px-3 py-2 text-xs font-semibold sm:col-span-2 disabled:opacity-50"
+            >
+              {bn ? "যোগ করুন" : "Save"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

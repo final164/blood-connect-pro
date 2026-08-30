@@ -25,6 +25,7 @@ export type DoctorRegistrationInput = {
   gender: string;
   districtId: string | null;
   nidPassport: string;
+  idDocumentKind: string;
   bmdcNo: string;
   doctorType: string;
   phone: string;
@@ -51,6 +52,7 @@ export type CareDoctorProfile = {
   gender?: string | null;
   district_id?: string | null;
   nid_passport?: string | null;
+  id_document_kind?: string | null;
   bmdc_no: string | null;
   doctor_type: string | null;
   phone: string | null;
@@ -78,7 +80,7 @@ export function doctorFieldRequired(
 }
 
 const PROFILE_SELECT =
-  "id, doctor_code, full_name, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, bmdc_no, doctor_type, phone, email, specialty_id, registration_status, user_id, photo_url, qualifications, bio";
+  "id, doctor_code, full_name, title, first_name, last_name, date_of_birth, gender, district_id, nid_passport, id_document_kind, bmdc_no, doctor_type, phone, email, specialty_id, registration_status, user_id, photo_url, qualifications, bio";
 
 export async function fetchMyDoctorProfile(): Promise<CareDoctorProfile | null> {
   const { data: session } = await supabase.auth.getSession();
@@ -102,6 +104,7 @@ async function callRegisterDoctorRpc(input: DoctorRegistrationInput, phone: stri
     _gender: input.gender.trim() || null,
     _district_id: input.districtId || null,
     _nid_passport: input.nidPassport.trim() || null,
+    _id_document_kind: input.idDocumentKind.trim() || null,
     _bmdc_no: input.bmdcNo.trim() || null,
     _doctor_type: input.doctorType.trim() || null,
     _phone: phone || null,
@@ -143,7 +146,10 @@ export async function registerDoctorAccount(input: DoctorRegistrationInput): Pro
   if (doctorFieldRequired(f, "date_of_birth") && !input.dateOfBirth) throw new Error("DOB_REQUIRED");
   if (doctorFieldRequired(f, "gender") && !input.gender.trim()) throw new Error("GENDER_REQUIRED");
   if (doctorFieldRequired(f, "district") && !input.districtId) throw new Error("DISTRICT_REQUIRED");
-  if (doctorFieldRequired(f, "nid_passport") && !input.nidPassport.trim()) throw new Error("NID_REQUIRED");
+  if (doctorFieldRequired(f, "nid_passport")) {
+    if (!input.idDocumentKind.trim()) throw new Error("ID_KIND_REQUIRED");
+    if (!input.nidPassport.trim()) throw new Error("NID_REQUIRED");
+  }
   if (doctorFieldRequired(f, "doctor_type") && !input.doctorType.trim()) throw new Error("TYPE_REQUIRED");
 
   if (authMode === "phone_pin") {
@@ -216,7 +222,9 @@ export function doctorAuthErrorMessage(raw: string, lang: "bn" | "en"): string {
     case "DISTRICT_REQUIRED":
       return bn ? "জেলা নির্বাচন করুন" : "Select district";
     case "NID_REQUIRED":
-      return bn ? "NID / পাসপোর্ট দিন" : "NID / passport is required";
+      return bn ? "পরিচয়পত্র নম্বর দিন" : "Enter ID document number";
+    case "ID_KIND_REQUIRED":
+      return bn ? "পরিচয়পত্রের ধরন নির্বাচন করুন" : "Select ID document type";
     case "TYPE_REQUIRED":
       return bn ? "ডাক্তারের ধরন নির্বাচন করুন" : "Select doctor type";
     case "NOT_A_DOCTOR":
