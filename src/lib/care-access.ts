@@ -4,6 +4,7 @@ import {
   type CarePermissionKey,
   slugifyRoleName,
 } from "@/lib/care-permissions";
+import { resolveVendorTypePanels } from "@/lib/care-cms";
 
 export type CareOrgRole = {
   id: string;
@@ -154,8 +155,7 @@ export async function removeCareMember(id: string) {
 }
 
 export function orgPanelsFromKind(
-  kind: { panels?: string[] | null } | null | undefined,
+  kind: { slug?: string | null; panels?: string[] | null } | null | undefined,
 ): Set<string> {
-  const panels = kind?.panels?.length ? kind.panels : ["desk"];
-  return new Set(panels);
+  return new Set(resolveVendorTypePanels(kind?.slug, kind?.panels));
 }

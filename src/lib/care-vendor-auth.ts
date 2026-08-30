@@ -1,5 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
-import { fetchMyCareMemberships, type CareMembership } from "@/lib/care-access";
+import {
+  fetchMyCareMemberships,
+  type CareMembership,
+} from "@/lib/care-access";
 import {
   fetchCareVendorOnboarding,
   fetchCareVendorTypes,
@@ -140,20 +143,8 @@ export async function resolveCarePortalPath(membership?: CareMembership | null):
   const active = rows.filter((r) => r.care_orgs?.is_active !== false);
   if (!active.length) return "/care/auth";
 
-  const m = active[0]!;
-  const kindId = m.care_orgs?.org_kind_id;
-  if (!kindId) return "/care/portal/desk";
-
-  const types = await fetchCareVendorTypes();
-  const kind = types.find((t) => t.id === kindId);
-  const panels = new Set(kind?.panels ?? ["desk"]);
-
-  if (panels.has("ambulance") && !panels.has("desk") && !panels.has("lab")) return "/care/portal/ambulance";
-  if (panels.has("desk") && !panels.has("lab") && !panels.has("ambulance")) return "/care/portal/desk";
-  if (panels.has("lab") && !panels.has("desk") && !panels.has("ambulance")) return "/care/portal/lab";
-  if (panels.has("ambulance")) return "/care/portal/ambulance";
-  if (panels.has("desk")) return "/care/portal/desk";
-  return "/care/portal/lab";
+  // Always land on portal overview so desk options appear as cards.
+  return "/care/portal";
 }
 
 export function careOrgKycLabel(

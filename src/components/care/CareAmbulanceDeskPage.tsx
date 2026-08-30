@@ -17,6 +17,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { careHasPermission, fetchMyCareMemberships, type CareMembership } from "@/lib/care-access";
+import { useCarePortalLayoutOptional } from "@/components/care/CarePortalLayout";
+import { cn } from "@/lib/utils";
 import type { CarePermissionKey } from "@/lib/care-permissions";
 import {
   acceptAmbulanceRequest,
@@ -91,17 +93,26 @@ function statusTone(status: string) {
 }
 
 export function CareAmbulanceDeskPage({ portalMode = false }: CareAmbulanceDeskPageProps) {
+  const portal = useCarePortalLayoutOptional();
+  const usePortal = portalMode && !!portal;
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { lang } = useI18n();
   const authPath = portalMode ? "/care/auth" : "/auth";
   const homePath = portalMode ? "/care/portal" : "/care";
-  const [memberships, setMemberships] = useState<CareMembership[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const [localMemberships, setLocalMemberships] = useState<CareMembership[]>([]);
+  const [localOrgId, setLocalOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState<AmbTab>("dispatch");
-  const [ready, setReady] = useState(false);
+  const [localReady, setLocalReady] = useState(false);
+
+  const memberships = usePortal ? portal!.memberships : localMemberships;
+  const orgId = usePortal ? portal!.orgId : localOrgId;
+  const setOrgId = usePortal ? portal!.setOrgId : setLocalOrgId;
+  const ready = usePortal ? portal!.ready : localReady;
+  const desktopShell = usePortal && portal!.desktopShell;
 
   useEffect(() => {
+    if (usePortal) return;
     if (loading) return;
     if (!user) {
       void navigate({ to: authPath, search: {} } as never);
@@ -114,18 +125,26 @@ export function CareAmbulanceDeskPage({ portalMode = false }: CareAmbulanceDeskP
         void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
         return;
       }
-      setMemberships(active);
-      setOrgId((prev) => prev ?? active[0]!.org_id);
-      setReady(true);
+      setLocalMemberships(active);
+      setLocalOrgId((prev) => prev ?? active[0]!.org_id);
+      setLocalReady(true);
     });
-  }, [loading, user, navigate, lang, authPath, portalMode]);
+  }, [usePortal, loading, user, navigate, lang, authPath, portalMode]);
 
-  const membership = useMemo(() => memberships.find((m) => m.org_id === orgId) ?? null, [memberships, orgId]);
-  const can = (key: CarePermissionKey) => careHasPermission(membership, key);
+  const membership = useMemo(
+    () => (usePortal ? portal!.membership : memberships.find((m) => m.org_id === orgId) ?? null),
+    [usePortal, portal, memberships, orgId],
+  );
+  const can = (key: CarePermissionKey) =>
+    usePortal ? portal!.can(key) : careHasPermission(membership, key);
   const org = membership?.care_orgs;
   const orgName = lang === "bn" ? org?.name_bn || org?.name : org?.name;
 
   async function handleSignOut() {
+    if (usePortal) {
+      await portal!.signOutPortal();
+      return;
+    }
     await signOut();
     void navigate({ to: authPath, search: {} } as never);
   }
@@ -147,40 +166,57 @@ export function CareAmbulanceDeskPage({ portalMode = false }: CareAmbulanceDeskP
   ];
 
   return (
-    <div className="min-h-dvh bg-[radial-gradient(ellipse_at_top,_#fff7ed_0%,_hsl(var(--background))_52%)]">
-      <header className="sticky top-0 z-20 border-b border-orange-900/10 bg-card/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          <PageBackButton fallbackTo={homePath} shape="xl" />
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-orange-600 to-amber-600 text-white shadow-sm shadow-orange-600/30">
-            <Ambulance className="h-5 w-5" />
+    <div
+      className={cn(
+        "min-h-dvh bg-[radial-gradient(ellipse_at_top,_#fff7ed_0%,_hsl(var(--background))_52%)]",
+        desktopShell && "md:min-h-0",
+      )}
+    >
+      <header
+        className={cn(
+          "sticky top-0 z-20 border-b border-orange-900/10 bg-card/90 backdrop-blur-md",
+          desktopShell && "md:static md:bg-transparent md:backdrop-blur-none",
+        )}
+      >
+        {!desktopShell && (
+          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+            <PageBackButton fallbackTo={homePath} shape="xl" />
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-orange-600 to-amber-600 text-white shadow-sm shadow-orange-600/30">
+              <Ambulance className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-700/80">
+                {lang === "bn" ? "অ্যাম্বুলেন্স কমান্ড ডেস্ক" : "Ambulance command desk"}
+              </p>
+              <h1 className="truncate text-base font-bold tracking-tight">{orgName}</h1>
+            </div>
+            {memberships.length > 1 && (
+              <select
+                className="max-w-44 rounded-xl border border-orange-200 bg-background px-2 py-2 text-xs"
+                value={orgId}
+                onChange={(e) => setOrgId(e.target.value)}
+              >
+                {memberships.map((m) => (
+                  <option key={m.org_id} value={m.org_id}>
+                    {lang === "bn" ? m.care_orgs?.name_bn || m.care_orgs?.name : m.care_orgs?.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium hover:bg-muted">
+              {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
+            </Link>
+            <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border hover:bg-muted" aria-label="Sign out">
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-700/80">
-              {lang === "bn" ? "অ্যাম্বুলেন্স কমান্ড ডেস্ক" : "Ambulance command desk"}
-            </p>
-            <h1 className="truncate text-base font-bold tracking-tight">{orgName}</h1>
-          </div>
-          {memberships.length > 1 && (
-            <select
-              className="max-w-44 rounded-xl border border-orange-200 bg-background px-2 py-2 text-xs"
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-            >
-              {memberships.map((m) => (
-                <option key={m.org_id} value={m.org_id}>
-                  {lang === "bn" ? m.care_orgs?.name_bn || m.care_orgs?.name : m.care_orgs?.name}
-                </option>
-              ))}
-            </select>
+        )}
+        <nav
+          className={cn(
+            "mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 pb-2",
+            desktopShell && "md:px-4 md:pt-3",
           )}
-          <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium hover:bg-muted">
-            {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
-          </Link>
-          <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border hover:bg-muted" aria-label="Sign out">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 pb-2">
+        >
           {tabs
             .filter((t) => t.show)
             .map((t) => (

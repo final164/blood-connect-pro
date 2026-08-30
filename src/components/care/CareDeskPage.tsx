@@ -100,6 +100,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import { useCarePortalLayoutOptional } from "@/components/care/CarePortalLayout";
+import { cn } from "@/lib/utils";
+
 type DeskTab = "queue" | "create" | "doctors" | "schedule" | "staff" | "settings";
 
 type CareDeskPageProps = {
@@ -108,18 +111,27 @@ type CareDeskPageProps = {
 };
 
 export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
+  const portal = useCarePortalLayoutOptional();
+  const usePortal = portalMode && !!portal;
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { lang } = useI18n();
   const authPath = portalMode ? "/care/auth" : "/auth";
   const homePath = portalMode ? "/care/portal" : "/care";
-  const [memberships, setMemberships] = useState<CareMembership[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
+  const [localMemberships, setLocalMemberships] = useState<CareMembership[]>([]);
+  const [localOrgId, setLocalOrgId] = useState<string | null>(null);
   const [tab, setTab] = useState<DeskTab>("queue");
-  const [ready, setReady] = useState(false);
+  const [localReady, setLocalReady] = useState(false);
   const [createSerialOn, setCreateSerialOn] = useState(true);
 
+  const memberships = usePortal ? portal!.memberships : localMemberships;
+  const orgId = usePortal ? portal!.orgId : localOrgId;
+  const setOrgId = usePortal ? portal!.setOrgId : setLocalOrgId;
+  const ready = usePortal ? portal!.ready : localReady;
+  const desktopShell = usePortal && portal!.desktopShell;
+
   useEffect(() => {
+    if (usePortal) return;
     if (loading) return;
     if (!user) {
       void navigate({ to: authPath, search: {} } as never);
@@ -133,15 +145,15 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
           void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
           return;
         }
-        setMemberships(active);
-        setOrgId((prev) => prev ?? active[0]!.org_id);
-        setReady(true);
+        setLocalMemberships(active);
+        setLocalOrgId((prev) => prev ?? active[0]!.org_id);
+        setLocalReady(true);
       })
       .catch((e) => {
         toast.error((e as Error).message);
         void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
       });
-  }, [loading, user, navigate, lang, authPath, portalMode]);
+  }, [usePortal, loading, user, navigate, lang, authPath, portalMode]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -154,15 +166,20 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
   }, [orgId]);
 
   async function handleSignOut() {
+    if (usePortal) {
+      await portal!.signOutPortal();
+      return;
+    }
     await signOut();
     void navigate({ to: authPath, search: {} } as never);
   }
 
   const membership = useMemo(
-    () => memberships.find((m) => m.org_id === orgId) ?? null,
-    [memberships, orgId],
+    () => (usePortal ? portal!.membership : memberships.find((m) => m.org_id === orgId) ?? null),
+    [usePortal, portal, memberships, orgId],
   );
-  const can = (key: CarePermissionKey) => careHasPermission(membership, key);
+  const can = (key: CarePermissionKey) =>
+    usePortal ? portal!.can(key) : careHasPermission(membership, key);
   const org = membership?.care_orgs;
   const orgName = lang === "bn" ? org?.name_bn || org?.name : org?.name;
 
@@ -188,40 +205,53 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
   ];
 
   return (
-    <div className="min-h-dvh bg-background">
-      <header className="sticky top-0 z-20 border-b bg-card/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <PageBackButton fallbackTo={homePath} shape="xl" />
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
-            <ClipboardList className="h-5 w-5" />
+    <div className={cn("min-h-dvh bg-background", desktopShell && "md:min-h-0")}>
+      <header
+        className={cn(
+          "sticky top-0 z-20 border-b bg-card/90 backdrop-blur",
+          desktopShell && "md:static md:bg-transparent md:backdrop-blur-none",
+        )}
+      >
+        {!desktopShell && (
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+            <PageBackButton fallbackTo={homePath} shape="xl" />
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {lang === "bn" ? "চেম্বার ডেস্ক" : "Chamber desk"}
+              </p>
+              <h1 className="truncate text-base font-bold">{orgName}</h1>
+            </div>
+            {memberships.length > 1 && (
+              <select
+                className="max-w-40 rounded-xl border bg-background px-2 py-2 text-xs"
+                value={orgId}
+                onChange={(e) => setOrgId(e.target.value)}
+              >
+                {memberships.map((m) => (
+                  <option key={m.org_id} value={m.org_id}>
+                    {lang === "bn" ? m.care_orgs?.name_bn || m.care_orgs?.name : m.care_orgs?.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium">
+              {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
+            </Link>
+            <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {lang === "bn" ? "চেম্বার ডেস্ক" : "Chamber desk"}
-            </p>
-            <h1 className="truncate text-base font-bold">{orgName}</h1>
-          </div>
-          {memberships.length > 1 && (
-            <select
-              className="max-w-40 rounded-xl border bg-background px-2 py-2 text-xs"
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-            >
-              {memberships.map((m) => (
-                <option key={m.org_id} value={m.org_id}>
-                  {lang === "bn" ? m.care_orgs?.name_bn || m.care_orgs?.name : m.care_orgs?.name}
-                </option>
-              ))}
-            </select>
+        )}
+        <nav
+          className={cn(
+            "mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2",
+            desktopShell && "md:max-w-6xl md:px-4 md:pt-3",
+            !desktopShell && "pt-0",
           )}
-          <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium">
-            {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
-          </Link>
-          <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2">
+        >
           {tabs
             .filter((t) => t.show)
             .map((t) => (
@@ -238,7 +268,7 @@ export function CareDeskPage({ portalMode = false }: CareDeskPageProps) {
             ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-4">
+      <main className={cn("mx-auto max-w-5xl px-4 py-4", desktopShell && "md:max-w-6xl")}>
         {tab === "queue" && <QueuePanel orgId={orgId} canIssue={can("serial.issue")} canManage={can("queue.manage")} lang={lang} />}
         {tab === "create" && (
           <CareCreateSerialPanel

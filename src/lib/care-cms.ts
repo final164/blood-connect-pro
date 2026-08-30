@@ -21,6 +21,7 @@ export type CareSpecialty = {
   sort_order: number;
 };
 
+/** panels tokens: desk | lab | ambulance | operation */
 export type CareVendorType = {
   id: string;
   slug: string;
@@ -30,6 +31,28 @@ export type CareVendorType = {
   is_active: boolean;
   sort_order: number;
 };
+
+/** Ensures overview shows all intended desks even if DB panels predate migration. */
+export const VENDOR_TYPE_PANEL_DEFAULTS: Record<string, string[]> = {
+  chamber: ["desk", "lab", "operation"],
+  mixed: ["desk", "lab", "operation"],
+  clinic: ["lab", "operation"],
+  diagnostic: ["lab", "operation"],
+  hospital_lab: ["lab", "operation"],
+  ambulance: ["ambulance"],
+};
+
+export function resolveVendorTypePanels(
+  slug: string | null | undefined,
+  panels: unknown,
+): string[] {
+  const fromDb = Array.isArray(panels)
+    ? panels.map((p) => String(p).trim()).filter(Boolean)
+    : [];
+  const defaults = slug ? VENDOR_TYPE_PANEL_DEFAULTS[slug] : undefined;
+  if (!defaults?.length) return fromDb.length ? fromDb : ["desk", "lab", "operation"];
+  return [...new Set([...defaults, ...fromDb])];
+}
 
 export type CareStatusRow = {
   slug: string;
@@ -360,7 +383,7 @@ export async function fetchCareVendorTypes(activeOnly = true): Promise<CareVendo
   if (error || !data) return [];
   return ((data as CareVendorType[]) ?? []).map((r) => ({
     ...r,
-    panels: Array.isArray(r.panels) ? r.panels : ["desk"],
+    panels: resolveVendorTypePanels(r.slug, r.panels),
   }));
 }
 

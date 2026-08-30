@@ -18,6 +18,7 @@ import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { careHasPermission, fetchMyCareMemberships, type CareMembership } from "@/lib/care-access";
+import { useCarePortalLayoutOptional } from "@/components/care/CarePortalLayout";
 import type { CarePermissionKey } from "@/lib/care-permissions";
 import { fetchLabDeskPageSize, fetchTestCatalog } from "@/lib/care-cms";
 import {
@@ -68,9 +69,22 @@ import {
 
 type LabTab = "today" | "offerings" | "calendar" | "checkin" | "operations" | "operation-queue";
 
+type DeskScope = "lab" | "operation" | "all";
+
+const LAB_SCOPE_TABS: LabTab[] = ["today", "offerings", "calendar", "checkin"];
+const OPERATION_SCOPE_TABS: LabTab[] = ["operations", "operation-queue"];
+
 type CareLabDeskPageProps = {
   portalMode?: boolean;
+  /** lab = test desk only; operation = operation panels only; all = legacy combined */
+  deskScope?: DeskScope;
 };
+
+function tabInScope(id: LabTab, scope: DeskScope): boolean {
+  if (scope === "all") return true;
+  if (scope === "lab") return LAB_SCOPE_TABS.includes(id);
+  return OPERATION_SCOPE_TABS.includes(id);
+}
 
 type DeskBookingRow = Record<string, unknown> & {
   id: string;
@@ -326,18 +340,45 @@ function LabProgressBar({
   );
 }
 
-export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
+export function CareLabDeskPage({ portalMode = false, deskScope = "all" }: CareLabDeskPageProps) {
+  const portal = useCarePortalLayoutOptional();
+  const usePortal = portalMode && !!portal;
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { lang } = useI18n();
   const authPath = portalMode ? "/care/auth" : "/auth";
   const homePath = portalMode ? "/care/portal" : "/care";
-  const [memberships, setMemberships] = useState<CareMembership[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [tab, setTab] = useState<LabTab>("today");
-  const [ready, setReady] = useState(false);
+  const [localMemberships, setLocalMemberships] = useState<CareMembership[]>([]);
+  const [localOrgId, setLocalOrgId] = useState<string | null>(null);
+  const [tab, setTab] = useState<LabTab>(() =>
+    deskScope === "operation" ? "operation-queue" : "today",
+  );
+  const [localReady, setLocalReady] = useState(false);
+  const deskTitle =
+    deskScope === "operation"
+      ? lang === "bn"
+        ? "অপারেশন ডেস্ক"
+        : "Operation desk"
+      : lang === "bn"
+        ? "ল্যাব ডেস্ক"
+        : "Lab desk";
+  const noMembershipMsg =
+    deskScope === "operation"
+      ? lang === "bn"
+        ? "অপারেশন মেম্বারশিপ নেই"
+        : "No operation membership"
+      : lang === "bn"
+        ? "ল্যাব মেম্বারশিপ নেই"
+        : "No lab membership";
+
+  const memberships = usePortal ? portal!.memberships : localMemberships;
+  const orgId = usePortal ? portal!.orgId : localOrgId;
+  const setOrgId = usePortal ? portal!.setOrgId : setLocalOrgId;
+  const ready = usePortal ? portal!.ready : localReady;
+  const desktopShell = usePortal && portal!.desktopShell;
 
   useEffect(() => {
+    if (usePortal) return;
     if (loading) return;
     if (!user) {
       void navigate({ to: authPath, search: {} } as never);
@@ -346,26 +387,34 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
     void fetchMyCareMemberships().then((rows) => {
       const active = rows.filter((r) => r.care_orgs?.is_active !== false);
       if (!active.length) {
-        toast.error(lang === "bn" ? "ল্যাব মেম্বারশিপ নেই" : "No lab membership");
+        toast.error(noMembershipMsg);
         void navigate({ to: portalMode ? "/care/auth" : "/care", search: portalMode ? { mode: undefined, next: undefined } : undefined } as never);
         return;
       }
-      setMemberships(active);
-      setOrgId((prev) => prev ?? active[0]!.org_id);
-      setReady(true);
+      setLocalMemberships(active);
+      setLocalOrgId((prev) => prev ?? active[0]!.org_id);
+      setLocalReady(true);
     });
-  }, [loading, user, navigate, lang, authPath, portalMode]);
+  }, [usePortal, loading, user, navigate, lang, authPath, portalMode, noMembershipMsg]);
 
   async function handleSignOut() {
+    if (usePortal) {
+      await portal!.signOutPortal();
+      return;
+    }
     await signOut();
     void navigate({ to: authPath, search: {} } as never);
   }
 
-  const membership = useMemo(() => memberships.find((m) => m.org_id === orgId) ?? null, [memberships, orgId]);
-  const can = (key: CarePermissionKey) => careHasPermission(membership, key);
+  const membership = useMemo(
+    () => (usePortal ? portal!.membership : memberships.find((m) => m.org_id === orgId) ?? null),
+    [usePortal, portal, memberships, orgId],
+  );
+  const can = (key: CarePermissionKey) =>
+    usePortal ? portal!.can(key) : careHasPermission(membership, key);
   const org = membership?.care_orgs;
   const orgName = lang === "bn" ? org?.name_bn || org?.name : org?.name;
-  const headerHidden = useHideOnScroll({ threshold: 12, topReveal: 48 });
+  const headerHidden = useHideOnScroll({ threshold: 12, topReveal: 48, disabled: !!desktopShell });
 
   if (!ready || !orgId || !membership) {
     return (
@@ -376,69 +425,100 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
   }
 
   const tabs: { id: LabTab; label: string; show: boolean }[] = [
-    { id: "today", label: lang === "bn" ? "আজকের বুকিং" : "Today", show: can("lab.checkin") || can("overview.view") },
-    { id: "offerings", label: lang === "bn" ? "অফার" : "Offerings", show: can("lab.offerings") },
-    { id: "calendar", label: lang === "bn" ? "ক্যালেন্ডার" : "Calendar", show: can("lab.calendar") },
-    { id: "checkin", label: lang === "bn" ? "চেক-ইন" : "Check-in", show: can("lab.checkin") },
+    {
+      id: "today",
+      label: lang === "bn" ? "আজকের বুকিং" : "Today",
+      show: tabInScope("today", deskScope) && (can("lab.checkin") || can("overview.view")),
+    },
+    {
+      id: "offerings",
+      label: lang === "bn" ? "অফার" : "Offerings",
+      show: tabInScope("offerings", deskScope) && can("lab.offerings"),
+    },
+    {
+      id: "calendar",
+      label: lang === "bn" ? "ক্যালেন্ডার" : "Calendar",
+      show: tabInScope("calendar", deskScope) && can("lab.calendar"),
+    },
+    {
+      id: "checkin",
+      label: lang === "bn" ? "চেক-ইন" : "Check-in",
+      show: tabInScope("checkin", deskScope) && can("lab.checkin"),
+    },
     {
       id: "operations",
       label: lang === "bn" ? "অপারেশন" : "Operations",
-      show: can("operation.manage"),
+      show: tabInScope("operations", deskScope) && can("operation.manage"),
     },
     {
       id: "operation-queue",
       label: lang === "bn" ? "অপারেশন বুকিং" : "Operation bookings",
-      show: can("operation.view") || can("operation.schedule"),
+      show:
+        tabInScope("operation-queue", deskScope) &&
+        (can("operation.view") || can("operation.schedule")),
     },
   ];
+  const visibleTabs = tabs.filter((t) => t.show);
+  const activeTab = visibleTabs.some((t) => t.id === tab) ? tab : (visibleTabs[0]?.id ?? tab);
 
   return (
-    <div className="min-h-dvh bg-background">
+    <div className={cn("min-h-dvh bg-background", desktopShell && "md:min-h-0")}>
       <header
         className={cn(
           "sticky top-0 z-20 border-b bg-card",
           "transition-transform duration-200 ease-out will-change-transform",
           headerHidden ? "-translate-y-full pointer-events-none" : "translate-y-0",
+          desktopShell && "md:static md:translate-y-0 md:pointer-events-auto",
         )}
         data-header-hidden={headerHidden ? "true" : "false"}
       >
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
-          <PageBackButton fallbackTo={homePath} shape="xl" />
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
-            <Microscope className="h-5 w-5" />
+        {!desktopShell && (
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+            <PageBackButton fallbackTo={homePath} shape="xl" />
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+              {deskScope === "operation" ? (
+                <FlaskConical className="h-5 w-5" />
+              ) : (
+                <Microscope className="h-5 w-5" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {deskTitle}
+              </p>
+              <h1 className="truncate text-base font-bold">{orgName}</h1>
+            </div>
+            {memberships.length > 1 && (
+              <select className="max-w-40 rounded-xl border px-2 py-2 text-xs" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
+                {memberships.map((m) => (
+                  <option key={m.org_id} value={m.org_id}>
+                    {lang === "bn" ? m.care_orgs?.name_bn || m.care_orgs?.name : m.care_orgs?.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium">
+              {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
+            </Link>
+            <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {lang === "bn" ? "ল্যাব ডেস্ক" : "Lab desk"}
-            </p>
-            <h1 className="truncate text-base font-bold">{orgName}</h1>
-          </div>
-          {memberships.length > 1 && (
-            <select className="max-w-40 rounded-xl border px-2 py-2 text-xs" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-              {memberships.map((m) => (
-                <option key={m.org_id} value={m.org_id}>
-                  {lang === "bn" ? m.care_orgs?.name_bn || m.care_orgs?.name : m.care_orgs?.name}
-                </option>
-              ))}
-            </select>
+        )}
+        <nav
+          className={cn(
+            "mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2",
+            desktopShell && "md:max-w-6xl md:px-4 md:pt-3",
           )}
-          <Link to={homePath} className="rounded-xl border px-2.5 py-2 text-xs font-medium">
-            {portalMode ? (lang === "bn" ? "পোর্টাল" : "Portal") : lang === "bn" ? "কেয়ার" : "Care"}
-          </Link>
-          <button type="button" onClick={() => void handleSignOut()} className="h-9 w-9 grid place-items-center rounded-xl border">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-3 pb-2">
-          {tabs
-            .filter((t) => t.show)
+        >
+          {visibleTabs
             .map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  tab === t.id ? "bg-primary text-primary-foreground" : "border text-muted-foreground"
+                  activeTab === t.id ? "bg-primary text-primary-foreground" : "border text-muted-foreground"
                 }`}
               >
                 {t.label}
@@ -446,16 +526,16 @@ export function CareLabDeskPage({ portalMode = false }: CareLabDeskPageProps) {
             ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-4">
-        {(tab === "today" || tab === "checkin") && (
+      <main className={cn("mx-auto max-w-5xl px-4 py-4", desktopShell && "md:max-w-6xl")}>
+        {(activeTab === "today" || activeTab === "checkin") && (
           <TodayPanel orgId={orgId} canManage={can("lab.checkin")} lang={lang} chromeHidden={headerHidden} />
         )}
-        {tab === "offerings" && <OfferingsPanel orgId={orgId} lang={lang} />}
-        {tab === "calendar" && <CalendarPanel orgId={orgId} lang={lang} />}
-        {tab === "operations" && (
+        {activeTab === "offerings" && <OfferingsPanel orgId={orgId} lang={lang} />}
+        {activeTab === "calendar" && <CalendarPanel orgId={orgId} lang={lang} />}
+        {activeTab === "operations" && (
           <CareOperationOfferingsPanel orgId={orgId} canEdit={can("operation.manage")} lang={lang} />
         )}
-        {tab === "operation-queue" && (
+        {activeTab === "operation-queue" && (
           <CareOperationDeskPanel orgId={orgId} canSchedule={can("operation.schedule")} lang={lang} />
         )}
       </main>

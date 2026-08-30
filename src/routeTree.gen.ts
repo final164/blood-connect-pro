@@ -39,6 +39,7 @@ import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index
 import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
 import { Route as AppAmbulanceIndexRouteImport } from './routes/_app.ambulance.index'
 import { Route as CarePortalTeleRouteImport } from './routes/care.portal.tele'
+import { Route as CarePortalOperationRouteImport } from './routes/care.portal.operation'
 import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.onboarding'
 import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
 import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
@@ -216,6 +217,11 @@ const AppAmbulanceIndexRoute = AppAmbulanceIndexRouteImport.update({
 const CarePortalTeleRoute = CarePortalTeleRouteImport.update({
   id: '/tele',
   path: '/tele',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalOperationRoute = CarePortalOperationRouteImport.update({
+  id: '/operation',
+  path: '/operation',
   getParentRoute: () => CarePortalRoute,
 } as any)
 const CarePortalOnboardingRoute = CarePortalOnboardingRouteImport.update({
@@ -407,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/care/portal/operation': typeof CarePortalOperationRoute
   '/care/portal/tele': typeof CarePortalTeleRoute
   '/ambulance/': typeof AppAmbulanceIndexRoute
   '/care/': typeof AppCareIndexRoute
@@ -462,6 +469,7 @@ export interface FileRoutesByTo {
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/care/portal/operation': typeof CarePortalOperationRoute
   '/care/portal/tele': typeof CarePortalTeleRoute
   '/ambulance': typeof AppAmbulanceIndexRoute
   '/care': typeof AppCareIndexRoute
@@ -524,6 +532,7 @@ export interface FileRoutesById {
   '/care/portal/desk': typeof CarePortalDeskRoute
   '/care/portal/lab': typeof CarePortalLabRoute
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
+  '/care/portal/operation': typeof CarePortalOperationRoute
   '/care/portal/tele': typeof CarePortalTeleRoute
   '/_app/ambulance/': typeof AppAmbulanceIndexRoute
   '/_app/care/': typeof AppCareIndexRoute
@@ -586,6 +595,7 @@ export interface FileRouteTypes {
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/care/portal/operation'
     | '/care/portal/tele'
     | '/ambulance/'
     | '/care/'
@@ -641,6 +651,7 @@ export interface FileRouteTypes {
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/care/portal/operation'
     | '/care/portal/tele'
     | '/ambulance'
     | '/care'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/care/portal/desk'
     | '/care/portal/lab'
     | '/care/portal/onboarding'
+    | '/care/portal/operation'
     | '/care/portal/tele'
     | '/_app/ambulance/'
     | '/_app/care/'
@@ -953,6 +965,13 @@ declare module '@tanstack/react-router' {
       path: '/tele'
       fullPath: '/care/portal/tele'
       preLoaderRoute: typeof CarePortalTeleRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/operation': {
+      id: '/care/portal/operation'
+      path: '/operation'
+      fullPath: '/care/portal/operation'
+      preLoaderRoute: typeof CarePortalOperationRouteImport
       parentRoute: typeof CarePortalRoute
     }
     '/care/portal/onboarding': {
@@ -1303,6 +1322,7 @@ interface CarePortalRouteChildren {
   CarePortalDeskRoute: typeof CarePortalDeskRoute
   CarePortalLabRoute: typeof CarePortalLabRoute
   CarePortalOnboardingRoute: typeof CarePortalOnboardingRoute
+  CarePortalOperationRoute: typeof CarePortalOperationRoute
   CarePortalTeleRoute: typeof CarePortalTeleRoute
   CarePortalIndexRoute: typeof CarePortalIndexRoute
 }
@@ -1312,6 +1332,7 @@ const CarePortalRouteChildren: CarePortalRouteChildren = {
   CarePortalDeskRoute: CarePortalDeskRoute,
   CarePortalLabRoute: CarePortalLabRoute,
   CarePortalOnboardingRoute: CarePortalOnboardingRoute,
+  CarePortalOperationRoute: CarePortalOperationRoute,
   CarePortalTeleRoute: CarePortalTeleRoute,
   CarePortalIndexRoute: CarePortalIndexRoute,
 }

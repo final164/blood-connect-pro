@@ -656,6 +656,8 @@ function VendorTypesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "e
           <input className={ainp} value={r.name_en} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, name_en: e.target.value } : x)))} />
           <input
             className={ainp}
+            placeholder="desk,lab,operation"
+            title="desk | lab | ambulance | operation"
             value={r.panels.join(",")}
             onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, panels: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } : x)))}
           />

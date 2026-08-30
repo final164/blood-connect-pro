@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { APP_STYLESHEET } from "@/lib/app-stylesheet";
+import { CarePortalLayout } from "@/components/care/CarePortalLayout";
 
 export const Route = createFileRoute("/care/portal")({
   head: () => ({
@@ -9,5 +10,5 @@ export const Route = createFileRoute("/care/portal")({
     ],
     links: [APP_STYLESHEET],
   }),
-  component: () => <Outlet />,
+  component: CarePortalLayout,
 });
