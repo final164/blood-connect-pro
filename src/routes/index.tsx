@@ -10,6 +10,7 @@ import {
   buildHead,
 } from "@/lib/seo-settings";
 import { loadLandingPage } from "@/lib/landing-page-data";
+import { fetchGuestBrowseEnabled } from "@/lib/guest-browse-settings";
 import { LANDING_STYLESHEET } from "@/lib/landing-stylesheet";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
@@ -128,6 +129,10 @@ function LandingPage() {
   useEffect(() => {
     if (settings.enabled === false) void navigate({ to: "/auth", search: {} });
   }, [settings.enabled, navigate]);
+
+  useEffect(() => {
+    void fetchGuestBrowseEnabled();
+  }, []);
 
   if (settings.enabled === false) return null;
 

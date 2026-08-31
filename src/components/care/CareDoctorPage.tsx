@@ -36,6 +36,11 @@ import {
   type CareOperationOffering,
 } from "@/lib/care-operations-api";
 import { fetchTeleDoctor } from "@/lib/tele-api";
+import {
+  clearCareBookResume,
+  consumeCareBookResume,
+  saveCareBookResume,
+} from "@/lib/care-guest-resume";
 
 function ageFromDob(dob: string | null | undefined): string {
   if (!dob) return "";
@@ -156,6 +161,30 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
     };
   }, [user?.id, isAnonymous]);
 
+  // Resume slot after guest login
+  useEffect(() => {
+    if (!session || isAnonymous || !schedules.length) return;
+    const resume = consumeCareBookResume();
+    if (!resume || resume.kind !== "doctor" || resume.doctorId !== doctorId) return;
+    const slot: SelectedSlot = {
+      scheduleId: resume.scheduleId,
+      date: resume.date,
+      affiliationId: resume.affiliationId,
+      orgName: resume.orgName ?? "",
+      locationLabel: resume.locationLabel ?? "",
+      dayLabel: resume.dayLabel ?? formatSerialDayMonth(resume.date),
+      timeLabel: resume.timeLabel ?? "",
+    };
+    setSelected(slot);
+    void loadSeats(slot.scheduleId, slot.date);
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        serialFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, isAnonymous, schedules.length, doctorId]);
+
   const byAff = useMemo(() => {
     const map = new Map<string, CareScheduleRow[]>();
     for (const s of schedules) {
@@ -186,13 +215,6 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
   }
 
   function selectSlot(slot: SelectedSlot) {
-    if (!session || isAnonymous) {
-      void navigate({
-        to: "/auth",
-        search: { next: `/care/doctor/${doctorId}` } as never,
-      });
-      return;
-    }
     setSelected(slot);
     setSecondVisit(false);
     void loadSeats(slot.scheduleId, slot.date);
@@ -201,6 +223,24 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
       window.setTimeout(() => {
         serialFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 50);
+    });
+  }
+
+  function requireAuthForBook(slot: SelectedSlot) {
+    saveCareBookResume({
+      kind: "doctor",
+      doctorId,
+      scheduleId: slot.scheduleId,
+      date: slot.date,
+      affiliationId: slot.affiliationId,
+      orgName: slot.orgName,
+      locationLabel: slot.locationLabel,
+      dayLabel: slot.dayLabel,
+      timeLabel: slot.timeLabel,
+    });
+    void navigate({
+      to: "/auth",
+      search: { next: `/care/doctor/${doctorId}` } as never,
     });
   }
 
@@ -229,10 +269,7 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
   async function confirmBook() {
     if (!selected) return;
     if (!session || isAnonymous) {
-      void navigate({
-        to: "/auth",
-        search: { next: `/care/doctor/${doctorId}` } as never,
-      });
+      requireAuthForBook(selected);
       return;
     }
     const req = formFields;
@@ -270,6 +307,7 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
         isSecondVisit: secondVisit,
       });
       const pending = ticket.status === "pending_approval";
+      clearCareBookResume();
       toast.success(
         pending
           ? lang === "bn"

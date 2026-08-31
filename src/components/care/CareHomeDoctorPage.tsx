@@ -104,7 +104,7 @@ export function CareHomeDoctorPage({ doctorId }: { doctorId: string }) {
         </div>
       </AutoHideHeader>
 
-      <div className="px-3 py-4 max-w-2xl mx-auto space-y-4 pb-28">
+      <div className="px-3 py-4 max-w-2xl mx-auto space-y-4 pb-[calc(5.5rem+var(--app-bottom-nav-h,0px))] md:pb-28">
         <div className="flex gap-3">
           <div className="h-24 w-24 rounded-2xl overflow-hidden bg-muted shrink-0">
             {d.photo_url ? (
@@ -166,7 +166,7 @@ export function CareHomeDoctorPage({ doctorId }: { doctorId: string }) {
         </div>
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 border-t bg-background/95 backdrop-blur p-3 safe-bottom">
+      <div className="fixed inset-x-0 z-30 border-t bg-background/95 backdrop-blur p-3 bottom-[var(--app-bottom-nav-h,0px)] md:bottom-0">
         <div className="max-w-2xl mx-auto">
           <button
             type="button"

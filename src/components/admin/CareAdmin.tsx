@@ -31,6 +31,10 @@ import {
   type CareDoctorOnboardingSettings,
   type CareVendorType,
 } from "@/lib/care-cms";
+import {
+  fetchGuestBrowseEnabled,
+  saveGuestBrowseEnabled,
+} from "@/lib/guest-browse-settings";
 import { CareSerialSettingsForm } from "@/components/care/CareSerialSettingsForm";
 import { CareInvoiceAdmin } from "@/components/admin/CareInvoiceAdmin";
 import { CareDoctorsAdmin } from "@/components/admin/CareDoctorsAdmin";
@@ -876,11 +880,13 @@ function StatusesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
 function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" }) {
   const [policies, setPolicies] = useState<CareBookingPolicies | null>(null);
   const [flags, setFlags] = useState<CareFeatureFlags | null>(null);
+  const [guestBrowse, setGuestBrowse] = useState(true);
   useEffect(() => {
     void fetchCarePolicies().then((r) => {
       setPolicies(r.policies);
       setFlags(r.flags);
     });
+    void fetchGuestBrowseEnabled().then(setGuestBrowse);
   }, []);
   if (!policies || !flags) return null;
 
@@ -937,6 +943,26 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
 
   return (
     <div className="space-y-3 max-w-md">
+      <label className="flex items-start justify-between gap-3 text-xs text-slate-200 rounded-lg border border-slate-800 bg-slate-950/50 px-2.5 py-2">
+        <span className="leading-snug">
+          <span className="block font-medium">
+            {lang === "bn" ? "গেস্ট Care / Video ব্রাউজ" : "Guest Care / Video browse"}
+          </span>
+          <span className="text-[10px] text-slate-500">
+            {lang === "bn"
+              ? "লগইন ছাড়া ক্যাটালগ দেখা; বুক/মেসেজ/বুকিং-এ লগইন। Settings → App-এ একই টগল।"
+              : "Browse catalog without login; book/message/bookings need login. Same toggle in Settings → App."}
+          </span>
+          <span className="text-[10px] text-slate-600">app_settings.enable_guest</span>
+        </span>
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={guestBrowse}
+          onChange={(e) => setGuestBrowse(e.target.checked)}
+          disabled={!canEdit}
+        />
+      </label>
       {(Object.keys(policies) as (keyof CareBookingPolicies)[]).map((k) => (
         <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
           <span className="leading-snug">
@@ -980,7 +1006,7 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
         <button
           type="button"
           onClick={() =>
-            void saveCarePolicies(policies, flags)
+            void Promise.all([saveCarePolicies(policies, flags), saveGuestBrowseEnabled(guestBrowse)])
               .then(() => toast.success(lang === "bn" ? "সেভ" : "Saved"))
               .catch((e) => toast.error((e as Error).message))
           }

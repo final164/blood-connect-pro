@@ -36,6 +36,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  clearCareBookResume,
+  consumeCareBookResume,
+  saveCareBookResume,
+} from "@/lib/care-guest-resume";
 
 function isoDateLocal(d: Date) {
   const y = d.getFullYear();
@@ -173,6 +178,22 @@ export function CareLabFacilityPage({
     };
   }, [user?.id, isAnonymous]);
 
+  // Resume cart + checkout after guest login
+  useEffect(() => {
+    if (!session || isAnonymous || loading || !offerings.length) return;
+    const resume = consumeCareBookResume();
+    if (!resume || resume.kind !== "lab" || resume.orgId !== orgId) return;
+    const next = new Set<string>();
+    for (const id of resume.selectedOfferingIds) {
+      if (offerings.some((o) => o.id === id)) next.add(id);
+    }
+    if (next.size) setSelected(next);
+    if (resume.date) setDate(resume.date);
+    if (resume.openCheckout && next.size) {
+      window.setTimeout(() => setCheckoutOpen(true), 100);
+    }
+  }, [session?.user?.id, isAnonymous, loading, offerings, orgId]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return offerings;
@@ -207,6 +228,22 @@ export function CareLabFacilityPage({
     });
   }
 
+  function redirectAuthForLab(openCheckoutFlag: boolean) {
+    saveCareBookResume({
+      kind: "lab",
+      orgId,
+      selectedOfferingIds: [...selected],
+      date,
+      home: homeOnly,
+      openCheckout: openCheckoutFlag,
+    });
+    const next = `/care/labs/${orgId}${homeOnly ? "?home=1" : ""}`;
+    void navigate({
+      to: "/auth",
+      search: { next } as never,
+    });
+  }
+
   function openCheckout() {
     if (!selectedOfferings.length) {
       toast.error(lang === "bn" ? "কমপক্ষে একটি টেস্ট বেছে নিন" : "Select at least one test");
@@ -225,14 +262,7 @@ export function CareLabFacilityPage({
       if (!patientAddress.trim()) setPatientAddress(loc.address);
     }
     if (!session || isAnonymous) {
-      const next =
-        initialSelectId != null
-          ? `/care/labs/${orgId}?select=${encodeURIComponent(initialSelectId)}${homeOnly ? "&home=1" : ""}`
-          : `/care/labs/${orgId}${homeOnly ? "?home=1" : ""}`;
-      void navigate({
-        to: "/auth",
-        search: { next } as never,
-      });
+      redirectAuthForLab(true);
       return;
     }
     setCheckoutOpen(true);
@@ -244,10 +274,7 @@ export function CareLabFacilityPage({
       return;
     }
     if (!session || isAnonymous) {
-      void navigate({
-        to: "/auth",
-        search: { next: `/care/labs/${orgId}${homeOnly ? "?home=1" : ""}` } as never,
-      });
+      redirectAuthForLab(true);
       return;
     }
 
@@ -311,6 +338,7 @@ export function CareLabFacilityPage({
       }
 
       setCheckoutOpen(false);
+      clearCareBookResume();
       toast.success(
         lang === "bn"
           ? `${result.count}টি টেস্ট · এক ইনভয়েস ${result.invoice_no}`
@@ -337,7 +365,13 @@ export function CareLabFacilityPage({
       : facility?.kind_name_en || facility?.kind_name_bn;
 
   return (
-    <div className="w-full pb-28">
+    <div
+      className={
+        selectedOfferings.length > 0 && !checkoutOpen
+          ? "w-full pb-[calc(5.5rem+var(--app-bottom-nav-h,0px))] md:pb-28"
+          : "w-full pb-28"
+      }
+    >
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
           <PageBackButton
@@ -478,7 +512,7 @@ export function CareLabFacilityPage({
       </div>
 
       {selectedOfferings.length > 0 && !checkoutOpen && (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur safe-bottom">
+        <div className="fixed inset-x-0 z-30 border-t bg-background/95 backdrop-blur bottom-[var(--app-bottom-nav-h,0px)] md:bottom-0">
           <div className="max-w-2xl mx-auto px-3 py-3 flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold truncate">

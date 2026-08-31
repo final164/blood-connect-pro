@@ -1,3 +1,5 @@
+import { guestBrowseEnabledOrDefault } from "@/lib/guest-browse-settings";
+
 /** Safe same-origin path for post-login redirects (?next=). */
 export function isSafeNextPath(raw: unknown): raw is string {
   if (typeof raw !== "string") return false;
@@ -23,6 +25,7 @@ function careHubTab(search?: Record<string, unknown> | null): string {
 /**
  * True when this in-app href must be behind phone login
  * (landing tiles + soft gate), regardless of CMS `requires_auth` flags.
+ * Respects Admin `app_settings.enable_guest` (cached; defaults allow until loaded).
  */
 export function hrefRequiresLogin(href: string): boolean {
   const raw = (href || "").trim();
@@ -37,11 +40,12 @@ export function hrefRequiresLogin(href: string): boolean {
       search[k] = v;
     });
   }
-  return !isGuestBrowsePath(pathname, search);
+  if (!isGuestBrowsePath(pathname, search, { ignorePlatformFlag: true })) return true;
+  return !guestBrowseEnabledOrDefault();
 }
 
-/** Paths guests may browse without a session (soft gate in AppLayout). */
-export function isGuestBrowsePath(
+/** Path rules only — ignores Admin enable_guest (SoftGate combines with flag). */
+export function isGuestBrowsePathRules(
   pathname: string,
   search?: Record<string, unknown> | null,
 ): boolean {
@@ -51,25 +55,39 @@ export function isGuestBrowsePath(
   if (pathname === "/care" || pathname.startsWith("/care/")) {
     if (pathname.startsWith("/care/portal") || pathname.startsWith("/care/auth")) return false;
     if (pathname.startsWith("/care/serial") || pathname.startsWith("/care/lab-booking")) return false;
+    if (pathname.startsWith("/care/operation-booking")) return false;
     if (pathname.startsWith("/care/desk") || pathname === "/care/lab" || pathname.startsWith("/care/lab/"))
       return false;
-    // Doctor profiles + booking
-    if (pathname.startsWith("/care/doctor")) return false;
-    // Video consult browse is public; checkout/booking need login (layout soft-gate)
-    if (pathname === "/care/video" || pathname === "/care/video/" || pathname.startsWith("/care/video/doctor"))
-      return true;
+    // Video consult browse is public; checkout/booking need login
     if (pathname.startsWith("/care/video/checkout") || pathname.startsWith("/care/video/booking"))
       return false;
-    // Care hub: default tab is doctors; doctors/bookings need login
+    if (pathname === "/care/video" || pathname === "/care/video/" || pathname.startsWith("/care/video/doctor"))
+      return true;
+    // Care hub: browse all tabs except personal bookings
     if (pathname === "/care" || pathname === "/care/") {
       const tab = careHubTab(search);
-      if (!tab || tab === "doctors" || tab === "bookings") return false;
+      if (tab === "bookings") return false;
       return true;
     }
-    // AI health / individual test pages remain publicly browsable
+    // Doctor / lab / test / AI / home / video doctor profiles — browse OK; book/message gate in UI
     return true;
   }
   return false;
+}
+
+/**
+ * Paths guests may browse without a session (soft gate in AppLayout).
+ * When `ignorePlatformFlag` is false (default), also requires Admin enable_guest.
+ */
+export function isGuestBrowsePath(
+  pathname: string,
+  search?: Record<string, unknown> | null,
+  opts?: { ignorePlatformFlag?: boolean; platformEnabled?: boolean },
+): boolean {
+  if (!isGuestBrowsePathRules(pathname, search)) return false;
+  if (opts?.ignorePlatformFlag) return true;
+  if (typeof opts?.platformEnabled === "boolean") return opts.platformEnabled;
+  return guestBrowseEnabledOrDefault();
 }
 
 const AI_CHAT_DRAFT_KEY = "muktosheba:ai-chat-draft";

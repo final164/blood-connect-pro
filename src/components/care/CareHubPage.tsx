@@ -60,8 +60,9 @@ export function CareHubPage({
   initialSpecialtyId?: string;
 }) {
   const { lang, t } = useI18n();
-  const { user } = useAuth();
+  const { user, session, isAnonymous } = useAuth();
   const [tab, setTab] = useState(initialTab || "dashboard");
+  const isGuest = !session || isAnonymous;
 
   useEffect(() => {
     if (initialTab) setTab(initialTab);
@@ -96,6 +97,22 @@ export function CareHubPage({
       </AutoHideHeader>
 
       <div className="px-3 sm:px-4 py-3 max-w-2xl mx-auto pb-8">
+        {isGuest ? (
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-amber-50 px-3 py-2 text-[11px] text-amber-950">
+            <span className="leading-snug">
+              {lang === "bn"
+                ? "গেস্ট মোড — খুঁজুন ও দেখুন। বুক বা মেসেজ করতে লগইন করুন।"
+                : "Guest mode — browse freely. Log in to book or message."}
+            </span>
+            <Link
+              to="/auth"
+              search={{ next: "/care" } as never}
+              className="shrink-0 rounded-lg bg-amber-900 px-2.5 py-1 text-[10px] font-bold text-amber-50"
+            >
+              {lang === "bn" ? "লগইন" : "Log in"}
+            </Link>
+          </div>
+        ) : null}
         {tab === "dashboard" ? (
           <CareCustomerDashboard lang={lang} userId={user?.id} />
         ) : tab === "tests" ? (

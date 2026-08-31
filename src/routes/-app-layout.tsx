@@ -10,7 +10,8 @@ import { enableDeviceNotifications, canUseDeviceNotifications } from "@/lib/devi
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/api";
 import { isProfileComplete } from "@/lib/onboarding";
-import { isGuestBrowsePath } from "@/lib/auth-next";
+import { isGuestBrowsePathRules } from "@/lib/auth-next";
+import { fetchGuestBrowseEnabled } from "@/lib/guest-browse-settings";
 
 function pathWithSearch(pathname: string, search: unknown) {
   if (!search || typeof search !== "object") return pathname;
@@ -43,12 +44,28 @@ export function AppLayout() {
   const { t } = useI18n();
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [profileGate, setProfileGate] = useState<"checking" | "incomplete" | "ok">("checking");
+  const [platformGuestBrowse, setPlatformGuestBrowse] = useState<boolean | null>(null);
   const onOnboarding = location.pathname === "/onboarding";
-  const guestBrowse = isGuestBrowsePath(
+  const pathGuestBrowse = isGuestBrowsePathRules(
     location.pathname,
     location.search as Record<string, unknown>,
   );
   const isGuest = !session || isAnonymous;
+  const guestBrowse = pathGuestBrowse && platformGuestBrowse === true;
+
+  useEffect(() => {
+    if (!isGuest || !pathGuestBrowse) {
+      setPlatformGuestBrowse(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchGuestBrowseEnabled().then((enabled) => {
+      if (!cancelled) setPlatformGuestBrowse(enabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isGuest, pathGuestBrowse, location.pathname]);
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -126,6 +143,9 @@ export function AppLayout() {
   // Paint immediately — never block the whole app on auth/network.
   // Protected guest routes: hard Navigate (no infinite spinner).
   if (isGuest) {
+    if (pathGuestBrowse && platformGuestBrowse === null) {
+      return <div className="min-h-dvh bg-background" aria-busy="true" />;
+    }
     if (!guestBrowse) {
       if (loading) {
         return <div className="min-h-dvh bg-background" aria-busy="true" />;

@@ -3407,6 +3407,7 @@ function SettingsAdmin() {
     about_en: "",
     brand_primary: "#C62828",
     maintenance_mode: false,
+    enable_guest: true,
     request_form_options: { ...DEFAULT_REQUEST_FORM_OPTIONS },
   });
 
@@ -3420,6 +3421,7 @@ function SettingsAdmin() {
         if (!data) return;
         setS({
           ...data,
+          enable_guest: data.enable_guest === true,
           request_form_options: {
             ...DEFAULT_REQUEST_FORM_OPTIONS,
             ...(data.request_form_options ?? {}),
@@ -3432,7 +3434,11 @@ function SettingsAdmin() {
     if (!can("settings.edit")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
     const { error } = await supabase.from("app_settings").upsert({ ...s, id: 1 });
     if (error) toast.error(error.message);
-    else toast.success(t("saved"));
+    else {
+      const { invalidateGuestBrowseSettingsCache } = await import("@/lib/guest-browse-settings");
+      invalidateGuestBrowseSettingsCache();
+      toast.success(t("saved"));
+    }
   }
 
   function setOpt(key: keyof RequestFormOptions, optional: boolean) {
@@ -3592,6 +3598,24 @@ function SettingsAdmin() {
               onChange={(e) => setS({ ...s, about_en: e.target.value })}
             />
           </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={!!s.enable_guest}
+              onChange={(e) => setS({ ...s, enable_guest: e.target.checked })}
+            />
+            <span>
+              <span className="font-medium text-slate-100">
+                {lang === "bn" ? "গেস্ট Care ব্রাউজ" : "Guest Care browse"}
+              </span>
+              <span className="block text-[11px] text-slate-500 mt-0.5">
+                {lang === "bn"
+                  ? "অন: লগইন ছাড়া টেস্ট/ডাক্তার/ল্যাব/ভিডিও ব্রাউজ। বুক, মেসেজ, আমার বুকিং-এ লগইন লাগে। অফ: সব Care পেজে আগে লগইন।"
+                  : "On: browse tests/doctors/labs/video without login. Book, message, and My bookings still require login. Off: login required for all Care pages."}
+              </span>
+            </span>
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"

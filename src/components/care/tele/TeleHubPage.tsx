@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Search, Star, Video } from "lucide-react";
+import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useI18n } from "@/lib/i18n";
@@ -39,6 +40,11 @@ export function TeleHubPage() {
         setPopular(pop);
         setSpecialists(all.slice(0, 12));
         setSpecs(sp.filter((x) => x.is_active));
+      })
+      .catch((e) => {
+        toast.error((e as Error).message);
+        setPopular([]);
+        setSpecialists([]);
       })
       .finally(() => setLoading(false));
   }, []);
