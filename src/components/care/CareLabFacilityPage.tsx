@@ -14,6 +14,7 @@ import {
   remainingSeats,
   reserveLabBundle,
   searchTestOfferings,
+  setLabHomeCollection,
   type CareLabFacility,
   type CareOffering,
 } from "@/lib/care-lab-api";
@@ -23,6 +24,10 @@ import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
 import { CareInstituteDetailsSheet } from "@/components/care/CareInstituteDetailsSheet";
 import { clampPhoneDigits } from "@/lib/phone-auth";
 import { cn } from "@/lib/utils";
+import {
+  loadCachedHomeLocation,
+  type CareHomeLocation,
+} from "@/lib/care-home-api";
 import {
   Sheet,
   SheetContent,
@@ -55,11 +60,14 @@ export function CareLabFacilityPage({
   initialSelectId,
   initialSelectIds,
   initialCatalogIds,
+  homeOnly = false,
 }: {
   orgId: string;
   initialSelectId?: string;
   initialSelectIds?: string[];
   initialCatalogIds?: string[];
+  /** Only home_collection offerings; persist collection address on book */
+  homeOnly?: boolean;
 }) {
   const { lang } = useI18n();
   const { session, user, isAnonymous } = useAuth();
@@ -80,7 +88,14 @@ export function CareLabFacilityPage({
   const [referredBy, setReferredBy] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [homeLoc, setHomeLoc] = useState<CareHomeLocation | null>(() =>
+    homeOnly ? loadCachedHomeLocation() : null,
+  );
   const dates = useMemo(() => nextDates(14), []);
+
+  useEffect(() => {
+    if (homeOnly) setHomeLoc(loadCachedHomeLocation());
+  }, [homeOnly]);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,19 +104,20 @@ export function CareLabFacilityPage({
       .then(([f, list]) => {
         if (cancelled) return;
         setFacility(f);
-        setOfferings(list);
+        const filtered = homeOnly ? list.filter((o) => o.home_collection) : list;
+        setOfferings(filtered);
         const next = new Set<string>();
         const offeringIds = [
           ...(initialSelectIds ?? []),
           ...(initialSelectId ? [initialSelectId] : []),
         ];
         for (const id of offeringIds) {
-          if (list.some((o) => o.id === id)) next.add(id);
+          if (filtered.some((o) => o.id === id)) next.add(id);
         }
         if (initialCatalogIds?.length) {
           const want = new Set(initialCatalogIds);
           const cheapestByCatalog = new Map<string, CareOffering>();
-          for (const o of list) {
+          for (const o of filtered) {
             if (!want.has(o.catalog_id)) continue;
             const prev = cheapestByCatalog.get(o.catalog_id);
             if (!prev || offeringSalePrice(o) < offeringSalePrice(prev)) {
@@ -125,6 +141,7 @@ export function CareLabFacilityPage({
     };
   }, [
     orgId,
+    homeOnly,
     initialSelectId,
     // Stabilize array deps from search params
     initialSelectIds?.join(","),
@@ -195,11 +212,23 @@ export function CareLabFacilityPage({
       toast.error(lang === "bn" ? "কমপক্ষে একটি টেস্ট বেছে নিন" : "Select at least one test");
       return;
     }
+    if (homeOnly) {
+      const loc = homeLoc ?? loadCachedHomeLocation();
+      if (!loc) {
+        toast.error(
+          lang === "bn" ? "আগে হোম কালেকশন লোকেশন সেট করুন" : "Set home collection location first",
+        );
+        void navigate({ to: "/care/home-diagnostic" });
+        return;
+      }
+      setHomeLoc(loc);
+      if (!patientAddress.trim()) setPatientAddress(loc.address);
+    }
     if (!session || isAnonymous) {
       const next =
         initialSelectId != null
-          ? `/care/labs/${orgId}?select=${encodeURIComponent(initialSelectId)}`
-          : `/care/labs/${orgId}`;
+          ? `/care/labs/${orgId}?select=${encodeURIComponent(initialSelectId)}${homeOnly ? "&home=1" : ""}`
+          : `/care/labs/${orgId}${homeOnly ? "?home=1" : ""}`;
       void navigate({
         to: "/auth",
         search: { next } as never,
@@ -217,8 +246,17 @@ export function CareLabFacilityPage({
     if (!session || isAnonymous) {
       void navigate({
         to: "/auth",
-        search: { next: `/care/labs/${orgId}` } as never,
+        search: { next: `/care/labs/${orgId}${homeOnly ? "?home=1" : ""}` } as never,
       });
+      return;
+    }
+
+    const loc = homeOnly ? homeLoc ?? loadCachedHomeLocation() : null;
+    if (homeOnly && !loc) {
+      toast.error(
+        lang === "bn" ? "কালেকশন লোকেশন প্রয়োজন" : "Collection location required",
+      );
+      void navigate({ to: "/care/home-diagnostic" });
       return;
     }
 
@@ -257,9 +295,21 @@ export function CareLabFacilityPage({
         guestPhone: phone || undefined,
         guestAge: ageNum != null && Number.isFinite(ageNum) ? ageNum : null,
         guestSex: patientSex || null,
-        guestAddress: patientAddress.trim() || null,
+        guestAddress: patientAddress.trim() || loc?.address || null,
         referredBy: referredBy.trim() || null,
       });
+
+      if (homeOnly && loc) {
+        await setLabHomeCollection({
+          invoiceGroupId: result.invoice_group_id,
+          districtId: loc.districtId,
+          upazila: loc.upazila,
+          address: loc.address,
+          lat: loc.lat,
+          lng: loc.lng,
+        });
+      }
+
       setCheckoutOpen(false);
       toast.success(
         lang === "bn"
@@ -291,10 +341,17 @@ export function CareLabFacilityPage({
       <AutoHideHeader className="z-30 border-b bg-background safe-top">
         <div className="flex items-center gap-2 px-3 py-2">
           <PageBackButton
-            fallbackTo={{ to: "/care", search: { tab: "tests" } }}
+            fallbackTo={
+              homeOnly
+                ? { to: "/care/home-diagnostic" }
+                : { to: "/care", search: { tab: "tests" } }
+            }
             shape="xl"
           />
-          <h1 className="text-sm font-bold truncate">{title}</h1>
+          <h1 className="text-sm font-bold truncate">
+            {homeOnly ? (lang === "bn" ? "হোম · " : "Home · ") : ""}
+            {title}
+          </h1>
         </div>
       </AutoHideHeader>
 

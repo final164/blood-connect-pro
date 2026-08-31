@@ -6,6 +6,8 @@ type LabsOrgSearch = {
   select?: string;
   /** Comma-separated catalog ids (from AI chat / deep links) */
   catalogs?: string;
+  /** Home diagnostic / home collection mode */
+  home?: string;
 };
 
 function splitIds(raw?: string) {
@@ -21,19 +23,21 @@ export const Route = createFileRoute("/_app/care/labs/$orgId")({
   validateSearch: (search: Record<string, unknown>): LabsOrgSearch => ({
     select: typeof search.select === "string" ? search.select : undefined,
     catalogs: typeof search.catalogs === "string" ? search.catalogs : undefined,
+    home: typeof search.home === "string" ? search.home : undefined,
   }),
   component: CareLabsOrgRoute,
 });
 
 function CareLabsOrgRoute() {
   const { orgId } = Route.useParams();
-  const { select, catalogs } = Route.useSearch();
+  const { select, catalogs, home } = Route.useSearch();
   return (
     <CareLabFacilityPage
       orgId={orgId}
       initialSelectId={splitIds(select)?.[0]}
       initialSelectIds={splitIds(select)}
       initialCatalogIds={splitIds(catalogs)}
+      homeOnly={home === "1" || home === "true"}
     />
   );
 }

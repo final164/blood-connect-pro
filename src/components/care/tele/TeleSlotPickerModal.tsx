@@ -35,6 +35,8 @@ type Props = {
   windows: TeleDoctorSlot[];
   slotMinutes: number;
   onConfirm: (slot: { start: Date; end: Date }) => void;
+  /** Override tele booking lookup (e.g. home visits) */
+  fetchBookedStarts?: (doctorId: string, fromIso: string, toIso: string) => Promise<string[]>;
 };
 
 export function TeleSlotPickerModal({
@@ -44,6 +46,7 @@ export function TeleSlotPickerModal({
   windows,
   slotMinutes,
   onConfirm,
+  fetchBookedStarts,
 }: Props) {
   const { lang } = useI18n();
   const bn = lang === "bn";
@@ -57,11 +60,12 @@ export function TeleSlotPickerModal({
     void fetchTeleSettings().then(setSettings);
     const from = new Date();
     const to = new Date(from.getTime() + 20 * 86400000);
-    void fetchDoctorBookedSlotStarts(doctorId, from.toISOString(), to.toISOString())
+    const loader = fetchBookedStarts ?? fetchDoctorBookedSlotStarts;
+    void loader(doctorId, from.toISOString(), to.toISOString())
       .then(setBooked)
       .catch(() => setBooked([]));
     setSelected(null);
-  }, [open, doctorId]);
+  }, [open, doctorId, fetchBookedStarts]);
 
   const days: TeleDaySchedule[] = useMemo(() => {
     return buildDaySchedules({

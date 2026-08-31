@@ -3,13 +3,18 @@ import { Link } from "@tanstack/react-router";
 import {
   Ambulance,
   FlaskConical,
+  Home,
   LayoutDashboard,
-  Sparkles,
   Stethoscope,
 } from "lucide-react";
 import { fetchMySerials } from "@/lib/care-api";
 import { fetchMyLabBookings } from "@/lib/care-lab-api";
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
+import {
+  fetchMyHomeVisits,
+  homeVisitStatusLabel,
+  homeVisitStatusTone,
+} from "@/lib/care-home-api";
 import { formatCareMoney } from "@/lib/care-invoice";
 import {
   CareLabProgressMini,
@@ -79,6 +84,7 @@ export function CareCustomerDashboard({
   const [serials, setSerials] = useState<Awaited<ReturnType<typeof fetchMySerials>>>([]);
   const [labs, setLabs] = useState<Awaited<ReturnType<typeof fetchMyLabBookings>>>([]);
   const [ambulance, setAmbulance] = useState<Awaited<ReturnType<typeof fetchMyAmbulanceRequests>>>([]);
+  const [homeVisits, setHomeVisits] = useState<Awaited<ReturnType<typeof fetchMyHomeVisits>>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,12 +94,18 @@ export function CareCustomerDashboard({
     }
     let cancelled = false;
     setLoading(true);
-    void Promise.all([fetchMySerials(), fetchMyLabBookings(), fetchMyAmbulanceRequests()])
-      .then(([s, l, a]) => {
+    void Promise.all([
+      fetchMySerials(),
+      fetchMyLabBookings(),
+      fetchMyAmbulanceRequests(),
+      fetchMyHomeVisits(),
+    ])
+      .then(([s, l, a, h]) => {
         if (cancelled) return;
         setSerials(s);
         setLabs(l);
         setAmbulance(a);
+        setHomeVisits(h);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -113,6 +125,9 @@ export function CareCustomerDashboard({
   }).length;
   const activeAmbulance = ambulance.filter(
     (a) => !["completed", "cancelled", "delivered"].includes(a.status),
+  ).length;
+  const activeHome = homeVisits.filter(
+    (h) => !["completed", "cancelled", "no_show"].includes(h.status),
   ).length;
 
   if (!userId) {
@@ -160,7 +175,7 @@ export function CareCustomerDashboard({
     );
   }
 
-  const empty = !serials.length && !labs.length && !ambulance.length;
+  const empty = !serials.length && !labs.length && !ambulance.length && !homeVisits.length;
 
   return (
     <div className="space-y-5">
@@ -182,7 +197,7 @@ export function CareCustomerDashboard({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <SummaryCard
           href="#dash-serials"
           icon={Stethoscope}
@@ -199,6 +214,15 @@ export function CareCustomerDashboard({
           total={labGroups.length}
           active={activeLabs}
           accent="text-primary bg-primary/10"
+          lang={lang}
+        />
+        <SummaryCard
+          href="#dash-home"
+          icon={Home}
+          label={lang === "bn" ? "হোম ভিজিট" : "Home visits"}
+          total={homeVisits.length}
+          active={activeHome}
+          accent="text-teal-700 bg-teal-500/10"
           lang={lang}
         />
         <SummaryCard
@@ -395,6 +419,63 @@ export function CareCustomerDashboard({
             )}
           </section>
 
+          <section id="dash-home" className="space-y-2 scroll-mt-24">
+            <SectionHead
+              icon={Home}
+              title={lang === "bn" ? "হোম ভিজিট" : "Home visits"}
+              count={homeVisits.length}
+            />
+            {homeVisits.length === 0 ? (
+              <EmptyHint
+                lang={lang}
+                textBn="কোনো হোম ভিজিট নেই"
+                textEn="No home visits yet"
+                to="/care/home-doctor"
+                ctaBn="হোম ডাক্তার"
+                ctaEn="Home Doctor"
+              />
+            ) : (
+              <ul className="space-y-2">
+                {homeVisits.map((b) => {
+                  const docName =
+                    lang === "bn"
+                      ? b.doctor?.full_name_bn || b.doctor?.full_name
+                      : b.doctor?.full_name;
+                  return (
+                    <li key={b.id}>
+                      <Link
+                        to="/care/home-visit/$id"
+                        params={{ id: b.id }}
+                        className="block rounded-2xl border bg-card px-3 py-3 hover:bg-muted/40 space-y-1"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold truncate">{docName || b.reference_code}</p>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                              homeVisitStatusTone(b.status),
+                            )}
+                          >
+                            {homeVisitStatusLabel(b.status, lang)}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {new Date(b.slot_start).toLocaleString(lang === "bn" ? "bn-BD" : "en-US", {
+                            timeZone: "Asia/Dhaka",
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                          {` · ${formatCareMoney(b.fee_amount, lang)}`}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">{b.visit_address}</p>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
           <section id="dash-ambulance" className="space-y-2 scroll-mt-24">
             <SectionHead
               icon={Ambulance}
@@ -520,22 +601,22 @@ function QuickLinks({ lang }: { lang: "bn" | "en" }) {
       label: lang === "bn" ? "ডাক্তার" : "Doctors",
     },
     {
-      to: "/care" as const,
-      search: { tab: "tests" },
+      to: "/care/home-doctor" as const,
+      search: undefined,
+      icon: Home,
+      label: lang === "bn" ? "হোম" : "Home",
+    },
+    {
+      to: "/care/home-diagnostic" as const,
+      search: undefined,
       icon: FlaskConical,
-      label: lang === "bn" ? "টেস্ট" : "Tests",
+      label: lang === "bn" ? "হোম টেস্ট" : "Home lab",
     },
     {
       to: "/ambulance" as const,
       search: undefined,
       icon: Ambulance,
       label: lang === "bn" ? "অ্যাম্বুলেন্স" : "Ambulance",
-    },
-    {
-      to: "/care/ai-tests" as const,
-      search: undefined,
-      icon: Sparkles,
-      label: lang === "bn" ? "AI সাজেশন" : "AI",
     },
   ];
   return (

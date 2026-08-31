@@ -113,6 +113,9 @@ type DeskBookingRow = Record<string, unknown> & {
   report_path?: string | null;
   report_file_name?: string | null;
   report_uploaded_at?: string | null;
+  collection_mode?: string | null;
+  collection_address?: string | null;
+  collection_upazila?: string | null;
   created_at?: string;
   care_test_offerings?: {
     care_test_catalog?: { name_bn?: string; name_en?: string; code?: string };
@@ -577,6 +580,7 @@ function TodayPanel({
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterOfferingId, setFilterOfferingId] = useState("all");
   const [filterPayment, setFilterPayment] = useState("all");
+  const [filterHomeOnly, setFilterHomeOnly] = useState(false);
 
   useEffect(() => {
     void fetchLabDeskPageSize().then(setPageSize);
@@ -714,13 +718,15 @@ function TodayPanel({
     q.trim() !== "" ||
     filterStatus !== "all" ||
     filterOfferingId !== "all" ||
-    filterPayment !== "all";
+    filterPayment !== "all" ||
+    filterHomeOnly;
 
   function resetFilters() {
     setQ("");
     setFilterStatus("all");
     setFilterOfferingId("all");
     setFilterPayment("all");
+    setFilterHomeOnly(false);
   }
 
   const filtered = useMemo(() => {
@@ -732,6 +738,7 @@ function TodayPanel({
       }
       if (filterOfferingId !== "all" && String(r.offering_id || "") !== filterOfferingId) return false;
       if (filterPayment !== "all" && String(r.payment_status || "pending") !== filterPayment) return false;
+      if (filterHomeOnly && r.collection_mode !== "home") return false;
 
       if (!needle) return true;
       const cat = r.care_test_offerings?.care_test_catalog;
@@ -751,7 +758,7 @@ function TodayPanel({
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [rows, q, lang, filterStatus, filterOfferingId, filterPayment]);
+  }, [rows, q, lang, filterStatus, filterOfferingId, filterPayment, filterHomeOnly]);
 
   // Keep fetching pages while filters leave the visible list empty
   useEffect(() => {
@@ -849,6 +856,19 @@ function TodayPanel({
             <option value="paid">{lang === "bn" ? "পেইড" : "Paid"}</option>
             <option value="waived">{lang === "bn" ? "মওকুফ" : "Waived"}</option>
           </select>
+
+          <button
+            type="button"
+            onClick={() => setFilterHomeOnly((v) => !v)}
+            className={cn(
+              "rounded-xl border px-2.5 py-2 text-xs font-semibold",
+              filterHomeOnly
+                ? "border-teal-500 bg-teal-50 text-teal-900"
+                : "bg-background",
+            )}
+          >
+            {lang === "bn" ? "হোম আজ" : "Home today"}
+          </button>
         </div>
 
         <p className="text-[11px] text-muted-foreground">
@@ -924,6 +944,11 @@ function TodayPanel({
                     >
                       {statusLabel(st, lang)}
                     </span>
+                    {r.collection_mode === "home" && (
+                      <span className="rounded-full border border-teal-300 bg-teal-50 text-teal-800 px-2 py-0.5 text-[10px] font-bold">
+                        {lang === "bn" ? "হোম" : "Home"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="pl-10 max-w-xs">
@@ -944,6 +969,12 @@ function TodayPanel({
                   </div>
 
                   <LabScheduleChips row={r} lang={lang} />
+                  {r.collection_mode === "home" && r.collection_address ? (
+                    <p className="pl-10 text-[11px] text-teal-800">
+                      {lang === "bn" ? "কালেকশন: " : "Collect: "}
+                      {[r.collection_upazila, r.collection_address].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
                   {hasLabReport(r) && (
                     <div className="pl-10">
                       <CareLabReportChip hasReport lang={lang} />
@@ -1110,6 +1141,18 @@ function TodayPanel({
                       </p>
                     </div>
                   </div>
+                  {detailPrimary.collection_mode === "home" && (
+                    <div className="rounded-xl border border-teal-200 bg-teal-50/80 px-3 py-2 text-[11px]">
+                      <p className="font-bold text-teal-900">
+                        {lang === "bn" ? "হোম কালেকশন" : "Home collection"}
+                      </p>
+                      <p className="text-teal-800 mt-0.5">
+                        {[detailPrimary.collection_upazila, detailPrimary.collection_address]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <LabProgressBar status={String(detailPrimary.status || "reserved")} lang={lang} />

@@ -1,5 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 
+/** Hide seed/demo BMDC codes from patient-facing UI. */
+export function isDemoBmdc(bmdc: string | null | undefined): boolean {
+  const v = (bmdc ?? "").trim().toUpperCase();
+  if (!v) return false;
+  return /^(DEMO-|TELE-DEMO-|DEMO-OP-)/.test(v) || v.startsWith("DEMO");
+}
+
+/** BMDC shown to patients; null when demo. */
+export function publicBmdcNo(bmdc: string | null | undefined): string | null {
+  if (!bmdc?.trim() || isDemoBmdc(bmdc)) return null;
+  return bmdc.trim();
+}
+
 export type CareDoctorListItem = {
   id: string;
   full_name: string;

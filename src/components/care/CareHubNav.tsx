@@ -4,6 +4,8 @@ import {
   Ambulance,
   ClipboardList,
   FlaskConical,
+  Home,
+  HousePlus,
   LayoutDashboard,
   LayoutGrid,
   Microscope,
@@ -13,7 +15,7 @@ import {
   Ticket,
   Video,
 } from "lucide-react";
-import { fetchCareHubModules, type CareHubModule } from "@/lib/care-cms";
+import { fetchCareHubModules, fetchCarePolicies, type CareHubModule } from "@/lib/care-cms";
 import { fetchMyCareMemberships } from "@/lib/care-access";
 
 const ICONS: Record<string, typeof Stethoscope> = {
@@ -28,6 +30,8 @@ const ICONS: Record<string, typeof Stethoscope> = {
   LayoutDashboard,
   Scissors,
   Video,
+  Home,
+  HousePlus,
 };
 
 const PATIENT_ACCENTS: Record<string, string> = {
@@ -35,6 +39,8 @@ const PATIENT_ACCENTS: Record<string, string> = {
   doctors: "border-teal-200 text-teal-800 hover:bg-teal-50/90 hover:border-teal-400",
   ai_tests: "border-violet-200 text-violet-800 hover:bg-violet-50/90 hover:border-violet-400",
   tests: "border-cyan-200 text-cyan-800 hover:bg-cyan-50/90 hover:border-cyan-400",
+  home_doctor: "border-teal-200 text-teal-900 hover:bg-teal-50/90 hover:border-teal-400",
+  home_diagnostic: "border-emerald-200 text-emerald-900 hover:bg-emerald-50/90 hover:border-emerald-400",
   operations: "border-rose-200 text-rose-800 hover:bg-rose-50/90 hover:border-rose-400",
   bookings: "border-amber-200 text-amber-900 hover:bg-amber-50/90 hover:border-amber-400",
   ambulance: "border-orange-200 text-orange-800 hover:bg-orange-50/90 hover:border-orange-400",
@@ -73,21 +79,29 @@ export function CareHubNav({
   const navigate = useNavigate();
   const [modules, setModules] = useState<CareHubModule[]>([]);
   const [hasStaff, setHasStaff] = useState(false);
+  const [homeDoctorOn, setHomeDoctorOn] = useState(false);
+  const [homeDiagOn, setHomeDiagOn] = useState(false);
 
   useEffect(() => {
     void fetchCareHubModules().then((rows) => setModules(rows.filter((m) => m.is_enabled !== false)));
     void fetchMyCareMemberships().then((ms) => setHasStaff(ms.length > 0));
+    void fetchCarePolicies().then(({ flags }) => {
+      setHomeDoctorOn(flags.home_doctor === true);
+      setHomeDiagOn(flags.home_diagnostic === true || flags.home_collection === true);
+    });
   }, []);
 
   const visible = useMemo(() => {
     return modules
       .filter((m) => {
         if (m.slug === "dashboard") return includeDashboard;
+        if (m.slug === "home_doctor") return homeDoctorOn;
+        if (m.slug === "home_diagnostic") return homeDiagOn;
         if (m.audience === "staff") return hasStaff;
         return m.audience === "patient" || m.audience === "both" || !m.audience;
       })
       .sort((a, b) => a.sort_order - b.sort_order);
-  }, [modules, hasStaff, includeDashboard]);
+  }, [modules, hasStaff, includeDashboard, homeDoctorOn, homeDiagOn]);
 
   const itemClass = (slug: string, active: boolean) => {
     const accent = PATIENT_ACCENTS[slug] ?? PATIENT_ACCENTS.dashboard;

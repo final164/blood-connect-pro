@@ -96,6 +96,12 @@ export type CareLabBooking = {
   report_file_name?: string | null;
   report_uploaded_at?: string | null;
   report_uploaded_by?: string | null;
+  collection_mode?: "facility" | "home" | null;
+  collection_district_id?: string | null;
+  collection_upazila?: string | null;
+  collection_address?: string | null;
+  collection_lat?: number | null;
+  collection_lng?: number | null;
   created_at: string;
 };
 
@@ -113,15 +119,24 @@ const CATALOG_JOIN = "care_test_offerings(care_test_catalog(code, name_bn, name_
 /** Before 20260828010000_lab_schedule_window. */
 const BOOKING_COLS_NO_SCHEDULE =
   "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, guest_age, guest_sex, guest_address, referred_by, source, status, reference_code, invoice_no, invoice_group_id, payment_status, amount_received, price, price_original, discount_percent, created_at";
+const HOME_COLLECTION_COLS =
+  "collection_mode, collection_district_id, collection_upazila, collection_address, collection_lat, collection_lng";
+/** Base + home collection fields (after 20260831020000). */
+const BOOKING_COLS_WITH_HOME: string = BOOKING_COLS_NO_SCHEDULE.replace(
+  ", created_at",
+  `, ${HOME_COLLECTION_COLS}, created_at`,
+);
 
 /**
  * Current schema. Built with concatenation, not a template literal: PostgREST
  * types parse literal select strings and reject template-literal types.
  */
-const BOOKING_COLS_WITH_SCHEDULE: string = BOOKING_COLS_NO_SCHEDULE + ", " + SCHEDULE_COLS;
+const BOOKING_COLS_WITH_SCHEDULE: string = BOOKING_COLS_WITH_HOME + ", " + SCHEDULE_COLS;
 const BOOKING_COLS: string = BOOKING_COLS_WITH_SCHEDULE + ", " + REPORT_COLS;
 /** Before 20260828040000_lab_report_pdf (schedule present, report absent). */
 const BOOKING_COLS_NO_REPORT: string = BOOKING_COLS_WITH_SCHEDULE;
+/** Before home collection columns. */
+const BOOKING_COLS_NO_HOME: string = BOOKING_COLS_NO_SCHEDULE + ", " + SCHEDULE_COLS + ", " + REPORT_COLS;
 /** Before the invoice-group / patient-detail migrations. */
 const BOOKING_COLS_LEGACY =
   "id, calendar_id, offering_id, org_id, location_id, patient_id, guest_name, guest_phone, source, status, reference_code, invoice_no, payment_status, price, price_original, discount_percent, created_at";
@@ -133,6 +148,8 @@ const withCatalog = (cols: string): string => cols + ", " + CATALOG_JOIN;
 
 const MISSING_SCHEDULE_RE = /collection_date|collection_start|delivery_date|delivery_start/i;
 const MISSING_REPORT_RE = /report_url|report_path|report_file_name|report_uploaded/i;
+const MISSING_HOME_COLLECTION_RE =
+  /collection_mode|collection_district_id|collection_upazila|collection_address|collection_lat|collection_lng/i;
 
 export type CareLabFacility = {
   id: string;
@@ -561,6 +578,9 @@ export async function fetchMyLabBookings(): Promise<(CareLabBooking & { offering
   }
 
   let { data, error } = await query(BOOKING_COLS);
+  if (error && MISSING_HOME_COLLECTION_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_HOME));
+  }
   if (error && MISSING_REPORT_RE.test(error.message)) {
     ({ data, error } = await query(BOOKING_COLS_NO_REPORT));
   }
@@ -589,6 +609,9 @@ export async function fetchLabBooking(id: string) {
   }
 
   let { data, error } = await query(BOOKING_COLS);
+  if (error && MISSING_HOME_COLLECTION_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_HOME));
+  }
   if (error && MISSING_REPORT_RE.test(error.message)) {
     ({ data, error } = await query(BOOKING_COLS_NO_REPORT));
   }
@@ -677,6 +700,61 @@ export async function setLabSchedule(bookingId: string, input: LabScheduleInput)
   } as never);
   if (error) throw new Error(error.message);
   return data as CareLabBooking;
+}
+
+export async function setLabHomeCollection(params: {
+  bookingId?: string;
+  invoiceGroupId?: string;
+  districtId: string;
+  upazila?: string;
+  address: string;
+  lat?: number | null;
+  lng?: number | null;
+}): Promise<CareLabBooking | number> {
+  if (params.invoiceGroupId) {
+    const { data, error } = await supabase.rpc("care_lab_set_home_collection_group", {
+      _invoice_group_id: params.invoiceGroupId,
+      _district_id: params.districtId,
+      _upazila: params.upazila ?? null,
+      _address: params.address,
+      _lat: params.lat ?? null,
+      _lng: params.lng ?? null,
+    } as never);
+    if (error) throw new Error(error.message);
+    return Number(data ?? 0);
+  }
+  if (!params.bookingId) throw new Error("bookingId required");
+  const { data, error } = await supabase.rpc("care_lab_set_home_collection", {
+    _booking_id: params.bookingId,
+    _district_id: params.districtId,
+    _upazila: params.upazila ?? null,
+    _address: params.address,
+    _lat: params.lat ?? null,
+    _lng: params.lng ?? null,
+  } as never);
+  if (error) throw new Error(error.message);
+  return data as CareLabBooking;
+}
+
+export async function searchHomeCollectionOfferings(opts: {
+  q?: string;
+  districtId?: string;
+  upazila?: string;
+}): Promise<CareOffering[]> {
+  const all = await searchTestOfferings({
+    q: opts.q,
+    districtId: opts.districtId,
+    upazila: opts.upazila,
+  });
+  return all.filter((o) => {
+    if (!o.home_collection) return false;
+    const org = o.org as
+      | (CareOffering["org"] & { is_listed?: boolean; is_active?: boolean })
+      | null
+      | undefined;
+    if (org?.is_listed === false || org?.is_active === false) return false;
+    return true;
+  });
 }
 
 export async function setLabBookingStatus(id: string, status: string) {
@@ -774,6 +852,9 @@ export async function fetchOrgLabBookings(
 
   let { data, error } = await query(BOOKING_COLS);
 
+  if (error && MISSING_HOME_COLLECTION_RE.test(error.message)) {
+    ({ data, error } = await query(BOOKING_COLS_NO_HOME));
+  }
   if (error && MISSING_REPORT_RE.test(error.message)) {
     ({ data, error } = await query(BOOKING_COLS_NO_REPORT));
   }

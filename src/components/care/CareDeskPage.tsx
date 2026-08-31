@@ -1978,6 +1978,8 @@ function SettingsPanel({ orgId, lang }: { orgId: string; lang: "bn" | "en" }) {
   const [platformFields, setPlatformFields] = useState(
     bookingFieldsFromFlags({
       home_collection: false,
+      home_doctor: false,
+      home_diagnostic: false,
       reviews: false,
       payment: false,
       report_vault: false,

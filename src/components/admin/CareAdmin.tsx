@@ -903,7 +903,9 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
   };
 
   const flagLabel: Record<keyof CareFeatureFlags, { bn: string; en: string }> = {
-    home_collection: { bn: "হোম কালেকশন", en: "Home collection" },
+    home_collection: { bn: "হোম কালেকশন (অফারিং)", en: "Home collection (offering)" },
+    home_doctor: { bn: "হোম ডাক্তার", en: "Home Doctor" },
+    home_diagnostic: { bn: "হোম ডায়াগনস্টিক", en: "Home Diagnostic" },
     reviews: { bn: "রিভিউ", en: "Reviews" },
     payment: { bn: "পেমেন্ট", en: "Payment" },
     report_vault: { bn: "রিপোর্ট ভল্ট", en: "Report vault" },

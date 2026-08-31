@@ -105,6 +105,10 @@ export type CareBookingPolicies = {
 
 export type CareFeatureFlags = {
   home_collection: boolean;
+  /** Patient Home Doctor product */
+  home_doctor: boolean;
+  /** Patient Home Diagnostic (home sample collection) product */
+  home_diagnostic: boolean;
   reviews: boolean;
   payment: boolean;
   report_vault: boolean;
@@ -283,6 +287,28 @@ export const FALLBACK_HUB_MODULES: CareHubModule[] = [
     sort_order: 20,
   },
   {
+    id: "home_doctor",
+    slug: "home_doctor",
+    label_bn: "হোম ডাক্তার",
+    label_en: "Home Doctor",
+    icon: "HousePlus",
+    href: "/care/home-doctor",
+    audience: "patient",
+    is_enabled: true,
+    sort_order: 18,
+  },
+  {
+    id: "home_diagnostic",
+    slug: "home_diagnostic",
+    label_bn: "হোম ডায়াগনস্টিক",
+    label_en: "Home Diagnostic",
+    icon: "Home",
+    href: "/care/home-diagnostic",
+    audience: "patient",
+    is_enabled: true,
+    sort_order: 19,
+  },
+  {
     id: "bookings",
     slug: "bookings",
     label_bn: "আমার বুকিং",
@@ -331,6 +357,8 @@ const DEFAULT_POLICIES: CareBookingPolicies = {
 
 const DEFAULT_FLAGS: CareFeatureFlags = {
   home_collection: false,
+  home_doctor: false,
+  home_diagnostic: false,
   reviews: false,
   payment: false,
   report_vault: false,
@@ -461,6 +489,8 @@ export function normalizeCareFeatureFlags(raw?: Partial<CareFeatureFlags> | null
     ...r,
     // Explicit booleans so missing keys keep defaults; only false disables
     home_collection: r.home_collection === true,
+    home_doctor: r.home_doctor === true,
+    home_diagnostic: r.home_diagnostic === true,
     reviews: r.reviews === true,
     payment: r.payment === true,
     report_vault: r.report_vault === true,

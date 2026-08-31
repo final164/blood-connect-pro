@@ -4,6 +4,7 @@ import {
   Building2,
   Check,
   ClipboardList,
+  Home,
   Loader2,
   Scissors,
   Stethoscope,
@@ -40,10 +41,11 @@ import {
   type TeleVideoDoctor,
 } from "@/lib/tele-api";
 import { TeleConsultantProfileEditor } from "@/components/care/tele/TeleConsultantProfileEditor";
+import { DoctorHomePortalPanel } from "@/components/care/home/DoctorHomePortalPanel";
 import { formatCareMoney } from "@/lib/care-invoice";
 import { cn } from "@/lib/utils";
 
-type Tab = "overview" | "approvals" | "chambers" | "serials" | "operations" | "video";
+type Tab = "overview" | "approvals" | "chambers" | "serials" | "operations" | "video" | "home";
 
 export function DoctorPortalPage() {
   const { lang } = useI18n();
@@ -190,6 +192,7 @@ export function DoctorPortalPage() {
     { id: "serials", bn: "সিরিয়াল", en: "Serials", icon: ClipboardList },
     { id: "operations", bn: "অপারেশন", en: "Operations", icon: Scissors },
     { id: "video", bn: "ভিডিও", en: "Video", icon: Video },
+    { id: "home", bn: "হোম", en: "Home", icon: Home },
   ];
 
   return (
@@ -509,6 +512,10 @@ export function DoctorPortalPage() {
               </div>
             )}
           </div>
+        )}
+
+        {tab === "home" && (
+          <DoctorHomePortalPanel doctorId={profile.id} bn={bn} lang={lang} />
         )}
       </div>
     </div>

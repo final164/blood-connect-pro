@@ -20,6 +20,7 @@
     "seed:ambulance-vendors": "bun --env-file=.env run scripts/seed-ambulance-vendors.mjs",
     "seed:operations": "bun --env-file=.env run scripts/seed-operations.mjs",
     "seed:org-about": "bun --env-file=.env run scripts/seed-org-about.mjs",
+    "seed:home-care": "bun --env-file=.env run scripts/seed-home-care.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",

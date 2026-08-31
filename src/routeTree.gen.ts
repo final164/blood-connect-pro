@@ -57,6 +57,8 @@ import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
 import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
 import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
 import { Route as AppCareVideoIndexRouteImport } from './routes/_app.care.video.index'
+import { Route as AppCareHomeDoctorIndexRouteImport } from './routes/_app.care.home-doctor.index'
+import { Route as AppCareHomeDiagnosticIndexRouteImport } from './routes/_app.care.home-diagnostic.index'
 import { Route as AppCareVideoCheckoutRouteImport } from './routes/_app.care.video.checkout'
 import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
 import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
@@ -64,6 +66,8 @@ import { Route as AppCareOperationOfferingIdRouteImport } from './routes/_app.ca
 import { Route as AppCareOperationBookingIdRouteImport } from './routes/_app.care.operation-booking.$id'
 import { Route as AppCareLabsOrgIdRouteImport } from './routes/_app.care.labs.$orgId'
 import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-booking.$id'
+import { Route as AppCareHomeVisitIdRouteImport } from './routes/_app.care.home-visit.$id'
+import { Route as AppCareHomeDoctorDoctorIdRouteImport } from './routes/_app.care.home-doctor.$doctorId'
 import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
 import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulance.request.$id'
 import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
@@ -310,6 +314,17 @@ const AppCareVideoIndexRoute = AppCareVideoIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppCareVideoRoute,
 } as any)
+const AppCareHomeDoctorIndexRoute = AppCareHomeDoctorIndexRouteImport.update({
+  id: '/home-doctor/',
+  path: '/home-doctor/',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareHomeDiagnosticIndexRoute =
+  AppCareHomeDiagnosticIndexRouteImport.update({
+    id: '/home-diagnostic/',
+    path: '/home-diagnostic/',
+    getParentRoute: () => AppCareRoute,
+  } as any)
 const AppCareVideoCheckoutRoute = AppCareVideoCheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
@@ -347,6 +362,17 @@ const AppCareLabBookingIdRoute = AppCareLabBookingIdRouteImport.update({
   path: '/lab-booking/$id',
   getParentRoute: () => AppCareRoute,
 } as any)
+const AppCareHomeVisitIdRoute = AppCareHomeVisitIdRouteImport.update({
+  id: '/home-visit/$id',
+  path: '/home-visit/$id',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareHomeDoctorDoctorIdRoute =
+  AppCareHomeDoctorDoctorIdRouteImport.update({
+    id: '/home-doctor/$doctorId',
+    path: '/home-doctor/$doctorId',
+    getParentRoute: () => AppCareRoute,
+  } as any)
 const AppCareDoctorIdRoute = AppCareDoctorIdRouteImport.update({
   id: '/doctor/$id',
   path: '/doctor/$id',
@@ -430,6 +456,8 @@ export interface FileRoutesByFullPath {
   '/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
   '/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
+  '/care/home-doctor/$doctorId': typeof AppCareHomeDoctorDoctorIdRoute
+  '/care/home-visit/$id': typeof AppCareHomeVisitIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/labs/$orgId': typeof AppCareLabsOrgIdRoute
   '/care/operation-booking/$id': typeof AppCareOperationBookingIdRoute
@@ -437,6 +465,8 @@ export interface FileRoutesByFullPath {
   '/care/serial/$id': typeof AppCareSerialIdRoute
   '/care/test/$id': typeof AppCareTestIdRoute
   '/care/video/checkout': typeof AppCareVideoCheckoutRoute
+  '/care/home-diagnostic/': typeof AppCareHomeDiagnosticIndexRoute
+  '/care/home-doctor/': typeof AppCareHomeDoctorIndexRoute
   '/care/video/': typeof AppCareVideoIndexRoute
   '/care/video/booking/$id': typeof AppCareVideoBookingIdRoute
   '/care/video/doctor/$id': typeof AppCareVideoDoctorIdRoute
@@ -487,6 +517,8 @@ export interface FileRoutesByTo {
   '/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
   '/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/care/doctor/$id': typeof AppCareDoctorIdRoute
+  '/care/home-doctor/$doctorId': typeof AppCareHomeDoctorDoctorIdRoute
+  '/care/home-visit/$id': typeof AppCareHomeVisitIdRoute
   '/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/care/labs/$orgId': typeof AppCareLabsOrgIdRoute
   '/care/operation-booking/$id': typeof AppCareOperationBookingIdRoute
@@ -494,6 +526,8 @@ export interface FileRoutesByTo {
   '/care/serial/$id': typeof AppCareSerialIdRoute
   '/care/test/$id': typeof AppCareTestIdRoute
   '/care/video/checkout': typeof AppCareVideoCheckoutRoute
+  '/care/home-diagnostic': typeof AppCareHomeDiagnosticIndexRoute
+  '/care/home-doctor': typeof AppCareHomeDoctorIndexRoute
   '/care/video': typeof AppCareVideoIndexRoute
   '/care/video/booking/$id': typeof AppCareVideoBookingIdRoute
   '/care/video/doctor/$id': typeof AppCareVideoDoctorIdRoute
@@ -551,6 +585,8 @@ export interface FileRoutesById {
   '/_app/ambulance/provider/$orgId': typeof AppAmbulanceProviderOrgIdRoute
   '/_app/ambulance/request/$id': typeof AppAmbulanceRequestIdRoute
   '/_app/care/doctor/$id': typeof AppCareDoctorIdRoute
+  '/_app/care/home-doctor/$doctorId': typeof AppCareHomeDoctorDoctorIdRoute
+  '/_app/care/home-visit/$id': typeof AppCareHomeVisitIdRoute
   '/_app/care/lab-booking/$id': typeof AppCareLabBookingIdRoute
   '/_app/care/labs/$orgId': typeof AppCareLabsOrgIdRoute
   '/_app/care/operation-booking/$id': typeof AppCareOperationBookingIdRoute
@@ -558,6 +594,8 @@ export interface FileRoutesById {
   '/_app/care/serial/$id': typeof AppCareSerialIdRoute
   '/_app/care/test/$id': typeof AppCareTestIdRoute
   '/_app/care/video/checkout': typeof AppCareVideoCheckoutRoute
+  '/_app/care/home-diagnostic/': typeof AppCareHomeDiagnosticIndexRoute
+  '/_app/care/home-doctor/': typeof AppCareHomeDoctorIndexRoute
   '/_app/care/video/': typeof AppCareVideoIndexRoute
   '/_app/care/video/booking/$id': typeof AppCareVideoBookingIdRoute
   '/_app/care/video/doctor/$id': typeof AppCareVideoDoctorIdRoute
@@ -615,6 +653,8 @@ export interface FileRouteTypes {
     | '/ambulance/provider/$orgId'
     | '/ambulance/request/$id'
     | '/care/doctor/$id'
+    | '/care/home-doctor/$doctorId'
+    | '/care/home-visit/$id'
     | '/care/lab-booking/$id'
     | '/care/labs/$orgId'
     | '/care/operation-booking/$id'
@@ -622,6 +662,8 @@ export interface FileRouteTypes {
     | '/care/serial/$id'
     | '/care/test/$id'
     | '/care/video/checkout'
+    | '/care/home-diagnostic/'
+    | '/care/home-doctor/'
     | '/care/video/'
     | '/care/video/booking/$id'
     | '/care/video/doctor/$id'
@@ -672,6 +714,8 @@ export interface FileRouteTypes {
     | '/ambulance/provider/$orgId'
     | '/ambulance/request/$id'
     | '/care/doctor/$id'
+    | '/care/home-doctor/$doctorId'
+    | '/care/home-visit/$id'
     | '/care/lab-booking/$id'
     | '/care/labs/$orgId'
     | '/care/operation-booking/$id'
@@ -679,6 +723,8 @@ export interface FileRouteTypes {
     | '/care/serial/$id'
     | '/care/test/$id'
     | '/care/video/checkout'
+    | '/care/home-diagnostic'
+    | '/care/home-doctor'
     | '/care/video'
     | '/care/video/booking/$id'
     | '/care/video/doctor/$id'
@@ -735,6 +781,8 @@ export interface FileRouteTypes {
     | '/_app/ambulance/provider/$orgId'
     | '/_app/ambulance/request/$id'
     | '/_app/care/doctor/$id'
+    | '/_app/care/home-doctor/$doctorId'
+    | '/_app/care/home-visit/$id'
     | '/_app/care/lab-booking/$id'
     | '/_app/care/labs/$orgId'
     | '/_app/care/operation-booking/$id'
@@ -742,6 +790,8 @@ export interface FileRouteTypes {
     | '/_app/care/serial/$id'
     | '/_app/care/test/$id'
     | '/_app/care/video/checkout'
+    | '/_app/care/home-diagnostic/'
+    | '/_app/care/home-doctor/'
     | '/_app/care/video/'
     | '/_app/care/video/booking/$id'
     | '/_app/care/video/doctor/$id'
@@ -1105,6 +1155,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareVideoIndexRouteImport
       parentRoute: typeof AppCareVideoRoute
     }
+    '/_app/care/home-doctor/': {
+      id: '/_app/care/home-doctor/'
+      path: '/home-doctor'
+      fullPath: '/care/home-doctor/'
+      preLoaderRoute: typeof AppCareHomeDoctorIndexRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/home-diagnostic/': {
+      id: '/_app/care/home-diagnostic/'
+      path: '/home-diagnostic'
+      fullPath: '/care/home-diagnostic/'
+      preLoaderRoute: typeof AppCareHomeDiagnosticIndexRouteImport
+      parentRoute: typeof AppCareRoute
+    }
     '/_app/care/video/checkout': {
       id: '/_app/care/video/checkout'
       path: '/checkout'
@@ -1152,6 +1216,20 @@ declare module '@tanstack/react-router' {
       path: '/lab-booking/$id'
       fullPath: '/care/lab-booking/$id'
       preLoaderRoute: typeof AppCareLabBookingIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/home-visit/$id': {
+      id: '/_app/care/home-visit/$id'
+      path: '/home-visit/$id'
+      fullPath: '/care/home-visit/$id'
+      preLoaderRoute: typeof AppCareHomeVisitIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/home-doctor/$doctorId': {
+      id: '/_app/care/home-doctor/$doctorId'
+      path: '/home-doctor/$doctorId'
+      fullPath: '/care/home-doctor/$doctorId'
+      preLoaderRoute: typeof AppCareHomeDoctorDoctorIdRouteImport
       parentRoute: typeof AppCareRoute
     }
     '/_app/care/doctor/$id': {
@@ -1253,12 +1331,16 @@ interface AppCareRouteChildren {
   AppCareVideoRoute: typeof AppCareVideoRouteWithChildren
   AppCareIndexRoute: typeof AppCareIndexRoute
   AppCareDoctorIdRoute: typeof AppCareDoctorIdRoute
+  AppCareHomeDoctorDoctorIdRoute: typeof AppCareHomeDoctorDoctorIdRoute
+  AppCareHomeVisitIdRoute: typeof AppCareHomeVisitIdRoute
   AppCareLabBookingIdRoute: typeof AppCareLabBookingIdRoute
   AppCareLabsOrgIdRoute: typeof AppCareLabsOrgIdRoute
   AppCareOperationBookingIdRoute: typeof AppCareOperationBookingIdRoute
   AppCareOperationOfferingIdRoute: typeof AppCareOperationOfferingIdRoute
   AppCareSerialIdRoute: typeof AppCareSerialIdRoute
   AppCareTestIdRoute: typeof AppCareTestIdRoute
+  AppCareHomeDiagnosticIndexRoute: typeof AppCareHomeDiagnosticIndexRoute
+  AppCareHomeDoctorIndexRoute: typeof AppCareHomeDoctorIndexRoute
 }
 
 const AppCareRouteChildren: AppCareRouteChildren = {
@@ -1268,12 +1350,16 @@ const AppCareRouteChildren: AppCareRouteChildren = {
   AppCareVideoRoute: AppCareVideoRouteWithChildren,
   AppCareIndexRoute: AppCareIndexRoute,
   AppCareDoctorIdRoute: AppCareDoctorIdRoute,
+  AppCareHomeDoctorDoctorIdRoute: AppCareHomeDoctorDoctorIdRoute,
+  AppCareHomeVisitIdRoute: AppCareHomeVisitIdRoute,
   AppCareLabBookingIdRoute: AppCareLabBookingIdRoute,
   AppCareLabsOrgIdRoute: AppCareLabsOrgIdRoute,
   AppCareOperationBookingIdRoute: AppCareOperationBookingIdRoute,
   AppCareOperationOfferingIdRoute: AppCareOperationOfferingIdRoute,
   AppCareSerialIdRoute: AppCareSerialIdRoute,
   AppCareTestIdRoute: AppCareTestIdRoute,
+  AppCareHomeDiagnosticIndexRoute: AppCareHomeDiagnosticIndexRoute,
+  AppCareHomeDoctorIndexRoute: AppCareHomeDoctorIndexRoute,
 }
 
 const AppCareRouteWithChildren =
