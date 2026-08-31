@@ -21,6 +21,7 @@
     "seed:operations": "bun --env-file=.env run scripts/seed-operations.mjs",
     "seed:org-about": "bun --env-file=.env run scripts/seed-org-about.mjs",
     "seed:home-care": "bun --env-file=.env run scripts/seed-home-care.mjs",
+    "seed:ai-serial-qa": "bun --env-file=.env run scripts/seed-ai-serial-qa.mjs",
     "generate:vapid": "node scripts/generate-vapid-keys.mjs",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",

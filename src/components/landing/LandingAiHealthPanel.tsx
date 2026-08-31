@@ -12,6 +12,11 @@ import {
   type CareAiSuggestedTest,
 } from "@/lib/care-ai-chat";
 import { CareAiExpertBlock, CareAiFirstAidBlock, CareAiSpecialtyCards } from "@/components/care/CareAiInsightBlocks";
+import {
+  CareAiSerialBookSheet,
+  type SerialBookSpecialty,
+} from "@/components/care/CareAiSerialBookSheet";
+import { LangProvider } from "@/lib/i18n";
 import { fetchTestCatalog } from "@/lib/care-cms";
 import { searchTestOfferings, type CareOffering } from "@/lib/care-lab-api";
 import { offeringSalePrice } from "@/lib/care-lab-price";
@@ -104,6 +109,8 @@ export function LandingAiHealthPanel({
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadList, setThreadList] = useState<CareAiChatThreadSummary[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [serialSheetOpen, setSerialSheetOpen] = useState(false);
+  const [serialSpecialty, setSerialSpecialty] = useState<SerialBookSpecialty | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const threadIdRef = useRef<string | null>(null);
@@ -422,6 +429,19 @@ export function LandingAiHealthPanel({
                     cfg?.ui.specialtyHeading ?? pick(lang, "কোন বিশেষজ্ঞ দেখাবেন", "Which specialist to see")
                   }
                   cta={cfg?.ui.specialtyCta ?? pick(lang, "ডাক্তার খুঁজুন", "Find doctors")}
+                  bookSerialCta={
+                    cfg?.ui.serialBookCta ?? pick(lang, "সিরিয়াল বুক করুন", "Book serial")
+                  }
+                  serialAutoBook={cfg?.features.serial_auto_book !== false}
+                  onBookSerial={(s) => {
+                    setSerialSpecialty({
+                      specialtyId: s.specialty_id,
+                      nameBn: s.name_bn,
+                      nameEn: s.name_en,
+                      reason: s.reason,
+                    });
+                    setSerialSheetOpen(true);
+                  }}
                   lang={lang}
                 />
               ) : null}
@@ -600,6 +620,17 @@ export function LandingAiHealthPanel({
           </Link>
         </div>
       </div>
+
+      {/* Landing root skips AppProviders — sheet needs Lang for district pickers */}
+      <LangProvider>
+        <CareAiSerialBookSheet
+          open={serialSheetOpen}
+          onOpenChange={setSerialSheetOpen}
+          specialty={serialSpecialty}
+          title={cfg?.ui.serialBookTitle}
+          bookCta={cfg?.ui.serialBookCta}
+        />
+      </LangProvider>
     </div>
   );
 }

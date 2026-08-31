@@ -54,6 +54,7 @@ export type CareAiChatResult = {
   first_aid: string[];
   medicines: CareAiMedicine[];
   offer_bundle: boolean;
+  offer_serial_booking: boolean;
   from_prescription: boolean;
 };
 
@@ -498,6 +499,7 @@ export const careAiTestChat = createServerFn({ method: "POST" })
         questions: [],
         suggested_tests: [],
         offer_bundle: false,
+        offer_serial_booking: false,
         ...emptyExtra,
       };
     }
@@ -677,6 +679,13 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       suggested.length >= 1 &&
       (prescriptionMode || (parsed.offer_bundle === true && suggested.length >= 2));
 
+    const offer_serial_booking =
+      !prescriptionMode &&
+      features.serial_auto_book === true &&
+      features.specialty_suggestions !== false &&
+      suggested_specialties.length > 0 &&
+      parsed.offer_serial_booking !== false;
+
     return {
       reply,
       medical_advice,
@@ -688,6 +697,7 @@ export const careAiTestChat = createServerFn({ method: "POST" })
       first_aid,
       medicines,
       offer_bundle,
+      offer_serial_booking,
       from_prescription: prescriptionMode,
     };
   });

@@ -23,6 +23,8 @@ export type GeminiAiFeatures = {
   prescription_medicines: boolean;
   /** Extract / map lab tests from prescription for cheap booking */
   prescription_tests: boolean;
+  /** Guided chamber serial auto-book from specialty suggestions */
+  serial_auto_book: boolean;
 };
 
 export type GeminiUiCopy = {
@@ -48,6 +50,10 @@ export type GeminiUiCopy = {
   expert_heading_en: string;
   specialty_cta_bn: string;
   specialty_cta_en: string;
+  serial_book_cta_bn: string;
+  serial_book_cta_en: string;
+  serial_book_title_bn: string;
+  serial_book_title_en: string;
   first_aid_heading_bn: string;
   first_aid_heading_en: string;
   first_aid_button_bn: string;
@@ -87,13 +93,14 @@ export const DEFAULT_GEMINI_FEATURES: GeminiAiFeatures = {
   prescription_scan: true,
   prescription_medicines: true,
   prescription_tests: true,
+  serial_auto_book: true,
 };
 
 export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
   welcome_bn:
-    "আপনার লক্ষণ বা সমস্যা লিখুন। প্রয়োজন হলে আমি বয়স/সময়কালের মতো সংক্ষিপ্ত প্রশ্ন করব, তারপর বিশেষজ্ঞ ও টেস্ট সাজেশন দেব। টেস্ট লাগলে জেলা ও উপজেলা দিয়ে নিকটস্থ কম মূল্যের ভালো ল্যাব দেখাব। চিকিৎসকের বিকল্প নয় — জরুরি হলে হাসপাতালে যান।",
+    "আপনার লক্ষণ বা সমস্যা লিখুন। আমি বুঝে উপযুক্ত বিশেষজ্ঞ সাজেস্ট করব এবং চাইলে আপনার জেলায় কম ফি/অভিজ্ঞ ডাক্তারের সিরিয়াল অটো-বুক করতে পারি। প্রয়োজনে সংক্ষিপ্ত প্রশ্ন করব, টেস্ট লাগলে নিকটস্থ ল্যাবও দেখাব। চিকিৎসকের বিকল্প নয় — জরুরি হলে হাসপাতালে যান।",
   welcome_en:
-    "Describe your symptoms. I’ll only ask short follow-ups when needed (age, duration, etc.), then suggest specialists and tests. When tests are needed, pick district & upazila for nearby quality labs at the best price. Not a substitute for a doctor — seek emergency care when needed.",
+    "Describe your symptoms. I’ll suggest the right specialist and can auto-book a low-fee / experienced doctor serial in your district. I’ll only ask short clinical follow-ups when needed, and can suggest nearby labs for tests. Not a substitute for a doctor — seek emergency care when needed.",
   disclaimer_bn: "তথ্যমূলক সহায়তা; চিকিৎসকের পরামর্শের বিকল্প নয়।",
   disclaimer_en: "Informational support only — not a substitute for professional medical care.",
   thinking_bn: "আপনার জন্য expert বিশ্লেষণ প্রস্তুত করছি…",
@@ -114,6 +121,10 @@ export const DEFAULT_GEMINI_UI: GeminiUiCopy = {
   expert_heading_en: "Expert-level analysis",
   specialty_cta_bn: "ডাক্তার খুঁজুন",
   specialty_cta_en: "Find doctors",
+  serial_book_cta_bn: "সিরিয়াল বুক করুন",
+  serial_book_cta_en: "Book serial",
+  serial_book_title_bn: "AI সিরিয়াল বুকিং",
+  serial_book_title_en: "AI serial booking",
   first_aid_heading_bn: "প্রাথমিক চিকিৎসা",
   first_aid_heading_en: "Primary first aid",
   first_aid_button_bn: "প্রাথমিক চিকিৎসা",
@@ -434,6 +445,7 @@ export function normalizeGeminiFeatures(raw: unknown): GeminiAiFeatures {
     prescription_scan: pickBool(r, "prescription_scan", DEFAULT_GEMINI_FEATURES.prescription_scan),
     prescription_medicines: pickBool(r, "prescription_medicines", DEFAULT_GEMINI_FEATURES.prescription_medicines),
     prescription_tests: pickBool(r, "prescription_tests", DEFAULT_GEMINI_FEATURES.prescription_tests),
+    serial_auto_book: pickBool(r, "serial_auto_book", DEFAULT_GEMINI_FEATURES.serial_auto_book),
   };
 }
 
@@ -499,6 +511,11 @@ export function buildJsonSchema(features: GeminiAiFeatures): string {
   if (features.specialty_suggestions) {
     fields.push(
       '"suggested_specialties":[{"specialty_id":"uuid","slug":"slug","reason":"why this specialist"}] — ONLY from SPECIALTIES list',
+    );
+  }
+  if (features.serial_auto_book && features.specialty_suggestions) {
+    fields.push(
+      '"offer_serial_booking":boolean — true when specialty is clear enough that patient can book a chamber serial now',
     );
   }
   if (features.first_aid) {
@@ -571,6 +588,7 @@ export function buildPrescriptionSystemPrompt(
     specialty_suggestions: false,
     expert_analysis: false,
     first_aid: false,
+    serial_auto_book: false,
     test_suggestions: settings.features.prescription_tests,
     prescription_medicines: settings.features.prescription_medicines,
   });
@@ -632,6 +650,13 @@ export function buildChatSystemPrompt(
   } else {
     featureLines.push(lang === "bn" ? "- suggested_specialties: []" : "- suggested_specialties: []");
   }
+  if (settings.features.serial_auto_book && settings.features.specialty_suggestions) {
+    featureLines.push(
+      lang === "bn"
+        ? "- offer_serial_booking=true যখন specialty পরিষ্কার। reply-এ সংক্ষেপে বলুন: জেলা/পছন্দ/তারিখ UI-তে নিয়ে সিরিয়াল অটো-বুক করতে পারি। জেলা/তারিখ/ফি-পছন্দ questions-এ জিজ্ঞাসা করবেন না।"
+        : "- offer_serial_booking=true when specialty is clear. In reply, briefly offer auto serial booking (district/preference/date collected in UI). Never ask district/date/fee preference in questions.",
+    );
+  }
   if (settings.features.first_aid) {
     featureLines.push(
       lang === "bn"
@@ -675,8 +700,15 @@ export function buildChatSystemPrompt(
   if (settings.features.follow_up_questions) {
     prompt +=
       lang === "bn"
-        ? `\n\nFOLLOW-UP POLICY (বাধ্যতামূলক): questions শুধু ক্লিনিক্যালি দরকারি মিসিং তথ্যের জন্য। ইতিমধ্যে জানা/উত্তর দেওয়া বিষয় পুনরায় জিজ্ঞাসা করবেন না। যথেষ্ট তথ্য থাকলে questions=[]। জেলা ও উপজেলা UI সংগ্রহ করবে — questions এ লিখবেন না।`
-        : `\n\nFOLLOW-UP POLICY (mandatory): questions only for clinically missing info. Never re-ask answered items. If enough info, questions=[]. District/upazila are collected in the UI — never put them in questions.`;
+        ? `\n\nFOLLOW-UP POLICY (বাধ্যতামূলক): questions শুধু ক্লিনিক্যালি দরকারি মিসিং তথ্যের জন্য। ইতিমধ্যে জানা/উত্তর দেওয়া বিষয় পুনরায় জিজ্ঞাসা করবেন না। যথেষ্ট তথ্য থাকলে questions=[]। জেলা, উপজেলা, তারিখ ও ডাক্তার পছন্দ (কম ফি/অভিজ্ঞ) UI সংগ্রহ করবে — questions এ লিখবেন না।`
+        : `\n\nFOLLOW-UP POLICY (mandatory): questions only for clinically missing info. Never re-ask answered items. If enough info, questions=[]. District, upazila, date, and doctor preference (low fee / experienced) are collected in the UI — never put them in questions.`;
+  }
+
+  if (settings.features.serial_auto_book && settings.features.specialty_suggestions) {
+    prompt +=
+      lang === "bn"
+        ? `\n\nSERIAL BOOKING: স্পেশালিটি সাজেস্ট হলে offer_serial_booking=true দিন। রোগীকে জানান UI বাটনে সিরিয়াল বুক করা যাবে — জেলায় কম টাকা/অভিজ্ঞ ডাক্তার বেছে নিয়ে ইনভয়েস তৈরি হবে।`
+        : `\n\nSERIAL BOOKING: when specialties are suggested, set offer_serial_booking=true. Tell the patient they can book via the UI button — we pick a low-fee/experienced doctor in their district and create the invoice.`;
   }
 
   return prompt;
@@ -701,6 +733,8 @@ export function getPublicAiConfig(settings: GeminiSettingsExtended, lang: "bn" |
       specialtyHeading: lang === "bn" ? ui.specialty_heading_bn : ui.specialty_heading_en,
       expertHeading: lang === "bn" ? ui.expert_heading_bn : ui.expert_heading_en,
       specialtyCta: lang === "bn" ? ui.specialty_cta_bn : ui.specialty_cta_en,
+      serialBookCta: lang === "bn" ? ui.serial_book_cta_bn : ui.serial_book_cta_en,
+      serialBookTitle: lang === "bn" ? ui.serial_book_title_bn : ui.serial_book_title_en,
       firstAidHeading: lang === "bn" ? ui.first_aid_heading_bn : ui.first_aid_heading_en,
       firstAidButton: lang === "bn" ? ui.first_aid_button_bn : ui.first_aid_button_en,
       prescriptionAttach: lang === "bn" ? ui.prescription_attach_bn : ui.prescription_attach_en,

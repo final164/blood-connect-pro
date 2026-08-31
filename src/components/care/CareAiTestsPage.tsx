@@ -25,6 +25,14 @@ import { CareAiExpertBlock, CareAiFirstAidBlock, CareAiSpecialtyCards } from "@/
 import { CareAiMedicineBlock } from "@/components/care/CareAiMedicineBlock";
 import { CareAiLabGeoSheet } from "@/components/care/CareAiLabGeoSheet";
 import {
+  CareAiSerialBookSheet,
+  type SerialBookSpecialty,
+} from "@/components/care/CareAiSerialBookSheet";
+import {
+  loadAiSerialResume,
+  clearAiSerialResume,
+} from "@/lib/care-ai-serial";
+import {
   loadBundlePlan,
   rankNearbyLabsForTests,
   type RankedLabClinic,
@@ -127,6 +135,8 @@ export function CareAiTestsPage() {
   const [rankedClinics, setRankedClinics] = useState<RankedLabClinic[]>([]);
   const [geoBusy, setGeoBusy] = useState(false);
   const [geoSheetOpen, setGeoSheetOpen] = useState(false);
+  const [serialSheetOpen, setSerialSheetOpen] = useState(false);
+  const [serialSpecialty, setSerialSpecialty] = useState<SerialBookSpecialty | null>(null);
   const [pendingBookIds, setPendingBookIds] = useState<string[]>([]);
   const [pendingOrgId, setPendingOrgId] = useState<string | null>(null);
   const [cart, setCart] = useState<string[]>([]);
@@ -213,6 +223,19 @@ export function CareAiTestsPage() {
     const draft = consumeAiChatDraft(AI_CHAT_RESUME_PATH);
     if (draft) setInput(draft);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || isGuest) return;
+    const resume = loadAiSerialResume();
+    if (!resume?.specialtyId) return;
+    setSerialSpecialty({
+      specialtyId: resume.specialtyId,
+      nameBn: resume.specialtyNameBn || "",
+      nameEn: resume.specialtyNameEn || "",
+      reason: resume.reason,
+    });
+    setSerialSheetOpen(true);
+  }, [hydrated, isGuest, session?.user?.id]);
 
   const geoReady = !!district?.id;
 
@@ -706,6 +729,19 @@ export function CareAiTestsPage() {
                         (lang === "bn" ? "কোন বিশেষজ্ঞ দেখাবেন" : "Which specialist to see")
                       }
                       cta={ui?.specialtyCta ?? (lang === "bn" ? "ডাক্তার খুঁজুন" : "Find doctors")}
+                      bookSerialCta={
+                        ui?.serialBookCta ?? (lang === "bn" ? "সিরিয়াল বুক করুন" : "Book serial")
+                      }
+                      serialAutoBook={features?.serial_auto_book !== false}
+                      onBookSerial={(s) => {
+                        setSerialSpecialty({
+                          specialtyId: s.specialty_id,
+                          nameBn: s.name_bn,
+                          nameEn: s.name_en,
+                          reason: s.reason,
+                        });
+                        setSerialSheetOpen(true);
+                      }}
                       lang={lang}
                     />
                   )}
@@ -1017,6 +1053,17 @@ export function CareAiTestsPage() {
         cancelLabel={lang === "bn" ? "ফিরে যান" : "Back"}
         busy={bookBusy || geoBusy}
         onContinue={() => void continueBookAfterGeo()}
+      />
+
+      <CareAiSerialBookSheet
+        open={serialSheetOpen}
+        onOpenChange={(v) => {
+          setSerialSheetOpen(v);
+          if (!v) clearAiSerialResume();
+        }}
+        specialty={serialSpecialty}
+        title={ui?.serialBookTitle}
+        bookCta={ui?.serialBookCta}
       />
     </div>
   );

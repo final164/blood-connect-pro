@@ -78,13 +78,22 @@ export function CareAiSpecialtyCards({
   title,
   cta,
   lang,
+  bookSerialCta,
+  onBookSerial,
+  serialAutoBook = false,
 }: {
   items: CareAiSuggestedSpecialty[] | null | undefined;
   title: string;
   cta: string;
   lang: "bn" | "en";
+  /** Primary auto-book button label */
+  bookSerialCta?: string;
+  onBookSerial?: (s: CareAiSuggestedSpecialty) => void;
+  serialAutoBook?: boolean;
 }) {
   if (!items?.length) return null;
+  const bookLabel =
+    bookSerialCta ?? (lang === "bn" ? "সিরিয়াল বুক করুন" : "Book serial");
   return (
     <div className="mt-2 space-y-1.5">
       <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
@@ -97,7 +106,7 @@ export function CareAiSpecialtyCards({
           return (
             <li
               key={s.specialty_id}
-              className="rounded-xl border bg-card px-3 py-2 flex items-start justify-between gap-2"
+              className="rounded-xl border bg-card px-3 py-2 space-y-2"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate">{name}</p>
@@ -105,13 +114,24 @@ export function CareAiSpecialtyCards({
                   <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{s.reason}</p>
                 ) : null}
               </div>
-              <Link
-                to="/care"
-                search={{ tab: "doctors", specialty: s.specialty_id }}
-                className="shrink-0 rounded-lg bg-primary/10 text-primary px-2.5 py-1.5 text-[11px] font-semibold hover:bg-primary/15"
-              >
-                {cta}
-              </Link>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {serialAutoBook && onBookSerial ? (
+                  <button
+                    type="button"
+                    onClick={() => onBookSerial(s)}
+                    className="shrink-0 rounded-lg bg-teal-700 text-white px-2.5 py-1.5 text-[11px] font-semibold hover:bg-teal-800"
+                  >
+                    {bookLabel}
+                  </button>
+                ) : null}
+                <Link
+                  to="/care"
+                  search={{ tab: "doctors", specialty: s.specialty_id }}
+                  className="shrink-0 rounded-lg bg-primary/10 text-primary px-2.5 py-1.5 text-[11px] font-semibold hover:bg-primary/15"
+                >
+                  {cta}
+                </Link>
+              </div>
             </li>
           );
         })}

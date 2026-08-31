@@ -166,6 +166,10 @@ const UI_FIELDS: Record<UiTab, (keyof GeminiUiCopy)[]> = {
     "bundle_cta_en",
     "specialty_cta_bn",
     "specialty_cta_en",
+    "serial_book_cta_bn",
+    "serial_book_cta_en",
+    "serial_book_title_bn",
+    "serial_book_title_en",
     "first_aid_button_bn",
     "first_aid_button_en",
     "lab_geo_title_bn",
@@ -216,6 +220,10 @@ const UI_LABELS: Record<keyof GeminiUiCopy, { bn: string; en: string }> = {
   expert_heading_en: { bn: "এক্সপার্ট হেডিং (English)", en: "Expert heading (English)" },
   specialty_cta_bn: { bn: "বিশেষজ্ঞ CTA (বাংলা)", en: "Specialty CTA (Bangla)" },
   specialty_cta_en: { bn: "বিশেষজ্ঞ CTA (English)", en: "Specialty CTA (English)" },
+  serial_book_cta_bn: { bn: "সিরিয়াল বুক CTA (বাংলা)", en: "Serial book CTA (Bangla)" },
+  serial_book_cta_en: { bn: "সিরিয়াল বুক CTA (English)", en: "Serial book CTA (English)" },
+  serial_book_title_bn: { bn: "সিরিয়াল শীট শিরোনাম (বাংলা)", en: "Serial sheet title (Bangla)" },
+  serial_book_title_en: { bn: "সিরিয়াল শীট শিরোনাম (English)", en: "Serial sheet title (English)" },
   first_aid_heading_bn: { bn: "প্রাথমিক চিকিৎসা হেডিং (বাংলা)", en: "First-aid heading (Bangla)" },
   first_aid_heading_en: { bn: "প্রাথমিক চিকিৎসা হেডিং (English)", en: "First-aid heading (English)" },
   first_aid_button_bn: { bn: "প্রাথমিক চিকিৎসা বাটন (বাংলা)", en: "First-aid button (Bangla)" },
@@ -707,6 +715,15 @@ export function GeminiKeysAdmin() {
                 lang === "bn"
                   ? "লক্ষণ বিশ্লেষণ করে কোন স্পেশালিটির ডাক্তার দেখাবেন।"
                   : "Suggest which specialty doctor to see from symptoms."
+              }
+            />
+            <FeatureToggle
+              field="serial_auto_book"
+              label={lang === "bn" ? "AI সিরিয়াল অটো-বুক" : "AI serial auto-book"}
+              hint={
+                lang === "bn"
+                  ? "স্পেশালিটির পর জেলা/পছন্দ/তারিখ নিয়ে চেম্বার সিরিয়াল বুক + ইনভয়েস।"
+                  : "After specialty, book chamber serial + invoice via district/preference/date."
               }
             />
             <FeatureToggle
