@@ -71,10 +71,13 @@ import {
   setSessionStatus,
   subscribeSession,
   upsertOrgAffiliation,
+  WEEKDAY_BN,
+  WEEKDAY_EN,
   type CareSerialRow,
   type CareSessionRow,
   type OrgDoctorRow,
 } from "@/lib/care-api";
+import { formatSerialDayMonth, formatTimeWindow } from "@/lib/care-time-window";
 import { supabase } from "@/integrations/supabase/client";
 import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
 import { clampPhoneDigits } from "@/lib/phone-auth";
@@ -515,14 +518,16 @@ function QueuePanel({
     const s = t.session ?? sessionById.get(t.session_id);
     if (!s) return null;
     const time = formatTimeAmPm(s.start_time, lang);
-    return `${lang === "bn" ? "সিরিয়াল" : "Serial"} ${s.session_date}${time ? ` · ${time}` : ""}`;
+    const day = formatSerialDayMonth(s.session_date);
+    return `${lang === "bn" ? "সিরিয়াল" : "serial"} ${day}${time ? ` · ${time}` : ""}`;
   }
 
   function ticketSessionMetaFull(t: DeskTicket) {
     const s = t.session ?? sessionById.get(t.session_id);
     if (!s) return null;
     const time = formatTimeAmPm(s.start_time, lang);
-    return `${doctorLabel(s.doctor_id)} · ${lang === "bn" ? "সিরিয়াল" : "Serial"} ${s.session_date}${time ? ` · ${time}` : ""}`;
+    const day = formatSerialDayMonth(s.session_date);
+    return `${doctorLabel(s.doctor_id)} · ${lang === "bn" ? "সিরিয়াল" : "serial"} ${day}${time ? ` · ${time}` : ""}`;
   }
 
   function resolvePatient(t: CareSerialRow) {
@@ -1878,7 +1883,8 @@ function SchedulePanel({ orgId, canEdit, lang }: { orgId: string; canEdit: boole
           <li key={s.id} className="rounded-xl border px-3 py-2 text-sm flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-primary" />
             <span className="flex-1">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][s.weekday]} {String(s.start_time).slice(0, 5)}–{String(s.end_time).slice(0, 5)} · max {s.max_serial}
+              {(lang === "bn" ? WEEKDAY_BN : WEEKDAY_EN)[s.weekday]} ·{" "}
+              {formatTimeWindow(s.start_time, s.end_time, lang)} · max {s.max_serial}
             </span>
             {canEdit && (
               <button type="button" className="text-xs font-semibold" onClick={() => void openToday(s.id, s.weekday)}>

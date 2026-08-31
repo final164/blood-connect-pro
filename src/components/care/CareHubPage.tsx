@@ -28,6 +28,7 @@ import {
   fetchMySerials,
   type CareDoctorListItem,
 } from "@/lib/care-api";
+import { formatSerialDayMonth, formatTimeWindow } from "@/lib/care-time-window";
 import { searchTestOfferings, searchLabFacilities, fetchMyLabBookings, type CareOffering, type CareLabFacility } from "@/lib/care-lab-api";
 import { CareLabPriceDisplay } from "@/components/care/CareLabPriceDisplay";
 import { formatCareMoney } from "@/lib/care-invoice";
@@ -727,7 +728,11 @@ function BookingsPanel({ lang, userId }: { lang: "bn" | "en"; userId?: string })
                       : `Serial #${s.serial_no ?? "—"} · ${s.status}`}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {s.session?.session_date} · {s.claim_code}
+                  {formatSerialDayMonth(s.session?.session_date)}
+                  {s.session?.start_time
+                    ? ` · ${formatTimeWindow(s.session.start_time, s.session.end_time, lang)}`
+                    : ""}
+                  {s.claim_code ? ` · ${s.claim_code}` : ""}
                   {s.online_serial_no != null
                     ? lang === "bn"
                       ? ` · অনলাইন #${s.online_serial_no}`

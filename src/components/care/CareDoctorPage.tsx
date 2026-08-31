@@ -19,6 +19,7 @@ import {
   WEEKDAY_EN,
   type CareScheduleRow,
 } from "@/lib/care-api";
+import { formatSerialDateChip, formatSerialDayMonth, formatTimeWindow } from "@/lib/care-time-window";
 import { careDoctorTypeLabel, locName, fetchCarePolicies } from "@/lib/care-cms";
 import {
   DEFAULT_BOOKING_FIELDS,
@@ -426,12 +427,11 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
                     {schs.map((s) => {
                       const days = nextDatesForWeekday(s.weekday, 3);
                       const dayLabel = lang === "bn" ? WEEKDAY_BN[s.weekday] : WEEKDAY_EN[s.weekday];
-                      const timeLabel = `${String(s.start_time).slice(0, 5)}–${String(s.end_time).slice(0, 5)}`;
+                      const timeLabel = formatTimeWindow(s.start_time, s.end_time, lang);
+                      const scheduleLabel = `${dayLabel} · ${timeLabel}`;
                       return (
                         <div key={s.id} className="rounded-xl border px-2 py-2 space-y-2">
-                          <p className="text-xs font-medium">
-                            {dayLabel} · {timeLabel}
-                          </p>
+                          <p className="text-xs font-medium">{scheduleLabel}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {days.map((date) => {
                               const key = `${s.id}:${date}`;
@@ -462,7 +462,7 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
                                       : "hover:bg-muted"
                                   }`}
                                 >
-                                  {date.slice(5)} · {lang === "bn" ? "সিরিয়াল" : "Serial"}
+                                  {formatSerialDateChip(date, lang)}
                                   {seat ? ` (${remaining})` : ""}
                                 </button>
                               );
@@ -487,7 +487,7 @@ export function CareDoctorPage({ doctorId }: { doctorId: string }) {
                     {lang === "bn" ? "সিরিয়াল নির্বাচিত" : "Serial selected"}
                   </p>
                   <p className="text-sm font-semibold mt-0.5">
-                    {selected.orgName} · {selected.date}
+                    {selected.orgName} · {formatSerialDayMonth(selected.date)}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     {selected.locationLabel} · {selected.dayLabel} · {selected.timeLabel}

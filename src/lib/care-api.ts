@@ -111,7 +111,7 @@ const SESSION_EMBED =
 const CARE_SERIAL_WITH_SESSION = `${CARE_SERIAL_COLS}, care_sessions(${SESSION_EMBED})`;
 const CARE_SERIAL_WITH_SESSION_INNER = `${CARE_SERIAL_COLS}, care_sessions!inner(${SESSION_EMBED})`;
 
-/** Format DB time "18:00:00" / "18:00" → "6:00 PM" */
+/** Format DB time "18:00:00" / "18:00" → "6:00 pm" */
 export function formatTimeAmPm(time: string | null | undefined, lang: "bn" | "en" = "en"): string {
   if (!time) return "";
   const raw = String(time).slice(0, 5);
@@ -119,8 +119,9 @@ export function formatTimeAmPm(time: string | null | undefined, lang: "bn" | "en
   if (!Number.isFinite(hs) || !Number.isFinite(ms)) return raw;
   const h24 = hs!;
   const m = ms!;
-  const ampm = h24 >= 12 ? (lang === "bn" ? "PM" : "PM") : lang === "bn" ? "AM" : "AM";
+  const ampm = h24 >= 12 ? "pm" : "am";
   const h12 = h24 % 12 || 12;
+  void lang;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 

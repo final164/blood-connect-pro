@@ -17,6 +17,7 @@ import {
   type CareSerialRow,
   type CareSessionRow,
 } from "@/lib/care-api";
+import { formatSerialDateChip, formatTimeWindow } from "@/lib/care-time-window";
 import {
   DEFAULT_BOOKING_FIELDS,
   fetchEffectiveDeskSerialSettings,
@@ -526,12 +527,10 @@ export function CareCreateSerialPanel({
                       <option value="">{lang === "bn" ? "শিডিউল নেই" : "No schedule"}</option>
                     )}
                     {schedulesForAff.map((s) => {
-                      const dayBn = ["রবি", "সোম", "মঙ্গল", "বুধ", "বৃহঃ", "শুক্র", "শনি"][s.weekday];
-                      const dayEn = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][s.weekday];
+                      const dayLabel = lang === "bn" ? WEEKDAY_BN[s.weekday] : WEEKDAY_EN[s.weekday];
                       return (
                         <option key={s.id} value={s.id}>
-                          {lang === "bn" ? dayBn : dayEn} · {String(s.start_time).slice(0, 5)}–
-                          {String(s.end_time).slice(0, 5)}
+                          {dayLabel} · {formatTimeWindow(s.start_time, s.end_time, lang)}
                         </option>
                       );
                     })}
@@ -563,7 +562,7 @@ export function CareCreateSerialPanel({
                                 : "hover:bg-muted"
                             }`}
                           >
-                            {date.slice(5)}
+                            {formatSerialDateChip(date, lang)}
                           </button>
                         );
                       })}

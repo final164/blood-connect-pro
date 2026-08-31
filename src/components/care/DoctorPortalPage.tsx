@@ -30,6 +30,7 @@ import {
   type DoctorOperationRow,
   type DoctorSerialSummary,
 } from "@/lib/care-doctor-portal-api";
+import { formatSerialDayMonth } from "@/lib/care-time-window";
 import {
   fetchMyPendingVideoClaim,
   requestVideoClaim,
@@ -376,7 +377,7 @@ export function DoctorPortalPage() {
               serials.map((s) => (
                 <li key={s.session_id} className="rounded-2xl border bg-card px-3 py-3 flex justify-between gap-2">
                   <div>
-                    <p className="text-sm font-semibold">{s.session_date}</p>
+                    <p className="text-sm font-semibold">{formatSerialDayMonth(s.session_date)}</p>
                     <p className="text-[11px] text-muted-foreground">
                       {s.org_name} · {s.location_name}
                     </p>

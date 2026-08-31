@@ -8,6 +8,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { fetchMySerials } from "@/lib/care-api";
+import { formatSerialDayMonth, formatTimeWindow } from "@/lib/care-time-window";
 import { fetchMyLabBookings } from "@/lib/care-lab-api";
 import { fetchMyAmbulanceRequests } from "@/lib/ambulance-api";
 import {
@@ -291,7 +292,10 @@ export function CareCustomerDashboard({
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        {s.session?.session_date}
+                        {formatSerialDayMonth(s.session?.session_date)}
+                        {s.session?.start_time
+                          ? ` · ${formatTimeWindow(s.session.start_time, s.session.end_time, lang)}`
+                          : ""}
                         {s.claim_code ? ` · ${s.claim_code}` : ""}
                         {s.online_serial_no != null
                           ? lang === "bn"

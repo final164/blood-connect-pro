@@ -17,6 +17,7 @@ import {
   type CareSerialRow,
   type CareSessionRow,
 } from "@/lib/care-api";
+import { formatSerialDayMonth, formatTimeWindow } from "@/lib/care-time-window";
 import { CareSerialInvoiceCard } from "@/components/care/CareSerialInvoice";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
 
@@ -155,7 +156,11 @@ export function CareSerialLivePage({ serialId }: { serialId: string }) {
             </div>
             )}
             <p className="text-xs text-muted-foreground">
-              {session?.session_date} · {session?.status} ·{" "}
+              {formatSerialDayMonth(session?.session_date)}
+              {session?.start_time
+                ? ` · ${formatTimeWindow(session.start_time, session.end_time, lang)}`
+                : ""}{" "}
+              · {session?.status} ·{" "}
               {pending
                 ? lang === "bn"
                   ? "অনুমোদন বাকি"
