@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { fetchLabBookingsForInvoice, setLabBookingStatus, type CareLabBooking } from "@/lib/care-lab-api";
 import { CareLabInvoiceCard } from "@/components/care/CareLabInvoice";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { CareLabScheduleCard } from "@/components/care/CareLabScheduleCard";
 import {
   CareLabProgressBar,
   labStatusLabel,
@@ -15,11 +16,17 @@ import {
 import { CareLabReportBlock } from "@/components/care/CareLabReportBlock";
 import { formatCareMoney } from "@/lib/care-invoice";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+
+type LabBookingRow = CareLabBooking & {
+  offering?: { name_bn?: string | null; name_en?: string | null } | null;
+};
 
 export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
   const { lang } = useI18n();
-  const [rows, setRows] = useState<CareLabBooking[]>([]);
+  const [rows, setRows] = useState<LabBookingRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [org, setOrg] = useState<{ name: string; name_bn: string | null } | null>(null);
 
   const reload = useCallback(async () => {
     setRows(await fetchLabBookingsForInvoice(bookingId));
@@ -33,6 +40,31 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
     () => rows.find((r) => r.id === bookingId) ?? rows[0] ?? null,
     [rows, bookingId],
   );
+
+  useEffect(() => {
+    if (!primary?.org_id) {
+      setOrg(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("care_orgs")
+        .select("name, name_bn")
+        .eq("id", primary.org_id)
+        .maybeSingle();
+      if (!cancelled) {
+        setOrg(
+          data
+            ? { name: String(data.name ?? ""), name_bn: (data.name_bn as string | null) ?? null }
+            : null,
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [primary?.org_id]);
 
   const total = useMemo(() => rows.reduce((n, r) => n + Number(r.price ?? 0), 0), [rows]);
   const canCancel = rows.some((r) => ["reserved", "confirmed"].includes(r.status));
@@ -136,6 +168,13 @@ export function CareLabBookingPage({ bookingId }: { bookingId: string }) {
                 </button>
               )}
             </div>
+
+            <CareLabScheduleCard
+              bookings={rows}
+              orgName={org?.name}
+              orgNameBn={org?.name_bn}
+              lang={lang}
+            />
 
             <section className="rounded-2xl border bg-card p-4 space-y-4">
               <div>

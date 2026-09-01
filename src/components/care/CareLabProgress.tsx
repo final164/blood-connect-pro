@@ -1,6 +1,11 @@
-import { CalendarClock, Check } from "lucide-react";
+import { CalendarClock, Check, Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateTimeWindow } from "@/lib/care-time-window";
+import {
+  formatLabCollectionSchedule,
+  formatLabDeliverySchedule,
+  hasLabDeskSchedule,
+  labSchedulePendingLabel,
+} from "@/lib/care-lab-schedule";
 
 export const LAB_FLOW = ["reserved", "checked_in", "sample_taken", "completed"] as const;
 
@@ -176,34 +181,32 @@ function LabScheduleChips({
   schedule?: Parameters<typeof CareLabProgressBar>[0]["schedule"];
   lang: "bn" | "en";
 }) {
-  if (!schedule) return null;
-  const collection = formatDateTimeWindow(
-    schedule.collection_date,
-    schedule.collection_start,
-    schedule.collection_end,
-    lang,
-  );
-  const delivery = formatDateTimeWindow(
-    schedule.delivery_date,
-    schedule.delivery_start,
-    schedule.delivery_end,
-    lang,
-  );
-  if (!collection && !delivery) return null;
+  const collection = formatLabCollectionSchedule(schedule, lang);
+  const delivery = formatLabDeliverySchedule(schedule, lang);
+  const pending = !hasLabDeskSchedule(schedule);
 
   return (
     <div className="flex flex-wrap gap-1.5 pt-0.5">
-      {collection && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/5 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-          <CalendarClock className="h-3 w-3" />
-          {lang === "bn" ? "নমুনা সংগ্রহ" : "Collection"} · {collection}
+      {pending ? (
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/8 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+          <Hourglass className="h-3 w-3" />
+          {lang === "bn" ? "সময়সূচি" : "Schedule"} · {labSchedulePendingLabel(lang)}
         </span>
-      )}
-      {delivery && (
-        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-          <CalendarClock className="h-3 w-3" />
-          {lang === "bn" ? "রিপোর্ট" : "Report"} · {delivery}
-        </span>
+      ) : (
+        <>
+          {collection && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/5 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+              <CalendarClock className="h-3 w-3" />
+              {lang === "bn" ? "নমুনা সংগ্রহ" : "Collection"} · {collection}
+            </span>
+          )}
+          {delivery && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <CalendarClock className="h-3 w-3" />
+              {lang === "bn" ? "রিপোর্ট" : "Report"} · {delivery}
+            </span>
+          )}
+        </>
       )}
     </div>
   );

@@ -7,6 +7,10 @@ import {
   invoiceScheduleLine,
 } from "@/lib/care-invoice";
 import { formatDateTimeWindow } from "@/lib/care-time-window";
+import {
+  formatLabDeliveryScheduleOrPending,
+  labSchedulePendingLabel,
+} from "@/lib/care-lab-schedule";
 import type { CareOperationInvoice } from "@/lib/care-operation-invoice";
 import { operationInvoiceName } from "@/lib/care-operation-invoice";
 import { priceItemLabel } from "@/lib/care-operations-api";
@@ -215,7 +219,7 @@ export function mapLabInvoiceToViewModel(
       id: l.booking_id,
       test_id: l.test_code || l.reference_code || "—",
       name: labInvoiceLineName(l, lang),
-      delivery_date: fmtDate(l.test_date),
+      delivery_date: formatLabDeliveryScheduleOrPending(l, lang),
       amount: round2(list),
       discount,
       discount_percent,
@@ -231,12 +235,9 @@ export function mapLabInvoiceToViewModel(
     reg_no: inv.invoice_no,
     lab_id: inv.reference_code,
     date: fmtDate(inv.test_date || inv.created_at),
-    // Desk-entered windows win; fall back to the calendar slot for older bookings.
     delivery_datetime:
       formatDateTimeWindow(inv.delivery_date, inv.delivery_start, inv.delivery_end, lang) ??
-      (inv.test_date
-        ? `${fmtDate(inv.test_date)}${inv.slot_end ? ` ${String(inv.slot_end).slice(0, 5)}` : ""}`
-        : null),
+      labSchedulePendingLabel(lang),
     collection_datetime: formatDateTimeWindow(
       inv.collection_date,
       inv.collection_start,

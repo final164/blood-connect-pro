@@ -18,6 +18,12 @@ export type CareLabInvoiceLine = {
   prep_bn: string | null;
   prep_en: string | null;
   home_collection: boolean;
+  collection_date: string | null;
+  collection_start: string | null;
+  collection_end: string | null;
+  delivery_date: string | null;
+  delivery_start: string | null;
+  delivery_end: string | null;
 };
 
 export type CareLabInvoice = {
@@ -124,6 +130,12 @@ async function enrichBookingLine(booking: CareLabBooking): Promise<CareLabInvoic
     prep_bn: (cat?.prep_bn as string) ?? null,
     prep_en: (cat?.prep_en as string) ?? null,
     home_collection: !!off?.home_collection,
+    collection_date: booking.collection_date ?? null,
+    collection_start: booking.collection_start ?? null,
+    collection_end: booking.collection_end ?? null,
+    delivery_date: booking.delivery_date ?? null,
+    delivery_start: booking.delivery_start ?? null,
+    delivery_end: booking.delivery_end ?? null,
   };
 }
 

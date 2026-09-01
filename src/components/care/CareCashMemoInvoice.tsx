@@ -93,7 +93,7 @@ function LabInvoiceBody({ vm, template, lang, L }: MemoCtx) {
             </p>
           ) : null}
           <p>
-            <b>{L("delivery_time")}:</b> {vm.delivery_datetime || "—"}
+            <b>{L("delivery_time")}:</b> {vm.delivery_datetime || (lang === "bn" ? "পেন্ডিং" : "Pending")}
           </p>
           {style.show_delivery_slots && (
             <div className="cm-slots">

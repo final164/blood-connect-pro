@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,13 +8,18 @@ import { BLOOD_GROUPS } from "@/lib/format";
 import { adminDeleteUser } from "@/lib/admin-delete-user";
 import { adminFetchUserPin } from "@/lib/admin-fetch-user-pin";
 import {
+  careBookingKindLabel,
+  fetchAdminUserCareBookings,
+  type AdminUserCareBooking,
+} from "@/lib/admin-user-care-bookings";
+import {
   districtAllowed,
   isAllDistricts,
   isAllUpazilas,
   parseUpazilaScopeKey,
   upazilaAllowed,
 } from "@/lib/users-geo-scope";
-import { Ban, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Ban, ChevronDown, ChevronUp, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { clampPhoneDigits } from "@/lib/phone-auth";
 
@@ -68,6 +73,7 @@ export function UsersAdmin() {
   const [filterBlood, setFilterBlood] = useState<string>(ALL);
   const [filterDonated, setFilterDonated] = useState<string>(ALL);
   const [filterReceived, setFilterReceived] = useState<string>(ALL);
+  const [expandedCareUserId, setExpandedCareUserId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -113,21 +119,34 @@ export function UsersAdmin() {
         }));
       }
 
-      const [{ data: roleRows }, credsRes, { data: requests }, { data: offers }, ds] =
+      const [{ data: roleRows }, credsRes, { data: requests }, { data: offers }, ds, doctorRows, vendorRows] =
         await Promise.all([
           supabase.from("user_roles").select("user_id, role"),
           supabase.from("user_login_credentials").select("user_id, phone, pin"),
           supabase.from("blood_requests").select("requester_id, status"),
           supabase.from("request_donation_offers").select("donor_id, status").eq("status", "confirmed"),
           fetchAllDistrictsAdmin(),
+          supabase.from("care_doctors").select("user_id").not("user_id", "is", null),
+          supabase.from("profiles").select("id").eq("account_kind", "care_vendor"),
         ]);
+
+      const excludedIds = new Set<string>();
+      for (const d of doctorRows.data ?? []) {
+        if (d.user_id) excludedIds.add(d.user_id);
+      }
+      if (!vendorRows.error) {
+        for (const p of vendorRows.data ?? []) {
+          excludedIds.add(p.id);
+        }
+      }
+      const patientProfiles = (profiles ?? []).filter((p) => !excludedIds.has(p.id));
 
       if (credsRes.error) {
         console.warn("user_login_credentials:", credsRes.error.message);
       }
       const loginCreds = credsRes.data;
 
-      setRows(profiles ?? []);
+      setRows(patientProfiles);
       setDistricts(ds);
       const dMap: Record<string, District> = {};
       for (const d of ds) dMap[d.id] = d;
@@ -570,6 +589,11 @@ export function UsersAdmin() {
         <p className="text-[10px] text-slate-500 px-1">
           {loading ? t("loading") : `${filtered.length} / ${rows.length}`}
         </p>
+        <p className="text-[10px] text-slate-600 px-1">
+          {lang === "bn"
+            ? "শুধু রক্তদান/রোগী ইউজার — ডাক্তার ও Care ভেন্ডর Care → Doctors/Vendors-এ"
+            : "Blood donors/patients only — doctors & Care vendors are in Care admin"}
+        </p>
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900 admin-table-scroll">
@@ -585,6 +609,7 @@ export function UsersAdmin() {
               <th className="text-center p-3">{lang === "bn" ? "গ্রহণ" : "Received"}</th>
               <th className="text-center p-3">{lang === "bn" ? "দান" : "Donated"}</th>
               <th className="text-center p-3">{lang === "bn" ? "কমিউনিটি" : "Community"}</th>
+              <th className="text-left p-3">Care</th>
               <th className="p-3 text-right">{lang === "bn" ? "অ্যাকশন" : "Actions"}</th>
             </tr>
           </thead>
@@ -602,10 +627,11 @@ export function UsersAdmin() {
                   ? district.name_bn
                   : district.name_en
                 : u.city || "—";
+              const careOpen = expandedCareUserId === u.id;
 
               return (
+                <Fragment key={u.id}>
                 <tr
-                  key={u.id}
                   className={`border-t border-slate-800 ${u.is_blocked ? "bg-rose-950/20" : ""}`}
                 >
                   <td className="p-3">
@@ -681,6 +707,20 @@ export function UsersAdmin() {
                       </span>
                     )}
                   </td>
+                  <td className="p-3 align-top">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCareUserId(careOpen ? null : u.id)}
+                      className="inline-flex items-center gap-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[10px] font-medium text-slate-200 hover:bg-slate-800"
+                    >
+                      {careOpen ? (
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      )}
+                      {lang === "bn" ? "বুকিং" : "Bookings"}
+                    </button>
+                  </td>
                   <td className="p-3 text-right whitespace-nowrap space-x-1">
                     {can("users.block") && (
                       <button
@@ -716,11 +756,19 @@ export function UsersAdmin() {
                     )}
                   </td>
                 </tr>
+                {careOpen ? (
+                  <tr className="border-t border-slate-800 bg-slate-950/60">
+                    <td colSpan={11} className="p-3">
+                      <UserCareBookingsPanel userId={u.id} lang={lang} />
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               );
             })}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-500 text-sm">
+                <td colSpan={11} className="p-8 text-center text-slate-500 text-sm">
                   {lang === "bn" ? "কোনো ইউজার নেই" : "No users found"}
                 </td>
               </tr>
@@ -728,6 +776,92 @@ export function UsersAdmin() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function formatCareBookingWhen(at: string, lang: "bn" | "en") {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return at;
+  return d.toLocaleString(lang === "bn" ? "bn-BD" : "en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function UserCareBookingsPanel({ userId, lang }: { userId: string; lang: "bn" | "en" }) {
+  const [rows, setRows] = useState<AdminUserCareBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void fetchAdminUserCareBookings(userId)
+      .then((data) => {
+        if (!cancelled) setRows(data);
+      })
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <p className="text-xs text-slate-400">{lang === "bn" ? "Care বুকিং লোড…" : "Loading Care bookings…"}</p>
+    );
+  }
+  if (error) {
+    return <p className="text-xs text-rose-300">{error}</p>;
+  }
+  if (!rows.length) {
+    return (
+      <p className="text-xs text-slate-500">
+        {lang === "bn" ? "কোনো Care বুকিং নেই" : "No Care bookings"}
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-800 overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-slate-900/80 text-slate-400">
+          <tr>
+            <th className="text-left p-2 font-medium">{lang === "bn" ? "ধরন" : "Type"}</th>
+            <th className="text-left p-2 font-medium">{lang === "bn" ? "বিবরণ" : "Details"}</th>
+            <th className="text-left p-2 font-medium">{lang === "bn" ? "স্ট্যাটাস" : "Status"}</th>
+            <th className="text-left p-2 font-medium">{lang === "bn" ? "রেফ" : "Ref"}</th>
+            <th className="text-left p-2 font-medium">{lang === "bn" ? "সময়" : "When"}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((b) => (
+            <tr key={`${b.kind}-${b.id}`} className="border-t border-slate-800/80">
+              <td className="p-2 text-slate-300 whitespace-nowrap">
+                {careBookingKindLabel(b.kind, lang)}
+              </td>
+              <td className="p-2 text-slate-200">{b.title}</td>
+              <td className="p-2">
+                <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
+                  {b.status || "—"}
+                </span>
+              </td>
+              <td className="p-2 font-mono text-[10px] text-slate-400">{b.ref || "—"}</td>
+              <td className="p-2 text-slate-400 whitespace-nowrap">{formatCareBookingWhen(b.at, lang)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
