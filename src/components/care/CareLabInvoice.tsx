@@ -140,24 +140,14 @@ export function CareLabInvoiceCard({ bookingId, canManagePayment = false, autoPr
           {lang === "bn" ? "প্রিন্ট" : "Print"}
         </button>
         {canManagePayment && invoice.payment_status === "pending" && (
-          <>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void markPaid("paid")}
-              className="rounded-xl border border-emerald-600 text-emerald-700 px-3 py-2 text-xs font-semibold"
-            >
-              {lang === "bn" ? "পেমেন্ট নিশ্চিত" : "Mark paid"}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void markPaid("waived")}
-              className="rounded-xl border px-3 py-2 text-xs font-semibold text-muted-foreground"
-            >
-              {lang === "bn" ? "মওকুফ" : "Waive"}
-            </button>
-          </>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void markPaid("paid")}
+            className="rounded-xl border border-emerald-600 text-emerald-700 px-3 py-2 text-xs font-semibold"
+          >
+            {lang === "bn" ? "পেমেন্ট নিশ্চিত" : "Mark paid"}
+          </button>
         )}
       </div>
 

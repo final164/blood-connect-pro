@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
   Check,
@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { PageBackButton } from "@/components/nav/PageBackButton";
-import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { careHasPermission, fetchMyCareMemberships, type CareMembership } from "@/lib/care-access";
@@ -232,17 +231,6 @@ function LabStepActions({
       >
         {lang === "bn" ? "সম্পন্ন" : "Done"}
       </button>
-      <button
-        type="button"
-        disabled={busy || disabled}
-        onClick={() => onAdvance("no_show")}
-        className={cn(
-          btn,
-          "border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive hover:text-white",
-        )}
-      >
-        {lang === "bn" ? "নো-শো" : "No-show"}
-      </button>
     </div>
   );
 }
@@ -417,7 +405,28 @@ export function CareLabDeskPage({ portalMode = false, deskScope = "all" }: CareL
     usePortal ? portal!.can(key) : careHasPermission(membership, key);
   const org = membership?.care_orgs;
   const orgName = lang === "bn" ? org?.name_bn || org?.name : org?.name;
-  const headerHidden = useHideOnScroll({ threshold: 12, topReveal: 48, disabled: !!desktopShell });
+  const headerRef = useRef<HTMLElement>(null);
+  const [filterStickyTop, setFilterStickyTop] = useState(0);
+
+  useLayoutEffect(() => {
+    if (desktopShell) {
+      setFilterStickyTop(0);
+      return;
+    }
+
+    const el = headerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const h = Math.round(el.getBoundingClientRect().height);
+      if (h > 0) setFilterStickyTop(h);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [desktopShell, tab, orgName, memberships.length, ready]);
 
   if (!ready || !orgId || !membership) {
     return (
@@ -467,13 +476,11 @@ export function CareLabDeskPage({ portalMode = false, deskScope = "all" }: CareL
   return (
     <div className={cn("min-h-dvh bg-background", desktopShell && "md:min-h-0")}>
       <header
+        ref={headerRef}
         className={cn(
-          "sticky top-0 z-20 border-b bg-card",
-          "transition-transform duration-200 ease-out will-change-transform",
-          headerHidden ? "-translate-y-full pointer-events-none" : "translate-y-0",
-          desktopShell && "md:static md:translate-y-0 md:pointer-events-auto",
+          "sticky top-0 z-30 border-b bg-card",
+          desktopShell && "md:static",
         )}
-        data-header-hidden={headerHidden ? "true" : "false"}
       >
         {!desktopShell && (
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
@@ -531,7 +538,12 @@ export function CareLabDeskPage({ portalMode = false, deskScope = "all" }: CareL
       </header>
       <main className={cn("mx-auto max-w-5xl px-4 py-4", desktopShell && "md:max-w-6xl")}>
         {(activeTab === "today" || activeTab === "checkin") && (
-          <TodayPanel orgId={orgId} canManage={can("lab.checkin")} lang={lang} chromeHidden={headerHidden} />
+          <TodayPanel
+            orgId={orgId}
+            canManage={can("lab.checkin")}
+            lang={lang}
+            filterStickyTop={filterStickyTop}
+          />
         )}
         {activeTab === "offerings" && <OfferingsPanel orgId={orgId} lang={lang} />}
         {activeTab === "calendar" && <CalendarPanel orgId={orgId} lang={lang} />}
@@ -550,12 +562,12 @@ function TodayPanel({
   orgId,
   canManage,
   lang,
-  chromeHidden = false,
+  filterStickyTop = 0,
 }: {
   orgId: string;
   canManage: boolean;
   lang: "bn" | "en";
-  chromeHidden?: boolean;
+  filterStickyTop?: number;
 }) {
   const [date, setDate] = useState(todayIso());
   const [rows, setRows] = useState<DeskBookingRow[]>([]);
@@ -773,7 +785,6 @@ function TodayPanel({
     { value: "checked_in", bn: "চেক-ইন", en: "Checked in" },
     { value: "sample_taken", bn: "নমুনা", en: "Sample" },
     { value: "completed", bn: "সম্পন্ন", en: "Completed" },
-    { value: "no_show", bn: "নো-শো", en: "No-show" },
     { value: "cancelled", bn: "বাতিল", en: "Cancelled" },
   ];
 
@@ -781,17 +792,16 @@ function TodayPanel({
     detailRows.find((r) => r.id === detailId) ?? detailRows[0] ?? rows.find((r) => r.id === detailId) ?? null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div
         className={cn(
-          "sticky top-[6.75rem] z-10 -mx-4 px-4 py-2 bg-background border-b",
-          "transition-transform duration-200 ease-out will-change-transform",
-          chromeHidden ? "-translate-y-[calc(100%+7rem)] pointer-events-none" : "translate-y-0",
+          "sticky z-10 -mx-4 px-4 py-2",
+          "bg-background border-b border-border/60 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.12)]",
         )}
-        data-filter-hidden={chromeHidden ? "true" : "false"}
+        style={{ top: filterStickyTop }}
       >
         <div className="rounded-2xl border bg-card p-3 space-y-2.5 shadow-sm">
-        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {lang === "bn" ? "সার্চ ও ফিল্টার" : "Search & filters"}
           </p>
@@ -854,7 +864,6 @@ function TodayPanel({
             <option value="all">{lang === "bn" ? "সব পেমেন্ট" : "All payments"}</option>
             <option value="pending">{lang === "bn" ? "বাকি" : "Pending"}</option>
             <option value="paid">{lang === "bn" ? "পেইড" : "Paid"}</option>
-            <option value="waived">{lang === "bn" ? "মওকুফ" : "Waived"}</option>
           </select>
 
           <button
