@@ -4,14 +4,12 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeAuthProviderError } from "@/lib/phone-auth";
+import { isSyntheticAuthEmail } from "@/lib/auth-email";
 import { checkUsernameAvailable, signupWithEmailPassword } from "@/lib/signup-server";
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
 export const PASSWORD_MIN = 8;
-
-/** Synthetic domains used by the phone+PIN scheme — never real inboxes. */
-const SYNTHETIC_DOMAINS = ["@bloodlink.app", "@supabase.co"];
 
 export function isValidEmail(value: string): boolean {
   const v = value.trim();
@@ -40,10 +38,7 @@ export function isValidPassword(value: string): boolean {
  * offer "change PIN" instead of "change password".
  */
 export function isPhoneAuthUser(email: string | null | undefined): boolean {
-  const e = (email ?? "").toLowerCase();
-  if (!e) return false;
-  if (e.endsWith(".local")) return true;
-  return SYNTHETIC_DOMAINS.some((d) => e.endsWith(d));
+  return isSyntheticAuthEmail(email);
 }
 
 /** Slug a name or email into a username seed. Callers must still check availability. */

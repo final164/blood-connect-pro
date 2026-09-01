@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { APP_STYLESHEET } from "@/lib/app-stylesheet";
 import { isSafeNextPath } from "@/lib/auth-next";
+import { sanitizeOAuthUserMessage } from "@/lib/auth-email";
 import { closeOAuthBrowser } from "@/lib/google-auth";
 
 export const Route = createFileRoute("/auth_/callback")({
@@ -28,7 +29,9 @@ const TIMEOUT_MS = 8000;
 function AuthCallbackPage() {
   const navigate = useNavigate();
   const { next, error_description: errorDescription } = Route.useSearch();
-  const [failed, setFailed] = useState<string | null>(errorDescription ?? null);
+  const [failed, setFailed] = useState<string | null>(
+    errorDescription ? sanitizeOAuthUserMessage(errorDescription) : null,
+  );
   const settled = useRef(false);
 
   useEffect(() => {
@@ -44,7 +47,7 @@ function AuthCallbackPage() {
         window.location.replace(dest);
         return;
       }
-      setFailed(message ?? "Sign-in did not complete");
+      setFailed(sanitizeOAuthUserMessage(message ?? "Sign-in did not complete"));
     };
 
     // detectSessionInUrl is on by default, so supabase-js exchanges ?code= itself.

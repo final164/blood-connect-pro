@@ -25,7 +25,7 @@ export const ADMIN_LEGACY_EMAIL = "blood@gmail.com";
  * Supabase rejects `.local` / example / test domains (`email_address_invalid`).
  * Prefer real-looking FQDNs; login still tries legacy `.local` for old accounts.
  */
-const AUTH_EMAIL_DOMAINS = ["bloodlink.app", "supabase.co"] as const;
+const AUTH_EMAIL_DOMAINS = ["muktosheba.app", "bloodlink.app"] as const;
 const LEGACY_AUTH_SUFFIX = "@phone.bloodlink.local";
 
 export function normalizePhone(input: string): string {

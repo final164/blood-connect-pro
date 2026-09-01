@@ -7,3 +7,6 @@ ALTER TABLE public.app_settings
 UPDATE public.app_settings
 SET enable_guest = true
 WHERE id = 1;
+
+
+

@@ -3,6 +3,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { hasAdminRole } from "@/lib/api";
 import { peekStoredSession } from "@/lib/auth-peek";
+import { realAuthEmail } from "@/lib/auth-email";
 import { isAdminIdentity } from "@/lib/phone-auth";
 
 type Ctx = {
@@ -18,6 +19,20 @@ type Ctx = {
 };
 
 const AuthContext = createContext<Ctx | null>(null);
+
+function syncProfileEmail(user: User | null | undefined) {
+  const email = realAuthEmail(user?.email);
+  if (!user?.id || !email) return;
+  void supabase
+    .from("profiles")
+    .update({ email } as never)
+    .eq("id", user.id)
+    .then(({ error }) => {
+      if (error && !/column.*email|schema cache/i.test(error.message)) {
+        console.warn("syncProfileEmail", error.message);
+      }
+    });
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const initial = typeof window !== "undefined" ? peekStoredSession() : null;
@@ -43,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (s: Session | null) => {
       setSession(s);
       setLoading(false);
+      syncProfileEmail(s?.user);
       void checkAdmin(s?.user?.id, s?.user?.email);
     },
     [checkAdmin],
@@ -68,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setLoading(false);
       window.clearTimeout(failSafe);
+      syncProfileEmail(s?.user);
       void checkAdmin(s?.user?.id, s?.user?.email);
     });
 

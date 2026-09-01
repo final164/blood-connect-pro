@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { emailAuthErrorMessage } from "@/lib/email-auth";
+import { canUseGoogleIdentityServices } from "@/lib/google-auth";
+import { mountGoogleSignInButton, signInWithGoogleIdToken } from "@/lib/google-gsi";
 
 function GoogleMark() {
   return (
@@ -38,6 +40,52 @@ export function GoogleButton({
 }) {
   const { lang } = useI18n();
   const [busy, setBusy] = useState(false);
+  const useGsi = canUseGoogleIdentityServices();
+  const gsiHostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!useGsi || !gsiHostRef.current) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+
+    void mountGoogleSignInButton(gsiHostRef.current, async (credential) => {
+      setBusy(true);
+      try {
+        await signInWithGoogleIdToken(credential);
+      } catch (err) {
+        toast.error(emailAuthErrorMessage((err as Error).message, lang));
+        setBusy(false);
+      }
+    })
+      .then((dispose) => {
+        if (cancelled) dispose();
+        else cleanup = dispose;
+      })
+      .catch(() => {
+        /* fallback button handles OAuth */
+      });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [useGsi, lang]);
+
+  if (useGsi) {
+    return (
+      <div className="relative w-full min-h-[44px]">
+        <div
+          ref={gsiHostRef}
+          className={`w-full flex justify-center overflow-hidden rounded-2xl ${disabled || busy ? "pointer-events-none opacity-60" : ""}`}
+        />
+        {busy ? (
+          <div className="absolute inset-0 grid place-items-center rounded-2xl bg-background/70">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <button
@@ -48,10 +96,12 @@ export function GoogleButton({
         try {
           await onClick();
         } catch (err) {
-          toast.error(emailAuthErrorMessage((err as Error).message, lang));
+          const msg = (err as Error).message;
+          if (msg !== "USE_GSI_BUTTON") {
+            toast.error(emailAuthErrorMessage(msg, lang));
+          }
           setBusy(false);
         }
-        // On success the browser navigates away, so `busy` intentionally stays on.
       }}
       className="w-full rounded-2xl border bg-card py-3.5 text-sm font-semibold text-foreground disabled:opacity-60 flex items-center justify-center gap-2.5 hover:bg-muted transition"
     >

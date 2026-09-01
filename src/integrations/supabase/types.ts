@@ -625,6 +625,7 @@ export type Database = {
           date_of_birth: string | null
           district_id: string | null
           e2ee_public_key: string | null
+          email: string | null
           full_name: string | null
           gender: string | null
           id: string
@@ -653,6 +654,7 @@ export type Database = {
           date_of_birth?: string | null
           district_id?: string | null
           e2ee_public_key?: string | null
+          email?: string | null
           full_name?: string | null
           gender?: string | null
           id: string
@@ -681,6 +683,7 @@ export type Database = {
           date_of_birth?: string | null
           district_id?: string | null
           e2ee_public_key?: string | null
+          email?: string | null
           full_name?: string | null
           gender?: string | null
           id?: string

@@ -22,6 +22,7 @@ type ProfileRow = {
   id: string;
   full_name: string | null;
   phone: string | null;
+  email: string | null;
   blood_group: string | null;
   city: string | null;
   area: string | null;
@@ -60,6 +61,7 @@ export function UsersAdmin() {
   const [loading, setLoading] = useState(true);
 
   const [searchPhone, setSearchPhone] = useState("");
+  const [searchEmail, setSearchEmail] = useState("");
   const [filterRole, setFilterRole] = useState<string>("user");
   const [filterDistrict, setFilterDistrict] = useState<string>(ALL);
   const [filterUpazila, setFilterUpazila] = useState<string>(ALL);
@@ -74,21 +76,35 @@ export function UsersAdmin() {
       const withFlag = await supabase
         .from("profiles")
         .select(
-          "id, full_name, phone, blood_group, city, area, district_id, is_blocked, show_in_community, created_at",
+          "id, full_name, phone, email, blood_group, city, area, district_id, is_blocked, show_in_community, created_at",
         )
         .order("created_at", { ascending: false })
         .limit(1000);
       if (withFlag.error && /show_in_community|column/i.test(withFlag.error.message)) {
         const fallback = await supabase
           .from("profiles")
-          .select("id, full_name, phone, blood_group, city, area, district_id, is_blocked, created_at")
+          .select("id, full_name, phone, email, blood_group, city, area, district_id, is_blocked, created_at")
           .order("created_at", { ascending: false })
           .limit(1000);
-        if (fallback.error) throw fallback.error;
-        profiles = ((fallback.data ?? []) as Omit<ProfileRow, "show_in_community">[]).map((p) => ({
-          ...p,
-          show_in_community: true,
-        }));
+        if (fallback.error && /column.*email/i.test(fallback.error.message)) {
+          const noEmail = await supabase
+            .from("profiles")
+            .select("id, full_name, phone, blood_group, city, area, district_id, is_blocked, created_at")
+            .order("created_at", { ascending: false })
+            .limit(1000);
+          if (noEmail.error) throw noEmail.error;
+          profiles = ((noEmail.data ?? []) as Omit<ProfileRow, "show_in_community" | "email">[]).map((p) => ({
+            ...p,
+            email: null,
+            show_in_community: true,
+          }));
+        } else {
+          if (fallback.error) throw fallback.error;
+          profiles = ((fallback.data ?? []) as Omit<ProfileRow, "show_in_community">[]).map((p) => ({
+            ...p,
+            show_in_community: true,
+          }));
+        }
       } else {
         if (withFlag.error) throw withFlag.error;
         profiles = ((withFlag.data ?? []) as ProfileRow[]).map((p) => ({
@@ -222,23 +238,29 @@ export function UsersAdmin() {
   const upazilaChoices = upazilaOptions;
 
   const phoneSearchActive = can("users.filter_search") && searchPhone.replace(/\D/g, "").length >= 3;
+  const emailSearchActive =
+    can("users.filter_search") && searchEmail.trim().length >= 3;
+  const contactSearchActive = phoneSearchActive || emailSearchActive;
 
   const filtered = useMemo(() => {
     const q = searchPhone.replace(/\D/g, "");
+    const emailQ = searchEmail.trim().toLowerCase();
 
     return rows.filter((u) => {
       const phone = (creds[u.id]?.phone || u.phone || "").replace(/\D/g, "");
       const isAdmin = (roles[u.id] ?? []).includes("admin");
       const st = stats[u.id] ?? { posts: 0, received: 0, donated: 0 };
-      const district = u.district_id ? districtMap[u.district_id] : null;
       const upazila = u.area ?? "";
 
       if (phoneSearchActive && q) {
         return phone.includes(q);
       }
+      if (emailSearchActive && emailQ) {
+        return (u.email ?? "").toLowerCase().includes(emailQ);
+      }
 
-      // Geo scope from access control (unless phone search)
-      if (!isAllDistricts(usersGeoScope) || !isAllUpazilas(usersGeoScope)) {
+      // Geo scope from access control (unless contact search)
+      if (!contactSearchActive && (!isAllDistricts(usersGeoScope) || !isAllUpazilas(usersGeoScope))) {
         if (!districtAllowed(usersGeoScope, u.district_id)) return false;
         if (
           !isAllUpazilas(usersGeoScope) &&
@@ -288,7 +310,10 @@ export function UsersAdmin() {
     stats,
     districtMap,
     searchPhone,
+    searchEmail,
     phoneSearchActive,
+    emailSearchActive,
+    contactSearchActive,
     filterRole,
     filterDistrict,
     filterUpazila,
@@ -432,6 +457,21 @@ export function UsersAdmin() {
           {can("users.filter_search") && (
             <div>
               <label className="text-[10px] text-slate-500 block mb-1">
+                {lang === "bn" ? "ইমেইল / Gmail সার্চ" : "Search email / Gmail"}
+              </label>
+              <input
+                className={sel + " w-full"}
+                value={searchEmail}
+                onChange={(e) => setSearchEmail(e.target.value)}
+                placeholder="user@gmail.com"
+                type="search"
+                autoComplete="off"
+              />
+            </div>
+          )}
+          {can("users.filter_search") && (
+            <div>
+              <label className="text-[10px] text-slate-500 block mb-1">
                 {lang === "bn" ? "ফোন সার্চ" : "Search phone"}
               </label>
               <input
@@ -520,11 +560,11 @@ export function UsersAdmin() {
             />
           )}
         </div>
-        {phoneSearchActive && (
+        {(phoneSearchActive || emailSearchActive) && (
           <p className="text-[10px] text-amber-400/90 px-1">
             {lang === "bn"
-              ? "ফোন সার্চ সক্রিয় — মিলে যাওয়া ইউজারের জেলা/উপজেলাসহ সব তথ্য দেখানো হচ্ছে"
-              : "Phone search active — showing full details for matches"}
+              ? "সার্চ সক্রিয় — মিলে যাওয়া ইউজারের জেলা/উপজেলাসহ সব তথ্য দেখানো হচ্ছে"
+              : "Search active — showing full details for matches"}
           </p>
         )}
         <p className="text-[10px] text-slate-500 px-1">
@@ -570,6 +610,9 @@ export function UsersAdmin() {
                 >
                   <td className="p-3">
                     <p className="font-medium">{u.full_name ?? "—"}</p>
+                    {u.email ? (
+                      <p className="text-[11px] text-sky-300/90 mt-0.5 break-all">{u.email}</p>
+                    ) : null}
                     <p className="text-[11px] font-mono text-slate-400 mt-0.5">{phone}</p>
                     {canViewPin ? (
                       <button
