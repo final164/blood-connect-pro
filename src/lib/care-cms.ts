@@ -383,14 +383,17 @@ export async function fetchCareHubModules(audience?: string): Promise<CareHubMod
     .select("id, slug, label_bn, label_en, icon, href, audience, is_enabled, sort_order")
     .eq("is_enabled", true)
     .order("sort_order");
-  if (error || !data) {
+  if (error || data == null) {
     if (error && !missingTable(error)) console.warn(error.message);
-    return FALLBACK_HUB_MODULES.filter((m) => !audience || m.audience === audience || m.audience === "both");
+    return FALLBACK_HUB_MODULES.filter(
+      (m) =>
+        m.is_enabled !== false &&
+        (!audience || m.audience === audience || m.audience === "both"),
+    );
   }
-  const rows = (data as CareHubModule[]).filter(
+  return (data as CareHubModule[]).filter(
     (m) => !audience || m.audience === audience || m.audience === "both",
   );
-  return rows.length ? rows : FALLBACK_HUB_MODULES;
 }
 
 export async function fetchCareSpecialties(activeOnly = true): Promise<CareSpecialty[]> {

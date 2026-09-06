@@ -1,7 +1,7 @@
 import { type CSSProperties, type ReactNode, lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { LandingSettings } from "@/lib/landing-settings";
-import { DEFAULT_FEATURE_GRID, DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE } from "@/lib/landing-settings";
+import { DEFAULT_FEATURE_GRID, DEFAULT_HERO_SLIDESHOW, DEFAULT_HERO_YOUTUBE, visibleLandingFeatureTiles } from "@/lib/landing-settings";
 import {
   HeroBackgroundSlideshow,
   ensureHeroSlides,
@@ -144,7 +144,9 @@ const shell = "mx-auto w-full max-w-5xl md:max-w-6xl px-4 sm:px-5";
 export function LandingHero({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const h = settings.hero;
   const grid = h.feature_grid ?? DEFAULT_FEATURE_GRID;
-  const gridOn = grid.enabled !== false && grid.tiles.length > 0;
+  const activeTiles = visibleLandingFeatureTiles(grid);
+  const gridOn = grid.enabled !== false && activeTiles.length > 0;
+  const aiCardOn = grid.show_ai_health_card !== false;
   const slides = ensureHeroSlides(h.background_images, h.background_url);
   const overlay = h.slideshow?.overlay_opacity ?? DEFAULT_HERO_SLIDESHOW.overlay_opacity;
   const [showYoutube, setShowYoutube] = useState(false);
@@ -249,52 +251,58 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             <LandingFeatureGridGuest
               grid={grid}
               lang={lang}
-              onAiHealth={() => {
-                setAiReady(true);
-                setAiOpen(true);
-                requestAnimationFrame(() => {
-                  document.getElementById("landing-ai-health")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "nearest",
-                  });
-                });
-              }}
+              onAiHealth={
+                aiCardOn
+                  ? () => {
+                      setAiReady(true);
+                      setAiOpen(true);
+                      requestAnimationFrame(() => {
+                        document.getElementById("landing-ai-health")?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "nearest",
+                        });
+                      });
+                    }
+                  : undefined
+              }
             />
-            {aiReady ? (
-              <Suspense
-                fallback={
-                  <div
-                    className="landing-hero-card w-full px-4 py-3.5 h-[4.25rem]"
-                    id="landing-ai-health"
-                    aria-hidden
-                  />
-                }
-              >
-                <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
-              </Suspense>
-            ) : (
-              <button
-                type="button"
-                id="landing-ai-health"
-                onClick={() => {
-                  setAiReady(true);
-                  setAiOpen(true);
-                }}
-                className="landing-hero-card w-full px-4 py-3.5 flex items-center gap-3 text-left"
-              >
-                <span className="landing-hero-card-icon h-11 w-11 rounded-2xl grid place-items-center shrink-0">
-                  <span className="text-sm font-bold">AI</span>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="landing-hero-card-body text-sm font-semibold">
-                    {pick(lang, "AI স্বাস্থ্য — লক্ষণ লিখুন", "AI health — describe symptoms")}
-                  </p>
-                  <p className="landing-hero-card-muted text-[11px] truncate">
-                    {pick(lang, "সাজেশন ও বুকিং · চ্যাটে লগইন লাগবে", "Suggestions & booking · login to chat")}
-                  </p>
-                </div>
-              </button>
-            )}
+            {aiCardOn ? (
+              aiReady ? (
+                <Suspense
+                  fallback={
+                    <div
+                      className="landing-hero-card w-full px-4 py-3.5 h-[4.25rem]"
+                      id="landing-ai-health"
+                      aria-hidden
+                    />
+                  }
+                >
+                  <LandingAiHealthPanel lang={lang} open={aiOpen} onOpenChange={setAiOpen} />
+                </Suspense>
+              ) : (
+                <button
+                  type="button"
+                  id="landing-ai-health"
+                  onClick={() => {
+                    setAiReady(true);
+                    setAiOpen(true);
+                  }}
+                  className="landing-hero-card w-full px-4 py-3.5 flex items-center gap-3 text-left"
+                >
+                  <span className="landing-hero-card-icon h-11 w-11 rounded-2xl grid place-items-center shrink-0">
+                    <span className="text-sm font-bold">AI</span>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="landing-hero-card-body text-sm font-semibold">
+                      {pick(lang, "AI স্বাস্থ্য — লক্ষণ লিখুন", "AI health — describe symptoms")}
+                    </p>
+                    <p className="landing-hero-card-muted text-[11px] truncate">
+                      {pick(lang, "সাজেশন ও বুকিং · চ্যাটে লগইন লাগবে", "Suggestions & booking · login to chat")}
+                    </p>
+                  </div>
+                </button>
+              )
+            ) : null}
           </div>
         </div>
       </section>

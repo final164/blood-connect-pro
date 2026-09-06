@@ -17,7 +17,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { LandingFeatureGrid, LandingFeatureIcon, LandingFeatureTile } from "@/lib/landing-settings";
-import { authWithNext, hrefRequiresLogin } from "@/lib/auth-next";
+import { visibleLandingFeatureTiles } from "@/lib/landing-settings";
+import { hrefRequiresLogin } from "@/lib/auth-next";
 import { useAuth } from "@/lib/auth-context";
 
 const ICON_MAP: Record<LandingFeatureIcon, LucideIcon> = {
@@ -99,9 +100,12 @@ export function LandingFeatureGridPanel({
 }) {
   const [expanded, setExpanded] = useState(false);
   const go = useSmartLandingNav();
-  const primary = grid.tiles.filter((t) => !t.more);
-  const extra = grid.tiles.filter((t) => t.more);
+  const tiles = visibleLandingFeatureTiles(grid);
+  const primary = tiles.filter((t) => !t.more);
+  const extra = tiles.filter((t) => t.more);
   const visible = expanded ? [...primary, ...extra] : primary;
+
+  if (tiles.length === 0) return null;
 
   return (
     <div className="landing-feature-grid landing-hero-card w-full px-3 pt-3 pb-2 sm:px-4">

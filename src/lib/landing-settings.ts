@@ -147,10 +147,14 @@ export type LandingFeatureTile = {
   requires_auth: boolean;
   /** Shown only after “See more” expands */
   more?: boolean;
+  /** Admin on/off — default true when omitted */
+  enabled?: boolean;
 };
 
 export type LandingFeatureGrid = {
   enabled: boolean;
+  /** Hero AI health card below the feature grid */
+  show_ai_health_card: boolean;
   title_bn: string;
   title_en: string;
   see_more_bn: string;
@@ -308,13 +312,14 @@ export const DEFAULT_FEATURE_GRID_TILES: LandingFeatureTile[] = [
 
 export const DEFAULT_FEATURE_GRID: LandingFeatureGrid = {
   enabled: true,
+  show_ai_health_card: true,
   title_bn: "সেবাসমূহ",
   title_en: "Services",
   see_more_bn: "আরো দেখুন",
   see_more_en: "See more",
   see_less_bn: "কম দেখুন",
   see_less_en: "See less",
-  tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t })),
+  tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t, enabled: true })),
 };
 
 export const DEFAULT_HERO_SLIDESHOW: LandingHeroSlideshow = {
@@ -605,7 +610,10 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     slideshow: { ...DEFAULT_HERO_SLIDESHOW },
     background_video_url: "",
     youtube: { ...DEFAULT_HERO_YOUTUBE },
-    feature_grid: { ...DEFAULT_FEATURE_GRID, tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t })) },
+    feature_grid: {
+      ...DEFAULT_FEATURE_GRID,
+      tiles: DEFAULT_FEATURE_GRID_TILES.map((t) => ({ ...t, enabled: true })),
+    },
     overlay_cards: { ...DEFAULT_HERO_OVERLAY_STYLE },
   },
   islamic: {
@@ -926,22 +934,24 @@ function normalizeFeatureGrid(raw: unknown, d: LandingFeatureGrid): LandingFeatu
             t.requires_auth === true ||
             (t.requires_auth !== false && fb.requires_auth),
           more: t.more === true || fb.more === true,
+          enabled: t.enabled !== false,
         };
       })
       .filter((t) => t.label_bn || t.label_en);
     // Ensure newer product CTAs appear even when CMS saved an older tile list.
     const have = new Set(tiles.map((t) => t.id));
     for (const fb of d.tiles) {
-      if ((fb.id === "consultant" || fb.id === "join_doctor") && !have.has(fb.id)) {
-        tiles.push({ ...fb });
+      if ((fb.id === "consultant" || fb.id === "join_doctor" || fb.id === "ai_health") && !have.has(fb.id)) {
+        tiles.push({ ...fb, enabled: fb.enabled !== false });
         have.add(fb.id);
       }
     }
   } else {
-    tiles = d.tiles.map((t) => ({ ...t }));
+    tiles = d.tiles.map((t) => ({ ...t, enabled: t.enabled !== false }));
   }
   return {
     enabled: g.enabled !== false,
+    show_ai_health_card: g.show_ai_health_card !== false,
     title_bn: str(g.title_bn, d.title_bn),
     title_en: str(g.title_en, d.title_en),
     see_more_bn: str(g.see_more_bn, d.see_more_bn),
@@ -950,6 +960,11 @@ function normalizeFeatureGrid(raw: unknown, d: LandingFeatureGrid): LandingFeatu
     see_less_en: str(g.see_less_en, d.see_less_en),
     tiles,
   };
+}
+
+/** Active tiles for hero grid (respects per-tile enabled). */
+export function visibleLandingFeatureTiles(grid: LandingFeatureGrid): LandingFeatureTile[] {
+  return (grid.tiles ?? []).filter((t) => t.enabled !== false);
 }
 
 export function normalizeLandingSettings(raw: unknown): LandingSettings {

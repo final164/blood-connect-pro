@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAdminAccess } from "@/lib/admin-access-context";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  fetchCareHubModules,
+  FALLBACK_HUB_MODULES,
   fetchCarePolicies,
   fetchCareSpecialties,
   fetchCareVendorOnboarding,
@@ -552,18 +552,45 @@ function DoctorOnboardingPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn"
 
 function HubPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" }) {
   const [rows, setRows] = useState<CareHubModule[]>([]);
-  useEffect(() => {
-    void supabase
+  const [busy, setBusy] = useState(false);
+
+  async function reload() {
+    const { data } = await supabase
       .from("care_hub_modules")
       .select("id, slug, label_bn, label_en, icon, href, audience, is_enabled, sort_order")
-      .order("sort_order")
-      .then(({ data }) => setRows((data as CareHubModule[]) ?? []));
+      .order("sort_order");
+    setRows((data as CareHubModule[]) ?? []);
+  }
+
+  useEffect(() => {
+    void reload();
   }, []);
 
   async function saveRow(row: CareHubModule) {
-    const { error } = await supabase.from("care_hub_modules").upsert(row as never);
-    if (error) toast.error(error.message);
-    else toast.success(lang === "bn" ? "সেভ" : "Saved");
+    setBusy(true);
+    try {
+      const { error } = await supabase.from("care_hub_modules").upsert(row as never);
+      if (error) toast.error(error.message);
+      else toast.success(lang === "bn" ? "সেভ" : "Saved");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAll() {
+    setBusy(true);
+    try {
+      for (const row of rows) {
+        const { error } = await supabase.from("care_hub_modules").upsert(row as never);
+        if (error) throw new Error(error.message);
+      }
+      toast.success(lang === "bn" ? "সব মডিউল সেভ হয়েছে" : "All modules saved");
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function add() {
@@ -579,40 +606,217 @@ function HubPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" }) {
       sort_order: (rows.at(-1)?.sort_order ?? 0) + 10,
     } as never);
     if (error) toast.error(error.message);
-    else {
-      const next = await fetchCareHubModules();
-      void next;
-      const { data } = await supabase.from("care_hub_modules").select("id, slug, label_bn, label_en, icon, href, audience, is_enabled, sort_order").order("sort_order");
-      setRows((data as CareHubModule[]) ?? []);
+    else await reload();
+  }
+
+  async function seedDefaults() {
+    setBusy(true);
+    try {
+      const have = new Set(rows.map((r) => r.slug));
+      const missing = FALLBACK_HUB_MODULES.filter((m) => !have.has(m.slug));
+      if (!missing.length) {
+        toast.message(lang === "bn" ? "সব ডিফল্ট মডিউল আছে" : "All default modules already exist");
+        return;
+      }
+      for (const m of missing) {
+        const { error } = await supabase.from("care_hub_modules").insert({
+          slug: m.slug,
+          label_bn: m.label_bn,
+          label_en: m.label_en,
+          icon: m.icon,
+          href: m.href,
+          audience: m.audience,
+          is_enabled: m.is_enabled,
+          sort_order: m.sort_order,
+        } as never);
+        if (error) throw new Error(error.message);
+      }
+      toast.success(
+        lang === "bn" ? `${missing.length}টি মডিউল যোগ হয়েছে` : `Added ${missing.length} modules`,
+      );
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <div className="space-y-2">
-      {canEdit && (
-        <button type="button" onClick={() => void add()} className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-200">
-          <Plus className="h-3.5 w-3.5" /> {lang === "bn" ? "মডিউল" : "Module"}
-        </button>
+    <div className="space-y-3">
+      <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2.5 space-y-1">
+        <p className="text-xs font-semibold text-slate-200">
+          {lang === "bn" ? "Care সেবা দৃশ্যমানতা" : "Care service visibility"}
+        </p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          {lang === "bn"
+            ? "প্রতিটি মডিউল on/off করলে Care হাব এবং হোম ফিডের Care স্ট্রিপ দুটোতেই একসাথে লুকাবে/দেখাবে। ল্যান্ডিং হিরো টাইলস আলাদা — Settings → Landing → Hero।"
+            : "Toggling a module shows/hides it in both the Care hub and the home feed Care strip. Landing hero tiles are separate — Settings → Landing → Hero."}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {canEdit && (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void add()}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-200 disabled:opacity-50"
+            >
+              <Plus className="h-3.5 w-3.5" /> {lang === "bn" ? "মডিউল" : "Module"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void seedDefaults()}
+              className="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 disabled:opacity-50"
+            >
+              {lang === "bn" ? "ডিফল্ট সিড" : "Seed defaults"}
+            </button>
+            <button
+              type="button"
+              disabled={busy || !rows.length}
+              onClick={() => void saveAll()}
+              className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {lang === "bn" ? "সব সেভ" : "Save all"}
+            </button>
+          </>
+        )}
+        <span className="text-[10px] text-slate-500 ml-auto">
+          {rows.filter((r) => r.is_enabled).length}/{rows.length}{" "}
+          {lang === "bn" ? "চালু" : "on"}
+        </span>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="text-xs text-slate-500 py-6 text-center">
+          {lang === "bn"
+            ? "কোনো মডিউল নেই — ডিফল্ট সিড চাপুন অথবা নতুন যোগ করুন।"
+            : "No modules yet — seed defaults or add one."}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((r, idx) => (
+            <li
+              key={r.id}
+              className={`rounded-xl border p-3 space-y-2 ${
+                r.is_enabled ? "border-slate-800 bg-slate-900/40" : "border-slate-800/60 bg-slate-950/40 opacity-70"
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={r.is_enabled}
+                    disabled={!canEdit}
+                    onChange={(e) =>
+                      setRows((p) =>
+                        p.map((x, i) => (i === idx ? { ...x, is_enabled: e.target.checked } : x)),
+                      )
+                    }
+                  />
+                  {lang === "bn" ? (r.is_enabled ? "চালু" : "বন্ধ") : r.is_enabled ? "On" : "Off"}
+                </label>
+                <span className="text-[10px] font-mono text-slate-500">{r.slug}</span>
+                <select
+                  className={ainp + " w-auto max-w-[8rem]"}
+                  value={r.audience}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    setRows((p) =>
+                      p.map((x, i) =>
+                        i === idx
+                          ? { ...x, audience: e.target.value as CareHubModule["audience"] }
+                          : x,
+                      ),
+                    )
+                  }
+                >
+                  <option value="patient">patient</option>
+                  <option value="staff">staff</option>
+                  <option value="both">both</option>
+                </select>
+                <label className="inline-flex items-center gap-1 text-[10px] text-slate-400 ml-auto">
+                  {lang === "bn" ? "ক্রম" : "Order"}
+                  <input
+                    type="number"
+                    className={ainp + " w-16"}
+                    value={r.sort_order}
+                    disabled={!canEdit}
+                    onChange={(e) =>
+                      setRows((p) =>
+                        p.map((x, i) =>
+                          i === idx ? { ...x, sort_order: Number(e.target.value) || 0 } : x,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+                {canEdit && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveRow(rows[idx]!)}
+                    className="text-rose-400 disabled:opacity-50"
+                    title={lang === "bn" ? "সেভ" : "Save"}
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+                <input
+                  className={ainp}
+                  disabled={!canEdit}
+                  value={r.label_bn}
+                  placeholder="label_bn"
+                  onChange={(e) =>
+                    setRows((p) =>
+                      p.map((x, i) => (i === idx ? { ...x, label_bn: e.target.value } : x)),
+                    )
+                  }
+                />
+                <input
+                  className={ainp}
+                  disabled={!canEdit}
+                  value={r.label_en}
+                  placeholder="label_en"
+                  onChange={(e) =>
+                    setRows((p) =>
+                      p.map((x, i) => (i === idx ? { ...x, label_en: e.target.value } : x)),
+                    )
+                  }
+                />
+                <input
+                  className={ainp}
+                  disabled={!canEdit}
+                  value={r.href}
+                  placeholder="href"
+                  onChange={(e) =>
+                    setRows((p) =>
+                      p.map((x, i) => (i === idx ? { ...x, href: e.target.value } : x)),
+                    )
+                  }
+                />
+                <input
+                  className={ainp}
+                  disabled={!canEdit}
+                  value={r.icon}
+                  placeholder="icon"
+                  onChange={(e) =>
+                    setRows((p) =>
+                      p.map((x, i) => (i === idx ? { ...x, icon: e.target.value } : x)),
+                    )
+                  }
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
-      {rows.map((r, idx) => (
-        <div key={r.id} className="grid gap-1 sm:grid-cols-6 rounded-xl border border-slate-800 p-2">
-          <input className={ainp} value={r.slug} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, slug: e.target.value } : x)))} />
-          <input className={ainp} value={r.label_bn} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, label_bn: e.target.value } : x)))} />
-          <input className={ainp} value={r.label_en} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, label_en: e.target.value } : x)))} />
-          <input className={ainp} value={r.href} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, href: e.target.value } : x)))} />
-          <input className={ainp} value={r.icon} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, icon: e.target.value } : x)))} />
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] text-slate-300">
-              <input type="checkbox" checked={r.is_enabled} onChange={(e) => setRows((p) => p.map((x, i) => (i === idx ? { ...x, is_enabled: e.target.checked } : x)))} /> on
-            </label>
-            {canEdit && (
-              <button type="button" onClick={() => void saveRow(rows[idx]!)} className="text-rose-400">
-                <Save className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

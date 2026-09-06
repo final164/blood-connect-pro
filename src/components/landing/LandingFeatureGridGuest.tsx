@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { LandingFeatureGrid, LandingFeatureIcon, LandingFeatureTile } from "@/lib/landing-settings";
+import { visibleLandingFeatureTiles } from "@/lib/landing-settings";
 import { hrefRequiresLogin } from "@/lib/auth-next";
 import { enterAppOrAuth } from "@/lib/landing-enter";
 
@@ -54,9 +55,12 @@ export function LandingFeatureGridGuest({
   onAiHealth?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const primary = grid.tiles.filter((t) => !t.more);
-  const extra = grid.tiles.filter((t) => t.more);
+  const tiles = visibleLandingFeatureTiles(grid);
+  const primary = tiles.filter((t) => !t.more);
+  const extra = tiles.filter((t) => t.more);
   const visible = expanded ? [...primary, ...extra] : primary;
+
+  if (tiles.length === 0) return null;
 
   function go(tile: LandingFeatureTile) {
     if (tile.id === "ai_health" && onAiHealth) {

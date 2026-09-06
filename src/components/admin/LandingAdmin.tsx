@@ -523,11 +523,104 @@ export function LandingAdmin() {
                 </Field>
               ))}
             </div>
-            <p className="text-[10px] text-slate-500">
-              {lang === "bn"
-                ? "টাইল রুট/আইকন কোড-ডিফল্ট; গ্রিড চালু থাকলে প্রথম স্ক্রিনে দেখাবে।"
-                : "Tile routes/icons are code defaults; when enabled, grid leads the first viewport."}
-            </p>
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2.5 text-[11px] text-slate-300">
+              <span>
+                <span className="block font-medium text-slate-200">
+                  {lang === "bn" ? "AI স্বাস্থ্য হিরো কার্ড" : "AI health hero card"}
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {lang === "bn"
+                    ? "গ্রিডের নিচে AI স্বাস্থ্য কার্ড দেখাবে"
+                    : "Shows the AI health card under the feature grid"}
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={cfg.hero.feature_grid?.show_ai_health_card !== false}
+                onChange={(e) =>
+                  setCfg((p) => ({
+                    ...p,
+                    hero: {
+                      ...p.hero,
+                      feature_grid: {
+                        ...(p.hero.feature_grid ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid),
+                        show_ai_health_card: e.target.checked,
+                      },
+                    },
+                  }))
+                }
+              />
+            </label>
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-slate-300">
+                {lang === "bn" ? "হিরো টাইলস (প্রতিটি on/off)" : "Hero tiles (per-item on/off)"}
+              </p>
+              <p className="text-[10px] text-slate-500">
+                {lang === "bn"
+                  ? "বন্ধ করলে ল্যান্ডিং হিরো থেকে সেই আইটেম লুকবে। Care হাব/ফিড আলাদাভাবে Admin → Care → হাব মডিউল থেকে নিয়ন্ত্রণ করুন।"
+                  : "Off hides the item from the landing hero. Care hub/feed are controlled separately under Admin → Care → Hub modules."}
+              </p>
+              <ul className="space-y-1.5 max-h-80 overflow-y-auto pr-0.5">
+                {(cfg.hero.feature_grid?.tiles ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid.tiles).map(
+                  (tile, idx) => (
+                    <li
+                      key={tile.id}
+                      className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/80 px-2.5 py-2"
+                    >
+                      <label className="flex items-center gap-2 text-[11px] text-slate-200 shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={tile.enabled !== false}
+                          onChange={(e) =>
+                            setCfg((p) => {
+                              const grid =
+                                p.hero.feature_grid ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid;
+                              const tiles = grid.tiles.map((t, i) =>
+                                i === idx ? { ...t, enabled: e.target.checked } : t,
+                              );
+                              return {
+                                ...p,
+                                hero: {
+                                  ...p.hero,
+                                  feature_grid: { ...grid, tiles },
+                                },
+                              };
+                            })
+                          }
+                        />
+                        <span className="font-semibold min-w-[6.5rem]">
+                          {lang === "bn" ? tile.label_bn : tile.label_en}
+                        </span>
+                      </label>
+                      <span className="text-[10px] font-mono text-slate-500 truncate">{tile.id}</span>
+                      <label className="ml-auto flex items-center gap-1.5 text-[10px] text-slate-400">
+                        <input
+                          type="checkbox"
+                          checked={!!tile.more}
+                          onChange={(e) =>
+                            setCfg((p) => {
+                              const grid =
+                                p.hero.feature_grid ?? DEFAULT_LANDING_SETTINGS.hero.feature_grid;
+                              const tiles = grid.tiles.map((t, i) =>
+                                i === idx ? { ...t, more: e.target.checked } : t,
+                              );
+                              return {
+                                ...p,
+                                hero: {
+                                  ...p.hero,
+                                  feature_grid: { ...grid, tiles },
+                                },
+                              };
+                            })
+                          }
+                        />
+                        {lang === "bn" ? "আরো দেখুনে" : "In See more"}
+                      </label>
+                    </li>
+                  ),
+                )}
+              </ul>
+            </div>
           </div>
 
           <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 space-y-3">
