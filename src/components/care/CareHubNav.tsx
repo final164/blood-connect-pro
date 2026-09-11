@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { fetchCareHubModules, fetchCarePolicies, type CareHubModule } from "@/lib/care-cms";
 import { fetchMyCareMemberships } from "@/lib/care-access";
+import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, typeof Stethoscope> = {
   Stethoscope,
@@ -34,19 +35,70 @@ const ICONS: Record<string, typeof Stethoscope> = {
   HousePlus,
 };
 
-const PATIENT_ACCENTS: Record<string, string> = {
-  dashboard: "border-sky-200 text-sky-800 hover:bg-sky-50/90 hover:border-sky-400",
-  doctors: "border-teal-200 text-teal-800 hover:bg-teal-50/90 hover:border-teal-400",
-  ai_tests: "border-violet-200 text-violet-800 hover:bg-violet-50/90 hover:border-violet-400",
-  tests: "border-cyan-200 text-cyan-800 hover:bg-cyan-50/90 hover:border-cyan-400",
-  home_doctor: "border-teal-200 text-teal-900 hover:bg-teal-50/90 hover:border-teal-400",
-  home_diagnostic: "border-emerald-200 text-emerald-900 hover:bg-emerald-50/90 hover:border-emerald-400",
-  operations: "border-rose-200 text-rose-800 hover:bg-rose-50/90 hover:border-rose-400",
-  bookings: "border-amber-200 text-amber-900 hover:bg-amber-50/90 hover:border-amber-400",
-  ambulance: "border-orange-200 text-orange-800 hover:bg-orange-50/90 hover:border-orange-400",
-  video: "border-blue-200 text-blue-800 hover:bg-blue-50/90 hover:border-blue-400",
-  desk: "border-slate-200 text-slate-800 hover:bg-slate-50/90 hover:border-slate-400",
-  lab: "border-indigo-200 text-indigo-800 hover:bg-indigo-50/90 hover:border-indigo-400",
+const PATIENT_ACCENTS: Record<
+  string,
+  { border: string; text: string; iconBg: string }
+> = {
+  dashboard: {
+    border: "border-sky-200",
+    text: "text-sky-800",
+    iconBg: "bg-sky-50 text-sky-700 border-sky-200",
+  },
+  doctors: {
+    border: "border-teal-200",
+    text: "text-teal-800",
+    iconBg: "bg-teal-50 text-teal-700 border-teal-200",
+  },
+  ai_tests: {
+    border: "border-violet-200",
+    text: "text-violet-800",
+    iconBg: "bg-violet-50 text-violet-700 border-violet-200",
+  },
+  tests: {
+    border: "border-cyan-200",
+    text: "text-cyan-800",
+    iconBg: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  },
+  home_doctor: {
+    border: "border-teal-200",
+    text: "text-teal-900",
+    iconBg: "bg-teal-50 text-teal-800 border-teal-200",
+  },
+  home_diagnostic: {
+    border: "border-emerald-200",
+    text: "text-emerald-900",
+    iconBg: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  },
+  operations: {
+    border: "border-rose-200",
+    text: "text-rose-800",
+    iconBg: "bg-rose-50 text-rose-700 border-rose-200",
+  },
+  bookings: {
+    border: "border-amber-200",
+    text: "text-amber-900",
+    iconBg: "bg-amber-50 text-amber-800 border-amber-200",
+  },
+  ambulance: {
+    border: "border-orange-200",
+    text: "text-orange-800",
+    iconBg: "bg-orange-50 text-orange-700 border-orange-200",
+  },
+  video: {
+    border: "border-blue-200",
+    text: "text-blue-800",
+    iconBg: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  desk: {
+    border: "border-slate-200",
+    text: "text-slate-800",
+    iconBg: "bg-slate-50 text-slate-700 border-slate-200",
+  },
+  lab: {
+    border: "border-indigo-200",
+    text: "text-indigo-800",
+    iconBg: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
 };
 
 function moduleHref(m: CareHubModule): string {
@@ -103,23 +155,6 @@ export function CareHubNav({
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [modules, hasStaff, includeDashboard, homeDoctorOn, homeDiagOn]);
 
-  const itemClass = (slug: string, active: boolean) => {
-    const accent = PATIENT_ACCENTS[slug] ?? PATIENT_ACCENTS.dashboard;
-    const base =
-      "group inline-flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border bg-background/80 px-2 py-1 text-center shadow-sm transition-all duration-150 min-w-[3.5rem]";
-    if (active) {
-      return `${base} border-primary bg-primary/5 text-primary ring-1 ring-primary/25 shadow-sm`;
-    }
-    return `${base} ${accent}`;
-  };
-
-  const iconWrap = (active: boolean) => {
-    const accent = active
-      ? "bg-primary/10 text-primary border-primary/30"
-      : "bg-muted/40 text-foreground border-border/80";
-    return `grid h-7 w-7 place-items-center rounded-md border ${accent} transition-colors group-hover:scale-[1.02]`;
-  };
-
   function renderItem(m: CareHubModule) {
     const Icon = ICONS[m.icon] ?? LayoutGrid;
     const label = lang === "bn" ? m.label_bn : m.label_en;
@@ -127,13 +162,24 @@ export function CareHubNav({
     const isInternal = href.startsWith("/care?tab=");
     const tab = isInternal ? href.split("tab=")[1] : m.slug;
     const active = activeTab === tab;
+    const accent = PATIENT_ACCENTS[m.slug] ?? PATIENT_ACCENTS.dashboard;
+
+    const classNameItem = cn(
+      "group inline-flex shrink-0 items-center gap-1.5 rounded-xl border bg-background px-2.5 py-2 text-left shadow-sm transition",
+      active ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/20" : cn(accent.border, accent.text),
+    );
 
     const inner = (
       <>
-        <span className={iconWrap(active)}>
+        <span
+          className={cn(
+            "grid h-6 w-6 place-items-center rounded-md border",
+            active ? "bg-primary/10 text-primary border-primary/30" : accent.iconBg,
+          )}
+        >
           <Icon className="h-3.5 w-3.5" strokeWidth={2} />
         </span>
-        <span className="text-[9px] font-semibold leading-none max-w-[3.5rem] truncate">{label}</span>
+        <span className="text-xs font-bold leading-none whitespace-nowrap">{label}</span>
       </>
     );
 
@@ -143,7 +189,7 @@ export function CareHubNav({
           key={m.id}
           type="button"
           onClick={() => void navigate({ to: "/care", search: { tab } })}
-          className={itemClass(m.slug, active)}
+          className={classNameItem}
         >
           {inner}
         </button>
@@ -151,7 +197,7 @@ export function CareHubNav({
     }
 
     return (
-      <Link key={m.id} to={href} className={itemClass(m.slug, active)}>
+      <Link key={m.id} to={href} className={classNameItem}>
         {inner}
       </Link>
     );
@@ -160,20 +206,39 @@ export function CareHubNav({
   if (visible.length === 0) return null;
 
   if (variant === "grid") {
-    return <div className={`grid grid-cols-3 sm:grid-cols-4 gap-1.5 ${className}`}>{visible.map(renderItem)}</div>;
+    return <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${className}`}>{visible.map(renderItem)}</div>;
   }
 
   return (
     <div className={className}>
-      <div className="flex items-center justify-between gap-2 mb-1 px-0.5">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          {lang === "bn" ? "কেয়ার সেবা" : "Care services"}
-        </p>
-        <Link to="/care" search={{ tab: "dashboard" }} className="text-[9px] font-semibold text-primary hover:underline">
-          {lang === "bn" ? "সব দেখুন" : "See all"}
+      <div className="flex items-center gap-2 mb-2.5 px-0.5">
+        <button
+          type="button"
+          onClick={() => void navigate({ to: "/care", search: { tab: "dashboard" } })}
+          className="h-8 w-8 shrink-0 rounded-xl bg-primary/10 text-primary grid place-items-center"
+          title={lang === "bn" ? "কেয়ার হাব" : "Care hub"}
+        >
+          <LayoutGrid className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => void navigate({ to: "/care", search: { tab: "dashboard" } })}
+          className="min-w-0 flex-1 text-left"
+        >
+          <p className="text-sm font-extrabold tracking-tight truncate">
+            {lang === "bn" ? "কেয়ার হাব" : "Care hub"}
+          </p>
+        </button>
+        <Link
+          to="/care/doctor/register"
+          className="shrink-0 rounded-full bg-rose-50 text-rose-800 px-2.5 py-1 text-[10px] font-extrabold hover:bg-rose-100"
+        >
+          {lang === "bn" ? "ডাক্তার জয়েন" : "Join as doctor"}
         </Link>
       </div>
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar -mx-0.5 px-0.5">{visible.map(renderItem)}</div>
+      <div className="flex gap-2 overflow-x-auto pb-0.5 no-scrollbar -mx-0.5 px-0.5">
+        {visible.map(renderItem)}
+      </div>
     </div>
   );
 }

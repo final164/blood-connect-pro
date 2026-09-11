@@ -36,6 +36,8 @@ ios/DerivedData/
 google-services.json
 GoogleService-Info.plist
 dist-mobile/
+# Flutter native app — keep local only (not on GitHub)
+mobile/
 public/downloads/*.apk
 !public/downloads/.gitkeep
 !public/downloads/README.md

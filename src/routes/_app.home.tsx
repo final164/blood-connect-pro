@@ -61,6 +61,7 @@ function FeedPage() {
   const [filter, setFilter] = useState<string>("ALL");
   const [showComposer, setShowComposer] = useState(false);
   const [showDistrictSearch, setShowDistrictSearch] = useState(false);
+  const [districtSeeded, setDistrictSeeded] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [carouselSettings, setCarouselSettings] = useState<FeedCarouselSettings>(
     DEFAULT_FEED_CAROUSEL_SETTINGS,
@@ -169,6 +170,33 @@ function FeedPage() {
       setBannerSlides(slides);
     });
   }, []);
+
+  useEffect(() => {
+    if (districtSeeded || !user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("district_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      const districtId = profile?.district_id ? String(profile.district_id) : "";
+      if (!districtId || cancelled) {
+        if (!cancelled) setDistrictSeeded(true);
+        return;
+      }
+      const { data: d } = await supabase
+        .from("districts")
+        .select("id,name_bn,name_en,slug,is_active,sort_order")
+        .eq("id", districtId)
+        .maybeSingle();
+      if (!cancelled && d) setDistrict(d as District);
+      if (!cancelled) setDistrictSeeded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, districtSeeded]);
 
   function closeComposer() {
     setShowComposer(false);
@@ -361,24 +389,54 @@ function FeedPage() {
               </div>
 
               <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowDistrictSearch((v) => !v)}
-                  title={lang === "bn" ? "জেলা ফিল্টার" : "Filter by district"}
-                  className={`relative h-10 w-10 rounded-xl grid place-items-center transition ${
-                    showDistrictSearch || district
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Search className="h-5 w-5" />
-                  {district && (
-                    <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-                  )}
-                </button>
                 <ProfileHeaderButton size="lg" />
                 <AlertsHeaderButton size="lg" className="ml-0.5" />
               </div>
+            </div>
+
+            <div className="px-3 sm:px-4 pb-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDistrictSearch((v) => !v)}
+                title={lang === "bn" ? "জেলা ফিল্টার" : "Filter by district"}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                  showDistrictSearch || district
+                    ? "bg-primary/5 border-primary/25 text-primary"
+                    : "bg-card border-border text-muted-foreground hover:bg-muted/60"
+                }`}
+              >
+                <Search className="h-3 w-3" />
+                {district
+                  ? lang === "bn"
+                    ? district.name_bn
+                    : district.name_en
+                  : lang === "bn"
+                    ? "জেলা ফিল্টার"
+                    : "District filter"}
+                {district && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDistrict(null);
+                      setShowDistrictSearch(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDistrict(null);
+                        setShowDistrictSearch(false);
+                      }
+                    }}
+                    className="ml-0.5 rounded-full p-0.5 hover:bg-primary/15"
+                    aria-label={lang === "bn" ? "ফিল্টার সরান" : "Clear filter"}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
+              </button>
             </div>
 
             {showDistrictSearch && (
@@ -400,38 +458,6 @@ function FeedPage() {
                   title={t("cancel")}
                 >
                   <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
-            {district && !showDistrictSearch && (
-              <div className="px-3 sm:px-4 pb-2 flex">
-                <button
-                  type="button"
-                  onClick={() => setShowDistrictSearch(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full border bg-primary/5 border-primary/20 text-primary px-2.5 py-1 text-[11px] font-medium"
-                >
-                  <Search className="h-3 w-3" />
-                  {lang === "bn" ? district.name_bn : district.name_en}
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDistrict(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setDistrict(null);
-                      }
-                    }}
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-primary/15"
-                    aria-label={lang === "bn" ? "ফিল্টার সরান" : "Clear filter"}
-                  >
-                    <X className="h-3 w-3" />
-                  </span>
                 </button>
               </div>
             )}

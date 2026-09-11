@@ -14,7 +14,7 @@ export type MessagingSettings = {
   /** Community bulk / donor SMS body. Placeholders: {{blood_group}} {{patient_name}} {{hospital}} {{upazila}} {{district}} {{bags}} {{urgency}} {{notes}} {{reason}} {{link}} */
   community_sms_bn: string;
   community_sms_en: string;
-  /** Feed share text (RequestCard). Same placeholders + {{location}} */
+  /** Feed share text (RequestCard). Placeholders: {{blood_group}} {{patient_name}} {{hospital}} {{upazila}} {{district}} {{location}} {{bags}} {{urgency}} {{reason}} {{contact}} {{whatsapp}} {{needed_date}} {{needed_time}} {{notes}} {{link}} */
   share_sms_bn: string;
   share_sms_en: string;
   post_icons: PostIconSettings;
@@ -90,8 +90,10 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
     "{{blood_group}} রক্ত দরকার — {{patient_name}}\nহাসপাতাল: {{hospital}}\nস্থান: {{upazila}}, {{district}}\nব্যাগ: {{bags}}\nকারণ: {{reason}}\n{{notes}}\n{{link}}",
   community_sms_en:
     "{{blood_group}} blood needed — {{patient_name}}\nHospital: {{hospital}}\nPlace: {{upazila}}, {{district}}\nBags: {{bags}}\nReason: {{reason}}\n{{notes}}\n{{link}}",
-  share_sms_bn: "{{blood_group}} রক্ত দরকার — {{patient_name}}, {{location}}\n{{link}}",
-  share_sms_en: "{{blood_group}} blood needed — {{patient_name}}, {{location}}\n{{link}}",
+  share_sms_bn:
+    "রক্ত দিয়ে সাহায্য করুন, স্রষ্টা সন্তুষ্টি অর্জন করুন।\n🔴 রোগীর সমস্যাঃ {{reason}}\n🔴 রোগীর নামঃ {{patient_name}}\n🔴 রক্তের গ্রুপঃ {{blood_group}}\n🔴 প্রয়োজনীয় রক্তের পরিমাণঃ {{bags}} ব্যাগ\n🕒 রক্তদানের সময়ঃ {{needed_time}}\n📅 রক্তদানের তারিখঃ {{needed_date}}\n🏥 রক্তদানের স্থানঃ {{hospital}}\n📞 যোগাযোগ নম্বরঃ {{contact}}\n\n{{notes}}\n{{link}}",
+  share_sms_en:
+    "Please help with blood donation.\n🔴 Patient problem: {{reason}}\n🔴 Patient name: {{patient_name}}\n🔴 Blood group: {{blood_group}}\n🔴 Bags needed: {{bags}}\n🕒 Needed by (time): {{needed_time}}\n📅 Needed by (date): {{needed_date}}\n🏥 Location: {{hospital}}\n📞 Contact: {{contact}}\n\n{{notes}}\n{{link}}",
   post_icons: { ...DEFAULT_POST_ICONS },
   show_community_send_sms: true,
   show_community_save_request: true,
@@ -126,17 +128,70 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   feed_reason_label_en: "Problem:",
 };
 
+/** Older one-line share defaults — upgraded on read to the professional template. */
+const LEGACY_SHARE_SMS_BN = "{{blood_group}} রক্ত দরকার — {{patient_name}}, {{location}}\n{{link}}";
+const LEGACY_SHARE_SMS_EN = "{{blood_group}} blood needed — {{patient_name}}, {{location}}\n{{link}}";
+
 export type SmsTemplateVars = Record<string, string | number | null | undefined>;
 
+function isBlankVar(v: string | number | null | undefined): boolean {
+  return v == null || String(v).trim() === "";
+}
+
+/**
+ * Fill `{{placeholders}}`. Any line that still has an empty placeholder is omitted
+ * so share cards stay clean when optional fields (reason, date, notes…) are missing.
+ */
 export function applySmsTemplate(template: string, vars: SmsTemplateVars): string {
-  return template
-    .replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+  const lines = template.replace(/\r\n/g, "\n").split("\n");
+  const out: string[] = [];
+  for (const line of lines) {
+    const keys = [...line.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]);
+    if (keys.length > 0 && keys.some((k) => isBlankVar(vars[k]))) {
+      continue;
+    }
+    const filled = line.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
       const v = vars[key];
-      if (v == null || v === "") return "";
+      if (isBlankVar(v)) return "";
       return String(v);
-    })
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    });
+    if (filled.trim() === "" && keys.length > 0) continue;
+    out.push(filled);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function resolveShareSmsTemplate(
+  raw: unknown,
+  legacy: string,
+  next: string,
+): string {
+  if (typeof raw !== "string" || !raw.trim()) return next;
+  const t = raw.trim();
+  if (t === legacy.trim()) return next;
+  return raw;
+}
+
+export function formatShareNeededDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+export function formatShareNeededTime(
+  iso: string | null | undefined,
+  lang: "bn" | "en",
+): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(lang === "bn" ? "bn-BD" : "en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function normalizeIcons(raw: unknown): PostIconSettings {
@@ -164,14 +219,16 @@ export function normalizeMessagingSettings(raw: unknown): MessagingSettings {
       typeof r.community_sms_en === "string" && r.community_sms_en.trim()
         ? r.community_sms_en
         : DEFAULT_MESSAGING_SETTINGS.community_sms_en,
-    share_sms_bn:
-      typeof r.share_sms_bn === "string" && r.share_sms_bn.trim()
-        ? r.share_sms_bn
-        : DEFAULT_MESSAGING_SETTINGS.share_sms_bn,
-    share_sms_en:
-      typeof r.share_sms_en === "string" && r.share_sms_en.trim()
-        ? r.share_sms_en
-        : DEFAULT_MESSAGING_SETTINGS.share_sms_en,
+    share_sms_bn: resolveShareSmsTemplate(
+      r.share_sms_bn,
+      LEGACY_SHARE_SMS_BN,
+      DEFAULT_MESSAGING_SETTINGS.share_sms_bn,
+    ),
+    share_sms_en: resolveShareSmsTemplate(
+      r.share_sms_en,
+      LEGACY_SHARE_SMS_EN,
+      DEFAULT_MESSAGING_SETTINGS.share_sms_en,
+    ),
     post_icons: normalizeIcons(r.post_icons),
     show_community_send_sms:
       typeof r.show_community_send_sms === "boolean"

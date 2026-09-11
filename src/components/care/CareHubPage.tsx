@@ -65,7 +65,7 @@ export function CareHubPage({
   const isGuest = !session || isAnonymous;
 
   useEffect(() => {
-    if (initialTab) setTab(initialTab);
+    setTab(initialTab || "dashboard");
   }, [initialTab]);
 
   return (

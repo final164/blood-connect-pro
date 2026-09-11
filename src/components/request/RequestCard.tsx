@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { timeAgo } from "@/lib/format";
 import { whatsappHref } from "@/lib/request-form-options";
 import { donationLabel } from "@/lib/donation-flow-settings";
-import { applySmsTemplate } from "@/lib/messaging-settings";
+import { applySmsTemplate, formatShareNeededDate, formatShareNeededTime } from "@/lib/messaging-settings";
 import { extractPostNotes } from "@/lib/post-text-styles";
 import { useUrgencyAnimationSettings } from "@/hooks/useUrgencyAnimationSettings";
 import { useFeedCardChrome } from "@/hooks/useFeedCardChrome";
@@ -207,6 +207,10 @@ function RequestCardInner({
       bags: r.bags_needed,
       urgency: r.urgency,
       contact: phone,
+      whatsapp: r.whatsapp_phone?.trim() || phone,
+      reason: r.need_reason_label?.trim() || "",
+      needed_date: formatShareNeededDate(r.needed_by),
+      needed_time: formatShareNeededTime(r.needed_by, lang),
       notes: extractPostNotes(r.notes).text,
       link: url,
     });

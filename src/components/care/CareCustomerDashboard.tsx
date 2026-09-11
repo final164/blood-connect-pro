@@ -26,6 +26,7 @@ import {
 } from "@/components/care/CareLabProgress";
 import { CareLabReportChip, hasLabReport } from "@/components/care/CareLabReportBlock";
 import { CareOrgChatButton } from "@/components/care/CareOrgChatButton";
+import { CareServicesGrid } from "@/components/care/CareServicesMenu";
 import { cn } from "@/lib/utils";
 
 function groupLabBookings(labs: Awaited<ReturnType<typeof fetchMyLabBookings>>) {
@@ -158,7 +159,7 @@ export function CareCustomerDashboard({
             {lang === "bn" ? "লগইন করে দেখুন" : "Log in to view"}
           </Link>
         </div>
-        <QuickLinks lang={lang} />
+        <CareServicesGrid />
       </div>
     );
   }
@@ -237,7 +238,7 @@ export function CareCustomerDashboard({
         />
       </div>
 
-      <QuickLinks lang={lang} />
+      <CareServicesGrid />
 
       {empty ? (
         <p className="text-sm text-muted-foreground text-center py-8">
@@ -592,50 +593,6 @@ function SectionHead({
         {title}
       </h2>
       <span className="text-[10px] font-bold tabular-nums text-muted-foreground">{count}</span>
-    </div>
-  );
-}
-
-function QuickLinks({ lang }: { lang: "bn" | "en" }) {
-  const links = [
-    {
-      to: "/care" as const,
-      search: { tab: "doctors" },
-      icon: Stethoscope,
-      label: lang === "bn" ? "ডাক্তার" : "Doctors",
-    },
-    {
-      to: "/care/home-doctor" as const,
-      search: undefined,
-      icon: Home,
-      label: lang === "bn" ? "হোম" : "Home",
-    },
-    {
-      to: "/care/home-diagnostic" as const,
-      search: undefined,
-      icon: FlaskConical,
-      label: lang === "bn" ? "হোম টেস্ট" : "Home lab",
-    },
-    {
-      to: "/ambulance" as const,
-      search: undefined,
-      icon: Ambulance,
-      label: lang === "bn" ? "অ্যাম্বুলেন্স" : "Ambulance",
-    },
-  ];
-  return (
-    <div className="grid grid-cols-4 gap-2">
-      {links.map((l) => (
-        <Link
-          key={l.label}
-          to={l.to}
-          search={l.search as never}
-          className="rounded-xl border bg-card px-2 py-2.5 text-center hover:bg-muted/40"
-        >
-          <l.icon className="h-4 w-4 mx-auto text-primary" />
-          <p className="text-[10px] font-semibold mt-1 truncate">{l.label}</p>
-        </Link>
-      ))}
     </div>
   );
 }

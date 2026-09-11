@@ -376,17 +376,21 @@ export function MessagingSettingsAdmin() {
           {lang === "bn" ? "পোস্ট শেয়ার / SMS টেমপ্লেট" : "Post share / SMS template"}
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">
-          {"{{blood_group}} {{patient_name}} {{location}} {{hospital}} {{link}} …"}
+          {"{{blood_group}} {{patient_name}} {{reason}} {{bags}} {{hospital}} {{contact}} {{whatsapp}} {{needed_date}} {{needed_time}} {{notes}} {{link}} {{location}} …"}
+          <br />
+          {lang === "bn"
+            ? "খালি ফিল্ডের লাইন শেয়ার থেকে বাদ যাবে। নোট আলাদা অনুচ্ছেদে থাকবে।"
+            : "Lines with empty fields are omitted. Notes appear as their own paragraph."}
         </p>
         <label className="block text-[10px] text-slate-400 mb-1">Bangla</label>
         <textarea
-          className={`${ainp} min-h-[80px] font-mono text-xs`}
+          className={`${ainp} min-h-[160px] font-mono text-xs`}
           value={s.share_sms_bn}
           onChange={(e) => setS({ ...s, share_sms_bn: e.target.value })}
         />
         <label className="block text-[10px] text-slate-400 mb-1">English</label>
         <textarea
-          className={`${ainp} min-h-[80px] font-mono text-xs`}
+          className={`${ainp} min-h-[160px] font-mono text-xs`}
           value={s.share_sms_en}
           onChange={(e) => setS({ ...s, share_sms_en: e.target.value })}
         />
