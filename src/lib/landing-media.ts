@@ -3,11 +3,20 @@
  * Remote URLs are still downsized when admins paste Unsplash links.
  */
 
-/** Never use the heavy PWA icon as a nav/logo <img> (steals LCP bandwidth). */
+/** Default brand mark shipped with the app (Admin can replace via Landing → Logo). */
+export const DEFAULT_BRAND_LOGO = "/spandon-logo.jpg";
+
+/** Old PWA / droplet placeholders — never show these as the product logo. */
+export function isLegacyBrandLogo(url: string | null | undefined): boolean {
+  const raw = (url ?? "").trim();
+  if (!raw) return true;
+  return /\/icon(-192|-512)?\.png(\?|$)/i.test(raw) || /\/icon\.svg(\?|$)/i.test(raw);
+}
+
+/** Resolve brand logo: admin URL wins; legacy / empty → Spandon default. */
 export function sanitizeLogoUrl(url: string | null | undefined): string {
   const raw = (url ?? "").trim();
-  if (!raw) return "/icon.svg";
-  if (/icon-512\.png/i.test(raw)) return "/icon-192.png";
+  if (!raw || isLegacyBrandLogo(raw)) return DEFAULT_BRAND_LOGO;
   return raw;
 }
 
@@ -110,7 +119,7 @@ export function isDefaultHeroUrl(url: string | null | undefined): boolean {
  * Theme: donation process, hospital/clinic, volunteers — suitable for BD audiences.
  */
 export const LANDING_MEDIA = {
-  logo: "/icon-192.png",
+  logo: DEFAULT_BRAND_LOGO,
   og: "/landing/hero.jpg",
   hero: "/landing/hero.jpg",
   /** Default hero slideshow (local, fast) — slide 1 is LCP */

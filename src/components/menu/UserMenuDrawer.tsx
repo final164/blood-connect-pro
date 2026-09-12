@@ -3,6 +3,7 @@ import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useI18n } from "@/lib/i18n";
 import { UserMenuNav } from "@/components/menu/UserMenuNav";
+import { BrandMark } from "@/components/BrandLogo";
 import { fetchUserMenuSettings, DEFAULT_USER_MENU_SETTINGS } from "@/lib/user-menu-settings";
 import { useEffect } from "react";
 
@@ -53,10 +54,12 @@ export function UserMenuDrawer({
         style={{ ["--user-menu-w"]: `${width}px` } as CSSProperties}
       >
         <SheetHeader className="px-4 pt-5 pb-3 border-b text-left space-y-0">
-          <SheetTitle className="text-base font-bold tracking-tight">{t("appName")}</SheetTitle>
-          <p className="text-[11px] text-muted-foreground font-normal">
-            {lang === "bn" ? "আপনার মেনু" : "Your menu"}
-          </p>
+          <SheetTitle className="sr-only">{t("appName")}</SheetTitle>
+          <BrandMark
+            name={t("appName")}
+            subtitle={lang === "bn" ? "আপনার মেনু" : "Your menu"}
+            to="/home"
+          />
         </SheetHeader>
         <div className="p-3 flex-1">
           <UserMenuNav onNavigate={() => onOpenChange(false)} />

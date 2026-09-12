@@ -591,8 +591,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     ],
   },
   hero: {
-    brand_bn: "Muktosheba",
-    brand_en: "Muktosheba",
+    brand_bn: "স্পন্দন",
+    brand_en: "Spandon",
     headline_bn: "রক্তদান করুন, জীবন বাঁচান",
     headline_en: "Donate blood. Save lives.",
     sub_bn:

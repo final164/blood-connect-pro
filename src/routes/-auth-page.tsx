@@ -24,7 +24,8 @@ import { signInWithGoogle } from "@/lib/google-auth";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { PhoneField } from "@/components/auth/PhoneField";
 import { toast } from "sonner";
-import { Check, Droplet, Loader2, Shield, X } from "lucide-react";
+import { Check, Loader2, Shield, X } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 
 type Mode = "login" | "signup" | "admin";
 
@@ -220,8 +221,8 @@ export function AuthPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center mb-8 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center shadow-xl shadow-primary/30 mb-3">
-              <Droplet className="h-7 w-7" fill="currentColor" />
+            <div className="mb-3">
+              <BrandLogo size={64} to="/home" alt={t("appName")} className="rounded-2xl shadow-xl shadow-primary/20" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight">{t("appName")}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("tagline")}</p>

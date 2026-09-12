@@ -58,7 +58,7 @@ export async function nativeShare(opts: { title?: string; text?: string; url?: s
       title: opts.title,
       text: opts.text,
       url: opts.url,
-      dialogTitle: opts.title || "Muktosheba",
+      dialogTitle: opts.title || "Spandon",
     });
     await nativeHapticLight();
     return true;

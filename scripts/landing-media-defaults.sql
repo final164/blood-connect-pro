@@ -16,7 +16,10 @@ SET landing_settings = landing_settings
     'nav', COALESCE(landing_settings->'nav', '{}'::jsonb) || jsonb_build_object(
       'logo_url', CASE
         WHEN COALESCE(landing_settings#>>'{nav,logo_url}', '') = ''
-        THEN '/icon-512.png'
+          OR landing_settings#>>'{nav,logo_url}' LIKE '%/icon-192.png%'
+          OR landing_settings#>>'{nav,logo_url}' LIKE '%/icon-512.png%'
+          OR landing_settings#>>'{nav,logo_url}' LIKE '%/icon.svg%'
+        THEN '/spandon-logo.jpg'
         ELSE landing_settings#>>'{nav,logo_url}'
       END
     ),

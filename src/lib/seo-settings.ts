@@ -74,7 +74,7 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   bing_site_verification: "",
   json_ld_enabled: true,
   org_name: "Muktosheba",
-  org_logo_url: "https://blood.pgdiary.cloud/icon-192.png",
+  org_logo_url: "/spandon-logo.jpg",
   org_phone: "",
   org_same_as: [],
   robots_txt: "",
@@ -103,10 +103,13 @@ export function normalizeSeoSettings(raw: unknown): SeoSettings {
   const d = DEFAULT_SEO_SETTINGS;
   const x = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const twitterCard = str(x.twitter_card, d.twitter_card);
-  /** Avoid huge PWA icon as OG/social — browsers may preload og:image and stall LCP. */
+  /** Avoid legacy PWA icons as brand / social images. */
   const softImage = (v: unknown, fallback: string) => {
     const s = str(v, fallback);
-    return /icon-512\.png/i.test(s) ? fallback : s;
+    if (/\/icon(-192|-512)?\.png(\?|$)/i.test(s) || /\/icon\.svg(\?|$)/i.test(s)) {
+      return fallback;
+    }
+    return s;
   };
   return {
     site_url: str(x.site_url, d.site_url),
@@ -392,7 +395,7 @@ export function buildHeadMeta(
 export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin = "") {
   if (!seo.json_ld_enabled) return null;
   const siteUrl = resolveSiteUrl(seo, origin);
-  const logo = absoluteUrl(seo.org_logo_url || "/icon-192.png", seo, origin);
+  const logo = absoluteUrl(seo.org_logo_url || "/spandon-logo.jpg", seo, origin);
   const sameAs = seo.org_same_as.filter(Boolean);
   return {
     "@context": "https://schema.org",

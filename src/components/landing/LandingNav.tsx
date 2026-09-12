@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import type { LandingSettings } from "@/lib/landing-settings";
 import { enterAppOrOpenAuth } from "@/lib/landing-enter";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const AppDownloadButton = lazy(() =>
   import("@/components/AppDownloadButton").then((m) => ({ default: m.AppDownloadButton })),
@@ -44,8 +45,6 @@ export function LandingNav({
   onToggleLang: () => void;
 }) {
   const nav = settings.nav;
-  const customLogo =
-    nav.logo_url && !/\/icon-192\.png|\/icon-512\.png|\/icon\.svg/i.test(nav.logo_url);
   const [showDownload, setShowDownload] = useState(false);
 
   useEffect(() => {
@@ -64,32 +63,17 @@ export function LandingNav({
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
       <div className="mx-auto flex w-full max-w-5xl md:max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <a href="#top" className="flex items-center gap-2 min-w-0">
-          {customLogo ? (
-            <img
-              src={nav.logo_url}
-              alt={lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
-              width={36}
-              height={36}
-              className="h-9 w-9 rounded-xl object-cover ring-1 ring-black/5"
-              decoding="async"
-              fetchPriority="low"
-            />
-          ) : (
-            <span
-              className="h-9 w-9 rounded-xl grid place-items-center text-white shadow-md"
-              style={{ background: "var(--landing-primary)" }}
-              aria-hidden
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                <path d="M12 2.2s6 7.1 6 11.2a6 6 0 1 1-12 0C6 9.3 12 2.2 12 2.2z" />
-              </svg>
-            </span>
-          )}
+        <Link to="/" className="flex items-center gap-2 min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-black/20">
+          <BrandLogo
+            size={36}
+            to={false}
+            src={nav.logo_url}
+            alt={lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
+          />
           <span className="landing-brand text-sm font-semibold truncate">
             {lang === "bn" ? settings.hero.brand_bn : settings.hero.brand_en}
           </span>
-        </a>
+        </Link>
         <nav
           className="hidden md:flex items-center gap-4 text-xs font-medium"
           style={{ color: "var(--landing-muted)" }}

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { AppDownloadButton } from "@/components/AppDownloadButton";
+import { BrandMark } from "@/components/BrandLogo";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { isNativeApp } from "@/lib/native-app";
@@ -256,10 +257,11 @@ export function UserMenuSidebar() {
   return (
     <aside className="hidden md:flex md:w-60 lg:w-64 xl:w-72 shrink-0 flex-col border-r bg-card sticky top-0 h-dvh">
       <div className="px-4 py-4 border-b shrink-0">
-        <p className="font-bold text-sm tracking-tight">{t("appName")}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          {lang === "bn" ? "আপনার মেনু" : "Your menu"}
-        </p>
+        <BrandMark
+          name={t("appName")}
+          subtitle={lang === "bn" ? "আপনার মেনু" : "Your menu"}
+          to="/home"
+        />
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         <UserMenuNav compact />

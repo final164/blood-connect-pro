@@ -32,9 +32,10 @@ import {
   type BottomNavItemId,
   type BottomNavSettings,
 } from "@/lib/bottom-nav-settings";
-import { Home, Users, WifiOff, Droplet, Plus, LayoutGrid, LogIn, Ambulance, Sparkles, Shield } from "lucide-react";
+import { Home, Users, WifiOff, Plus, LayoutGrid, LogIn, Ambulance, Sparkles, Shield } from "lucide-react";
 import { MessengerIcon } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
+import { BrandLoadingScreen, BrandMark } from "@/components/BrandLogo";
 import { useChatUnread } from "@/lib/chat-unread-context";
 import { prefetchChatList } from "@/lib/chat-store";
 export function AppLayout() {
@@ -144,11 +145,11 @@ export function AppLayout() {
   // Protected guest routes: hard Navigate (no infinite spinner).
   if (isGuest) {
     if (pathGuestBrowse && platformGuestBrowse === null) {
-      return <div className="min-h-dvh bg-background" aria-busy="true" />;
+      return <BrandLoadingScreen />;
     }
     if (!guestBrowse) {
       if (loading) {
-        return <div className="min-h-dvh bg-background" aria-busy="true" />;
+        return <BrandLoadingScreen />;
       }
       const next = pathWithSearch(location.pathname, location.search);
       return <Navigate to="/auth" search={{ next } as never} replace />;
@@ -206,15 +207,12 @@ function GuestAppShell({
     >
       <AutoHideHeader className="z-30 border-b bg-background/95 backdrop-blur safe-top">
         <div className="flex items-center gap-2 px-3 py-2 max-w-3xl mx-auto w-full">
-          <Link to="/" className="h-9 w-9 rounded-xl grid place-items-center hover:bg-muted shrink-0">
-            <Droplet className="h-5 w-5 text-primary" fill="currentColor" />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold truncate">{t("appName")}</p>
-            <p className="text-[10px] text-muted-foreground truncate">
-              {lang === "bn" ? "গেস্ট মোড — বুক/পোস্টে লগইন লাগবে" : "Guest — login to book or post"}
-            </p>
-          </div>
+          <BrandMark
+            name={t("appName")}
+            subtitle={lang === "bn" ? "গেস্ট মোড — বুক/পোস্টে লগইন লাগবে" : "Guest — login to book or post"}
+            to="/home"
+            className="flex-1"
+          />
           <button
             type="button"
             onClick={() => requireLogin()}
@@ -555,15 +553,12 @@ function AppShell({
         <AutoHideHeader
           className="hidden z-40 md:flex items-center gap-3 border-b bg-card/95 backdrop-blur-xl px-4 lg:px-6 py-2.5"
         >
-          <div className="flex items-center gap-2.5 shrink-0 mr-1">
-            <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shadow-md shadow-primary/25">
-              <Droplet className="h-4 w-4" fill="currentColor" />
-            </div>
-            <div className="min-w-0 hidden xl:block">
-              <p className="font-bold text-sm leading-tight truncate">{t("appName")}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{t("tagline")}</p>
-            </div>
-          </div>
+          <BrandMark
+            name={t("appName")}
+            subtitle={t("tagline")}
+            to="/home"
+            className="shrink-0 mr-1"
+          />
 
           <nav className="flex-1 flex items-center justify-center gap-1 min-w-0">
             {tabs.map((tab) => renderTab(tab, "top"))}

@@ -390,12 +390,19 @@ export function LandingAdmin() {
             checked={cfg.nav.show_lang_toggle}
             onChange={(v) => setCfg((p) => ({ ...p, nav: { ...p.nav, show_lang_toggle: v } }))}
           />
-          <Field label="Logo URL">
+          <Field
+            label={lang === "bn" ? "অ্যাপ লোগো (সব হেডার / লোডিং)" : "App logo (all headers / loading)"}
+          >
             <MediaUrlInput
               value={cfg.nav.logo_url}
               onChange={(url) => setCfg((p) => ({ ...p, nav: { ...p.nav, logo_url: url } }))}
               lang={lang}
             />
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              {lang === "bn"
+                ? "এখানে যে লোগো সেভ করবেন, ওয়েবসাইট ও অ্যাপের সব জায়গায় সেটাই দেখাবে। পুরোনো icon/droplet আর ব্যবহার হবে না।"
+                : "Whatever you save here becomes the logo everywhere on web and app. Legacy icon/droplet marks are not used."}
+            </p>
           </Field>
           <div className="grid sm:grid-cols-2 gap-2">
             <Field label="Login BN">

@@ -231,12 +231,12 @@ function RequestCardInner({
     try {
       const { nativeShare, isNativeApp } = await import("@/lib/native-app");
       if (isNativeApp()) {
-        const ok = await nativeShare({ title: "Muktosheba", text: payload, url: window.location.origin });
+        const ok = await nativeShare({ title: "Spandon", text: payload, url: window.location.origin });
         if (ok) return;
       }
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         try {
-          await navigator.share({ title: "Muktosheba", text: payload });
+          await navigator.share({ title: "Spandon", text: payload });
           return;
         } catch (err) {
           if ((err as Error)?.name === "AbortError") return;

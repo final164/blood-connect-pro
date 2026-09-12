@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardList, X, Minus, Plus } from "lucide-react";
+import { ClipboardList, X, Minus, Plus, MessageSquare, Phone, Share2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { BLOOD_GROUPS } from "@/lib/format";
@@ -9,7 +9,11 @@ import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { HospitalTypeahead } from "@/components/hospital/HospitalTypeahead";
 import type { District, Hospital } from "@/lib/api";
 import { getProfile } from "@/lib/api";
-import { ensureCommunityBloodRequest } from "@/components/community/CommunityContactGateSheet";
+import {
+  buildCommunityDraftMessageBody,
+  ensureCommunityBloodRequest,
+  openCommunityContactChannel,
+} from "@/components/community/CommunityContactGateSheet";
 import {
   activeNeedReasons,
   fetchNeedReasonCatalog,
@@ -33,6 +37,7 @@ import {
 import {
   DEFAULT_MESSAGING_SETTINGS,
   fetchMessagingSettings,
+  type MessagingSettings,
 } from "@/lib/messaging-settings";
 import {
   clearCommunityRequestDraft,
@@ -141,7 +146,9 @@ function CommunityRequestDraftSheet({
   const [postOnSave, setPostOnSave] = useState(
     DEFAULT_MESSAGING_SETTINGS.community_save_posts_to_feed,
   );
+  const [messaging, setMessaging] = useState<MessagingSettings>(DEFAULT_MESSAGING_SETTINGS);
   const [busy, setBusy] = useState(false);
+  const [openPicker, setOpenPicker] = useState<CommunityRequestDraft | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -193,7 +200,10 @@ function CommunityRequestDraftSheet({
       }
     }
     void fetchRequestFormOptions().then(setOpts);
-    void fetchMessagingSettings().then((m) => setPostOnSave(m.community_save_posts_to_feed));
+    void fetchMessagingSettings().then((m) => {
+      setPostOnSave(m.community_save_posts_to_feed);
+      setMessaging(m);
+    });
     void fetchNeedReasonCatalog().then((c: NeedReasonCatalog) => {
       setCategories(activeNeedReasons(c));
       setReasonDisplayLang(resolveNeedReasonLang(c.display_lang, lang));
@@ -216,31 +226,38 @@ function CommunityRequestDraftSheet({
 
   const ph = (bn: string, en: string) => (lang === "bn" ? bn : en);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  async function persistDraft(forceFeed: boolean): Promise<CommunityRequestDraft | null> {
     if (!user?.id) {
-      return toast.error(lang === "bn" ? "লগইন প্রয়োজন" : "Login required");
+      toast.error(lang === "bn" ? "লগইন প্রয়োজন" : "Login required");
+      return null;
     }
     if (!reasonKey) {
-      return toast.error(lang === "bn" ? "রক্তের প্রয়োজনের কারণ নির্বাচন করুন" : "Select why blood is needed");
+      toast.error(lang === "bn" ? "রক্তের প্রয়োজনের কারণ নির্বাচন করুন" : "Select why blood is needed");
+      return null;
     }
     if (isCustomNeedReason(reasonKey) && !customReason.trim()) {
-      return toast.error(lang === "bn" ? "কাস্টম কারণ লিখুন" : "Enter a custom reason");
+      toast.error(lang === "bn" ? "কাস্টম কারণ লিখুন" : "Enter a custom reason");
+      return null;
     }
     if (req("district") && !district) {
-      return toast.error(lang === "bn" ? "জেলা নির্বাচন করুন" : "Select a district");
+      toast.error(lang === "bn" ? "জেলা নির্বাচন করুন" : "Select a district");
+      return null;
     }
     if (req("hospital") && !hospital) {
-      return toast.error(lang === "bn" ? "হাসপাতালের নাম দিন" : "Enter a hospital name");
+      toast.error(lang === "bn" ? "হাসপাতালের নাম দিন" : "Enter a hospital name");
+      return null;
     }
     if (req("patient_name") && !form.patient_name.trim()) {
-      return toast.error(lang === "bn" ? "রোগীর নাম দিন" : "Enter patient name");
+      toast.error(lang === "bn" ? "রোগীর নাম দিন" : "Enter patient name");
+      return null;
     }
     if (req("contact_phone") && !form.contact_phone.trim()) {
-      return toast.error(lang === "bn" ? "যোগাযোগ নম্বর দিন" : "Enter contact number");
+      toast.error(lang === "bn" ? "যোগাযোগ নম্বর দিন" : "Enter contact number");
+      return null;
     }
     if (req("whatsapp") && !form.whatsapp_phone.trim()) {
-      return toast.error(lang === "bn" ? "WhatsApp নম্বর দিন" : "Enter WhatsApp number");
+      toast.error(lang === "bn" ? "WhatsApp নম্বর দিন" : "Enter WhatsApp number");
+      return null;
     }
 
     const draftInput = {
@@ -261,7 +278,8 @@ function CommunityRequestDraftSheet({
       hospital,
     };
 
-    if (postOnSave) {
+    const shouldPost = forceFeed || postOnSave;
+    if (shouldPost) {
       const hospitalName = hospital
         ? lang === "bn"
           ? hospital.name_bn
@@ -314,8 +332,7 @@ function CommunityRequestDraftSheet({
             ? `ড্রাফট সেভ হয়েছে, কিন্তু পোস্ট ব্যর্থ: ${error.message}`
             : `Draft saved, but post failed: ${error.message}`,
         );
-        onSaved(saved);
-        return;
+        return saved;
       }
 
       const saved = saveCommunityRequestDraft(user.id, {
@@ -331,8 +348,7 @@ function CommunityRequestDraftSheet({
             ? "ড্রাফট আপডেট হয়েছে — আগের পোস্টই আছে (ডুপ্লিকেট নয়)"
             : "Draft updated — same feed post kept (no duplicate)",
       );
-      onSaved(saved);
-      return;
+      return saved;
     }
 
     const saved = saveCommunityRequestDraft(user.id, draftInput);
@@ -341,7 +357,51 @@ function CommunityRequestDraftSheet({
         ? "রিকোয়েস্ট সেভ হয়েছে — আইকনে ক্লিক করলে অটোফিল হবে"
         : "Request saved — icons will autofill",
     );
+    return saved;
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    const saved = await persistDraft(false);
+    if (saved) onSaved(saved);
+  }
+
+  async function saveAndOpen() {
+    const saved = await persistDraft(true);
+    if (!saved) return;
     onSaved(saved);
+    setOpenPicker(saved);
+  }
+
+  function openShareChannel(channel: "sms" | "wa" | "call", saved: CommunityRequestDraft) {
+    const phone =
+      saved.contact_phone.trim() || saved.whatsapp_phone.trim() || "";
+    const template = lang === "bn" ? messaging.share_sms_bn : messaging.share_sms_en;
+    const body = buildCommunityDraftMessageBody({
+      draft: saved,
+      template,
+      lang,
+      requestId: saved.feed_request_id,
+    });
+    if (channel === "call") {
+      if (!phone) {
+        toast.error(lang === "bn" ? "ফোন নম্বর নেই" : "No phone number");
+        return;
+      }
+      openCommunityContactChannel("call", phone, body);
+      return;
+    }
+    if (channel === "sms") {
+      if (phone) openCommunityContactChannel("sms", phone, body);
+      else window.location.href = `sms:?body=${encodeURIComponent(body)}`;
+      return;
+    }
+    if (phone) {
+      openCommunityContactChannel("wa", phone, body);
+      return;
+    }
+    const href = `https://wa.me/?text=${encodeURIComponent(body)}`;
+    window.open(href, "_blank", "noopener,noreferrer");
   }
 
   function clear() {
@@ -571,6 +631,21 @@ function CommunityRequestDraftSheet({
             }}
           />
 
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void saveAndOpen()}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-sm disabled:opacity-50"
+          >
+            <Share2 className="h-4 w-4" />
+            Save and Open
+          </button>
+          <p className="text-[11px] text-center text-muted-foreground -mt-1">
+            {lang === "bn"
+              ? "ফিডে পোস্ট হবে, তারপর SMS / WhatsApp / কল খুলবে"
+              : "Posts to feed, then opens SMS / WhatsApp / Call"}
+          </p>
+
           <div className="flex gap-2">
             {communityRequestDraftFilled(draft) && (
               <button
@@ -584,21 +659,74 @@ function CommunityRequestDraftSheet({
             <button
               type="submit"
               disabled={busy}
-              className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              className="flex-1 rounded-xl border bg-background py-3.5 text-sm font-semibold disabled:opacity-50"
             >
               {busy
                 ? "…"
                 : lang === "bn"
                   ? postOnSave
-                    ? "সেভ ও পোস্ট"
-                    : "সেভ করুন"
+                    ? "শুধু সেভ ও পোস্ট"
+                    : "শুধু সেভ"
                   : postOnSave
-                    ? "Save & post"
-                    : "Save"}
+                    ? "Save & post only"
+                    : "Save only"}
             </button>
           </div>
         </form>
       </div>
+
+      {openPicker ? (
+        <div className="fixed inset-0 z-[90]">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            aria-label="Close"
+            onClick={() => {
+              setOpenPicker(null);
+              onClose();
+            }}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-10 mx-auto w-full sm:max-w-lg rounded-t-2xl border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl">
+            <div className="mx-auto mb-3 h-1 w-9 rounded-full bg-muted" />
+            <h3 className="text-center text-sm font-bold">Save and Open</h3>
+            <p className="mt-1 text-center text-[11px] text-muted-foreground">
+              {lang === "bn" ? "শেয়ারের মতো খুলুন" : "Open like share"}
+            </p>
+            <div className="mt-4 grid gap-2">
+              {(
+                [
+                  { id: "sms" as const, label: "SMS", icon: MessageSquare },
+                  { id: "wa" as const, label: "WhatsApp", icon: Share2 },
+                  { id: "call" as const, label: "Phone", icon: Phone },
+                ] as const
+              ).map((c) => {
+                const Icon = c.icon;
+                const needsPhone = c.id === "call";
+                const hasPhone = !!(
+                  openPicker.contact_phone.trim() || openPicker.whatsapp_phone.trim()
+                );
+                const disabled = needsPhone && !hasPhone;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => {
+                      openShareChannel(c.id, openPicker);
+                      setOpenPicker(null);
+                      onClose();
+                    }}
+                    className="flex items-center gap-3 rounded-xl border bg-primary/5 px-4 py-3.5 text-sm font-semibold hover:bg-primary/10 disabled:opacity-40"
+                  >
+                    <Icon className="h-4 w-4 text-primary" />
+                    <span className="flex-1 text-left">{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

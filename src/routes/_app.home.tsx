@@ -10,11 +10,12 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
-import { Droplet, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
+import { BrandLogo } from "@/components/BrandLogo";
 import { InfiniteSentinel } from "@/components/InfiniteSentinel";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
@@ -395,9 +396,7 @@ function FeedPage() {
             <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2">
               <div className="flex items-center gap-2 min-w-0">
                 <UserMenuTrigger />
-                <div className="h-8 w-8 shrink-0 rounded-xl bg-primary text-primary-foreground grid place-items-center">
-                  <Droplet className="h-3.5 w-3.5" fill="currentColor" />
-                </div>
+                <BrandLogo size={32} to="/home" alt={t("appName")} />
                 <div className="min-w-0">
                   <h1 className="text-sm font-bold leading-tight tracking-tight truncate">{t("appName")}</h1>
                 </div>

@@ -606,3 +606,34 @@
 [data-sonner-toast] [data-button] {
   cursor: pointer;
 }
+
+/* Spandon logo — heartbeat “beep beep” pulse for loading */
+@keyframes spandon-beep {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  14% {
+    transform: scale(1.09);
+    filter: brightness(1.08);
+  }
+  28% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  42% {
+    transform: scale(1.07);
+    filter: brightness(1.06);
+  }
+  56% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.spandon-logo-pulse {
+  animation: spandon-beep 1.1s ease-in-out infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
