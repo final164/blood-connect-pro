@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
+  Clock3,
   HeartPulse,
   LayoutDashboard,
   LogOut,
@@ -21,6 +22,7 @@ import { OrgRolesManager } from "@/components/org/OrgRolesManager";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { useAuth } from "@/lib/auth-context";
 import { fetchAllDistricts, type District } from "@/lib/api";
+import { communityOrgKycLabel } from "@/lib/community-org-auth";
 import { useI18n } from "@/lib/i18n";
 import {
   countOrgDonors,
@@ -99,6 +101,7 @@ export function OrgPortalPage() {
   const can = (key: OrgPermissionKey) => membershipHasPermission(membership, key);
 
   const org = membership?.community_orgs ?? orgMeta;
+  const kycStatus = (org as { kyc_status?: string | null } | null)?.kyc_status ?? "verified";
   const orgName =
     lang === "bn" ? org?.name_bn || org?.name || "Organization" : org?.name || "Organization";
   const roleLabel = membership?.community_org_roles
@@ -160,7 +163,7 @@ export function OrgPortalPage() {
     const { data } = await supabase
       .from("community_orgs")
       .select(
-        "id, name, name_bn, phone, email, website, description, description_bn, is_active, donor_contact_settings",
+        "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, donor_contact_settings",
       )
       .eq("id", orgId)
       .maybeSingle();
@@ -252,6 +255,34 @@ export function OrgPortalPage() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-4 px-4 py-4 pb-16">
+        {kycStatus === "pending" && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                {communityOrgKycLabel("pending", lang)}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                {lang === "bn"
+                  ? "অ্যাডমিন অনুমোদনের পর কমিউনিটি তালিকায় দেখা যাবে। এখন পোর্টাল সেটআপ চালিয়ে যেতে পারেন।"
+                  : "You will appear on Community after admin approval. You can keep setting up the portal now."}
+              </p>
+            </div>
+          </div>
+        )}
+        {kycStatus === "rejected" && (
+          <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{communityOrgKycLabel("rejected", lang)}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                {lang === "bn"
+                  ? "আবেদন প্রত্যাখ্যান হয়েছে। সাপোর্টে যোগাযোগ করুন বা তথ্য আপডেট করে আবার আবেদন করুন।"
+                  : "Application was rejected. Contact support or update details and re-apply."}
+              </p>
+            </div>
+          </div>
+        )}
         {tab === "overview" && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">

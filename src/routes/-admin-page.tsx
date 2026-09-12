@@ -102,6 +102,7 @@ import {
 import { UserMenuAdmin } from "@/components/admin/UserMenuAdmin";
 import { BottomNavAdmin } from "@/components/admin/BottomNavAdmin";
 import { FeedCarouselAdmin } from "@/components/admin/FeedCarouselAdmin";
+import { SuccessCarouselAdmin } from "@/components/admin/SuccessCarouselAdmin";
 import { FeedBannerAdmin } from "@/components/admin/FeedBannerAdmin";
 import { LandingAdmin } from "@/components/admin/LandingAdmin";
 import { SeoAdmin } from "@/components/admin/SeoAdmin";
@@ -1911,6 +1912,9 @@ type CommunityOrg = {
   description: string | null;
   description_bn: string | null;
   is_active: boolean;
+  is_verified?: boolean;
+  kyc_status?: string | null;
+  registration_source?: string | null;
   donor_contact_settings?: unknown;
 };
 
@@ -2465,7 +2469,7 @@ function OrgDonorsPanel({
 function CommunityAdmin() {
   const { t, lang } = useI18n();
   const { can } = useAdminAccess();
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<CommunityOrg[]>([]);
   const [form, setForm] = useState({
     name: "",
     name_bn: "",
@@ -2488,17 +2492,78 @@ function CommunityAdmin() {
   const [expandedOrgId, setExpandedOrgId] = useState<string | null>(null);
   const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
   const [donorRefreshKey, setDonorRefreshKey] = useState(0);
+  const [regSettings, setRegSettings] = useState({ auto_approve_registration: false });
+  const [regBusy, setRegBusy] = useState(false);
 
   async function load() {
-    const { data } = await supabase.from("community_orgs").select("*").order("sort_order");
-    setRows(data ?? []);
+    const { data } = await supabase
+      .from("community_orgs")
+      .select("*")
+      .order("sort_order");
+    setRows((data ?? []) as CommunityOrg[]);
     if (!importOrgId && data?.[0]?.id) setImportOrgId(data[0].id);
+  }
+
+  async function loadRegSettings() {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("community_org_registration_settings")
+      .eq("id", 1)
+      .maybeSingle();
+    const raw = (data as { community_org_registration_settings?: unknown } | null)
+      ?.community_org_registration_settings;
+    const auto =
+      raw && typeof raw === "object" && (raw as { auto_approve_registration?: boolean }).auto_approve_registration === true;
+    setRegSettings({ auto_approve_registration: auto });
   }
 
   useEffect(() => {
     load();
+    loadRegSettings();
     fetchAllDistrictsAdmin().then(setDistricts);
   }, []);
+
+  async function saveRegSettings(next: { auto_approve_registration: boolean }) {
+    if (!can("community.edit") && !can("community.toggle")) {
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    }
+    setRegBusy(true);
+    const { error } = await supabase.from("app_settings").upsert({
+      id: 1,
+      community_org_registration_settings: next,
+    } as never);
+    setRegBusy(false);
+    if (error) return toast.error(error.message);
+    setRegSettings(next);
+    toast.success(t("saved"));
+  }
+
+  async function setKyc(id: string, status: "verified" | "rejected" | "pending") {
+    if (!can("community.edit") && !can("community.toggle")) {
+      return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
+    }
+    const { error } = await supabase
+      .from("community_orgs")
+      .update({
+        kyc_status: status,
+        is_verified: status === "verified",
+        is_active: status === "rejected" ? false : true,
+      } as never)
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success(
+      status === "verified"
+        ? lang === "bn"
+          ? "অনুমোদিত"
+          : "Approved"
+        : status === "rejected"
+          ? lang === "bn"
+            ? "প্রত্যাখ্যান করা হয়েছে"
+            : "Rejected"
+          : t("saved"),
+    );
+    load();
+  }
 
   async function add() {
     if (!can("community.add")) return toast.error(lang === "bn" ? "অনুমতি নেই" : "No permission");
@@ -2513,7 +2578,10 @@ function CommunityAdmin() {
       website: form.website.trim() || null,
       description: form.description.trim() || null,
       description_bn: form.description_bn.trim() || null,
-    });
+      is_verified: true,
+      kyc_status: "verified",
+      registration_source: "admin",
+    } as never);
     if (error) return toast.error(error.message);
     setForm({
       name: "",
@@ -2602,7 +2670,10 @@ function CommunityAdmin() {
       .insert({
         name: quickOrg.name.trim(),
         phone: quickOrg.phone.trim(),
-      })
+        is_verified: true,
+        kyc_status: "verified",
+        registration_source: "admin",
+      } as never)
       .select("id")
       .single();
     setQuickOrgBusy(false);
@@ -2664,8 +2735,81 @@ function CommunityAdmin() {
     { key: "description_bn" as const, label: lang === "bn" ? "বিবরণ (বাংলা)" : "Description (BN)" },
   ];
 
+  const pendingRows = rows.filter((o) => (o.kyc_status || "verified") === "pending");
+
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">
+          {lang === "bn" ? "সেল্ফ-রেজিস্ট্রেশন অনুমোদন" : "Self-registration approval"}
+        </h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          {lang === "bn"
+            ? "ওয়েবসাইট থেকে কেউ Organization আবেদন করতে পারে। অটো-অ্যাপ্রুভ বন্ধ থাকলে এখানে ম্যানুয়ালি অনুমোদন দিন।"
+            : "Anyone can apply as an Organization on the website. If auto-approve is off, approve them here."}
+        </p>
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 px-3 py-2.5">
+          <div>
+            <p className="text-xs font-medium text-slate-200">
+              {lang === "bn" ? "নতুন আবেদন অটো-অ্যাপ্রুভ" : "Auto-approve new applications"}
+            </p>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              {lang === "bn"
+                ? "চালু থাকলে আবেদন সঙ্গে সঙ্গে verified হবে এবং কমিউনিটিতে দেখা যাবে।"
+                : "When on, applications are verified immediately and listed on Community."}
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            disabled={regBusy}
+            checked={regSettings.auto_approve_registration}
+            onChange={(e) =>
+              void saveRegSettings({ auto_approve_registration: e.target.checked })
+            }
+            className="h-4 w-4 accent-rose-500 shrink-0"
+          />
+        </label>
+        {pendingRows.length > 0 && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[11px] font-semibold text-amber-300">
+              {lang === "bn"
+                ? `${pendingRows.length}টি অপেক্ষমাণ আবেদন`
+                : `${pendingRows.length} pending application(s)`}
+            </p>
+            {pendingRows.map((o) => (
+              <div
+                key={o.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{o.name}</p>
+                  <p className="text-[10px] text-slate-400">
+                    {o.phone}
+                    {o.registration_source === "self" ? " · self" : ""}
+                  </p>
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void setKyc(o.id, "verified")}
+                    className="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-semibold text-white"
+                  >
+                    {lang === "bn" ? "অ্যাপ্রুভ" : "Approve"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void setKyc(o.id, "rejected")}
+                    className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-rose-300"
+                  >
+                    {lang === "bn" ? "রিজেক্ট" : "Reject"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3">
         <h3 className="text-sm font-semibold">
           {lang === "bn" ? "নতুন সংস্থা" : "Add organization"}
@@ -2941,13 +3085,60 @@ function CommunityAdmin() {
                   className={`h-4 w-4 shrink-0 mt-0.5 text-slate-400 transition ${expandedOrgId === o.id ? "rotate-180" : ""}`}
                 />
                 <div className="min-w-0">
-                  <p className="font-semibold text-sm">{o.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-sm">{o.name}</p>
+                    {(o.kyc_status || "verified") === "pending" && (
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+                        pending
+                      </span>
+                    )}
+                    {(o.kyc_status || "verified") === "rejected" && (
+                      <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-300">
+                        rejected
+                      </span>
+                    )}
+                    {(o.kyc_status === "verified" || (!o.kyc_status && o.is_verified)) && (
+                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
+                        verified
+                      </span>
+                    )}
+                  </div>
                   {o.name_bn && <p className="text-xs text-slate-500">{o.name_bn}</p>}
                   <p className="text-xs text-slate-400 mt-0.5">{o.phone}</p>
                   {o.email && <p className="text-[10px] text-slate-500">{o.email}</p>}
                 </div>
               </button>
               <div className="flex shrink-0 gap-1">
+                {(o.kyc_status || "verified") === "pending" && (
+                  <button
+                    type="button"
+                    onClick={() => void setKyc(o.id, "verified")}
+                    className="p-1.5 text-emerald-400 hover:text-emerald-300"
+                    title={lang === "bn" ? "অ্যাপ্রুভ" : "Approve"}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </button>
+                )}
+                {(o.kyc_status || "verified") === "verified" && !o.is_verified && (
+                  <button
+                    type="button"
+                    onClick={() => void setKyc(o.id, "verified")}
+                    className="p-1.5 text-emerald-400 hover:text-emerald-300"
+                    title={lang === "bn" ? "ভেরিফাই" : "Verify"}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </button>
+                )}
+                {(o.kyc_status || "") !== "rejected" && (
+                  <button
+                    type="button"
+                    onClick={() => void setKyc(o.id, "rejected")}
+                    className="p-1.5 text-slate-500 hover:text-rose-300"
+                    title={lang === "bn" ? "রিজেক্ট" : "Reject"}
+                  >
+                    <Ban className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -3385,6 +3576,7 @@ function SettingsAdmin() {
     | "urgency"
     | "feed"
     | "carousel"
+    | "success"
     | "banner"
     | "landing"
     | "seo"
@@ -3465,6 +3657,7 @@ function SettingsAdmin() {
     { id: "urgency" as const, bn: "জরুরিতা অ্যানিমেশন", en: "Urgency animation" },
     { id: "feed" as const, bn: "ফিড র‍্যাঙ্কিং", en: "Feed ranking" },
     { id: "carousel" as const, bn: "ইমেজ ক্যারোজেল", en: "Image carousel" },
+    { id: "success" as const, bn: "সফল রক্তদান", en: "Success carousel" },
     { id: "banner" as const, bn: "ফুল ব্যানার", en: "Full banner" },
     { id: "landing" as const, bn: "ল্যান্ডিং / Frontpage", en: "Landing / Frontpage" },
     { id: "seo" as const, bn: "SEO", en: "SEO" },
@@ -3517,6 +3710,7 @@ function SettingsAdmin() {
       {settingsTab === "urgency" && <UrgencyAnimationAdmin />}
       {settingsTab === "feed" && <FeedRankingAdmin />}
       {settingsTab === "carousel" && <FeedCarouselAdmin />}
+      {settingsTab === "success" && <SuccessCarouselAdmin />}
       {settingsTab === "banner" && <FeedBannerAdmin />}
       {settingsTab === "landing" && <LandingAdmin />}
       {settingsTab === "seo" && <SeoAdmin />}

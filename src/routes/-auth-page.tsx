@@ -1,4 +1,4 @@
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { getRouteApi, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -62,6 +62,11 @@ function authContinueHint(next: string | undefined, lang: "bn" | "en"): string |
     return lang === "bn"
       ? "লগইন করুন — তারপর আপনার বুকিং দেখতে পারবেন।"
       : "Sign in to view your bookings.";
+  }
+  if (path === "/join-organization" || path.startsWith("/join-organization")) {
+    return lang === "bn"
+      ? "লগইন করুন — তারপর Organization রেজিস্ট্রেশন চালিয়ে যাবেন।"
+      : "Sign in to continue Organization registration.";
   }
   return lang === "bn"
     ? "লগইন করুন — কাজ শেষে আগের পেজে ফিরে যাবেন।"
@@ -394,14 +399,34 @@ export function AuthPage() {
             )}
           </div>
 
-          <div className="mt-5 text-center">
-            <button
-              type="button"
-              onClick={() => setLang(bn ? "en" : "bn")}
-              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+          <div className="mt-5 space-y-3">
+            <Link
+              to="/join-organization"
+              className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3.5 text-left transition hover:border-primary/35 hover:bg-primary/[0.09]"
             >
-              {bn ? "English" : "বাংলা"}
-            </button>
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <Shield className="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  {bn ? "Organization হিসেবে রেজিস্টার করুন" : "Register as an Organization"}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground leading-relaxed">
+                  {bn
+                    ? "সংস্থা/ক্লাব/ইউনিট — অ্যাডমিন অনুমোদন বা অটো-অ্যাপ্রুভের পর কমিউনিটিতে প্রকাশ।"
+                    : "For clubs & units — listed on Community after admin approval or auto-approve."}
+                </span>
+              </span>
+            </Link>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setLang(bn ? "en" : "bn")}
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                {bn ? "English" : "বাংলা"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

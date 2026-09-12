@@ -21,6 +21,7 @@ import { FEED_PAGE_SIZE, fetchFeedPage } from "@/lib/feed-requests";
 import { queryKeys } from "@/lib/query-client";
 import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
 import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
+import { SuccessStoriesCarousel } from "@/components/feed/SuccessStoriesCarousel";
 import { CareHubNav } from "@/components/care/CareHubNav";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
@@ -34,6 +35,12 @@ import {
   type FeedBannerSettings,
   type FeedBannerSlide,
 } from "@/lib/feed-banner";
+import {
+  DEFAULT_SUCCESS_CAROUSEL_SETTINGS,
+  fetchSuccessCarouselBundle,
+  type SuccessCarouselSettings,
+  type SuccessStorySlide,
+} from "@/lib/success-carousel";
 import { toast } from "sonner";
 
 type FeedSearch = { requestId?: string; compose?: boolean };
@@ -71,6 +78,10 @@ function FeedPage() {
     DEFAULT_FEED_BANNER_SETTINGS,
   );
   const [bannerSlides, setBannerSlides] = useState<FeedBannerSlide[]>([]);
+  const [successSettings, setSuccessSettings] = useState<SuccessCarouselSettings>(
+    DEFAULT_SUCCESS_CAROUSEL_SETTINGS,
+  );
+  const [successSlides, setSuccessSlides] = useState<SuccessStorySlide[]>([]);
   const rtTimer = useRef<number | null>(null);
   const hydratedKey = useRef<string | null>(null);
   const scrolledToHighlight = useRef<string | null>(null);
@@ -168,6 +179,10 @@ function FeedPage() {
     void fetchFeedBannerBundle(true).then(({ settings, slides }) => {
       setBannerSettings(settings);
       setBannerSlides(slides);
+    });
+    void fetchSuccessCarouselBundle(true).then(({ settings, slides }) => {
+      setSuccessSettings(settings);
+      setSuccessSlides(slides);
     });
   }, []);
 
@@ -522,8 +537,11 @@ function FeedPage() {
             {items.map((r, index) => {
               const afterN = index + 1;
               const railAfter = Math.max(1, carouselSettings.insert_after_every || 2);
+              const successAfter = Math.max(1, successSettings.insert_after_every || 3);
               const showRail =
                 carouselSettings.enabled && carouselSlides.length > 0 && afterN === railAfter;
+              const showSuccess =
+                successSettings.enabled && successSlides.length > 0 && afterN === successAfter;
               const showBanner =
                 bannerSettings.enabled &&
                 bannerSlides.length > 0 &&
@@ -542,6 +560,11 @@ function FeedPage() {
                   {showRail && (
                     <li className="list-none bg-muted/40 px-0 py-2">
                       <FeedImageCarousel settings={carouselSettings} slides={carouselSlides} />
+                    </li>
+                  )}
+                  {showSuccess && (
+                    <li className="list-none bg-muted/40 px-0 py-2">
+                      <SuccessStoriesCarousel settings={successSettings} slides={successSlides} />
                     </li>
                   )}
                   {showBanner && (

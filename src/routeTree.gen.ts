@@ -14,6 +14,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrgRouteImport } from './routes/org'
+import { Route as JoinOrganizationRouteImport } from './routes/join-organization'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
@@ -98,6 +99,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const OrgRoute = OrgRouteImport.update({
   id: '/org',
   path: '/org',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinOrganizationRoute = JoinOrganizationRouteImport.update({
+  id: '/join-organization',
+  path: '/join-organization',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -409,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/join-organization': typeof JoinOrganizationRoute
   '/org': typeof OrgRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -475,6 +482,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/join-organization': typeof JoinOrganizationRoute
   '/org': typeof OrgRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -538,6 +546,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
+  '/join-organization': typeof JoinOrganizationRoute
   '/org': typeof OrgRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
@@ -606,6 +615,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/join-organization'
     | '/org'
     | '/privacy'
     | '/robots.txt'
@@ -672,6 +682,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/join-organization'
     | '/org'
     | '/privacy'
     | '/robots.txt'
@@ -734,6 +745,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/admin'
     | '/auth'
+    | '/join-organization'
     | '/org'
     | '/privacy'
     | '/robots.txt'
@@ -802,6 +814,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
+  JoinOrganizationRoute: typeof JoinOrganizationRoute
   OrgRoute: typeof OrgRoute
   PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
@@ -852,6 +865,13 @@ declare module '@tanstack/react-router' {
       path: '/org'
       fullPath: '/org'
       preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join-organization': {
+      id: '/join-organization'
+      path: '/join-organization'
+      fullPath: '/join-organization'
+      preLoaderRoute: typeof JoinOrganizationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1453,6 +1473,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
+  JoinOrganizationRoute: JoinOrganizationRoute,
   OrgRoute: OrgRoute,
   PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,

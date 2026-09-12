@@ -91,7 +91,7 @@ export const DEFAULT_MESSAGING_SETTINGS: MessagingSettings = {
   community_sms_en:
     "{{blood_group}} blood needed — {{patient_name}}\nHospital: {{hospital}}\nPlace: {{upazila}}, {{district}}\nBags: {{bags}}\nReason: {{reason}}\n{{notes}}\n{{link}}",
   share_sms_bn:
-    "রক্ত দিয়ে সাহায্য করুন, স্রষ্টা সন্তুষ্টি অর্জন করুন।\n🔴 রোগীর সমস্যাঃ {{reason}}\n🔴 রোগীর নামঃ {{patient_name}}\n🔴 রক্তের গ্রুপঃ {{blood_group}}\n🔴 প্রয়োজনীয় রক্তের পরিমাণঃ {{bags}} ব্যাগ\n🕒 রক্তদানের সময়ঃ {{needed_time}}\n📅 রক্তদানের তারিখঃ {{needed_date}}\n🏥 রক্তদানের স্থানঃ {{hospital}}\n📞 যোগাযোগ নম্বরঃ {{contact}}\n\n{{notes}}\n{{link}}",
+    "রক্ত দিয়ে সাহায্য করুন।\n🔴 রোগীর সমস্যাঃ {{reason}}\n🔴 রোগীর নামঃ {{patient_name}}\n🔴 রক্তের গ্রুপঃ {{blood_group}}\n🔴 প্রয়োজনীয় রক্তের পরিমাণঃ {{bags}} ব্যাগ\n🕒 রক্তদানের সময়ঃ {{needed_time}}\n📅 রক্তদানের তারিখঃ {{needed_date}}\n🏥 রক্তদানের স্থানঃ {{hospital}}\n📞 যোগাযোগ নম্বরঃ {{contact}}\n\n{{notes}}\n{{link}}",
   share_sms_en:
     "Please help with blood donation.\n🔴 Patient problem: {{reason}}\n🔴 Patient name: {{patient_name}}\n🔴 Blood group: {{blood_group}}\n🔴 Bags needed: {{bags}}\n🕒 Needed by (time): {{needed_time}}\n📅 Needed by (date): {{needed_date}}\n🏥 Location: {{hospital}}\n📞 Contact: {{contact}}\n\n{{notes}}\n{{link}}",
   post_icons: { ...DEFAULT_POST_ICONS },

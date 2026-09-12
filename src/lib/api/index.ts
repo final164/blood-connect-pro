@@ -367,15 +367,25 @@ export type CommunityOrg = {
 
 export async function fetchCommunityOrgs(districtId?: string | null): Promise<CommunityOrg[]> {
   // Avoid nested `districts(...)` join — Lovable DBs may lack the FK in PostgREST cache.
-  let q = supabase
-    .from("community_orgs")
-    .select(
-      "id,name,name_bn,description,description_bn,website,phone,email,district_id,logo_url,is_verified,is_active,sort_order,donor_contact_settings",
-    )
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
-  if (districtId) q = q.eq("district_id", districtId);
-  const { data, error } = await q;
+  async function run(withKycFilter: boolean) {
+    let q = supabase
+      .from("community_orgs")
+      .select(
+        "id,name,name_bn,description,description_bn,website,phone,email,district_id,logo_url,is_verified,is_active,sort_order,donor_contact_settings",
+      )
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+    if (withKycFilter) {
+      q = q.neq("kyc_status", "pending").neq("kyc_status", "rejected");
+    }
+    if (districtId) q = q.eq("district_id", districtId);
+    return q;
+  }
+
+  let { data, error } = await run(true);
+  if (error && /kyc_status|column/i.test(error.message)) {
+    ({ data, error } = await run(false));
+  }
   if (error) throw error;
   const rows = (data ?? []) as CommunityOrg[];
   const districtIds = [...new Set(rows.map((r) => r.district_id).filter(Boolean))] as string[];
