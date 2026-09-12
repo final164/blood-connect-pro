@@ -24,6 +24,7 @@ import {
   type DonationOffer,
 } from "@/lib/donation-offers";
 import { CheckCircle2, HeartHandshake, Search, UserPlus, X } from "lucide-react";
+import { toastRecentReward } from "@/lib/reward-toast";
 
 export function DonationPanel({
   requestId,
@@ -151,6 +152,7 @@ export function DonationPanel({
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(lang === "bn" ? "রক্ত দান সম্পন্ন — ম্যানেজড" : "Marked as complete");
+    void toastRecentReward(user?.id, "request_fulfilled", lang);
     onExitCompleting?.();
     onChanged?.();
   }
@@ -218,6 +220,9 @@ export function DonationPanel({
     if (atConfirmCap()) return;
     await run(async () => confirmOffer({ offer, recipientId: requesterId, bags: offer.bags }));
     toast.success(lang === "bn" ? "ডোনেশন নিশ্চিত" : "Donation confirmed");
+    if (user?.id === offer.donor_id) {
+      void toastRecentReward(user.id, "donation_confirmed", lang);
+    }
   }
 
   async function onReject(offerId: string) {
@@ -245,6 +250,9 @@ export function DonationPanel({
       }),
     );
     toast.success(lang === "bn" ? "ডোনার assign হয়েছে" : "Donor assigned");
+    if (user?.id === donorId) {
+      void toastRecentReward(user.id, "donation_confirmed", lang);
+    }
     setAssignQ("");
   }
 

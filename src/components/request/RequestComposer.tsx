@@ -33,6 +33,7 @@ import { uploadAppImage, fetchGoogleDriveSettings, canPasteImageUrl, canUploadIm
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { saveCommunityRequestDraft } from "@/lib/community-request-draft";
 import { toast } from "sonner";
+import { toastRecentReward } from "@/lib/reward-toast";
 
 export function RequestComposer({
   defaultDistrict,
@@ -308,6 +309,7 @@ export function RequestComposer({
         ? "ফিডে পোস্ট হয়েছে · Save request-এও সেভ আছে"
         : "Posted to feed · also saved as Save request",
     );
+    void toastRecentReward(user?.id, "post_request", lang);
     setHospital(null);
     setUpazila("");
     setReasonKey("");

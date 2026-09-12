@@ -120,6 +120,9 @@ function PublicProfilePage() {
             is_available: profile.is_available as boolean | undefined,
             total_donations: profile.total_donations as number | undefined,
             lives_saved: profile.lives_saved as number | undefined,
+            reward_points: (profile.reward_points as number) ?? 0,
+            reward_level: (profile.reward_level as number) ?? 1,
+            reward_lifetime_earned: (profile.reward_lifetime_earned as number) ?? 0,
           }}
           lang={lang}
           messagePeerId={user && user.id !== userId ? userId : null}

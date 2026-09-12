@@ -10,6 +10,7 @@ import {
   Pencil,
   Link2,
   MessageCircle,
+  Trophy,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { ChatLink } from "@/components/chat/ChatLink";
@@ -30,6 +31,9 @@ export type ProfileDisplayData = {
   is_available?: boolean | null;
   total_donations?: number | null;
   lives_saved?: number | null;
+  reward_points?: number | null;
+  reward_level?: number | null;
+  reward_lifetime_earned?: number | null;
 };
 
 export function ProfileFacebookLayout({
@@ -46,6 +50,7 @@ export function ProfileFacebookLayout({
   lockBusy,
   headerExtra,
   messagePeerId,
+  onRewardsClick,
 }: {
   profile: ProfileDisplayData;
   lang: "bn" | "en";
@@ -61,6 +66,7 @@ export function ProfileFacebookLayout({
   headerExtra?: React.ReactNode;
   /** Other-user profile: Message opens chat with this user id */
   messagePeerId?: string | null;
+  onRewardsClick?: () => void;
 }) {
   const showLockIcon = (field: ProfileLockField) =>
     !!isOwnProfile && !!profileLocked && !!lockSettings && isFieldHiddenWhenLocked(field, lockSettings);
@@ -69,6 +75,9 @@ export function ProfileFacebookLayout({
   const donations = profile.total_donations;
   const lives = profile.lives_saved;
   const showStats = donations != null || lives != null;
+  const pts = profile.reward_points;
+  const lvl = profile.reward_level;
+  const showRewards = pts != null || lvl != null;
 
   return (
     <div className="w-full">
@@ -134,6 +143,19 @@ export function ProfileFacebookLayout({
                 <span className="mx-1.5">·</span>
                 {lives ?? 0} {lang === "bn" ? "জীবন বাঁচানো" : "lives saved"}
               </p>
+            )}
+            {showRewards && (
+              <button
+                type="button"
+                onClick={onRewardsClick}
+                disabled={!onRewardsClick}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary disabled:opacity-80"
+              >
+                <Trophy className="h-3.5 w-3.5" />
+                {pts ?? 0} pts
+                <span className="text-primary/70">·</span>
+                {lang === "bn" ? "লেভেল" : "Lv"} {lvl ?? 1}
+              </button>
             )}
           </div>
           {profile.blood_group && (

@@ -18,6 +18,7 @@ import {
 } from "@/lib/google-drive";
 import { resolveCarouselImageUrl } from "@/lib/feed-carousel";
 import { ProfileFacebookLayout } from "@/components/profile/ProfileFacebookLayout";
+import { RewardsHistorySheet } from "@/components/profile/RewardsHistorySheet";
 import { ProfileEditSheet } from "@/components/profile/ProfileEditSheet";
 import { Settings as SettingsIcon, Shield } from "lucide-react";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
@@ -46,6 +47,7 @@ function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [lockBusy, setLockBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [driveCfg, setDriveCfg] = useState<GoogleDriveSettings>(DEFAULT_GOOGLE_DRIVE_SETTINGS);
 
@@ -254,6 +256,9 @@ function ProfilePage() {
             is_available: profile.is_available as boolean,
             total_donations: profile.total_donations as number,
             lives_saved: profile.lives_saved as number,
+            reward_points: (profile.reward_points as number) ?? 0,
+            reward_level: (profile.reward_level as number) ?? 1,
+            reward_lifetime_earned: (profile.reward_lifetime_earned as number) ?? 0,
           }}
           lang={lang}
           isOwnProfile
@@ -261,6 +266,7 @@ function ProfilePage() {
           lockSettings={lockSettings}
           onLockToggle={() => void toggleLock()}
           onEdit={() => setEditOpen(true)}
+          onRewardsClick={() => setRewardsOpen(true)}
           onAvatarUpload={
             driveCfg.allow_profile_image && canUploadImageFile(driveCfg)
               ? (f) => void onAvatarUpload(f)
@@ -292,6 +298,17 @@ function ProfilePage() {
         busy={busy}
         onSave={() => void save()}
       />
+      {user && (
+        <RewardsHistorySheet
+          open={rewardsOpen}
+          onClose={() => setRewardsOpen(false)}
+          userId={user.id}
+          lang={lang}
+          points={Number(profile.reward_points) || 0}
+          level={Number(profile.reward_level) || 1}
+          lifetime={Number(profile.reward_lifetime_earned) || 0}
+        />
+      )}
     </div>
   );
 }

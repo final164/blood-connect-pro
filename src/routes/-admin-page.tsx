@@ -109,6 +109,7 @@ import { SeoAdmin } from "@/components/admin/SeoAdmin";
 import { LegalAdmin } from "@/components/admin/LegalAdmin";
 import { RequestContactsExpandable } from "@/components/request/RequestContactsExpandable";
 import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
+import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { GeminiKeysAdmin } from "@/components/admin/GeminiKeysAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
@@ -3583,6 +3584,7 @@ function SettingsAdmin() {
     | "legal"
     | "reasons"
     | "donations"
+    | "rewards"
     | "menu"
     | "nav"
     | "form"
@@ -3664,6 +3666,7 @@ function SettingsAdmin() {
     { id: "legal" as const, bn: "আইনি পেজ", en: "Legal pages" },
     { id: "reasons" as const, bn: "রোগের কারণ", en: "Need reasons" },
     { id: "donations" as const, bn: "রক্তদান ফ্লো", en: "Donation flow" },
+    { id: "rewards" as const, bn: "রিওয়ার্ড পয়েন্ট", en: "Reward points" },
     { id: "menu" as const, bn: "ইউজার মেনু", en: "User menu" },
     { id: "nav" as const, bn: "অ্যাপ ন্যাভ", en: "App nav" },
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
@@ -3717,6 +3720,7 @@ function SettingsAdmin() {
       {settingsTab === "legal" && <LegalAdmin />}
       {settingsTab === "reasons" && <NeedReasonAdmin />}
       {settingsTab === "donations" && <DonationFlowAdmin />}
+      {settingsTab === "rewards" && <RewardsAdmin />}
       {settingsTab === "menu" && <UserMenuAdmin />}
       {settingsTab === "nav" && <BottomNavAdmin />}
       {settingsTab === "profilelock" && <ProfileLockAdmin />}
