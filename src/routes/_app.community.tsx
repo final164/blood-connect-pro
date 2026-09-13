@@ -44,7 +44,7 @@ import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
 } from "@/lib/feed-carousel";
 import { queryKeys } from "@/lib/query-client";
-import { Phone, Users, Building2, X, MessageSquare } from "lucide-react";
+import { Phone, Users, Building2, X, MessageSquare, Sparkles } from "lucide-react";
 import { MessengerIcon, AlertsHeaderButton } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -58,6 +58,7 @@ import { useInfiniteQuery, useQuery, useQueryClient, keepPreviousData } from "@t
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { findProfileIdByPhone } from "@/lib/find-profile-by-phone";
+import { fetchBloodDonorAiSettings } from "@/lib/blood-donor-ai-settings";
 
 type CommunitySearch = {
   orgId?: string;
@@ -96,6 +97,14 @@ function CommunityPage() {
     staleTime: 120_000,
   });
   const msgSettings = msgQuery.data ?? DEFAULT_MESSAGING_SETTINGS;
+
+  const donorAiQuery = useQuery({
+    queryKey: ["blood-donor-ai-settings"],
+    queryFn: () => fetchBloodDonorAiSettings(),
+    staleTime: 120_000,
+  });
+  const showDonorAi =
+    !!donorAiQuery.data?.enabled && !!donorAiQuery.data?.entry_points.community;
 
   useEffect(() => {
     if (!user?.id) {
@@ -475,6 +484,16 @@ function CommunityPage() {
             <UpazilaSelect district={district} value={upazila} onChange={setUpazila} />
           </div>
         </div>
+
+        {showDonorAi && (
+          <Link
+            to="/ai/donors"
+            className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-violet-400/50 bg-violet-500/5 px-3 py-2.5 text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-500/10 transition"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {lang === "bn" ? "ব্লাড ডোনার AI" : "Blood Donor AI"}
+          </Link>
+        )}
 
         {msgSettings.show_community_send_sms && (
           <button

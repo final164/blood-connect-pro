@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { Check, ChevronDown, MessageCircleQuestion, Send, X } from "lucide-react";
+import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
+import { UpazilaTypeahead, UPAZILA_ALL } from "@/components/district/UpazilaTypeahead";
+import type { District } from "@/lib/api";
 import type { FollowUpPublicConfig } from "@/lib/gemini-ai-config";
 import type { FollowUpQuestion } from "@/lib/care-ai-followup";
+import { useI18n } from "@/lib/i18n";
 
 type AnswerMode = "single" | "batch";
 
@@ -14,9 +18,20 @@ type Props = {
   onSelect: (q: FollowUpQuestion | null) => void;
   onSubmit: (question: FollowUpQuestion, answer: string) => void;
   onSubmitBatch: (entries: { question: FollowUpQuestion; answer: string }[]) => void;
+  /** Blood Donor AI: pre-select “all upazilas” when opening upazila question */
+  defaultUpazilaAll?: boolean;
 };
 
 const MAX_INPUT_HEIGHT = 120;
+
+function districtLabel(d: District, lang: "bn" | "en") {
+  return lang === "bn" ? d.name_bn : d.name_en;
+}
+
+function upazilaSubmitValue(value: string) {
+  if (value === UPAZILA_ALL) return UPAZILA_ALL;
+  return value.trim();
+}
 
 function ExpandableInput({
   value,
@@ -79,10 +94,14 @@ export function CareAiFollowUpPanel({
   onSelect,
   onSubmit,
   onSubmitBatch,
+  defaultUpazilaAll = false,
 }: Props) {
+  const { lang } = useI18n();
   const [mode, setMode] = useState<AnswerMode>("single");
   const [draft, setDraft] = useState("");
   const [batchDrafts, setBatchDrafts] = useState<Record<string, string>>({});
+  const [pickedDistrict, setPickedDistrict] = useState<District | null>(null);
+  const [pickedUpazila, setPickedUpazila] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const pending = questions.filter((q) => !answered.has(q.text));
@@ -93,21 +112,39 @@ export function CareAiFollowUpPanel({
   useEffect(() => {
     if (active && mode === "single") {
       setDraft("");
+      if (active.geo === "district") {
+        setPickedDistrict(null);
+        setPickedUpazila("");
+      } else if (active.geo === "upazila" && defaultUpazilaAll) {
+        setPickedUpazila(UPAZILA_ALL);
+        setDraft(UPAZILA_ALL);
+      } else if (active.geo === "upazila") {
+        setPickedUpazila("");
+        setDraft("");
+      } else {
+        setPickedUpazila("");
+      }
       requestAnimationFrame(() => inputRef.current?.focus());
     }
-  }, [active, mode]);
+  }, [active, mode, defaultUpazilaAll]);
 
   useEffect(() => {
     if (mode === "batch") {
       setBatchDrafts((prev) => {
         const next = { ...prev };
         for (const q of pending) {
-          if (!(q.text in next)) next[q.text] = "";
+          if (!(q.text in next)) {
+            next[q.text] =
+              q.geo === "upazila" && defaultUpazilaAll ? upazilaSubmitValue(UPAZILA_ALL) : "";
+          }
         }
         return next;
       });
+      if (defaultUpazilaAll && pending.some((q) => q.geo === "upazila") && !pickedUpazila) {
+        setPickedUpazila(UPAZILA_ALL);
+      }
     }
-  }, [mode, pendingKey, pending]);
+  }, [mode, pendingKey, pending, pickedUpazila, defaultUpazilaAll]);
 
   if (!questions.length) return null;
 
@@ -117,6 +154,7 @@ export function CareAiFollowUpPanel({
     if (!trimmed) return;
     onSubmit(active, trimmed);
     setDraft("");
+    setPickedUpazila("");
   }
 
   function submitBatchForm() {
@@ -127,6 +165,121 @@ export function CareAiFollowUpPanel({
     if (!entries.length) return;
     onSubmitBatch(entries);
     setBatchDrafts({});
+    setPickedUpazila("");
+  }
+
+  function renderGeoSingle() {
+    if (!active?.geo) return null;
+    if (active.geo === "district") {
+      return (
+        <div className="space-y-2">
+          <DistrictTypeahead
+            value={pickedDistrict}
+            onChange={(d) => {
+              setPickedDistrict(d);
+              setDraft(d ? districtLabel(d, lang) : "");
+            }}
+            placeholder={active.placeholder}
+            disabled={busy}
+          />
+          <button
+            type="button"
+            disabled={busy || !pickedDistrict}
+            onClick={() => submitSingle(draft)}
+            className="w-full rounded-xl bg-primary text-primary-foreground px-3 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Send className="h-4 w-4" />
+            {lang === "bn" ? "জেলা নিশ্চিত" : "Confirm district"}
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-2">
+        <DistrictTypeahead
+          value={pickedDistrict}
+          onChange={(d) => {
+            setPickedDistrict(d);
+            setPickedUpazila("");
+          }}
+          placeholder={lang === "bn" ? "আগে জেলা খুঁজুন…" : "Search district first…"}
+          disabled={busy}
+        />
+        <UpazilaTypeahead
+          district={pickedDistrict}
+          value={pickedUpazila}
+          allowAll
+          onChange={(v) => {
+            setPickedUpazila(v);
+            setDraft(v);
+          }}
+          placeholder={active.placeholder}
+        />
+        <button
+          type="button"
+          disabled={busy || !pickedUpazila}
+          onClick={() => submitSingle(upazilaSubmitValue(pickedUpazila))}
+          className="w-full rounded-xl bg-primary text-primary-foreground px-3 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" />
+          {lang === "bn" ? "উপজেলা নিশ্চিত" : "Confirm upazila"}
+        </button>
+      </div>
+    );
+  }
+
+  function renderGeoBatch(q: FollowUpQuestion) {
+    if (q.geo === "district") {
+      return (
+        <DistrictTypeahead
+          value={pickedDistrict}
+          onChange={(d) => {
+            setPickedDistrict(d);
+            setPickedUpazila("");
+            setBatchDrafts((prev) => {
+              const next = { ...prev, [q.text]: d ? districtLabel(d, lang) : "" };
+              for (const pq of pending) {
+                if (pq.geo === "upazila") next[pq.text] = "";
+              }
+              return next;
+            });
+          }}
+          placeholder={q.placeholder}
+          disabled={busy}
+        />
+      );
+    }
+    if (q.geo === "upazila") {
+      return (
+        <div className="space-y-2">
+          {!pickedDistrict && (
+            <DistrictTypeahead
+              value={pickedDistrict}
+              onChange={(d) => {
+                setPickedDistrict(d);
+                setPickedUpazila("");
+              }}
+              placeholder={lang === "bn" ? "আগে জেলা খুঁজুন…" : "Search district first…"}
+              disabled={busy}
+            />
+          )}
+          <UpazilaTypeahead
+            district={pickedDistrict}
+            value={pickedUpazila}
+            allowAll
+            onChange={(v) => {
+              setPickedUpazila(v);
+              setBatchDrafts((prev) => ({
+                ...prev,
+                [q.text]: upazilaSubmitValue(v),
+              }));
+            }}
+            placeholder={q.placeholder}
+          />
+        </div>
+      );
+    }
+    return null;
   }
 
   return (
@@ -220,49 +373,55 @@ export function CareAiFollowUpPanel({
                 </button>
               </div>
 
-              {active.quickReplies.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {active.quickReplies.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
+              {active.geo ? (
+                renderGeoSingle()
+              ) : (
+                <>
+                  {active.quickReplies.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {active.quickReplies.map((chip) => (
+                        <button
+                          key={chip}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => submitSingle(chip)}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition hover:border-primary hover:bg-primary/10 ${
+                            draft === chip ? "border-primary bg-primary/10" : "bg-muted/40"
+                          }`}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <form
+                    className="flex gap-2 items-end"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      submitSingle(draft);
+                    }}
+                  >
+                    <ExpandableInput
+                      inputRef={inputRef}
+                      value={draft}
                       disabled={busy}
-                      onClick={() => submitSingle(chip)}
-                      className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition hover:border-primary hover:bg-primary/10 ${
-                        draft === chip ? "border-primary bg-primary/10" : "bg-muted/40"
-                      }`}
+                      onChange={setDraft}
+                      placeholder={active.placeholder}
+                      onEnterSubmit={() => submitSingle(draft)}
+                    />
+                    <button
+                      type="submit"
+                      disabled={busy || !draft.trim()}
+                      className="h-11 w-11 shrink-0 rounded-xl bg-primary text-primary-foreground grid place-items-center disabled:opacity-50"
                     >
-                      {chip}
+                      <Send className="h-4 w-4" />
                     </button>
-                  ))}
-                </div>
+                  </form>
+
+                  <p className="text-[10px] text-muted-foreground">{copy.chipHint}</p>
+                </>
               )}
-
-              <form
-                className="flex gap-2 items-end"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  submitSingle(draft);
-                }}
-              >
-                <ExpandableInput
-                  inputRef={inputRef}
-                  value={draft}
-                  disabled={busy}
-                  onChange={setDraft}
-                  placeholder={active.placeholder}
-                  onEnterSubmit={() => submitSingle(draft)}
-                />
-                <button
-                  type="submit"
-                  disabled={busy || !draft.trim()}
-                  className="h-11 w-11 shrink-0 rounded-xl bg-primary text-primary-foreground grid place-items-center disabled:opacity-50"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-              </form>
-
-              <p className="text-[10px] text-muted-foreground">{copy.chipHint}</p>
             </div>
           )}
         </>
@@ -278,34 +437,40 @@ export function CareAiFollowUpPanel({
                   <span className="text-muted-foreground mr-1">{i + 1}.</span>
                   {q.text}
                 </p>
-                {q.quickReplies.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {q.quickReplies.map((chip) => (
-                      <button
-                        key={chip}
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          setBatchDrafts((prev) => ({
-                            ...prev,
-                            [q.text]: chip,
-                          }))
-                        }
-                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition hover:border-primary hover:bg-primary/10 ${
-                          batchDrafts[q.text] === chip ? "border-primary bg-primary/10" : "bg-muted/40"
-                        }`}
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
+                {q.geo ? (
+                  renderGeoBatch(q)
+                ) : (
+                  <>
+                    {q.quickReplies.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {q.quickReplies.map((chip) => (
+                          <button
+                            key={chip}
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              setBatchDrafts((prev) => ({
+                                ...prev,
+                                [q.text]: chip,
+                              }))
+                            }
+                            className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition hover:border-primary hover:bg-primary/10 ${
+                              batchDrafts[q.text] === chip ? "border-primary bg-primary/10" : "bg-muted/40"
+                            }`}
+                          >
+                            {chip}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <ExpandableInput
+                      value={batchDrafts[q.text] ?? ""}
+                      disabled={busy}
+                      onChange={(v) => setBatchDrafts((prev) => ({ ...prev, [q.text]: v }))}
+                      placeholder={q.placeholder}
+                    />
+                  </>
                 )}
-                <ExpandableInput
-                  value={batchDrafts[q.text] ?? ""}
-                  disabled={busy}
-                  onChange={(v) => setBatchDrafts((prev) => ({ ...prev, [q.text]: v }))}
-                  placeholder={q.placeholder}
-                />
               </li>
             ))}
           </ul>

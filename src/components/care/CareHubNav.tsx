@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Ambulance,
   ClipboardList,
+  Droplets,
   FlaskConical,
   Home,
   HousePlus,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { fetchCareHubModules, fetchCarePolicies, type CareHubModule } from "@/lib/care-cms";
 import { fetchMyCareMemberships } from "@/lib/care-access";
+import { fetchBloodDonorAiSettings } from "@/lib/blood-donor-ai-settings";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, typeof Stethoscope> = {
@@ -133,6 +135,7 @@ export function CareHubNav({
   const [hasStaff, setHasStaff] = useState(false);
   const [homeDoctorOn, setHomeDoctorOn] = useState(false);
   const [homeDiagOn, setHomeDiagOn] = useState(false);
+  const [showDonorAi, setShowDonorAi] = useState(false);
 
   useEffect(() => {
     void fetchCareHubModules().then((rows) => setModules(rows.filter((m) => m.is_enabled !== false)));
@@ -140,6 +143,9 @@ export function CareHubNav({
     void fetchCarePolicies().then(({ flags }) => {
       setHomeDoctorOn(flags.home_doctor === true);
       setHomeDiagOn(flags.home_diagnostic === true || flags.home_collection === true);
+    });
+    void fetchBloodDonorAiSettings().then((s) => {
+      setShowDonorAi(s.enabled && s.entry_points.care_hub);
     });
   }, []);
 
@@ -203,10 +209,27 @@ export function CareHubNav({
     );
   }
 
-  if (visible.length === 0) return null;
+  if (visible.length === 0 && !showDonorAi) return null;
 
   if (variant === "grid") {
-    return <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${className}`}>{visible.map(renderItem)}</div>;
+    return (
+      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 ${className}`}>
+        {showDonorAi && (
+          <Link
+            to="/ai/donors"
+            className="group inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-background px-2.5 py-2 text-left text-rose-800 shadow-sm"
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-md border bg-rose-50 text-rose-700 border-rose-200">
+              <Droplets className="h-3.5 w-3.5" strokeWidth={2} />
+            </span>
+            <span className="text-xs font-bold leading-none whitespace-nowrap">
+              {lang === "bn" ? "ডোনার AI" : "Donor AI"}
+            </span>
+          </Link>
+        )}
+        {visible.map(renderItem)}
+      </div>
+    );
   }
 
   return (
@@ -237,6 +260,19 @@ export function CareHubNav({
         </Link>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-0.5 no-scrollbar -mx-0.5 px-0.5">
+        {showDonorAi && (
+          <Link
+            to="/ai/donors"
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-background px-2.5 py-2 text-left text-rose-800 shadow-sm transition"
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-md border bg-rose-50 text-rose-700 border-rose-200">
+              <Droplets className="h-3.5 w-3.5" strokeWidth={2} />
+            </span>
+            <span className="text-xs font-bold leading-none whitespace-nowrap">
+              {lang === "bn" ? "ডোনার AI" : "Donor AI"}
+            </span>
+          </Link>
+        )}
         {visible.map(renderItem)}
       </div>
     </div>

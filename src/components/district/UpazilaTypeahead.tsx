@@ -3,6 +3,10 @@ import { type District } from "@/lib/api";
 import { fetchUpazilaOptions } from "@/lib/upazilas";
 import { useI18n } from "@/lib/i18n";
 import { MapPinned, X } from "lucide-react";
+import { UPAZILA_ALL_SLOT } from "@/lib/blood-donor-ai-slots";
+
+/** Sentinel value meaning whole district (all upazilas). */
+export const UPAZILA_ALL = UPAZILA_ALL_SLOT;
 
 /** Search autocomplete for upazilas scoped to a district */
 export function UpazilaTypeahead({
@@ -11,12 +15,17 @@ export function UpazilaTypeahead({
   onChange,
   required,
   placeholder,
+  allowAll = false,
+  allLabel,
 }: {
   district: District | null;
   value: string;
   onChange: (v: string) => void;
   required?: boolean;
   placeholder?: string;
+  /** Show “All upazilas” as first selectable option */
+  allowAll?: boolean;
+  allLabel?: string;
 }) {
   const { lang, t } = useI18n();
   const [q, setQ] = useState("");
@@ -25,11 +34,21 @@ export function UpazilaTypeahead({
   const [loading, setLoading] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
+  const resolvedAllLabel =
+    allLabel ?? (lang === "bn" ? "সব উপজেলা" : "All upazilas");
+
   useEffect(() => {
-    if (!value) return;
+    if (!value) {
+      setQ("");
+      return;
+    }
+    if (value === UPAZILA_ALL) {
+      setQ(resolvedAllLabel);
+      return;
+    }
     const match = options.find((u) => u.en === value);
     setQ(match ? (lang === "bn" ? match.bn : match.en) : value);
-  }, [value, lang, options]);
+  }, [value, lang, options, resolvedAllLabel]);
 
   useEffect(() => {
     if (!district) {
@@ -64,7 +83,7 @@ export function UpazilaTypeahead({
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return options.slice(0, 40);
+    if (!needle || needle === resolvedAllLabel.toLowerCase()) return options.slice(0, 40);
     return options
       .filter(
         (u) =>
@@ -72,10 +91,24 @@ export function UpazilaTypeahead({
           u.bn.toLowerCase().includes(needle),
       )
       .slice(0, 40);
-  }, [options, q]);
+  }, [options, q, resolvedAllLabel]);
+
+  const showAllInList =
+    allowAll &&
+    (() => {
+      const needle = q.trim().toLowerCase();
+      if (!needle) return true;
+      return (
+        resolvedAllLabel.toLowerCase().includes(needle) ||
+        "all".startsWith(needle) ||
+        "সব".startsWith(q.trim()) ||
+        "সকল".startsWith(q.trim())
+      );
+    })();
 
   const label = placeholder ?? t("searchUpazila");
   const disabled = !district || loading;
+  const listOpen = open && !disabled && (showAllInList || filtered.length > 0);
 
   return (
     <div ref={boxRef} className="relative">
@@ -95,7 +128,11 @@ export function UpazilaTypeahead({
                 : "Select district first"
               : loading
                 ? t("loading")
-                : label
+                : allowAll
+                  ? lang === "bn"
+                    ? "সব উপজেলা বা খুঁজুন…"
+                    : "All or search upazila…"
+                  : label
           }
           required={required && !value}
           disabled={disabled}
@@ -120,8 +157,23 @@ export function UpazilaTypeahead({
           </button>
         )}
       </div>
-      {open && !disabled && filtered.length > 0 && (
+      {listOpen && (
         <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-xl border bg-card shadow-lg">
+          {showAllInList && (
+            <li>
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-primary/5 border-b"
+                onClick={() => {
+                  onChange(UPAZILA_ALL);
+                  setQ(resolvedAllLabel);
+                  setOpen(false);
+                }}
+              >
+                <span className="font-semibold text-primary">{resolvedAllLabel}</span>
+              </button>
+            </li>
+          )}
           {filtered.map((u) => (
             <li key={u.en}>
               <button

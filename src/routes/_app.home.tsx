@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -10,7 +10,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { RequestComposer } from "@/components/request/RequestComposer";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
 import { cacheGet, cacheSet } from "@/lib/offline";
-import { Search, X } from "lucide-react";
+import { Search, Sparkles, X } from "lucide-react";
 import { AlertsHeaderButton } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -24,6 +24,7 @@ import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
 import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
 import { SuccessStoriesCarousel } from "@/components/feed/SuccessStoriesCarousel";
 import { CareHubNav } from "@/components/care/CareHubNav";
+import { fetchBloodDonorAiSettings } from "@/lib/blood-donor-ai-settings";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
   fetchFeedCarouselBundle,
@@ -91,6 +92,14 @@ function FeedPage() {
 
   const qKey = queryKeys.feed(filter, district?.id, user?.id);
   const idbKey = feedIdbKey(district?.id, filter);
+
+  const homeDonorAiQuery = useQuery({
+    queryKey: ["blood-donor-ai-settings", "home"],
+    queryFn: () => fetchBloodDonorAiSettings(),
+    staleTime: 120_000,
+  });
+  const showHomeDonorAi =
+    !!homeDonorAiQuery.data?.enabled && !!homeDonorAiQuery.data?.entry_points.home;
 
   const feedQuery = useInfiniteQuery({
     queryKey: qKey,
@@ -493,7 +502,16 @@ function FeedPage() {
               ))}
             </div>
 
-            <div className="px-3 pb-2 border-t border-border/50 pt-2">
+            <div className="px-3 pb-2 border-t border-border/50 pt-2 space-y-2">
+              {showHomeDonorAi && (
+                <Link
+                  to="/ai/donors"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-rose-400/40 bg-rose-500/5 px-3 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {lang === "bn" ? "ব্লাড ডোনার AI" : "Blood Donor AI"}
+                </Link>
+              )}
               <CareHubNav lang={lang} variant="strip" />
             </div>
           </AutoHideHeader>

@@ -57,6 +57,7 @@ import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
 import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
 import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
 import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
+import { Route as AppAiDonorsRouteImport } from './routes/_app.ai.donors'
 import { Route as AppCareVideoIndexRouteImport } from './routes/_app.care.video.index'
 import { Route as AppCareHomeDoctorIndexRouteImport } from './routes/_app.care.home-doctor.index'
 import { Route as AppCareHomeDiagnosticIndexRouteImport } from './routes/_app.care.home-diagnostic.index'
@@ -315,6 +316,11 @@ const AppAmbulanceRequestRoute = AppAmbulanceRequestRouteImport.update({
   path: '/request',
   getParentRoute: () => AppAmbulanceRoute,
 } as any)
+const AppAiDonorsRoute = AppAiDonorsRouteImport.update({
+  id: '/ai/donors',
+  path: '/ai/donors',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCareVideoIndexRoute = AppCareVideoIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -437,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/auth/reset': typeof AuthResetRoute
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
+  '/ai/donors': typeof AppAiDonorsRoute
   '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/care/ai-tests': typeof AppCareAiTestsRoute
   '/care/desk': typeof AppCareDeskRoute
@@ -500,6 +507,7 @@ export interface FileRoutesByTo {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/reset': typeof AuthResetRoute
   '/care/auth': typeof CareAuthRoute
+  '/ai/donors': typeof AppAiDonorsRoute
   '/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/care/ai-tests': typeof AppCareAiTestsRoute
   '/care/desk': typeof AppCareDeskRoute
@@ -568,6 +576,7 @@ export interface FileRoutesById {
   '/auth_/reset': typeof AuthResetRoute
   '/care/auth': typeof CareAuthRoute
   '/care/portal': typeof CarePortalRouteWithChildren
+  '/_app/ai/donors': typeof AppAiDonorsRoute
   '/_app/ambulance/request': typeof AppAmbulanceRequestRouteWithChildren
   '/_app/care/ai-tests': typeof AppCareAiTestsRoute
   '/_app/care/desk': typeof AppCareDeskRoute
@@ -637,6 +646,7 @@ export interface FileRouteTypes {
     | '/auth/reset'
     | '/care/auth'
     | '/care/portal'
+    | '/ai/donors'
     | '/ambulance/request'
     | '/care/ai-tests'
     | '/care/desk'
@@ -700,6 +710,7 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/reset'
     | '/care/auth'
+    | '/ai/donors'
     | '/ambulance/request'
     | '/care/ai-tests'
     | '/care/desk'
@@ -767,6 +778,7 @@ export interface FileRouteTypes {
     | '/auth_/reset'
     | '/care/auth'
     | '/care/portal'
+    | '/_app/ai/donors'
     | '/_app/ambulance/request'
     | '/_app/care/ai-tests'
     | '/_app/care/desk'
@@ -1168,6 +1180,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAmbulanceRequestRouteImport
       parentRoute: typeof AppAmbulanceRoute
     }
+    '/_app/ai/donors': {
+      id: '/_app/ai/donors'
+      path: '/ai/donors'
+      fullPath: '/ai/donors'
+      preLoaderRoute: typeof AppAiDonorsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/care/video/': {
       id: '/_app/care/video/'
       path: '/'
@@ -1422,6 +1441,7 @@ interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRouteWithChildren
   AppRequestsRoute: typeof AppRequestsRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppAiDonorsRoute: typeof AppAiDonorsRoute
   AppMeViewRoute: typeof AppMeViewRoute
 }
 
@@ -1437,6 +1457,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRouteWithChildren,
   AppRequestsRoute: AppRequestsRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppAiDonorsRoute: AppAiDonorsRoute,
   AppMeViewRoute: AppMeViewRoute,
 }
 

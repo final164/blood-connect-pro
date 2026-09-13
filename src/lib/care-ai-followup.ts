@@ -7,6 +7,8 @@ export type FollowUpQuestion = {
   kind: FollowUpKind;
   quickReplies: string[];
   placeholder: string;
+  /** Blood Donor AI: district/upazila search-select instead of free text */
+  geo?: "district" | "upazila";
 };
 
 function inferKind(text: string, cfg: FollowUpPublicConfig): FollowUpKind {

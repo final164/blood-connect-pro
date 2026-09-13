@@ -72,6 +72,8 @@ export function isGuestBrowsePathRules(
     // Doctor / lab / test / AI / home / video doctor profiles — browse OK; book/message gate in UI
     return true;
   }
+  // Blood Donor AI — browse OK; SMS/phone gated in UI
+  if (pathname === "/ai/donors" || pathname.startsWith("/ai/donors")) return true;
   return false;
 }
 

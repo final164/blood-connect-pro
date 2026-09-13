@@ -112,6 +112,7 @@ import { DonationFlowAdmin } from "@/components/admin/DonationFlowAdmin";
 import { RewardsAdmin } from "@/components/admin/RewardsAdmin";
 import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { GeminiKeysAdmin } from "@/components/admin/GeminiKeysAdmin";
+import { BloodDonorAiAdmin } from "@/components/admin/BloodDonorAiAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
 import { ReportsAdmin } from "@/components/admin/ReportsAdmin";
 import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
@@ -3592,6 +3593,7 @@ function SettingsAdmin() {
     | "messaging"
     | "drive"
     | "gemini"
+    | "bloodDonorAi"
     | "app"
   >("urgency");
   const [s, setS] = useState<any>({
@@ -3674,6 +3676,7 @@ function SettingsAdmin() {
     { id: "messaging" as const, bn: "SMS ও আইকন", en: "SMS & icons" },
     { id: "drive" as const, bn: "Google Drive", en: "Google Drive" },
     { id: "gemini" as const, bn: "Gemini API", en: "Gemini API" },
+    { id: "bloodDonorAi" as const, bn: "ব্লাড ডোনার AI", en: "Blood Donor AI" },
     { id: "app" as const, bn: "অ্যাপ", en: "App" },
   ];
 
@@ -3727,6 +3730,7 @@ function SettingsAdmin() {
       {settingsTab === "messaging" && <MessagingSettingsAdmin />}
       {settingsTab === "drive" && <GoogleDriveAdmin />}
       {settingsTab === "gemini" && <GeminiKeysAdmin />}
+      {settingsTab === "bloodDonorAi" && <BloodDonorAiAdmin />}
 
       {settingsTab === "form" && (
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-3 max-w-2xl">
