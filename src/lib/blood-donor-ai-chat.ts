@@ -21,6 +21,7 @@ import {
   upazilaFilterForQuery,
   upazilaSlotLabel,
 } from "@/lib/blood-donor-ai-slots";
+import type { BloodDonorAiLocationPreset } from "@/lib/blood-donor-ai-location-tabs";
 
 export type BloodDonorAiChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -194,6 +195,19 @@ function mergeSlots(
       /(?:উপজেলা|upazila)[^\n]{0,40}(?:সব|all|__all__)/i,
     );
     if (upAll) next.upazila = UPAZILA_ALL_SLOT;
+  }
+  return next;
+}
+
+function applyLocationPreset(
+  slots: BloodDonorAiSlots,
+  preset: BloodDonorAiLocationPreset | undefined,
+): BloodDonorAiSlots {
+  if (!preset?.district?.trim()) return slots;
+  const next = { ...slots };
+  next.district = preset.district.trim();
+  if (preset.upazila?.trim()) {
+    next.upazila = parseUpazilaSlotInput(preset.upazila.trim());
   }
   return next;
 }
@@ -569,7 +583,13 @@ export const fetchBloodDonorAiPublicConfig = createServerFn({ method: "POST" })
 
 export const bloodDonorAiChat = createServerFn({ method: "POST" })
   .middleware([optionalSupabaseAuth])
-  .validator((data: { messages: BloodDonorAiChatMessage[]; lang?: "bn" | "en"; intentHint?: string }) => {
+  .validator(
+    (data: {
+      messages: BloodDonorAiChatMessage[];
+      lang?: "bn" | "en";
+      intentHint?: string;
+      locationPreset?: BloodDonorAiLocationPreset;
+    }) => {
     const messages = Array.isArray(data?.messages) ? data.messages : [];
     const cleaned: BloodDonorAiChatMessage[] = messages
       .slice(-12)
@@ -579,12 +599,24 @@ export const bloodDonorAiChat = createServerFn({ method: "POST" })
       }))
       .filter((m) => m.text);
     if (!cleaned.length) throw new Error("Message required");
+    const presetRaw = data?.locationPreset;
+    const locationPreset =
+      presetRaw &&
+      typeof presetRaw === "object" &&
+      String(presetRaw.district ?? "").trim()
+        ? {
+            district: String(presetRaw.district).trim().slice(0, 80),
+            upazila: String(presetRaw.upazila ?? "").trim().slice(0, 120),
+          }
+        : undefined;
     return {
       messages: cleaned,
       lang: data?.lang === "en" ? ("en" as const) : ("bn" as const),
       intentHint: String(data?.intentHint ?? "").slice(0, 40),
+      locationPreset,
     };
-  })
+  },
+  )
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .handler(async (opts: any): Promise<BloodDonorAiChatResult> => {
     const context = opts.context as AiAuthContext;
@@ -592,6 +624,7 @@ export const bloodDonorAiChat = createServerFn({ method: "POST" })
       messages: BloodDonorAiChatMessage[];
       lang: "bn" | "en";
       intentHint: string;
+      locationPreset?: BloodDonorAiLocationPreset;
     };
     try {
       const settings = await loadBloodDonorAiSettings(context.supabase);
@@ -635,12 +668,15 @@ export const bloodDonorAiChat = createServerFn({ method: "POST" })
           : {};
       let slots = mergeSlots(emptySlots(), slotsRaw, historyText, settings.ui);
       slots = applySlotDefaults(slots, settings);
+      slots = applyLocationPreset(slots, data.locationPreset);
       let intent = asString(parsed.intent) as BloodDonorAiIntentAction;
       if (intent !== "sms" && intent !== "list" && intent !== "orgs" && intent !== "auto") {
         intent = "auto";
       }
       if (data.intentHint === "sms" || data.intentHint === "list" || data.intentHint === "orgs") {
         intent = data.intentHint;
+      } else if (data.locationPreset?.district && data.locationPreset?.upazila) {
+        intent = detectIntent(lastUser, "sms");
       } else {
         intent = detectIntent(lastUser, intent);
       }

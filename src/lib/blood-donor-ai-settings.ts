@@ -1,4 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  DEFAULT_BLOOD_DONOR_LOCATION_TABS,
+  normalizeLocationTabs,
+  type BloodDonorAiLocationTab,
+} from "@/lib/blood-donor-ai-location-tabs";
+
+export type { BloodDonorAiLocationTab } from "@/lib/blood-donor-ai-location-tabs";
 
 export type BloodDonorAiIntentAction = "sms" | "list" | "orgs" | "auto";
 
@@ -92,6 +99,8 @@ export type BloodDonorAiSettings = {
   defaults: {
     /** When true, optional upazila defaults to whole district unless user picks one */
     upazila_all: boolean;
+    /** Location tabs (e.g. campus preset + bulk SMS) */
+    location_tabs: BloodDonorAiLocationTab[];
   };
 };
 
@@ -181,6 +190,7 @@ Rules:
   },
   defaults: {
     upazila_all: true,
+    location_tabs: DEFAULT_BLOOD_DONOR_LOCATION_TABS,
   },
 };
 
@@ -334,6 +344,7 @@ export function normalizeBloodDonorAiSettings(raw: unknown): BloodDonorAiSetting
     },
     defaults: {
       upazila_all: asBool(defaults.upazila_all, d.defaults.upazila_all),
+      location_tabs: normalizeLocationTabs(defaults.location_tabs ?? d.defaults.location_tabs),
     },
   };
 }

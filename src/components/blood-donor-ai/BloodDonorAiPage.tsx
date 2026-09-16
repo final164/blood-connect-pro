@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Droplets, Send, Sparkles } from "lucide-react";
+import { Droplets, MessageSquare, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
 import { CareAiFollowUpPanel } from "@/components/care/CareAiFollowUpPanel";
+import { CareAiChatComposer } from "@/components/care/CareAiChatComposer";
 import { BloodDonorAiResultCards } from "@/components/blood-donor-ai/BloodDonorAiResultCards";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { authWithNext } from "@/lib/auth-next";
+import { BLOOD_GROUPS } from "@/lib/format";
 import {
   bloodDonorAiChat,
   fetchBloodDonorAiPublicConfig,
@@ -16,6 +18,12 @@ import {
   type BloodDonorAiToolResults,
 } from "@/lib/blood-donor-ai-chat";
 import type { BloodDonorAiPublicConfig } from "@/lib/blood-donor-ai-settings";
+import {
+  buildLocationTabBootstrapApiText,
+  defaultLocationTabId,
+  intentHintForTab,
+  locationPresetForTab,
+} from "@/lib/blood-donor-ai-location-tabs";
 import {
   bloodDonorFollowUpCopy,
   defaultPublicConfig,
@@ -43,7 +51,8 @@ export function BloodDonorAiPage() {
   const { lang } = useI18n();
   const { user } = useAuth();
   const bn = lang === "bn";
-  const [cfg, setCfg] = useState<BloodDonorAiPublicConfig>(defaultPublicConfig);
+  const [cfg, setCfg] = useState<BloodDonorAiPublicConfig>(defaultPublicConfig());
+  const [activeTabId, setActiveTabId] = useState("");
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,9 +64,23 @@ export function BloodDonorAiPage() {
 
   useEffect(() => {
     void fetchBloodDonorAiPublicConfig({ data: { lang } })
-      .then((c) => setCfg(c))
+      .then((c) => {
+        setCfg(c);
+        setActiveTabId((prev) =>
+          prev && c.defaults.location_tabs.some((t) => t.id === prev)
+            ? prev
+            : defaultLocationTabId(c.defaults.location_tabs),
+        );
+      })
       .catch(() => setCfg(defaultPublicConfig()));
   }, [lang]);
+
+  const activeTab = useMemo(
+    () => cfg.defaults.location_tabs.find((t) => t.id === activeTabId),
+    [cfg.defaults.location_tabs, activeTabId],
+  );
+
+  const locationPinned = !!activeTab?.district?.trim();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,11 +96,13 @@ export function BloodDonorAiPage() {
           role: m.role,
           text: m.apiText || m.text,
         }));
+        const tabHint = intentHintForTab(activeTab);
         const result: BloodDonorAiChatResult = await bloodDonorAiChat({
           data: {
             messages: payload,
             lang,
-            intentHint: hint || intentHint || undefined,
+            intentHint: hint || tabHint || intentHint || undefined,
+            locationPreset: locationPresetForTab(activeTab),
           },
         });
         const assistant: Bubble = {
@@ -102,18 +127,52 @@ export function BloodDonorAiPage() {
         setBusy(false);
       }
     },
-    [cfg, intentHint, lang],
+    [activeTab, cfg, intentHint, lang],
   );
 
-  async function sendText(text: string, hint?: string) {
-    const trimmed = text.trim();
-    if (!trimmed || busy) return;
+  async function pushUserMessage(
+    display: string,
+    opts?: { apiText?: string; hint?: string },
+  ) {
+    if (!display.trim() || busy) return;
+    const hint = opts?.hint;
     if (hint) setIntentHint(hint);
-    const userBubble: Bubble = { role: "user", text: trimmed, intentHint: hint };
+    const userBubble: Bubble = {
+      role: "user",
+      text: display.trim(),
+      apiText: opts?.apiText,
+      intentHint: hint,
+    };
     const next = [...messages, userBubble];
     setMessages(next);
     setDraft("");
     await runChat(next, hint);
+  }
+
+  async function sendText(text: string, hint?: string) {
+    await pushUserMessage(text, { hint });
+  }
+
+  function selectTab(id: string) {
+    if (id === activeTabId) return;
+    setActiveTabId(id);
+    setMessages([]);
+    setPendingQuestions([]);
+    setAnswered(new Set());
+    setActiveQ(null);
+    setIntentHint("");
+    setDraft("");
+  }
+
+  async function startBulkSms() {
+    if (!activeTab?.district?.trim()) return;
+    const hint = intentHintForTab(activeTab) ?? "sms";
+    setIntentHint(hint);
+    const display = bn
+      ? `${activeTab.label_bn} — Bulk SMS পাঠান`
+      : `${activeTab.label_en} — Send bulk SMS`;
+    const apiText = buildLocationTabBootstrapApiText(activeTab, cfg.ui, lang);
+    await pushUserMessage(display, { apiText, hint });
   }
 
   function donorAnswerLabel(question: FollowUpQuestion, answer: string) {
@@ -163,6 +222,14 @@ export function BloodDonorAiPage() {
     window.location.assign(authWithNext("/ai/donors"));
   }
 
+  const composerPlaceholder = locationPinned
+    ? bn
+      ? "রক্তের গ্রুপ লিখুন (যেমন O+)…"
+      : "Blood group (e.g. O+)…"
+    : bn
+      ? "জেলা, রক্তের গ্রুপ বা প্রশ্ন লিখুন…"
+      : "District, blood group, or ask…";
+
   if (!cfg.enabled) {
     return (
       <div className="min-h-dvh flex flex-col">
@@ -210,9 +277,31 @@ export function BloodDonorAiPage() {
             </p>
           </div>
         </div>
+        {cfg.defaults.location_tabs.length > 0 && (
+          <div className="max-w-2xl mx-auto w-full px-3 pb-2 flex gap-2 overflow-x-auto">
+            {cfg.defaults.location_tabs.map((tab) => {
+              const active = tab.id === activeTabId;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => selectTab(tab.id)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "border border-border/70 bg-muted/40 text-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  {bn ? tab.label_bn : tab.label_en}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </AutoHideHeader>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3 max-w-2xl mx-auto w-full space-y-3 pb-36">
+      <div className="flex-1 overflow-y-auto px-3 py-3 max-w-2xl mx-auto w-full space-y-3 pb-[calc(7.25rem+var(--app-bottom-nav-h,0px))] md:pb-28">
         {messages.length === 0 && (
           <div className="rounded-2xl border bg-card p-4 space-y-3">
             <div className="flex items-center gap-2 text-primary">
@@ -222,21 +311,57 @@ export function BloodDonorAiPage() {
             <p className="text-[11px] text-muted-foreground">
               {bn ? cfg.ui.disclaimer_bn : cfg.ui.disclaimer_en}
             </p>
-            <div className="space-y-2">
-              {cfg.intents.map((it) => (
+
+            {locationPinned && activeTab ? (
+              <div className="space-y-2.5">
                 <button
-                  key={it.id}
                   type="button"
                   disabled={busy}
-                  onClick={() =>
-                    void sendText(bn ? it.label_bn : it.label_en, it.action === "auto" ? "" : it.action)
-                  }
-                  className="w-full text-left rounded-xl border border-dashed border-primary/35 bg-primary/5 px-3 py-3 text-xs font-semibold text-primary hover:bg-primary/10"
+                  onClick={() => void startBulkSms()}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-3 py-3 text-xs font-bold hover:opacity-95"
                 >
-                  {bn ? it.label_bn : it.label_en}
+                  <MessageSquare className="h-4 w-4" />
+                  {bn ? "Bulk SMS পাঠান" : "Send bulk SMS"}
                 </button>
-              ))}
-            </div>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  {bn
+                    ? "রক্তের গ্রুপ বেছে নিন অথবা নিচে লিখে পাঠান"
+                    : "Pick a blood group or type below"}
+                </p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {BLOOD_GROUPS.map((bg) => (
+                    <button
+                      key={bg}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void sendText(bg, intentHintForTab(activeTab))}
+                      className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
+                    >
+                      {bg}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {cfg.intents.map((it) => (
+                  <button
+                    key={it.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void sendText(
+                        bn ? it.label_bn : it.label_en,
+                        it.action === "auto" ? "" : it.action,
+                      )
+                    }
+                    className="w-full text-left rounded-xl border border-dashed border-primary/35 bg-primary/5 px-3 py-3 text-xs font-semibold text-primary hover:bg-primary/10"
+                  >
+                    {bn ? it.label_bn : it.label_en}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -273,7 +398,7 @@ export function BloodDonorAiPage() {
             answered={answered}
             busy={busy}
             copy={followCopy}
-            defaultUpazilaAll={cfg.defaults.upazila_all}
+            defaultUpazilaAll={cfg.defaults.upazila_all && !locationPinned}
             onSelect={setActiveQ}
             onSubmit={onFollowUp}
             onSubmitBatch={onFollowUpBatch}
@@ -288,38 +413,16 @@ export function BloodDonorAiPage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur safe-bottom">
-        <form
-          className="max-w-2xl mx-auto flex items-end gap-2 px-3 py-2.5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void sendText(draft);
-          }}
-        >
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={1}
-            disabled={busy}
-            placeholder={bn ? "জেলা, রক্তের গ্রুপ বা প্রশ্ন লিখুন…" : "District, blood group, or ask…"}
-            className="flex-1 resize-none rounded-xl border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 min-h-[44px] max-h-28"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void sendText(draft);
-              }
-            }}
-          />
-          <button
-            type="submit"
-            disabled={busy || !draft.trim()}
-            className="h-11 w-11 rounded-xl bg-primary text-primary-foreground grid place-items-center disabled:opacity-40"
-            aria-label="Send"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </form>
-      </div>
+      <CareAiChatComposer
+        id="blood-donor-ai-composer"
+        value={draft}
+        onChange={setDraft}
+        onSend={() => void sendText(draft, intentHintForTab(activeTab))}
+        placeholder={composerPlaceholder}
+        disabled={busy}
+        busy={busy}
+        className="z-40"
+      />
     </div>
   );
 }

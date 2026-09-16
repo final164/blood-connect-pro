@@ -5,6 +5,7 @@ import {
   withDistrictSadar,
   type UpazilaOption,
 } from "@/data/bangladesh-clinics";
+import { getUniversityUpazilaOptions } from "@/data/bd-universities-upazilas";
 import type { District } from "@/lib/api";
 
 export type Upazila = {
@@ -68,7 +69,10 @@ export async function fetchUpazilasForDistrict(districtId: string, admin = false
 
 export async function fetchUpazilaOptions(district: District | null): Promise<UpazilaOption[]> {
   if (!district) return [];
-  const catalog = getUpazilasForDistrictSlug(district.slug);
+  const catalog = mergeUpazilaOptions(
+    getUpazilasForDistrictSlug(district.slug),
+    getUniversityUpazilaOptions(district.slug),
+  );
   let list: UpazilaOption[];
   if (await upazilasTableExists()) {
     try {
