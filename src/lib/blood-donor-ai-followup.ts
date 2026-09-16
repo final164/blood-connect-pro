@@ -60,6 +60,7 @@ export function parseBloodDonorQuestions(
   questions: string[],
   cfg: BloodDonorAiPublicConfig,
   lang: "bn" | "en",
+  opts?: { skipGeo?: boolean },
 ): FollowUpQuestion[] {
   const copy = bloodDonorFollowUpCopy(cfg, lang);
   const parsed = parseFollowUpQuestions(questions, copy);
@@ -112,10 +113,14 @@ export function parseBloodDonorQuestions(
     }
     return q;
   });
-  if (cfg.defaults.upazila_all) {
-    return mapped.filter((q) => q.geo !== "upazila");
+  let out = mapped;
+  if (opts?.skipGeo || cfg.defaults.upazila_all) {
+    out = out.filter((q) => q.geo !== "upazila");
   }
-  return mapped;
+  if (opts?.skipGeo) {
+    out = out.filter((q) => q.geo !== "district");
+  }
+  return out;
 }
 
 export function defaultPublicConfig(): BloodDonorAiPublicConfig {

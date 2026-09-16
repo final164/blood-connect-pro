@@ -51,8 +51,10 @@ export function BloodDonorAiPage() {
   const { lang } = useI18n();
   const { user } = useAuth();
   const bn = lang === "bn";
-  const [cfg, setCfg] = useState<BloodDonorAiPublicConfig>(defaultPublicConfig());
-  const [activeTabId, setActiveTabId] = useState("");
+  const [cfg, setCfg] = useState<BloodDonorAiPublicConfig>(() => defaultPublicConfig());
+  const [activeTabId, setActiveTabId] = useState(() =>
+    defaultLocationTabId(defaultPublicConfig().defaults.location_tabs),
+  );
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -72,7 +74,11 @@ export function BloodDonorAiPage() {
             : defaultLocationTabId(c.defaults.location_tabs),
         );
       })
-      .catch(() => setCfg(defaultPublicConfig()));
+      .catch(() => {
+        const fallback = defaultPublicConfig();
+        setCfg(fallback);
+        setActiveTabId(defaultLocationTabId(fallback.defaults.location_tabs));
+      });
   }, [lang]);
 
   const activeTab = useMemo(
@@ -113,7 +119,11 @@ export function BloodDonorAiPage() {
         };
         setMessages([...nextMessages, assistant]);
         if (result.questions?.length) {
-          setPendingQuestions(parseBloodDonorQuestions(result.questions, cfg, lang));
+          setPendingQuestions(
+            parseBloodDonorQuestions(result.questions, cfg, lang, {
+              skipGeo: !!locationPresetForTab(activeTab),
+            }),
+          );
           setAnswered(new Set());
           setActiveQ(null);
         } else {
@@ -150,7 +160,21 @@ export function BloodDonorAiPage() {
   }
 
   async function sendText(text: string, hint?: string) {
-    await pushUserMessage(text, { hint });
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (locationPinned && activeTab) {
+      const apiText = [
+        buildLocationTabBootstrapApiText(activeTab, cfg.ui, lang),
+        `${cfg.ui.question_tag} ${bn ? "কোন রক্তের গ্রুপ / অনুরোধ?" : "Blood group / request?"}`,
+        `${cfg.ui.answer_inline} ${trimmed}`,
+      ].join("\n");
+      await pushUserMessage(trimmed, {
+        apiText,
+        hint: hint ?? intentHintForTab(activeTab) ?? "sms",
+      });
+      return;
+    }
+    await pushUserMessage(trimmed, { hint });
   }
 
   function selectTab(id: string) {
@@ -278,25 +302,34 @@ export function BloodDonorAiPage() {
           </div>
         </div>
         {cfg.defaults.location_tabs.length > 0 && (
-          <div className="max-w-2xl mx-auto w-full px-3 pb-2 flex gap-2 overflow-x-auto">
-            {cfg.defaults.location_tabs.map((tab) => {
-              const active = tab.id === activeTabId;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => selectTab(tab.id)}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
-                    active
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "border border-border/70 bg-muted/40 text-foreground hover:bg-muted/70"
-                  }`}
-                >
-                  {bn ? tab.label_bn : tab.label_en}
-                </button>
-              );
-            })}
+          <div className="max-w-2xl mx-auto w-full px-3 pb-2 space-y-1.5">
+            <div className="flex gap-2 overflow-x-auto">
+              {cfg.defaults.location_tabs.map((tab) => {
+                const active = tab.id === activeTabId;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => selectTab(tab.id)}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "border border-border/70 bg-muted/40 text-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    {bn ? tab.label_bn : tab.label_en}
+                  </button>
+                );
+              })}
+            </div>
+            {locationPinned && activeTab ? (
+              <p className="text-[10px] text-muted-foreground truncate px-0.5">
+                {bn
+                  ? `অটো ফিল্টার: ${activeTab.district} · ${activeTab.upazila}`
+                  : `Auto filter: ${activeTab.district} · ${activeTab.upazila}`}
+              </p>
+            ) : null}
           </div>
         )}
       </AutoHideHeader>
@@ -314,6 +347,11 @@ export function BloodDonorAiPage() {
 
             {locationPinned && activeTab ? (
               <div className="space-y-2.5">
+                <p className="text-[11px] font-medium text-foreground/80 text-center">
+                  {bn
+                    ? "কিশোরগঞ্জ বিশ্ববিদ্যালয়ের ডোনার — জেলা/উপজেলা অটো সিলেক্ট"
+                    : "Kishoreganj University donors — district/upazila auto-selected"}
+                </p>
                 <button
                   type="button"
                   disabled={busy}
@@ -334,7 +372,15 @@ export function BloodDonorAiPage() {
                       key={bg}
                       type="button"
                       disabled={busy}
-                      onClick={() => void sendText(bg, intentHintForTab(activeTab))}
+                      onClick={() => {
+                        const hint = intentHintForTab(activeTab) ?? "sms";
+                        const apiText = [
+                          buildLocationTabBootstrapApiText(activeTab, cfg.ui, lang),
+                          `${cfg.ui.question_tag} ${bn ? "কোন রক্তের গ্রুপ?" : "Blood group?"}`,
+                          `${cfg.ui.answer_inline} ${bg}`,
+                        ].join("\n");
+                        void pushUserMessage(bg, { apiText, hint });
+                      }}
                       className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
                     >
                       {bg}
