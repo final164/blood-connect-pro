@@ -21,7 +21,7 @@ import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
 import { useI18n } from "@/lib/i18n";
 import type { District } from "@/lib/api";
-import { fetchCareSpecialties, fetchTestCategories, locName } from "@/lib/care-cms";
+import { fetchCareSpecialties, fetchTestCategories, fetchCarePolicies, locName } from "@/lib/care-cms";
 import { CareHubNav } from "@/components/care/CareHubNav";
 import {
   searchCareDoctors,
@@ -62,11 +62,76 @@ export function CareHubPage({
   const { lang, t } = useI18n();
   const { user, session, isAnonymous } = useAuth();
   const [tab, setTab] = useState(initialTab || "dashboard");
+  const [comingSoon, setComingSoon] = useState<boolean | null>(null);
   const isGuest = !session || isAnonymous;
 
   useEffect(() => {
     setTab(initialTab || "dashboard");
   }, [initialTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCarePolicies()
+      .then((r) => {
+        if (!cancelled) setComingSoon(r.flags.hub_coming_soon === true);
+      })
+      .catch(() => {
+        if (!cancelled) setComingSoon(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (comingSoon === null) {
+    return (
+      <div className="w-full min-h-[40vh] grid place-items-center px-4">
+        <p className="text-sm text-muted-foreground">{t("loading")}</p>
+      </div>
+    );
+  }
+
+  if (comingSoon) {
+    return (
+      <div className="w-full">
+        <AutoHideHeader className="z-30 border-b bg-background/90 backdrop-blur-xl safe-top">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <PageBackButton fallbackTo="/home" />
+              <UserMenuTrigger />
+              <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                <LayoutGrid className="h-4 w-4" />
+              </div>
+              <h1 className="text-sm font-bold truncate">{t("careHub")}</h1>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <ProfileHeaderButton />
+              <AlertsHeaderButton />
+            </div>
+          </div>
+        </AutoHideHeader>
+        <div className="px-4 py-16 max-w-md mx-auto text-center space-y-3">
+          <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 text-primary grid place-items-center">
+            <Sparkles className="h-7 w-7" />
+          </div>
+          <h2 className="text-base font-bold">
+            {lang === "bn" ? "আরো ফিচার আসতেছে" : "More features coming"}
+          </h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {lang === "bn"
+              ? "কেয়ার হাব শীঘ্রই নতুন ফিচার নিয়ে আপডেট হবে। এখন অন্য সেবা ব্যবহার করুন।"
+              : "Care Hub will update soon with new features. Please use other services for now."}
+          </p>
+          <Link
+            to="/home"
+            className="inline-flex mt-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground"
+          >
+            {lang === "bn" ? "হোমে যান" : "Go to Home"}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

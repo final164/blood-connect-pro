@@ -23,7 +23,6 @@ import { queryKeys } from "@/lib/query-client";
 import { FeedImageCarousel } from "@/components/feed/FeedImageCarousel";
 import { FeedBannerSlider } from "@/components/feed/FeedBannerSlider";
 import { SuccessStoriesCarousel } from "@/components/feed/SuccessStoriesCarousel";
-import { CareHubNav } from "@/components/care/CareHubNav";
 import { fetchBloodDonorAiSettings } from "@/lib/blood-donor-ai-settings";
 import {
   DEFAULT_FEED_CAROUSEL_SETTINGS,
@@ -502,8 +501,8 @@ function FeedPage() {
               ))}
             </div>
 
-            <div className="px-3 pb-2 border-t border-border/50 pt-2 space-y-2">
-              {showHomeDonorAi && (
+            {showHomeDonorAi && (
+              <div className="px-3 pb-2 border-t border-border/50 pt-2">
                 <Link
                   to="/ai/donors"
                   className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-rose-400/40 bg-rose-500/5 px-3 py-2 text-xs font-semibold text-rose-700 dark:text-rose-300"
@@ -511,9 +510,8 @@ function FeedPage() {
                   <Sparkles className="h-3.5 w-3.5" />
                   {lang === "bn" ? "ব্লাড ডোনার AI" : "Blood Donor AI"}
                 </Link>
-              )}
-              <CareHubNav lang={lang} variant="strip" />
-            </div>
+              </div>
+            )}
           </AutoHideHeader>
 
           <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between bg-muted/40">

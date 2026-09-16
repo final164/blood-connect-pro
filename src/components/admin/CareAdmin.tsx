@@ -1113,6 +1113,10 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
   };
 
   const flagLabel: Record<keyof CareFeatureFlags, { bn: string; en: string }> = {
+    hub_coming_soon: {
+      bn: "কেয়ার হাব — শুধু «আরো ফিচার আসতেছে» দেখাও",
+      en: "Care hub — show only “More features coming”",
+    },
     home_collection: { bn: "হোম কালেকশন (অফারিং)", en: "Home collection (offering)" },
     home_doctor: { bn: "হোম ডাক্তার", en: "Home Doctor" },
     home_diagnostic: { bn: "হোম ডায়াগনস্টিক", en: "Home Diagnostic" },
@@ -1147,6 +1151,28 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
 
   return (
     <div className="space-y-3 max-w-md">
+      <label className="flex items-start justify-between gap-3 text-xs text-slate-200 rounded-lg border border-rose-800/50 bg-rose-950/30 px-2.5 py-2.5">
+        <span className="leading-snug">
+          <span className="block font-semibold text-rose-100">
+            {lang === "bn"
+              ? "কেয়ার হাব — শুধু «আরো ফিচার আসতেছে»"
+              : "Care hub — only “More features coming”"}
+          </span>
+          <span className="text-[10px] text-slate-400 mt-0.5 block">
+            {lang === "bn"
+              ? "চালু করলে রোগী Care পেজে মডিউল/ড্যাশবোর্ড দেখবে না — শুধু কামিং সুন মেসেজ।"
+              : "When on, patients see no Care modules/dashboard — only a coming-soon message."}
+          </span>
+          <span className="text-[10px] text-slate-600">flag: hub_coming_soon</span>
+        </span>
+        <input
+          type="checkbox"
+          className="mt-0.5 accent-rose-500"
+          checked={flags.hub_coming_soon}
+          onChange={(e) => setFlags({ ...flags, hub_coming_soon: e.target.checked })}
+          disabled={!canEdit}
+        />
+      </label>
       <label className="flex items-start justify-between gap-3 text-xs text-slate-200 rounded-lg border border-slate-800 bg-slate-950/50 px-2.5 py-2">
         <span className="leading-snug">
           <span className="block font-medium">
@@ -1192,7 +1218,9 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
           )}
         </label>
       ))}
-      {(Object.keys(flags) as (keyof CareFeatureFlags)[]).map((k) => (
+      {(Object.keys(flags) as (keyof CareFeatureFlags)[])
+        .filter((k) => k !== "hub_coming_soon")
+        .map((k) => (
         <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
           <span className="leading-snug">
             <span className="block font-medium">{lang === "bn" ? flagLabel[k].bn : flagLabel[k].en}</span>

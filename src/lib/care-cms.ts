@@ -104,6 +104,11 @@ export type CareBookingPolicies = {
 };
 
 export type CareFeatureFlags = {
+  /**
+   * When true, patient Care hub shows only “more features coming” —
+   * no modules, dashboard, or booking UI.
+   */
+  hub_coming_soon: boolean;
   home_collection: boolean;
   /** Patient Home Doctor product */
   home_doctor: boolean;
@@ -389,6 +394,7 @@ const DEFAULT_POLICIES: CareBookingPolicies = {
 };
 
 const DEFAULT_FLAGS: CareFeatureFlags = {
+  hub_coming_soon: false,
   home_collection: false,
   home_doctor: false,
   home_diagnostic: false,
@@ -524,6 +530,7 @@ export function normalizeCareFeatureFlags(raw?: Partial<CareFeatureFlags> | null
     ...DEFAULT_FLAGS,
     ...r,
     // Explicit booleans so missing keys keep defaults; only false disables
+    hub_coming_soon: r.hub_coming_soon === true,
     home_collection: r.home_collection === true,
     home_doctor: r.home_doctor === true,
     home_diagnostic: r.home_diagnostic === true,
