@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Droplets, MessageSquare, Sparkles } from "lucide-react";
+import { Droplets, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { AutoHideHeader } from "@/hooks/useHideOnScroll";
 import { PageBackButton } from "@/components/nav/PageBackButton";
@@ -10,7 +10,6 @@ import { BloodDonorAiResultCards } from "@/components/blood-donor-ai/BloodDonorA
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { authWithNext } from "@/lib/auth-next";
-import { BLOOD_GROUPS } from "@/lib/format";
 import {
   bloodDonorAiChat,
   fetchBloodDonorAiPublicConfig,
@@ -19,10 +18,11 @@ import {
 } from "@/lib/blood-donor-ai-chat";
 import type { BloodDonorAiPublicConfig } from "@/lib/blood-donor-ai-settings";
 import {
+  KISHOREGANJ_UNIVERSITY_TAB,
   buildLocationTabBootstrapApiText,
-  defaultLocationTabId,
   intentHintForTab,
   locationPresetForTab,
+  type BloodDonorAiLocationTab,
 } from "@/lib/blood-donor-ai-location-tabs";
 import {
   bloodDonorFollowUpCopy,
@@ -47,14 +47,16 @@ type Bubble = {
   intentHint?: string;
 };
 
+const intentBtnClass =
+  "w-full text-left rounded-xl border border-dashed border-primary/35 bg-primary/5 px-3 py-3 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50";
+
 export function BloodDonorAiPage() {
   const { lang } = useI18n();
   const { user } = useAuth();
   const bn = lang === "bn";
   const [cfg, setCfg] = useState<BloodDonorAiPublicConfig>(() => defaultPublicConfig());
-  const [activeTabId, setActiveTabId] = useState(() =>
-    defaultLocationTabId(defaultPublicConfig().defaults.location_tabs),
-  );
+  /** Active location preset while chatting (null = general / no auto filter) */
+  const [locationTab, setLocationTab] = useState<BloodDonorAiLocationTab | null>(null);
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,27 +68,18 @@ export function BloodDonorAiPage() {
 
   useEffect(() => {
     void fetchBloodDonorAiPublicConfig({ data: { lang } })
-      .then((c) => {
-        setCfg(c);
-        setActiveTabId((prev) =>
-          prev && c.defaults.location_tabs.some((t) => t.id === prev)
-            ? prev
-            : defaultLocationTabId(c.defaults.location_tabs),
-        );
-      })
-      .catch(() => {
-        const fallback = defaultPublicConfig();
-        setCfg(fallback);
-        setActiveTabId(defaultLocationTabId(fallback.defaults.location_tabs));
-      });
+      .then((c) => setCfg(c))
+      .catch(() => setCfg(defaultPublicConfig()));
   }, [lang]);
 
-  const activeTab = useMemo(
-    () => cfg.defaults.location_tabs.find((t) => t.id === activeTabId),
-    [cfg.defaults.location_tabs, activeTabId],
-  );
+  const campusTab = useMemo(() => {
+    return (
+      cfg.defaults.location_tabs.find((t) => t.id === KISHOREGANJ_UNIVERSITY_TAB.id) ??
+      KISHOREGANJ_UNIVERSITY_TAB
+    );
+  }, [cfg.defaults.location_tabs]);
 
-  const locationPinned = !!activeTab?.district?.trim();
+  const locationPinned = !!locationTab?.district?.trim();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -95,20 +88,25 @@ export function BloodDonorAiPage() {
   const followCopy = bloodDonorFollowUpCopy(cfg, lang);
 
   const runChat = useCallback(
-    async (nextMessages: Bubble[], hint?: string) => {
+    async (
+      nextMessages: Bubble[],
+      hint?: string,
+      presetTab?: BloodDonorAiLocationTab | null,
+    ) => {
       setBusy(true);
       try {
+        const tab = presetTab === undefined ? locationTab : presetTab;
         const payload = nextMessages.map((m) => ({
           role: m.role,
           text: m.apiText || m.text,
         }));
-        const tabHint = intentHintForTab(activeTab);
+        const tabHint = intentHintForTab(tab ?? undefined);
         const result: BloodDonorAiChatResult = await bloodDonorAiChat({
           data: {
             messages: payload,
             lang,
             intentHint: hint || tabHint || intentHint || undefined,
-            locationPreset: locationPresetForTab(activeTab),
+            locationPreset: locationPresetForTab(tab ?? undefined),
           },
         });
         const assistant: Bubble = {
@@ -121,7 +119,7 @@ export function BloodDonorAiPage() {
         if (result.questions?.length) {
           setPendingQuestions(
             parseBloodDonorQuestions(result.questions, cfg, lang, {
-              skipGeo: !!locationPresetForTab(activeTab),
+              skipGeo: !!locationPresetForTab(tab ?? undefined),
             }),
           );
           setAnswered(new Set());
@@ -137,16 +135,21 @@ export function BloodDonorAiPage() {
         setBusy(false);
       }
     },
-    [activeTab, cfg, intentHint, lang],
+    [cfg, intentHint, lang, locationTab],
   );
 
   async function pushUserMessage(
     display: string,
-    opts?: { apiText?: string; hint?: string },
+    opts?: {
+      apiText?: string;
+      hint?: string;
+      presetTab?: BloodDonorAiLocationTab | null;
+    },
   ) {
     if (!display.trim() || busy) return;
     const hint = opts?.hint;
     if (hint) setIntentHint(hint);
+    if (opts?.presetTab !== undefined) setLocationTab(opts.presetTab);
     const userBubble: Bubble = {
       role: "user",
       text: display.trim(),
@@ -156,47 +159,36 @@ export function BloodDonorAiPage() {
     const next = [...messages, userBubble];
     setMessages(next);
     setDraft("");
-    await runChat(next, hint);
+    await runChat(next, hint, opts?.presetTab);
   }
 
   async function sendText(text: string, hint?: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
-    if (locationPinned && activeTab) {
+    if (locationPinned && locationTab) {
       const apiText = [
-        buildLocationTabBootstrapApiText(activeTab, cfg.ui, lang),
+        buildLocationTabBootstrapApiText(locationTab, cfg.ui, lang),
         `${cfg.ui.question_tag} ${bn ? "কোন রক্তের গ্রুপ / অনুরোধ?" : "Blood group / request?"}`,
         `${cfg.ui.answer_inline} ${trimmed}`,
       ].join("\n");
       await pushUserMessage(trimmed, {
         apiText,
-        hint: hint ?? intentHintForTab(activeTab) ?? "sms",
+        hint: hint ?? intentHintForTab(locationTab) ?? "sms",
       });
       return;
     }
     await pushUserMessage(trimmed, { hint });
   }
 
-  function selectTab(id: string) {
-    if (id === activeTabId) return;
-    setActiveTabId(id);
-    setMessages([]);
-    setPendingQuestions([]);
-    setAnswered(new Set());
-    setActiveQ(null);
-    setIntentHint("");
-    setDraft("");
-  }
-
-  async function startBulkSms() {
-    if (!activeTab?.district?.trim()) return;
-    const hint = intentHintForTab(activeTab) ?? "sms";
-    setIntentHint(hint);
+  /** Same style as “আমাকে বলুন…” — campus tab with auto district/upazila filter */
+  async function startCampusDonorTab() {
+    const tab = campusTab;
+    const hint = intentHintForTab(tab) ?? "sms";
     const display = bn
-      ? `${activeTab.label_bn} — Bulk SMS পাঠান`
-      : `${activeTab.label_en} — Send bulk SMS`;
-    const apiText = buildLocationTabBootstrapApiText(activeTab, cfg.ui, lang);
-    await pushUserMessage(display, { apiText, hint });
+      ? "আমাকে বলুন — কিশোরগঞ্জ বিশ্ববিদ্যালয় ডোনারদের Bulk SMS পাঠাই"
+      : "Tell me — send bulk SMS to Kishoreganj University donors";
+    const apiText = buildLocationTabBootstrapApiText(tab, cfg.ui, lang);
+    await pushUserMessage(display, { apiText, hint, presetTab: tab });
   }
 
   function donorAnswerLabel(question: FollowUpQuestion, answer: string) {
@@ -287,51 +279,24 @@ export function BloodDonorAiPage() {
               {bn ? "ব্লাড ডোনার AI" : "Blood Donor AI"}
             </p>
             <p className="text-[10px] text-muted-foreground truncate">
-              {cfg.filters.gender === "male"
+              {locationPinned
                 ? bn
-                  ? "শুধু পুরুষ ডোনার"
-                  : "Male donors only"
-                : cfg.filters.gender === "female"
+                  ? `অটো: ${locationTab?.upazila || campusTab.upazila}`
+                  : `Auto: ${locationTab?.upazila || campusTab.upazila}`
+                : cfg.filters.gender === "male"
                   ? bn
-                    ? "শুধু নারী ডোনার"
-                    : "Female donors only"
-                  : bn
-                    ? "সব ডোনার"
-                    : "All donors"}
+                    ? "শুধু পুরুষ ডোনার"
+                    : "Male donors only"
+                  : cfg.filters.gender === "female"
+                    ? bn
+                      ? "শুধু নারী ডোনার"
+                      : "Female donors only"
+                    : bn
+                      ? "সব ডোনার"
+                      : "All donors"}
             </p>
           </div>
         </div>
-        {cfg.defaults.location_tabs.length > 0 && (
-          <div className="max-w-2xl mx-auto w-full px-3 pb-2 space-y-1.5">
-            <div className="flex gap-2 overflow-x-auto">
-              {cfg.defaults.location_tabs.map((tab) => {
-                const active = tab.id === activeTabId;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => selectTab(tab.id)}
-                    className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${
-                      active
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "border border-border/70 bg-muted/40 text-foreground hover:bg-muted/70"
-                    }`}
-                  >
-                    {bn ? tab.label_bn : tab.label_en}
-                  </button>
-                );
-              })}
-            </div>
-            {locationPinned && activeTab ? (
-              <p className="text-[10px] text-muted-foreground truncate px-0.5">
-                {bn
-                  ? `অটো ফিল্টার: ${activeTab.district} · ${activeTab.upazila}`
-                  : `Auto filter: ${activeTab.district} · ${activeTab.upazila}`}
-              </p>
-            ) : null}
-          </div>
-        )}
       </AutoHideHeader>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 max-w-2xl mx-auto w-full space-y-3 pb-[calc(7.25rem+var(--app-bottom-nav-h,0px))] md:pb-28">
@@ -345,69 +310,35 @@ export function BloodDonorAiPage() {
               {bn ? cfg.ui.disclaimer_bn : cfg.ui.disclaimer_en}
             </p>
 
-            {locationPinned && activeTab ? (
-              <div className="space-y-2.5">
-                <p className="text-[11px] font-medium text-foreground/80 text-center">
-                  {bn
-                    ? "কিশোরগঞ্জ বিশ্ববিদ্যালয়ের ডোনার — জেলা/উপজেলা অটো সিলেক্ট"
-                    : "Kishoreganj University donors — district/upazila auto-selected"}
-                </p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void startCampusDonorTab()}
+                className={intentBtnClass}
+              >
+                {bn
+                  ? "আমাকে বলুন — কিশোরগঞ্জ বিশ্ববিদ্যালয় ডোনার (অটো ফিল্টার · Bulk SMS)"
+                  : "Tell me — Kishoreganj University donors (auto filter · Bulk SMS)"}
+              </button>
+              {cfg.intents.map((it) => (
                 <button
+                  key={it.id}
                   type="button"
                   disabled={busy}
-                  onClick={() => void startBulkSms()}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-3 py-3 text-xs font-bold hover:opacity-95"
+                  onClick={() => {
+                    const hint = it.action === "auto" ? "" : it.action;
+                    void pushUserMessage(bn ? it.label_bn : it.label_en, {
+                      hint: hint || undefined,
+                      presetTab: null,
+                    });
+                  }}
+                  className={intentBtnClass}
                 >
-                  <MessageSquare className="h-4 w-4" />
-                  {bn ? "Bulk SMS পাঠান" : "Send bulk SMS"}
+                  {bn ? it.label_bn : it.label_en}
                 </button>
-                <p className="text-[10px] text-muted-foreground text-center">
-                  {bn
-                    ? "রক্তের গ্রুপ বেছে নিন অথবা নিচে লিখে পাঠান"
-                    : "Pick a blood group or type below"}
-                </p>
-                <div className="flex flex-wrap gap-1.5 justify-center">
-                  {BLOOD_GROUPS.map((bg) => (
-                    <button
-                      key={bg}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        const hint = intentHintForTab(activeTab) ?? "sms";
-                        const apiText = [
-                          buildLocationTabBootstrapApiText(activeTab, cfg.ui, lang),
-                          `${cfg.ui.question_tag} ${bn ? "কোন রক্তের গ্রুপ?" : "Blood group?"}`,
-                          `${cfg.ui.answer_inline} ${bg}`,
-                        ].join("\n");
-                        void pushUserMessage(bg, { apiText, hint });
-                      }}
-                      className="rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
-                    >
-                      {bg}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {cfg.intents.map((it) => (
-                  <button
-                    key={it.id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      void sendText(
-                        bn ? it.label_bn : it.label_en,
-                        it.action === "auto" ? "" : it.action,
-                      )
-                    }
-                    className="w-full text-left rounded-xl border border-dashed border-primary/35 bg-primary/5 px-3 py-3 text-xs font-semibold text-primary hover:bg-primary/10"
-                  >
-                    {bn ? it.label_bn : it.label_en}
-                  </button>
-                ))}
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         )}
 
@@ -463,7 +394,7 @@ export function BloodDonorAiPage() {
         id="blood-donor-ai-composer"
         value={draft}
         onChange={setDraft}
-        onSend={() => void sendText(draft, intentHintForTab(activeTab))}
+        onSend={() => void sendText(draft, intentHintForTab(locationTab ?? undefined))}
         placeholder={composerPlaceholder}
         disabled={busy}
         busy={busy}
