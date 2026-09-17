@@ -525,11 +525,9 @@ export async function fetchCarePolicies(): Promise<{
 }
 
 export function normalizeCareFeatureFlags(raw?: Partial<CareFeatureFlags> | null): CareFeatureFlags {
-  const r = raw ?? {};
+  const r = (raw ?? {}) as Partial<CareFeatureFlags>;
+  // Only known keys — never spread raw (DB may have stale/extra keys)
   return {
-    ...DEFAULT_FLAGS,
-    ...r,
-    // Explicit booleans so missing keys keep defaults; only false disables
     hub_coming_soon: r.hub_coming_soon === true,
     home_collection: r.home_collection === true,
     home_doctor: r.home_doctor === true,
@@ -550,13 +548,26 @@ export function normalizeCareFeatureFlags(raw?: Partial<CareFeatureFlags> | null
 }
 
 export function normalizeCarePolicies(raw?: Partial<CareBookingPolicies> | null): CareBookingPolicies {
-  const merged = { ...DEFAULT_POLICIES, ...(raw ?? {}) };
-  const page = Math.round(Number(merged.lab_desk_page_size));
-  const galleryMax = Math.round(Number(merged.org_gallery_max_images));
+  const r = (raw ?? {}) as Partial<CareBookingPolicies>;
+  const page = Math.round(Number(r.lab_desk_page_size ?? DEFAULT_POLICIES.lab_desk_page_size));
+  const galleryMax = Math.round(
+    Number(r.org_gallery_max_images ?? DEFAULT_POLICIES.org_gallery_max_images),
+  );
+  const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
   return {
-    ...merged,
-    booking_window_hours: Math.max(1, Math.round(Number(merged.booking_window_hours)) || 12),
-    cancel_cutoff_hours: Math.max(0, Math.round(Number(merged.cancel_cutoff_hours)) || 0),
+    booking_window_hours: Math.max(
+      1,
+      Math.round(Number(r.booking_window_hours ?? DEFAULT_POLICIES.booking_window_hours)) || 12,
+    ),
+    cancel_cutoff_hours: Math.max(
+      0,
+      Math.round(Number(r.cancel_cutoff_hours ?? DEFAULT_POLICIES.cancel_cutoff_hours)) || 0,
+    ),
+    allow_cash: bool(r.allow_cash, DEFAULT_POLICIES.allow_cash),
+    allow_online: bool(r.allow_online, DEFAULT_POLICIES.allow_online),
+    allow_multi_test_cart: bool(r.allow_multi_test_cart, DEFAULT_POLICIES.allow_multi_test_cart),
+    allow_vendor_price: bool(r.allow_vendor_price, DEFAULT_POLICIES.allow_vendor_price),
+    no_show_requeue: bool(r.no_show_requeue, DEFAULT_POLICIES.no_show_requeue),
     lab_desk_page_size: Number.isFinite(page) ? Math.min(100, Math.max(5, page)) : 10,
     org_gallery_max_images: Number.isFinite(galleryMax)
       ? Math.min(30, Math.max(1, galleryMax))

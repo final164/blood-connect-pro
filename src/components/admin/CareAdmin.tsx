@@ -1193,10 +1193,13 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
           disabled={!canEdit}
         />
       </label>
-      {(Object.keys(policies) as (keyof CareBookingPolicies)[]).map((k) => (
+      {(Object.keys(policyLabel) as (keyof CareBookingPolicies)[]).map((k) => {
+        const label = policyLabel[k];
+        if (!label) return null;
+        return (
         <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
           <span className="leading-snug">
-            <span className="block font-medium">{lang === "bn" ? policyLabel[k].bn : policyLabel[k].en}</span>
+            <span className="block font-medium">{lang === "bn" ? label.bn : label.en}</span>
             <span className="text-[10px] text-slate-500">policy: {k}</span>
           </span>
           {typeof policies[k] === "boolean" ? (
@@ -1217,23 +1220,28 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
             />
           )}
         </label>
-      ))}
-      {(Object.keys(flags) as (keyof CareFeatureFlags)[])
+        );
+      })}
+      {(Object.keys(flagLabel) as (keyof CareFeatureFlags)[])
         .filter((k) => k !== "hub_coming_soon")
-        .map((k) => (
+        .map((k) => {
+          const label = flagLabel[k];
+          if (!label) return null;
+          return (
         <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
           <span className="leading-snug">
-            <span className="block font-medium">{lang === "bn" ? flagLabel[k].bn : flagLabel[k].en}</span>
+            <span className="block font-medium">{lang === "bn" ? label.bn : label.en}</span>
             <span className="text-[10px] text-slate-500">flag: {k}</span>
           </span>
           <input
             type="checkbox"
             className="mt-0.5"
-            checked={flags[k]}
+            checked={!!flags[k]}
             onChange={(e) => setFlags({ ...flags, [k]: e.target.checked })}
           />
         </label>
-      ))}
+          );
+        })}
       {canEdit && (
         <button
           type="button"
