@@ -1085,69 +1085,91 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
   const [policies, setPolicies] = useState<CareBookingPolicies | null>(null);
   const [flags, setFlags] = useState<CareFeatureFlags | null>(null);
   const [guestBrowse, setGuestBrowse] = useState(true);
-  useEffect(() => {
-    void fetchCarePolicies().then((r) => {
-      setPolicies(r.policies);
-      setFlags(r.flags);
-    });
-    void fetchGuestBrowseEnabled().then(setGuestBrowse);
-  }, []);
-  if (!policies || !flags) return null;
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const policyLabel: Record<keyof CareBookingPolicies, { bn: string; en: string }> = {
-    booking_window_hours: { bn: "বুকিং উইন্ডো (ঘণ্টা)", en: "Booking window (hours)" },
-    cancel_cutoff_hours: { bn: "বাতিল কাটঅফ (ঘণ্টা)", en: "Cancel cutoff (hours)" },
-    allow_cash: { bn: "ক্যাশ পেমেন্ট", en: "Allow cash" },
-    allow_online: { bn: "অনলাইন পেমেন্ট", en: "Allow online" },
-    allow_multi_test_cart: { bn: "মাল্টি-টেস্ট কার্ট", en: "Multi-test cart" },
-    allow_vendor_price: { bn: "ভেন্ডর প্রাইস", en: "Vendor price" },
-    no_show_requeue: { bn: "নো-শো রি-কিউ", en: "No-show requeue" },
-    lab_desk_page_size: {
+  const policyRows: { key: keyof CareBookingPolicies; bn: string; en: string }[] = [
+    { key: "booking_window_hours", bn: "বুকিং উইন্ডো (ঘণ্টা)", en: "Booking window (hours)" },
+    { key: "cancel_cutoff_hours", bn: "বাতিল কাটঅফ (ঘণ্টা)", en: "Cancel cutoff (hours)" },
+    { key: "allow_cash", bn: "ক্যাশ পেমেন্ট", en: "Allow cash" },
+    { key: "allow_online", bn: "অনলাইন পেমেন্ট", en: "Allow online" },
+    { key: "allow_multi_test_cart", bn: "মাল্টি-টেস্ট কার্ট", en: "Multi-test cart" },
+    { key: "allow_vendor_price", bn: "ভেন্ডর প্রাইস", en: "Vendor price" },
+    { key: "no_show_requeue", bn: "নো-শো রি-কিউ", en: "No-show requeue" },
+    {
+      key: "lab_desk_page_size",
       bn: "ল্যাব ডেস্ক — আজকের বুকিং পেজ সাইজ (স্ক্রলে লোড)",
       en: "Lab desk — Today bookings page size (infinite scroll)",
     },
-    org_gallery_max_images: {
+    {
+      key: "org_gallery_max_images",
       bn: "প্রতিষ্ঠান গ্যালারি — সর্বোচ্চ ছবি (আপলোড লিমিট)",
       en: "Institute gallery — max photos (upload limit)",
     },
-  };
+  ];
 
-  const flagLabel: Record<keyof CareFeatureFlags, { bn: string; en: string }> = {
-    hub_coming_soon: {
-      bn: "কেয়ার হাব — শুধু «আরো ফিচার আসতেছে» দেখাও",
-      en: "Care hub — show only “More features coming”",
-    },
-    home_collection: { bn: "হোম কালেকশন (অফারিং)", en: "Home collection (offering)" },
-    home_doctor: { bn: "হোম ডাক্তার", en: "Home Doctor" },
-    home_diagnostic: { bn: "হোম ডায়াগনস্টিক", en: "Home Diagnostic" },
-    reviews: { bn: "রিভিউ", en: "Reviews" },
-    payment: { bn: "পেমেন্ট", en: "Payment" },
-    report_vault: { bn: "রিপোর্ট ভল্ট", en: "Report vault" },
-    patient_org_chat: {
+  const flagRows: { key: keyof CareFeatureFlags; bn: string; en: string }[] = [
+    { key: "home_collection", bn: "হোম কালেকশন (অফারিং)", en: "Home collection (offering)" },
+    { key: "home_doctor", bn: "হোম ডাক্তার", en: "Home Doctor" },
+    { key: "home_diagnostic", bn: "হোম ডায়াগনস্টিক", en: "Home Diagnostic" },
+    { key: "reviews", bn: "রিভিউ", en: "Reviews" },
+    { key: "payment", bn: "পেমেন্ট", en: "Payment" },
+    { key: "report_vault", bn: "রিপোর্ট ভল্ট", en: "Report vault" },
+    {
+      key: "patient_org_chat",
       bn: "রোগী ↔ হাসপাতাল/ক্লিনিক ইন-অ্যাপ চ্যাট",
       en: "Patient ↔ hospital/clinic in-app chat",
     },
-    desk_serial_approval: {
+    {
+      key: "desk_serial_approval",
       bn: "সিরিয়াল — প্ল্যাটফর্ম ডিফল্ট: ডেস্ক অ্যাপ্রুভাল",
       en: "Serial — platform default: desk approval",
     },
-    desk_manual_patient_serial: {
+    {
+      key: "desk_manual_patient_serial",
       bn: "Create Serial ট্যাব — নাম/মোবাইল/বয়স/ঠিকানা দিয়ে ডেস্ক সিরিয়াল",
       en: "Create Serial tab — desk serials by name/mobile/age/address",
     },
-    desk_allow_org_serial_settings: {
+    {
+      key: "desk_allow_org_serial_settings",
       bn: "চেম্বার ডেস্ক সেটিংস থেকে সিরিয়াল কন্ট্রোল",
       en: "Allow chamber desk to control serial settings",
     },
-    desk_allow_org_invoice_settings: {
+    {
+      key: "desk_allow_org_invoice_settings",
       bn: "চেম্বার ডেস্ক থেকে ইনভয়েস লেটারহেড ওভাররাইড",
       en: "Allow chamber desk to override invoice letterhead",
     },
-    desk_booking_field_name: { bn: "বুকিং ফিল্ড: নাম", en: "Booking field: name" },
-    desk_booking_field_phone: { bn: "বুকিং ফিল্ড: মোবাইল", en: "Booking field: mobile" },
-    desk_booking_field_age: { bn: "বুকিং ফিল্ড: বয়স", en: "Booking field: age" },
-    desk_booking_field_address: { bn: "বুকিং ফিল্ড: ঠিকানা", en: "Booking field: address" },
-  };
+    { key: "desk_booking_field_name", bn: "বুকিং ফিল্ড: নাম", en: "Booking field: name" },
+    { key: "desk_booking_field_phone", bn: "বুকিং ফিল্ড: মোবাইল", en: "Booking field: mobile" },
+    { key: "desk_booking_field_age", bn: "বুকিং ফিল্ড: বয়স", en: "Booking field: age" },
+    { key: "desk_booking_field_address", bn: "বুকিং ফিল্ড: ঠিকানা", en: "Booking field: address" },
+  ];
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([fetchCarePolicies(), fetchGuestBrowseEnabled()])
+      .then(([r, guest]) => {
+        if (cancelled) return;
+        setPolicies(r.policies);
+        setFlags(r.flags);
+        setGuestBrowse(guest);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setLoadError(e instanceof Error ? e.message : "Load failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loadError) {
+    return <p className="text-xs text-rose-400">{loadError}</p>;
+  }
+  if (!policies || !flags) {
+    return <p className="text-xs text-slate-500">Loading…</p>;
+  }
 
   return (
     <div className="space-y-3 max-w-md">
@@ -1168,7 +1190,7 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
         <input
           type="checkbox"
           className="mt-0.5 accent-rose-500"
-          checked={flags.hub_coming_soon}
+          checked={flags.hub_coming_soon === true}
           onChange={(e) => setFlags({ ...flags, hub_coming_soon: e.target.checked })}
           disabled={!canEdit}
         />
@@ -1193,55 +1215,57 @@ function PoliciesPanel({ canEdit, lang }: { canEdit: boolean; lang: "bn" | "en" 
           disabled={!canEdit}
         />
       </label>
-      {(Object.keys(policyLabel) as (keyof CareBookingPolicies)[]).map((k) => {
-        const label = policyLabel[k];
-        if (!label) return null;
+      {policyRows.map((row) => {
+        const value = policies[row.key];
         return (
-        <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
-          <span className="leading-snug">
-            <span className="block font-medium">{lang === "bn" ? label.bn : label.en}</span>
-            <span className="text-[10px] text-slate-500">policy: {k}</span>
-          </span>
-          {typeof policies[k] === "boolean" ? (
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={policies[k] as boolean}
-              onChange={(e) => setPolicies({ ...policies, [k]: e.target.checked })}
-            />
-          ) : (
-            <input
-              className={ainp + " w-24"}
-              type="number"
-              min={k === "lab_desk_page_size" ? 5 : k === "org_gallery_max_images" ? 1 : 0}
-              max={k === "lab_desk_page_size" ? 100 : k === "org_gallery_max_images" ? 30 : undefined}
-              value={policies[k] as number}
-              onChange={(e) => setPolicies({ ...policies, [k]: Number(e.target.value) })}
-            />
-          )}
-        </label>
+          <label key={row.key} className="flex items-start justify-between gap-3 text-xs text-slate-200">
+            <span className="leading-snug">
+              <span className="block font-medium">{lang === "bn" ? row.bn : row.en}</span>
+              <span className="text-[10px] text-slate-500">policy: {row.key}</span>
+            </span>
+            {typeof value === "boolean" ? (
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={value}
+                disabled={!canEdit}
+                onChange={(e) => setPolicies({ ...policies, [row.key]: e.target.checked })}
+              />
+            ) : (
+              <input
+                className={ainp + " w-24"}
+                type="number"
+                disabled={!canEdit}
+                min={row.key === "lab_desk_page_size" ? 5 : row.key === "org_gallery_max_images" ? 1 : 0}
+                max={
+                  row.key === "lab_desk_page_size"
+                    ? 100
+                    : row.key === "org_gallery_max_images"
+                      ? 30
+                      : undefined
+                }
+                value={typeof value === "number" ? value : 0}
+                onChange={(e) => setPolicies({ ...policies, [row.key]: Number(e.target.value) })}
+              />
+            )}
+          </label>
         );
       })}
-      {(Object.keys(flagLabel) as (keyof CareFeatureFlags)[])
-        .filter((k) => k !== "hub_coming_soon")
-        .map((k) => {
-          const label = flagLabel[k];
-          if (!label) return null;
-          return (
-        <label key={k} className="flex items-start justify-between gap-3 text-xs text-slate-200">
+      {flagRows.map((row) => (
+        <label key={row.key} className="flex items-start justify-between gap-3 text-xs text-slate-200">
           <span className="leading-snug">
-            <span className="block font-medium">{lang === "bn" ? label.bn : label.en}</span>
-            <span className="text-[10px] text-slate-500">flag: {k}</span>
+            <span className="block font-medium">{lang === "bn" ? row.bn : row.en}</span>
+            <span className="text-[10px] text-slate-500">flag: {row.key}</span>
           </span>
           <input
             type="checkbox"
             className="mt-0.5"
-            checked={!!flags[k]}
-            onChange={(e) => setFlags({ ...flags, [k]: e.target.checked })}
+            checked={flags[row.key] === true}
+            disabled={!canEdit}
+            onChange={(e) => setFlags({ ...flags, [row.key]: e.target.checked })}
           />
         </label>
-          );
-        })}
+      ))}
       {canEdit && (
         <button
           type="button"
