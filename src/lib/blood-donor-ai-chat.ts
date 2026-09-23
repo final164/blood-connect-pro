@@ -22,6 +22,9 @@ import {
   upazilaSlotLabel,
 } from "@/lib/blood-donor-ai-slots";
 import type { BloodDonorAiLocationPreset } from "@/lib/blood-donor-ai-location-tabs";
+import { pickBestGeoMatch, upazilaRoughlyMatches } from "@/lib/blood-donor-ai-geo";
+import { getUpazilasForDistrictSlug } from "@/data/bangladesh-clinics";
+import { getUniversityUpazilaOptions } from "@/data/bd-universities-upazilas";
 
 export type BloodDonorAiChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -58,7 +61,12 @@ export type BloodDonorAiToolResults = {
   sms_body: string;
   district_id: string | null;
   district_label: string;
+  /** Canonical English upazila used for filter (empty = all) */
+  upazila_label: string;
+  district_slug: string | null;
   blood_group: string;
+  /** Donor phones are intentionally withheld — open Community */
+  hide_donor_phones: true;
 };
 
 export type BloodDonorAiChatResult = {
@@ -290,44 +298,98 @@ async function loadBloodDonorAiSettings(sb: SupabaseClient): Promise<BloodDonorA
 async function resolveDistrictId(
   sb: SupabaseClient,
   label: string,
-): Promise<{ id: string | null; name: string }> {
+): Promise<{ id: string | null; name: string; slug: string | null }> {
   const q = label.trim();
-  if (!q) return { id: null, name: "" };
+  if (!q) return { id: null, name: "", slug: null };
+
+  type DistRow = { id: string; name_bn: string; name_en: string; slug: string };
+
+  const scoreRows = (rows: DistRow[]) => {
+    const picked = pickBestGeoMatch(
+      q,
+      rows.map((r) => ({
+        id: r.id,
+        name_bn: r.name_bn,
+        name_en: r.name_en,
+        slug: r.slug,
+      })),
+      0.5,
+    );
+    if (!picked) return null;
+    const row = rows.find((r) => r.id === picked.hit.id) ?? rows[0]!;
+    return {
+      id: row.id,
+      name: row.name_bn || row.name_en,
+      slug: row.slug || null,
+    };
+  };
+
   try {
     const { adminClient } = await import("@/lib/gemini-rotate.server");
     const admin = adminClient();
-    const { data } = await admin
+    // Prefer broad candidate set, then fuzzy-pick best
+    let { data } = await admin
       .from("districts")
       .select("id, name_bn, name_en, slug")
       .or(`name_bn.ilike.%${q}%,name_en.ilike.%${q}%,slug.ilike.%${q}%`)
-      .limit(8);
-    const rows = (data ?? []) as {
-      id: string;
-      name_bn: string;
-      name_en: string;
-      slug: string;
-    }[];
-    if (!rows.length) return { id: null, name: q };
-    const lower = q.toLowerCase();
-    const exact =
-      rows.find(
-        (r) =>
-          r.name_bn.toLowerCase() === lower ||
-          r.name_en.toLowerCase() === lower ||
-          r.slug.toLowerCase() === lower,
-      ) ?? rows[0]!;
-    return { id: exact.id, name: exact.name_bn || exact.name_en };
+      .limit(24);
+    let rows = (data ?? []) as DistRow[];
+    if (rows.length < 3) {
+      const all = await admin.from("districts").select("id, name_bn, name_en, slug").limit(80);
+      rows = (all.data ?? []) as DistRow[];
+    }
+    const hit = scoreRows(rows);
+    if (hit) return hit;
+    return { id: null, name: q, slug: null };
   } catch {
     const { data } = await sb
       .from("districts")
-      .select("id, name_bn, name_en")
-      .ilike("name_en", `%${q}%`)
-      .limit(5);
-    const row = (data ?? [])[0] as { id: string; name_bn: string; name_en: string } | undefined;
-    return row
-      ? { id: row.id, name: row.name_bn || row.name_en }
-      : { id: null, name: q };
+      .select("id, name_bn, name_en, slug")
+      .or(`name_bn.ilike.%${q}%,name_en.ilike.%${q}%`)
+      .limit(24);
+    const hit = scoreRows((data ?? []) as DistRow[]);
+    return hit ?? { id: null, name: q, slug: null };
   }
+}
+
+async function resolveUpazilaLabel(opts: {
+  admin: SupabaseClient;
+  districtId: string | null;
+  districtSlug: string | null;
+  raw: string;
+}): Promise<string> {
+  const filter = upazilaFilterForQuery(opts.raw);
+  if (!filter) return "";
+
+  const catalog: { name_bn: string; name_en: string; slug?: string }[] = [];
+  if (opts.districtSlug) {
+    for (const u of getUpazilasForDistrictSlug(opts.districtSlug)) {
+      catalog.push({ name_bn: u.bn, name_en: u.en });
+    }
+    for (const u of getUniversityUpazilaOptions(opts.districtSlug)) {
+      catalog.push({ name_bn: u.bn, name_en: u.en });
+    }
+  }
+
+  if (opts.districtId) {
+    try {
+      const { data } = await opts.admin
+        .from("upazilas")
+        .select("name_bn, name_en, slug")
+        .eq("district_id", opts.districtId)
+        .eq("is_active", true)
+        .limit(120);
+      for (const row of (data ?? []) as { name_bn: string; name_en: string; slug: string }[]) {
+        catalog.push({ name_bn: row.name_bn, name_en: row.name_en, slug: row.slug });
+      }
+    } catch {
+      /* upazilas table may be missing */
+    }
+  }
+
+  const picked = pickBestGeoMatch(filter, catalog, 0.5);
+  if (picked) return picked.hit.name_en || picked.hit.name_bn;
+  return filter;
 }
 
 async function runDonorTools(opts: {
@@ -341,12 +403,17 @@ async function runDonorTools(opts: {
   const { settings, slots, lang } = opts;
   const district = await resolveDistrictId(opts.sb, slots.district);
   const blood = normalizeBloodGroup(slots.blood_group);
-  const upazilaFilter = upazilaFilterForQuery(slots.upazila);
-  const max = settings.filters.max_donors;
-  const availableOnly = settings.filters.available_only;
-
   const { adminClient } = await import("@/lib/gemini-rotate.server");
   const admin = adminClient();
+  const resolvedUpazila = await resolveUpazilaLabel({
+    admin,
+    districtId: district.id,
+    districtSlug: district.slug,
+    raw: slots.upazila,
+  });
+  const upazilaFilter = resolvedUpazila;
+  const max = settings.filters.max_donors;
+  const availableOnly = settings.filters.available_only;
 
   let donorQuery = admin
     .from("community_donors")
@@ -354,15 +421,35 @@ async function runDonorTools(opts: {
       "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, unavailable_until, districts(name_bn, name_en)",
     )
     .eq("is_active", true)
-    .limit(Math.min(120, max * 3));
+    .limit(Math.min(160, max * 4));
   if (blood) donorQuery = donorQuery.eq("blood_group", blood);
   if (district.id) donorQuery = donorQuery.eq("district_id", district.id);
+  // Soft DB filter; final pass uses fuzzy match so near-miss spellings still hit
   if (upazilaFilter) donorQuery = donorQuery.ilike("upazila", `%${upazilaFilter}%`);
   if (settings.filters.gender !== "any") {
     donorQuery = donorQuery.eq("gender", settings.filters.gender);
   }
 
-  const { data: donorRows } = await donorQuery;
+  let { data: donorRows } = await donorQuery;
+
+  // If upazila filter returned nothing, broaden to district then fuzzy-filter client-side
+  if (upazilaFilter && district.id && !(donorRows ?? []).length) {
+    let broadQ = admin
+      .from("community_donors")
+      .select(
+        "id, org_id, full_name, phone, blood_group, gender, district_id, upazila, address, is_active, unavailable_until, districts(name_bn, name_en)",
+      )
+      .eq("is_active", true)
+      .eq("district_id", district.id)
+      .limit(Math.min(160, max * 4));
+    if (blood) broadQ = broadQ.eq("blood_group", blood);
+    if (settings.filters.gender !== "any") {
+      broadQ = broadQ.eq("gender", settings.filters.gender);
+    }
+    const broad = await broadQ;
+    donorRows = broad.data ?? [];
+  }
+
   type DonorRow = {
     id: string;
     full_name: string;
@@ -378,6 +465,7 @@ async function runDonorTools(opts: {
   };
   let donors: BloodDonorAiDonorCard[] = ((donorRows ?? []) as unknown as DonorRow[])
     .filter((d) => !availableOnly || !isCommunityDonorUnavailable(d))
+    .filter((d) => !upazilaFilter || upazilaRoughlyMatches(d.upazila, upazilaFilter))
     .map((d) => {
       const dist = Array.isArray(d.districts) ? d.districts[0] : d.districts;
       return {
@@ -408,7 +496,6 @@ async function runDonorTools(opts: {
         .limit(Math.min(80, max));
       if (blood) profileQ = profileQ.eq("blood_group", blood);
       profileQ = profileQ.eq("district_id", district.id);
-      if (upazilaFilter) profileQ = profileQ.ilike("upazila", `%${upazilaFilter}%`);
       if (settings.filters.gender !== "any") {
         profileQ = profileQ.eq("gender", settings.filters.gender);
       }
@@ -433,6 +520,7 @@ async function runDonorTools(opts: {
           if (p.is_available === false) continue;
           if (isCommunityDonorUnavailable({ unavailable_until: p.unavailable_until })) continue;
         }
+        if (upazilaFilter && !upazilaRoughlyMatches(p.upazila, upazilaFilter)) continue;
         const phone = (p.phone ?? "").trim();
         const digits = phone.replace(/\D/g, "");
         if (digits.length < 10 || existingPhones.has(digits)) continue;
@@ -522,7 +610,10 @@ async function runDonorTools(opts: {
     sms_body,
     district_id: district.id,
     district_label: district.name || slots.district,
+    upazila_label: upazilaFilter,
+    district_slug: district.slug,
     blood_group: blood,
+    hide_donor_phones: true,
   };
 }
 
@@ -718,13 +809,17 @@ export const bloodDonorAiChat = createServerFn({ method: "POST" })
           tool_results = { ...tool_results, donors: [] };
         }
         if (data.lang === "bn") {
-          reply = `${reply}\n\nজেলা: ${tool_results.district_label} · গ্রুপ: ${tool_results.blood_group} · ডোনার: ${tool_results.donors.length}${
-            tool_results.orgs.length ? ` · অর্গ: ${tool_results.orgs.length}` : ""
-          }`;
+          reply = `${reply}\n\nম্যাচ: ${tool_results.district_label}${
+            tool_results.upazila_label ? ` · ${tool_results.upazila_label}` : ""
+          } · গ্রুপ: ${tool_results.blood_group} · ডোনার: ${tool_results.donors.length}${
+            tool_results.orgs.length ? ` · সংগঠন: ${tool_results.orgs.length}` : ""
+          }\nডোনার নম্বর Community তে দেখুন; এখানে সংগঠনের নম্বর দেখানো হয়েছে।`;
         } else {
-          reply = `${reply}\n\nDistrict: ${tool_results.district_label} · Group: ${tool_results.blood_group} · Donors: ${tool_results.donors.length}${
+          reply = `${reply}\n\nMatched: ${tool_results.district_label}${
+            tool_results.upazila_label ? ` · ${tool_results.upazila_label}` : ""
+          } · Group: ${tool_results.blood_group} · Donors: ${tool_results.donors.length}${
             tool_results.orgs.length ? ` · Orgs: ${tool_results.orgs.length}` : ""
-          }`;
+          }\nOpen Community for donor phones; org numbers are shown here.`;
         }
         questions = [];
       }

@@ -1,10 +1,10 @@
 import { Building2, Copy, MessageSquare, Phone, Users } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { BloodDonorAiToolResults, BloodDonorAiDonorCard } from "@/lib/blood-donor-ai-chat";
 import type { BloodDonorAiPublicConfig } from "@/lib/blood-donor-ai-settings";
 import { buildSmsHref } from "@/lib/messaging-settings";
 import { whatsappHref } from "@/lib/request-form-options";
-import { authWithNext } from "@/lib/auth-next";
 
 function donorMetaLine(
   d: BloodDonorAiDonorCard,
@@ -30,7 +30,7 @@ function donorCopyLine(
   const parts: string[] = [];
   if (fields.name) parts.push(d.name);
   if (fields.blood_group) parts.push(d.blood_group ?? "?");
-  if (fields.phone) parts.push(d.phone);
+  // Donor phones are never copied from AI — Community only
   if (fields.gender && d.gender) parts.push(d.gender);
   if (fields.upazila && d.upazila) parts.push(d.upazila);
   if (fields.district && d.district) parts.push(d.district);
@@ -38,6 +38,19 @@ function donorCopyLine(
     parts.push(d.source === "app" ? (bn ? "অ্যাপ" : "app") : bn ? "সংগঠন" : "org");
   }
   return parts.join(" · ");
+}
+
+function communitySearchFromResults(results: BloodDonorAiToolResults) {
+  const search: {
+    district?: string;
+    upazila?: string;
+    blood?: string;
+  } = {};
+  if (results.district_slug) search.district = results.district_slug;
+  else if (results.district_label) search.district = results.district_label;
+  if (results.upazila_label) search.upazila = results.upazila_label;
+  if (results.blood_group) search.blood = results.blood_group;
+  return search;
 }
 
 export function BloodDonorAiResultCards({
@@ -54,10 +67,9 @@ export function BloodDonorAiResultCards({
   onNeedLogin: () => void;
 }) {
   const bn = lang === "bn";
-  const fields = cfg.list_fields;
-  const phones = fields.phone
-    ? results.donors.map((d) => d.phone).filter(Boolean)
-    : [];
+  const fields = { ...cfg.list_fields, phone: false };
+  const orgPhones = results.orgs.map((o) => o.phone).filter(Boolean) as string[];
+  const communitySearch = communitySearchFromResults(results);
 
   function requireAuth(action: () => void) {
     if (!loggedIn) {
@@ -67,25 +79,29 @@ export function BloodDonorAiResultCards({
     action();
   }
 
-  function openSms() {
+  function openOrgSms() {
     requireAuth(() => {
-      if (!cfg.actions.open_sms || !phones.length) {
-        toast.error(bn ? "পাঠানোর নম্বর নেই" : "No phone numbers");
+      if (!cfg.actions.open_sms || !orgPhones.length) {
+        toast.error(
+          bn
+            ? "সংগঠনের নম্বর নেই — Community তে ডোনার দেখুন"
+            : "No org numbers — view donors in Community",
+        );
         return;
       }
-      const href = buildSmsHref(phones.slice(0, cfg.filters.max_donors), results.sms_body);
+      const href = buildSmsHref(orgPhones.slice(0, cfg.filters.max_donors), results.sms_body);
       if (!href) return;
       window.location.href = href;
     });
   }
 
-  function openWhatsApp() {
+  function openOrgWhatsApp() {
     requireAuth(() => {
-      if (!cfg.actions.open_whatsapp || !phones.length) {
-        toast.error(bn ? "নম্বর নেই" : "No numbers");
+      if (!cfg.actions.open_whatsapp || !orgPhones.length) {
+        toast.error(bn ? "সংগঠনের নম্বর নেই" : "No org numbers");
         return;
       }
-      const first = phones[0]!;
+      const first = orgPhones[0]!;
       const base = whatsappHref(first);
       if (!base) return;
       const sep = base.includes("?") ? "&" : "?";
@@ -100,9 +116,18 @@ export function BloodDonorAiResultCards({
   async function copyList() {
     if (!cfg.actions.copy_list) return;
     const lines = results.donors.map((d) => donorCopyLine(d, fields, bn));
+    const orgLines = results.orgs
+      .filter((o) => o.phone)
+      .map((o) => `${o.name} · ${o.phone}`);
     const text = [
-      `${results.blood_group} · ${results.district_label}`,
+      `${results.blood_group} · ${results.district_label}${
+        results.upazila_label ? ` · ${results.upazila_label}` : ""
+      }`,
+      ...(bn ? ["ডোনার (নম্বর Community তে):"] : ["Donors (phones in Community):"]),
       ...lines,
+      ...(orgLines.length
+        ? [bn ? "সংগঠন / কমিউনিটি:" : "Organizations:", ...orgLines]
+        : []),
       "",
       results.sms_body,
     ].join("\n");
@@ -116,26 +141,37 @@ export function BloodDonorAiResultCards({
 
   return (
     <div className="space-y-3 mt-2">
+      <Link
+        to="/community"
+        search={communitySearch}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground"
+      >
+        <Users className="h-3.5 w-3.5" />
+        {bn
+          ? `Community তে ডোনার দেখুন (${results.donors.length})`
+          : `View donors in Community (${results.donors.length})`}
+      </Link>
+
       {(cfg.actions.open_sms || cfg.actions.open_whatsapp || cfg.actions.copy_list) && (
         <div className="flex flex-wrap gap-2">
           {cfg.actions.open_sms && (
             <button
               type="button"
-              onClick={openSms}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+              onClick={openOrgSms}
+              className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold"
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              {bn ? "SMS পাঠান" : "Send SMS"}
+              {bn ? "সংগঠনে SMS" : "SMS orgs"}
             </button>
           )}
           {cfg.actions.open_whatsapp && (
             <button
               type="button"
-              onClick={openWhatsApp}
+              onClick={openOrgWhatsApp}
               className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold"
             >
               <Phone className="h-3.5 w-3.5" />
-              WhatsApp
+              {bn ? "সংগঠন WhatsApp" : "Org WhatsApp"}
             </button>
           )}
           {cfg.actions.copy_list && (
@@ -156,10 +192,15 @@ export function BloodDonorAiResultCards({
           <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/40">
             <Users className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold">
-              {bn ? "উপলব্ধ ডোনার" : "Available donors"} · {results.donors.length}
+              {bn ? "ম্যাচড ডোনার" : "Matched donors"} · {results.donors.length}
               {cfg.filters.gender !== "any" ? ` · ${cfg.filters.gender}` : ""}
             </p>
           </div>
+          <p className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/20">
+            {bn
+              ? "ফোন নম্বর এখানে দেখানো হয় না — Community তে খুলুন।"
+              : "Phone numbers are hidden here — open Community."}
+          </p>
           {results.donors.length === 0 ? (
             <p className="px-3 py-4 text-xs text-muted-foreground">
               {bn ? "কোনো উপলব্ধ ডোনার পাওয়া যায়নি" : "No available donors found"}
@@ -169,10 +210,7 @@ export function BloodDonorAiResultCards({
               {results.donors.map((d) => {
                 const meta = donorMetaLine(d, fields, bn);
                 return (
-                  <li
-                    key={d.id}
-                    className="px-3 py-2.5 text-xs flex items-start justify-between gap-2"
-                  >
+                  <li key={d.id} className="px-3 py-2.5 text-xs">
                     <div className="min-w-0">
                       {fields.name ? (
                         <p className="font-semibold truncate">{d.name}</p>
@@ -181,20 +219,6 @@ export function BloodDonorAiResultCards({
                         <p className="text-muted-foreground truncate">{meta}</p>
                       ) : null}
                     </div>
-                    {fields.phone ? (
-                      <a
-                        href={loggedIn ? `tel:${d.phone}` : authWithNext("/ai/donors")}
-                        onClick={(e) => {
-                          if (!loggedIn) {
-                            e.preventDefault();
-                            onNeedLogin();
-                          }
-                        }}
-                        className="shrink-0 font-mono text-primary font-semibold"
-                      >
-                        {d.phone}
-                      </a>
-                    ) : null}
                   </li>
                 );
               })}
@@ -203,26 +227,42 @@ export function BloodDonorAiResultCards({
         </div>
       )}
 
-      {cfg.actions.show_orgs && results.orgs.length > 0 && (
+      {cfg.actions.show_orgs && (
         <div className="rounded-2xl border bg-card overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/40">
             <Building2 className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold">
-              {bn ? "সংগঠন" : "Organizations"} · {results.orgs.length}
+              {bn ? "কমিউনিটি / সংগঠন" : "Community / Organizations"} · {results.orgs.length}
             </p>
           </div>
-          <ul className="divide-y max-h-48 overflow-y-auto">
-            {results.orgs.map((o) => (
-              <li key={o.id} className="px-3 py-2.5 text-xs flex justify-between gap-2">
-                <span className="font-semibold truncate">{o.name}</span>
-                {o.phone ? (
-                  <a href={`tel:${o.phone}`} className="font-mono text-primary shrink-0">
-                    {o.phone}
-                  </a>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          {results.orgs.length === 0 ? (
+            <p className="px-3 py-4 text-xs text-muted-foreground">
+              {bn ? "এই এলাকায় কোনো সংগঠন পাওয়া যায়নি" : "No organizations found in this area"}
+            </p>
+          ) : (
+            <ul className="divide-y max-h-48 overflow-y-auto">
+              {results.orgs.map((o) => (
+                <li key={o.id} className="px-3 py-2.5 text-xs flex justify-between gap-2">
+                  <Link
+                    to="/community"
+                    search={{ orgId: o.id, ...communitySearch }}
+                    className="font-semibold truncate text-foreground hover:text-primary"
+                  >
+                    {o.name}
+                  </Link>
+                  {o.phone ? (
+                    <a href={`tel:${o.phone}`} className="font-mono text-primary shrink-0">
+                      {o.phone}
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground shrink-0 text-[10px]">
+                      {bn ? "নম্বর নেই" : "No phone"}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

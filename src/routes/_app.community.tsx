@@ -62,6 +62,10 @@ import { fetchBloodDonorAiSettings } from "@/lib/blood-donor-ai-settings";
 
 type CommunitySearch = {
   orgId?: string;
+  /** District slug or English/Bangla name from Donor AI */
+  district?: string;
+  upazila?: string;
+  blood?: string;
 };
 
 /** Smaller pages → faster first paint; more on scroll. */
@@ -71,6 +75,18 @@ export const Route = createFileRoute("/_app/community")({
   head: () => ({ meta: [{ title: "Community — Muktosheba" }] }),
   validateSearch: (search: Record<string, unknown>): CommunitySearch => ({
     orgId: typeof search.orgId === "string" && search.orgId ? search.orgId : undefined,
+    district:
+      typeof search.district === "string" && search.district.trim()
+        ? search.district.trim().slice(0, 80)
+        : undefined,
+    upazila:
+      typeof search.upazila === "string" && search.upazila.trim()
+        ? search.upazila.trim().slice(0, 120)
+        : undefined,
+    blood:
+      typeof search.blood === "string" && search.blood.trim()
+        ? search.blood.trim().slice(0, 8)
+        : undefined,
   }),
   component: CommunityPage,
 });
@@ -79,7 +95,7 @@ function CommunityPage() {
   const { lang } = useI18n();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { orgId } = Route.useSearch();
+  const { orgId, district: districtQ, upazila: upazilaQ, blood: bloodQ } = Route.useSearch();
   const [district, setDistrict] = useState<District | null>(null);
   const [upazila, setUpazila] = useState("");
   const [bloodGroup, setBloodGroup] = useState("ALL");
@@ -194,8 +210,53 @@ function CommunityPage() {
   const profileDistrict = profileDistrictQuery.data?.district ?? null;
   const profileArea = profileDistrictQuery.data?.area ?? "";
 
+  /** Prefill from Donor AI / deep-link query (highest priority). */
+  useEffect(() => {
+    let cancelled = false;
+    async function applyAiSearch() {
+      if (!districtQ && !upazilaQ && !bloodQ) return;
+      if (bloodQ && (bloodQ === "ALL" || (BLOOD_GROUPS as readonly string[]).includes(bloodQ))) {
+        setBloodGroup(bloodQ);
+      }
+      if (upazilaQ) setUpazila(upazilaQ);
+      if (districtQ) {
+        const q = districtQ;
+        const { data: bySlug } = await supabase
+          .from("districts")
+          .select("id,name_bn,name_en,slug,is_active,sort_order")
+          .eq("slug", q.toLowerCase())
+          .maybeSingle();
+        if (!cancelled && bySlug) {
+          setDistrict(bySlug as District);
+        } else {
+          const { data } = await supabase
+            .from("districts")
+            .select("id,name_bn,name_en,slug,is_active,sort_order")
+            .or(`name_en.ilike.%${q}%,name_bn.ilike.%${q}%,slug.ilike.%${q}%`)
+            .limit(8);
+          const rows = (data ?? []) as District[];
+          const lower = q.toLowerCase();
+          const hit =
+            rows.find(
+              (r) =>
+                r.slug?.toLowerCase() === lower ||
+                r.name_en?.toLowerCase() === lower ||
+                r.name_bn?.toLowerCase() === lower,
+            ) ?? rows[0];
+          if (!cancelled && hit) setDistrict(hit);
+        }
+      }
+      if (!cancelled) setLocationSeeded(true);
+    }
+    void applyAiSearch();
+    return () => {
+      cancelled = true;
+    };
+  }, [districtQ, upazilaQ, bloodQ]);
+
   /** Prefill filters from viewer profile (admin-controlled). Skip if save-request already set location. */
   useEffect(() => {
+    if (districtQ || upazilaQ) return;
     if (!msgSettings.community_default_to_viewer_location) return;
     if (locationSeeded) return;
     if (profileDistrictQuery.isPending) return;
@@ -217,6 +278,8 @@ function CommunityPage() {
     }
     setLocationSeeded(true);
   }, [
+    districtQ,
+    upazilaQ,
     msgSettings.community_default_to_viewer_location,
     msgSettings.community_apply_save_request_district,
     msgSettings.community_apply_save_request_upazila,

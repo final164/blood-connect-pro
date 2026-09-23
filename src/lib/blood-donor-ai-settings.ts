@@ -141,7 +141,7 @@ export const DEFAULT_BLOOD_DONOR_AI_SETTINGS: BloodDonorAiSettings = {
   },
   list_fields: {
     name: true,
-    phone: true,
+    phone: false,
     blood_group: true,
     gender: false,
     upazila: true,
