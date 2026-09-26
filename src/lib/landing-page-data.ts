@@ -8,7 +8,7 @@ export const loadLandingPage = createServerFn({ method: "GET" }).handler(async (
   ]);
   // Never stall first HTML on CMS — warm cache if ready, otherwise defaults + background fetch.
   const [seo, settings] = await Promise.all([
-    fetchSeoSettingsForLoader(0),
+    fetchSeoSettingsForLoader(2000),
     fetchLandingSettingsForLoader(0),
   ]);
   return { seo, settings };

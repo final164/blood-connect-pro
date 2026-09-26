@@ -128,8 +128,8 @@ export function SeoAdmin() {
         </p>
         <p>
           {lang === "bn"
-            ? "Default value-গুলো blood.pgdiary.cloud এর জন্য prefilled আছে। Search Console submit URL: https://blood.pgdiary.cloud/sitemap.xml"
-            : "Default values are prefilled for blood.pgdiary.cloud. Search Console sitemap URL: https://blood.pgdiary.cloud/sitemap.xml"}
+            ? "ক্যাননিকাল সাইট https://spandonbd.com। Search Console-এ সাবমিট: https://spandonbd.com/sitemap.xml"
+            : "Canonical site is https://spandonbd.com. Submit this sitemap in Search Console: https://spandonbd.com/sitemap.xml"}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

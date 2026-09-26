@@ -40,7 +40,7 @@ export type SeoSettings = {
 };
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
-  site_url: "https://blood.pgdiary.cloud",
+  site_url: "https://spandonbd.com",
   title_bn: "Muktosheba — রক্তদাতা খুঁজুন, রক্তদান করুন, জীবন বাঁচান",
   title_en: "Muktosheba — Find blood donors and save lives in Bangladesh",
   title_template: "%s — Muktosheba",
@@ -49,22 +49,22 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   description_en:
     "Muktosheba is a Bangladesh-wide realtime blood donor network. Find donors, post urgent requests, and give inspired by the call to save lives.",
   keywords_bn:
-    "রক্তদান, রক্তদাতা, ব্লাড ডোনার, জরুরি রক্ত, বাংলাদেশ, Muktosheba, রক্তের গ্রুপ, হাসপাতাল, জেলা ভিত্তিক রক্তদাতা, রক্ত খুঁজুন, ইসলামে জীবন রক্ষা, সদকা",
+    "রক্তদাতা খুঁজুন, জরুরি রক্ত লাগবে, জরুরি রক্তের রিকোয়েস্ট, ব্লাড ডোনার বাংলাদেশ, রক্তদান বাংলাদেশ, কাছের রক্তদাতা, জেলাভিত্তিক রক্তদাতা, ঢাকায় রক্তদাতা, চট্টগ্রাম রক্তদাতা, হাসপাতালে রক্ত, রক্তের গ্রুপ, এ পজিটিভ রক্তদাতা, বি পজিটিভ রক্তদাতা, ও পজিটিভ রক্তদাতা, এবি পজিটিভ রক্তদাতা, ও নেগেটিভ রক্তদাতা, রক্তের ব্যাগ, ফ্রি ব্লাড ডোনার, BloodLink, স্পন্দন",
   keywords_en:
-    "blood donation, blood donor, Bangladesh, urgent blood, Muktosheba, blood group, hospital, district donor, find blood donor, save a life Islam, charity",
+    "find blood donor Bangladesh, urgent blood needed Bangladesh, blood donation Bangladesh, blood donor near me, emergency blood request, free blood donor network, district blood donor, blood donor Dhaka, blood donor Chittagong, A positive blood donor, B positive blood donor, O positive blood donor, AB positive blood donor, O negative rare blood donor, hospital blood request, BloodLink, Spandon",
   og_title_bn: "Muktosheba — রক্তদাতা খুঁজুন, রক্তদান করুন",
   og_title_en: "Muktosheba — Find blood donors in Bangladesh",
   og_description_bn:
     "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট।",
   og_description_en:
     "Realtime blood donor social network with E2EE chat and live map across Bangladesh.",
-  og_image_url: "https://blood.pgdiary.cloud/landing/hero.jpg",
+  og_image_url: "https://spandonbd.com/landing/hero.jpg",
   og_type: "website",
   twitter_card: "summary_large_image",
   twitter_title: "Muktosheba — Find blood donors and save lives in Bangladesh",
   twitter_description:
     "Find blood donors, post urgent requests, and get district and hospital based blood support across Bangladesh.",
-  twitter_image_url: "https://blood.pgdiary.cloud/landing/hero.jpg",
+  twitter_image_url: "https://spandonbd.com/landing/hero.jpg",
   robots_index: true,
   robots_follow: true,
   canonical_url: "/",
@@ -275,6 +275,9 @@ export function robotsContent(seo: SeoSettings): string {
   const parts: string[] = [];
   parts.push(seo.robots_index ? "index" : "noindex");
   parts.push(seo.robots_follow ? "follow" : "nofollow");
+  if (seo.robots_index) {
+    parts.push("max-image-preview:large", "max-snippet:-1", "max-video-preview:-1");
+  }
   return parts.join(", ");
 }
 
@@ -377,6 +380,13 @@ export function buildHead(
       rel: "alternate",
       href: absoluteUrl(seo.hreflang_en, seo, origin),
       hrefLang: "en",
+    });
+  }
+  if (siteUrl && seo.hreflang_bn) {
+    links.push({
+      rel: "alternate",
+      href: absoluteUrl(seo.hreflang_bn, seo, origin),
+      hrefLang: "x-default",
     });
   }
 
@@ -550,10 +560,30 @@ export function buildLandingJsonLd(
   return items;
 }
 
+const PRIVATE_ROBOTS_PATHS = [
+  "/admin",
+  "/auth",
+  "/home",
+  "/chat",
+  "/community",
+  "/profile",
+  "/settings",
+  "/notifications",
+  "/onboarding",
+  "/me",
+  "/ai",
+  "/care",
+  "/org",
+  "/join-organization",
+  "/api",
+];
+
 export function defaultRobotsTxt(seo: SeoSettings, origin = ""): string {
-  const siteUrl = resolveSiteUrl(seo, origin) || "https://example.com";
+  const siteUrl = resolveSiteUrl(seo, origin) || "https://spandonbd.com";
+  const disallow = PRIVATE_ROBOTS_PATHS.map((path) => `Disallow: ${path}`).join("\n");
   return `User-agent: *
 Allow: /
+${disallow}
 
 Sitemap: ${siteUrl}/sitemap.xml
 `;
@@ -566,9 +596,9 @@ export function buildRobotsTxt(seo: SeoSettings, origin = ""): string {
 }
 
 export function sitemapPaths(seo: SeoSettings): string[] {
-  const base = ["/", "/auth", "/privacy", "/terms"];
+  const base = ["/", "/privacy", "/terms"];
   const extra = seo.sitemap_extra_paths.map((p) => (p.startsWith("/") ? p : `/${p}`));
-  return [...new Set([...base, ...extra])];
+  return [...new Set([...base, ...extra])].filter((path) => !PRIVATE_ROBOTS_PATHS.some((blocked) => path === blocked || path.startsWith(`${blocked}/`)));
 }
 
 export function buildSitemapXml(seo: SeoSettings, origin = ""): string {
@@ -578,16 +608,25 @@ export function buildSitemapXml(seo: SeoSettings, origin = ""): string {
   const urls = paths
     .map((path) => {
       const loc = siteUrl ? `${siteUrl}${path}` : path;
+      const alternates =
+        path === "/"
+          ? `
+    <xhtml:link rel="alternate" hreflang="bn" href="${escapeXml(absoluteUrl(seo.hreflang_bn || "/", seo, origin))}"/>
+    <xhtml:link rel="alternate" hreflang="en" href="${escapeXml(absoluteUrl(seo.hreflang_en || "/?lang=en", seo, origin))}"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeXml(absoluteUrl(seo.hreflang_bn || "/", seo, origin))}"/>`
+          : "";
+      const freq = path === "/" ? "daily" : "monthly";
+      const priority = path === "/" ? "1.0" : path === "/privacy" || path === "/terms" ? "0.3" : "0.6";
       return `  <url>
-    <loc>${escapeXml(loc)}</loc>
-    <lastmod>${now}</lastmod>
-    <changefreq>${path === "/" ? "daily" : "weekly"}</changefreq>
-    <priority>${path === "/" ? "1.0" : "0.7"}</priority>
+    <loc>${escapeXml(loc)}</loc>${alternates}
+    <lastmod>${now.slice(0, 10)}</lastmod>
+    <changefreq>${freq}</changefreq>
+    <priority>${priority}</priority>
   </url>`;
     })
     .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${urls}
 </urlset>`;
 }

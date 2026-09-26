@@ -1,4 +1,19 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /auth
+Disallow: /home
+Disallow: /chat
+Disallow: /community
+Disallow: /profile
+Disallow: /settings
+Disallow: /notifications
+Disallow: /onboarding
+Disallow: /me
+Disallow: /ai
+Disallow: /care
+Disallow: /org
+Disallow: /join-organization
+Disallow: /api
 
-Sitemap: https://blood.pgdiary.cloud/sitemap.xml
+Sitemap: https://spandonbd.com/sitemap.xml

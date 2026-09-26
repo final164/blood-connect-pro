@@ -24,9 +24,7 @@ const LandingRestSections = lazy(() =>
   })),
 );
 
-const LandingSeoJsonLd = lazy(() =>
-  import("@/components/SeoHead").then((m) => ({ default: m.LandingSeoJsonLd })),
-);
+import { LandingSeoJsonLd } from "@/components/SeoHead";
 
 function readLandingLang(): "bn" | "en" {
   if (typeof window === "undefined") return "bn";
@@ -153,6 +151,7 @@ function LandingPage() {
           }}
         />
       )}
+      <LandingSeoJsonLd seo={seo} lang={landingLang} faqs={[]} islamic={islamicList} />
       <main>
         {showHero && <LandingHero settings={settings} lang={landingLang} />}
         {belowReady && (
