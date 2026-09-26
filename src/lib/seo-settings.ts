@@ -41,13 +41,13 @@ export type SeoSettings = {
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   site_url: "https://spandonbd.com",
-  title_bn: "Muktosheba — রক্তদাতা খুঁজুন, রক্তদান করুন, জীবন বাঁচান",
-  title_en: "Muktosheba — Find blood donors and save lives in Bangladesh",
+  title_bn: "রক্তদাতা খুঁজুন বাংলাদেশ — BloodLink",
+  title_en: "Find a blood donor in Bangladesh — BloodLink",
   title_template: "%s — Muktosheba",
   description_bn:
-    "Muktosheba বাংলাদেশজুড়ে রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক। রক্তদাতা খুঁজুন, জরুরি রক্তের রিকোয়েস্ট দিন — ইসলামে জীবন রক্ষার অনুপ্রেরণায় একসাথে সাহায্য করুন।",
+    "জরুরি রক্ত লাগবে? বাংলাদেশে জেলাভিত্তিক রক্তদাতা খুঁজুন, ব্লাড ডোনার দেখুন এবং রিকোয়েস্ট দিন। ঢাকা, চট্টগ্রামসহ A+ B+ O+ AB+ ও O- ডোনার — বিনামূল্যে, BloodLink স্পন্দন।",
   description_en:
-    "Muktosheba is a Bangladesh-wide realtime blood donor network. Find donors, post urgent requests, and give inspired by the call to save lives.",
+    "Urgent blood needed in Bangladesh? Find a blood donor by district, see A+ B+ O+ AB+ and O- donors, and post a request free on BloodLink Spandon.",
   keywords_bn:
     "রক্তদাতা খুঁজুন, জরুরি রক্ত লাগবে, জরুরি রক্তের রিকোয়েস্ট, ব্লাড ডোনার বাংলাদেশ, রক্তদান বাংলাদেশ, কাছের রক্তদাতা, জেলাভিত্তিক রক্তদাতা, ঢাকায় রক্তদাতা, চট্টগ্রাম রক্তদাতা, হাসপাতালে রক্ত, রক্তের গ্রুপ, এ পজিটিভ রক্তদাতা, বি পজিটিভ রক্তদাতা, ও পজিটিভ রক্তদাতা, এবি পজিটিভ রক্তদাতা, ও নেগেটিভ রক্তদাতা, রক্তের ব্যাগ, ফ্রি ব্লাড ডোনার, BloodLink, স্পন্দন",
   keywords_en:

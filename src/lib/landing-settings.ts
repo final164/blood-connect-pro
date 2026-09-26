@@ -593,8 +593,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
   hero: {
     brand_bn: "স্পন্দন",
     brand_en: "Spandon",
-    headline_bn: "রক্তদান করুন, জীবন বাঁচান",
-    headline_en: "Donate blood. Save lives.",
+    headline_bn: "বাংলাদেশে রক্তদাতা খুঁজুন",
+    headline_en: "Find a blood donor in Bangladesh",
     sub_bn:
       "আপনার এলাকার জরুরি রক্তের চাহিদা দেখুন, যাচাইকৃত ডোনারদের সাথে যোগাযোগ করুন — এক অ্যাপেই সব।",
     sub_en:
