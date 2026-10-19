@@ -311,9 +311,12 @@ export function OrgPortalPage() {
                 description: org.description,
                 description_bn: org.description_bn,
                 phone: org.phone,
+                email: org.email,
+                website: org.website,
                 logo_url: org.logo_url,
                 cover_url: org.cover_url,
                 is_verified: org.is_verified,
+                portal_content: (org as { portal_content?: unknown }).portal_content,
               }}
               lang={lang}
               canEdit={can("settings.edit")}

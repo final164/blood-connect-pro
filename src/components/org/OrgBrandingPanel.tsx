@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Building2, Camera, Eye, HardDrive, ImagePlus, Link2, Share2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Camera, Eye, HardDrive, ImagePlus, Link2, Share2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   communityOrgPublicPath,
@@ -8,6 +8,8 @@ import {
   updateCommunityOrgBranding,
   uploadCommunityOrgImage,
 } from "@/lib/community-org-branding";
+import { parseOrgPortalContent } from "@/lib/community-org-portal";
+import { OrgPublicProfile } from "@/components/org/OrgPublicProfile";
 
 type BrandingOrg = {
   id: string;
@@ -16,9 +18,12 @@ type BrandingOrg = {
   description: string | null;
   description_bn: string | null;
   phone?: string | null;
+  email?: string | null;
+  website?: string | null;
   logo_url?: string | null;
   cover_url?: string | null;
   is_verified?: boolean | null;
+  portal_content?: unknown;
 };
 
 type ImageKind = "logo" | "cover";
@@ -54,8 +59,18 @@ export function OrgBrandingPanel({
   }, [org.id, org.logo_url, org.cover_url]);
 
   const orgName = lang === "bn" ? org.name_bn || org.name : org.name;
+  const portal = useMemo(
+    () => parseOrgPortalContent(org.portal_content),
+    [org.portal_content],
+  );
   const desc =
-    lang === "bn" ? org.description_bn || org.description : org.description;
+    (lang === "bn"
+      ? portal.about_bn || org.description_bn || org.description
+      : portal.about_en || org.description || org.description_bn) || null;
+  const welcome =
+    lang === "bn"
+      ? portal.advanced.welcome_bn || portal.advanced.welcome_en
+      : portal.advanced.welcome_en || portal.advanced.welcome_bn;
 
   async function saveUrl(kind: ImageKind, url: string) {
     const patch = kind === "logo" ? { logo_url: url } : { cover_url: url };
@@ -352,37 +367,57 @@ export function OrgBrandingPanel({
 
       {viewAs && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-3 sm:items-center"
+          className="fixed inset-0 z-50 flex flex-col bg-black/55 backdrop-blur-[2px]"
           role="dialog"
           aria-modal
-          onClick={() => setViewAs(false)}
         >
-          <div
-            className="w-full max-w-md overflow-hidden rounded-2xl border bg-background shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <p className="text-sm font-semibold">
-                {lang === "bn" ? "পাবলিক ভিউ" : "Public view"}
+          <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4 py-3 text-white">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                {lang === "bn" ? "ভিউ অ্যাজ · পাবলিক পেজ" : "View as · Public page"}
               </p>
+              <p className="truncate text-sm font-bold">{orgName}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <a
+                href={communityOrgPublicPath(org.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-white/20"
+              >
+                {lang === "bn" ? "নতুন ট্যাব" : "Open tab"}
+              </a>
               <button
                 type="button"
                 onClick={() => setViewAs(false)}
-                className="rounded-lg px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-muted"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-white/25 bg-white/10 text-white hover:bg-white/20"
+                aria-label={lang === "bn" ? "বন্ধ" : "Close"}
               >
-                {lang === "bn" ? "বন্ধ" : "Close"}
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <OrgPublicCard
+          </div>
+          <div className="mx-auto mb-3 min-h-0 w-full max-w-lg flex-1 overflow-y-auto rounded-t-3xl border border-border/60 bg-background shadow-2xl sm:mb-6 sm:rounded-3xl">
+            <OrgPublicProfile
               name={orgName}
               description={desc}
+              welcome={welcome || null}
               logoUrl={logoUrl}
               coverUrl={coverUrl}
-              phone={org.phone}
-              verified={!!org.is_verified}
-              donorCount={donorCount}
-              openRequestCount={openRequestCount}
+              phone={portal.advanced.show_phone_public ? org.phone : null}
+              email={org.email}
+              website={org.website}
+              verified={portal.advanced.highlight_verified_badge && !!org.is_verified}
+              donorCount={
+                portal.advanced.show_donor_count_public ? donorCount : undefined
+              }
+              openRequestCount={
+                portal.advanced.show_open_requests_public ? openRequestCount : undefined
+              }
+              faqs={portal.faqs}
               lang={lang}
+              variant="full"
+              onShare={() => void shareOrg()}
             />
           </div>
         </div>
@@ -391,87 +426,4 @@ export function OrgBrandingPanel({
   );
 }
 
-export function OrgPublicCard({
-  name,
-  description,
-  logoUrl,
-  coverUrl,
-  phone,
-  verified,
-  donorCount,
-  openRequestCount,
-  lang,
-}: {
-  name: string;
-  description?: string | null;
-  logoUrl?: string | null;
-  coverUrl?: string | null;
-  phone?: string | null;
-  verified?: boolean;
-  donorCount?: number;
-  openRequestCount?: number;
-  lang: "bn" | "en";
-}) {
-  return (
-    <div>
-      <div className="relative h-36 bg-muted">
-        {coverUrl ? (
-          <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div
-            className="h-full w-full"
-            style={{
-              background:
-                "linear-gradient(135deg, color-mix(in srgb, var(--primary) 35%, #1a1a1a), color-mix(in srgb, var(--primary) 12%, #2a2a2a))",
-            }}
-          />
-        )}
-      </div>
-      <div className="px-4 pb-5">
-        <div className="-mt-10 flex items-end gap-3">
-          <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-2xl border-4 border-background bg-muted shadow">
-            {logoUrl ? (
-              <img src={logoUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <Building2 className="h-8 w-8 text-primary" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1 pb-1">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-lg font-bold">{name}</h1>
-              {verified ? (
-                <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
-                  ✓
-                </span>
-              ) : null}
-            </div>
-            {phone ? <p className="text-xs text-muted-foreground">{phone}</p> : null}
-          </div>
-        </div>
-        {description ? (
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
-        ) : null}
-        {(donorCount != null || openRequestCount != null) && (
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {donorCount != null && (
-              <div className="rounded-xl border bg-card p-3 text-center">
-                <p className="text-xl font-bold tabular-nums">{donorCount}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {lang === "bn" ? "রক্তদাতা" : "Donors"}
-                </p>
-              </div>
-            )}
-            {openRequestCount != null && (
-              <div className="rounded-xl border bg-card p-3 text-center">
-                <p className="text-xl font-bold tabular-nums">{openRequestCount}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {lang === "bn" ? "ওপেন রিকোয়েস্ট" : "Open requests"}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+export { OrgPublicCard } from "@/components/org/OrgPublicProfile";
