@@ -67,8 +67,8 @@ export function LandingStats({
 }) {
   if (!stats.length) return null;
   return (
-    <section className={`landing-section ${shell} py-10`}>
-      <div className="grid grid-cols-3 gap-3 sm:gap-6">
+    <section className={`landing-section ${shell} py-5 sm:py-6`}>
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
         {stats.map((s) => {
           const Icon = ICONS[s.icon_key] ?? Droplet;
           let value = s.value_text;
@@ -82,11 +82,11 @@ export function LandingStats({
           return (
             <div
               key={s.id}
-              className="text-center py-3 rounded-2xl border border-black/5 bg-white/55"
+              className="text-center py-2.5 sm:py-3 rounded-2xl border border-black/5 bg-white/55"
             >
-              <Icon className="h-5 w-5 mx-auto mb-2" style={{ color: "var(--landing-primary)" }} />
-              <p className="text-lg sm:text-2xl font-bold tabular-nums">{value}</p>
-              <p className="text-[11px] mt-0.5 px-1" style={{ color: "var(--landing-muted)" }}>
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5 mx-auto mb-1.5" style={{ color: "var(--landing-primary)" }} />
+              <p className="text-base sm:text-2xl font-bold tabular-nums">{value}</p>
+              <p className="text-[10px] sm:text-[11px] mt-0.5 px-1 leading-tight" style={{ color: "var(--landing-muted)" }}>
                 {pick(lang, s.label_bn, s.label_en)}
               </p>
             </div>

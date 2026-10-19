@@ -9,107 +9,82 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as OrgRouteImport } from './routes/org'
-import { Route as JoinOrganizationRouteImport } from './routes/join-organization'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as CarePortalRouteImport } from './routes/care.portal'
-import { Route as CareAuthRouteImport } from './routes/care.auth'
-import { Route as AuthResetRouteImport } from './routes/auth_.reset'
-import { Route as AuthForgotRouteImport } from './routes/auth_.forgot'
-import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppRequestsRouteImport } from './routes/_app.requests'
-import { Route as AppProfileRouteImport } from './routes/_app.profile'
-import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
-import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppMapRouteImport } from './routes/_app.map'
-import { Route as AppHomeRouteImport } from './routes/_app.home'
-import { Route as AppCommunityRouteImport } from './routes/_app.community'
-import { Route as AppChatRouteImport } from './routes/_app.chat'
-import { Route as AppCareRouteImport } from './routes/_app.care'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as JoinOrganizationRouteImport } from './routes/join-organization'
+import { Route as OrgRouteImport } from './routes/org'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AppAmbulanceRouteImport } from './routes/_app.ambulance'
-import { Route as CarePortalIndexRouteImport } from './routes/care.portal.index'
-import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
-import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
-import { Route as AppAmbulanceIndexRouteImport } from './routes/_app.ambulance.index'
-import { Route as CarePortalTeleRouteImport } from './routes/care.portal.tele'
-import { Route as CarePortalOperationRouteImport } from './routes/care.portal.operation'
-import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.onboarding'
-import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
-import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
-import { Route as CarePortalAmbulanceRouteImport } from './routes/care.portal.ambulance'
-import { Route as CarePortalAboutRouteImport } from './routes/care.portal.about'
-import { Route as CareDoctorRegisterRouteImport } from './routes/care.doctor.register'
-import { Route as CareDoctorPortalRouteImport } from './routes/care.doctor.portal'
-import { Route as CareDoctorAuthRouteImport } from './routes/care.doctor.auth'
-import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
-import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
-import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
-import { Route as AppCareVideoRouteImport } from './routes/_app.care.video'
-import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
-import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
-import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
-import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
+import { Route as AppCareRouteImport } from './routes/_app.care'
+import { Route as AppChatRouteImport } from './routes/_app.chat'
+import { Route as AppCommunityRouteImport } from './routes/_app.community'
+import { Route as AppHomeRouteImport } from './routes/_app.home'
+import { Route as AppMapRouteImport } from './routes/_app.map'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppOnboardingRouteImport } from './routes/_app.onboarding'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppRequestsRouteImport } from './routes/_app.requests'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AuthCallbackRouteImport } from './routes/auth_.callback'
+import { Route as AuthForgotRouteImport } from './routes/auth_.forgot'
+import { Route as AuthResetRouteImport } from './routes/auth_.reset'
+import { Route as CareAuthRouteImport } from './routes/care.auth'
+import { Route as CarePortalRouteImport } from './routes/care.portal'
 import { Route as AppAiDonorsRouteImport } from './routes/_app.ai.donors'
-import { Route as AppCareVideoIndexRouteImport } from './routes/_app.care.video.index'
-import { Route as AppCareHomeDoctorIndexRouteImport } from './routes/_app.care.home-doctor.index'
-import { Route as AppCareHomeDiagnosticIndexRouteImport } from './routes/_app.care.home-diagnostic.index'
-import { Route as AppCareVideoCheckoutRouteImport } from './routes/_app.care.video.checkout'
-import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
-import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
-import { Route as AppCareOperationOfferingIdRouteImport } from './routes/_app.care.operation.$offeringId'
-import { Route as AppCareOperationBookingIdRouteImport } from './routes/_app.care.operation-booking.$id'
-import { Route as AppCareLabsOrgIdRouteImport } from './routes/_app.care.labs.$orgId'
-import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-booking.$id'
-import { Route as AppCareHomeVisitIdRouteImport } from './routes/_app.care.home-visit.$id'
-import { Route as AppCareHomeDoctorDoctorIdRouteImport } from './routes/_app.care.home-doctor.$doctorId'
-import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
-import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulance.request.$id'
-import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
+import { Route as AppAmbulanceIndexRouteImport } from './routes/_app.ambulance.index'
+import { Route as AppAmbulanceRequestRouteImport } from './routes/_app.ambulance.request'
+import { Route as AppCareIndexRouteImport } from './routes/_app.care.index'
+import { Route as AppCareAiTestsRouteImport } from './routes/_app.care.ai-tests'
+import { Route as AppCareDeskRouteImport } from './routes/_app.care.desk'
+import { Route as AppCareLabRouteImport } from './routes/_app.care.lab'
+import { Route as AppCareVideoRouteImport } from './routes/_app.care.video'
+import { Route as AppChatPeerIdRouteImport } from './routes/_app.chat.$peerId'
+import { Route as AppMeViewRouteImport } from './routes/_app.me.$view'
+import { Route as AppProfileIndexRouteImport } from './routes/_app.profile.index'
+import { Route as AppProfileUserIdRouteImport } from './routes/_app.profile.$userId'
+import { Route as CareDoctorAuthRouteImport } from './routes/care.doctor.auth'
+import { Route as CareDoctorPortalRouteImport } from './routes/care.doctor.portal'
+import { Route as CareDoctorRegisterRouteImport } from './routes/care.doctor.register'
+import { Route as CarePortalIndexRouteImport } from './routes/care.portal.index'
+import { Route as CarePortalAboutRouteImport } from './routes/care.portal.about'
+import { Route as CarePortalAmbulanceRouteImport } from './routes/care.portal.ambulance'
+import { Route as CarePortalDeskRouteImport } from './routes/care.portal.desk'
+import { Route as CarePortalLabRouteImport } from './routes/care.portal.lab'
+import { Route as CarePortalOnboardingRouteImport } from './routes/care.portal.onboarding'
+import { Route as CarePortalOperationRouteImport } from './routes/care.portal.operation'
+import { Route as CarePortalTeleRouteImport } from './routes/care.portal.tele'
+import { Route as OrgPublicOrgIdRouteImport } from './routes/org_.public.$orgId'
 import { Route as AppAmbulanceInvoiceIdRouteImport } from './routes/_app.ambulance.invoice.$id'
-import { Route as AppCareVideoDoctorIdRouteImport } from './routes/_app.care.video.doctor.$id'
+import { Route as AppAmbulanceProviderOrgIdRouteImport } from './routes/_app.ambulance.provider.$orgId'
+import { Route as AppAmbulanceRequestIdRouteImport } from './routes/_app.ambulance.request.$id'
+import { Route as AppCareDoctorIdRouteImport } from './routes/_app.care.doctor.$id'
+import { Route as AppCareHomeDiagnosticIndexRouteImport } from './routes/_app.care.home-diagnostic.index'
+import { Route as AppCareHomeDoctorIndexRouteImport } from './routes/_app.care.home-doctor.index'
+import { Route as AppCareHomeDoctorDoctorIdRouteImport } from './routes/_app.care.home-doctor.$doctorId'
+import { Route as AppCareHomeVisitIdRouteImport } from './routes/_app.care.home-visit.$id'
+import { Route as AppCareLabBookingIdRouteImport } from './routes/_app.care.lab-booking.$id'
+import { Route as AppCareLabsOrgIdRouteImport } from './routes/_app.care.labs.$orgId'
+import { Route as AppCareOperationBookingIdRouteImport } from './routes/_app.care.operation-booking.$id'
+import { Route as AppCareOperationOfferingIdRouteImport } from './routes/_app.care.operation.$offeringId'
+import { Route as AppCareSerialIdRouteImport } from './routes/_app.care.serial.$id'
+import { Route as AppCareTestIdRouteImport } from './routes/_app.care.test.$id'
+import { Route as AppCareVideoIndexRouteImport } from './routes/_app.care.video.index'
+import { Route as AppCareVideoCheckoutRouteImport } from './routes/_app.care.video.checkout'
 import { Route as AppCareVideoBookingIdRouteImport } from './routes/_app.care.video.booking.$id'
+import { Route as AppCareVideoDoctorIdRouteImport } from './routes/_app.care.video.doctor.$id'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
-  id: '/robots.txt',
-  path: '/robots.txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrgRoute = OrgRouteImport.update({
-  id: '/org',
-  path: '/org',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const JoinOrganizationRoute = JoinOrganizationRouteImport.update({
-  id: '/join-organization',
-  path: '/join-organization',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -117,83 +92,44 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const JoinOrganizationRoute = JoinOrganizationRouteImport.update({
+  id: '/join-organization',
+  path: '/join-organization',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CarePortalRoute = CarePortalRouteImport.update({
-  id: '/care/portal',
-  path: '/care/portal',
+const OrgRoute = OrgRouteImport.update({
+  id: '/org',
+  path: '/org',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CareAuthRoute = CareAuthRouteImport.update({
-  id: '/care/auth',
-  path: '/care/auth',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthResetRoute = AuthResetRouteImport.update({
-  id: '/auth_/reset',
-  path: '/auth/reset',
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthForgotRoute = AuthForgotRouteImport.update({
-  id: '/auth_/forgot',
-  path: '/auth/forgot',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth_/callback',
-  path: '/auth/callback',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRequestsRoute = AppRequestsRouteImport.update({
-  id: '/requests',
-  path: '/requests',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProfileRoute = AppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOnboardingRoute = AppOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotificationsRoute = AppNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMapRoute = AppMapRouteImport.update({
-  id: '/map',
-  path: '/map',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHomeRoute = AppHomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCommunityRoute = AppCommunityRouteImport.update({
-  id: '/community',
-  path: '/community',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChatRoute = AppChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
+const AppAmbulanceRoute = AppAmbulanceRouteImport.update({
+  id: '/ambulance',
+  path: '/ambulance',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCareRoute = AppCareRouteImport.update({
@@ -201,109 +137,94 @@ const AppCareRoute = AppCareRouteImport.update({
   path: '/care',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAmbulanceRoute = AppAmbulanceRouteImport.update({
-  id: '/ambulance',
-  path: '/ambulance',
+const AppChatRoute = AppChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => AppRoute,
 } as any)
-const CarePortalIndexRoute = CarePortalIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CarePortalRoute,
+const AppCommunityRoute = AppCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppProfileRoute,
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AppRoute,
 } as any)
-const AppCareIndexRoute = AppCareIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppCareRoute,
+const AppMapRoute = AppMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOnboardingRoute = AppOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRequestsRoute = AppRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth_/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthForgotRoute = AuthForgotRouteImport.update({
+  id: '/auth_/forgot',
+  path: '/auth/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetRoute = AuthResetRouteImport.update({
+  id: '/auth_/reset',
+  path: '/auth/reset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareAuthRoute = CareAuthRouteImport.update({
+  id: '/care/auth',
+  path: '/care/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarePortalRoute = CarePortalRouteImport.update({
+  id: '/care/portal',
+  path: '/care/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAiDonorsRoute = AppAiDonorsRouteImport.update({
+  id: '/ai/donors',
+  path: '/ai/donors',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAmbulanceIndexRoute = AppAmbulanceIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppAmbulanceRoute,
 } as any)
-const CarePortalTeleRoute = CarePortalTeleRouteImport.update({
-  id: '/tele',
-  path: '/tele',
-  getParentRoute: () => CarePortalRoute,
+const AppAmbulanceRequestRoute = AppAmbulanceRequestRouteImport.update({
+  id: '/request',
+  path: '/request',
+  getParentRoute: () => AppAmbulanceRoute,
 } as any)
-const CarePortalOperationRoute = CarePortalOperationRouteImport.update({
-  id: '/operation',
-  path: '/operation',
-  getParentRoute: () => CarePortalRoute,
-} as any)
-const CarePortalOnboardingRoute = CarePortalOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => CarePortalRoute,
-} as any)
-const CarePortalLabRoute = CarePortalLabRouteImport.update({
-  id: '/lab',
-  path: '/lab',
-  getParentRoute: () => CarePortalRoute,
-} as any)
-const CarePortalDeskRoute = CarePortalDeskRouteImport.update({
-  id: '/desk',
-  path: '/desk',
-  getParentRoute: () => CarePortalRoute,
-} as any)
-const CarePortalAmbulanceRoute = CarePortalAmbulanceRouteImport.update({
-  id: '/ambulance',
-  path: '/ambulance',
-  getParentRoute: () => CarePortalRoute,
-} as any)
-const CarePortalAboutRoute = CarePortalAboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => CarePortalRoute,
-} as any)
-const CareDoctorRegisterRoute = CareDoctorRegisterRouteImport.update({
-  id: '/care/doctor/register',
-  path: '/care/doctor/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CareDoctorPortalRoute = CareDoctorPortalRouteImport.update({
-  id: '/care/doctor/portal',
-  path: '/care/doctor/portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CareDoctorAuthRoute = CareDoctorAuthRouteImport.update({
-  id: '/care/doctor/auth',
-  path: '/care/doctor/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
-  id: '/$userId',
-  path: '/$userId',
-  getParentRoute: () => AppProfileRoute,
-} as any)
-const AppMeViewRoute = AppMeViewRouteImport.update({
-  id: '/me/$view',
-  path: '/me/$view',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChatPeerIdRoute = AppChatPeerIdRouteImport.update({
-  id: '/$peerId',
-  path: '/$peerId',
-  getParentRoute: () => AppChatRoute,
-} as any)
-const AppCareVideoRoute = AppCareVideoRouteImport.update({
-  id: '/video',
-  path: '/video',
-  getParentRoute: () => AppCareRoute,
-} as any)
-const AppCareLabRoute = AppCareLabRouteImport.update({
-  id: '/lab',
-  path: '/lab',
-  getParentRoute: () => AppCareRoute,
-} as any)
-const AppCareDeskRoute = AppCareDeskRouteImport.update({
-  id: '/desk',
-  path: '/desk',
+const AppCareIndexRoute = AppCareIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => AppCareRoute,
 } as any)
 const AppCareAiTestsRoute = AppCareAiTestsRouteImport.update({
@@ -311,24 +232,120 @@ const AppCareAiTestsRoute = AppCareAiTestsRouteImport.update({
   path: '/ai-tests',
   getParentRoute: () => AppCareRoute,
 } as any)
-const AppAmbulanceRequestRoute = AppAmbulanceRequestRouteImport.update({
-  id: '/request',
-  path: '/request',
-  getParentRoute: () => AppAmbulanceRoute,
+const AppCareDeskRoute = AppCareDeskRouteImport.update({
+  id: '/desk',
+  path: '/desk',
+  getParentRoute: () => AppCareRoute,
 } as any)
-const AppAiDonorsRoute = AppAiDonorsRouteImport.update({
-  id: '/ai/donors',
-  path: '/ai/donors',
+const AppCareLabRoute = AppCareLabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareVideoRoute = AppCareVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppChatPeerIdRoute = AppChatPeerIdRouteImport.update({
+  id: '/$peerId',
+  path: '/$peerId',
+  getParentRoute: () => AppChatRoute,
+} as any)
+const AppMeViewRoute = AppMeViewRouteImport.update({
+  id: '/me/$view',
+  path: '/me/$view',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCareVideoIndexRoute = AppCareVideoIndexRouteImport.update({
+const AppProfileIndexRoute = AppProfileIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppCareVideoRoute,
+  getParentRoute: () => AppProfileRoute,
 } as any)
-const AppCareHomeDoctorIndexRoute = AppCareHomeDoctorIndexRouteImport.update({
-  id: '/home-doctor/',
-  path: '/home-doctor/',
+const AppProfileUserIdRoute = AppProfileUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => AppProfileRoute,
+} as any)
+const CareDoctorAuthRoute = CareDoctorAuthRouteImport.update({
+  id: '/care/doctor/auth',
+  path: '/care/doctor/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareDoctorPortalRoute = CareDoctorPortalRouteImport.update({
+  id: '/care/doctor/portal',
+  path: '/care/doctor/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CareDoctorRegisterRoute = CareDoctorRegisterRouteImport.update({
+  id: '/care/doctor/register',
+  path: '/care/doctor/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarePortalIndexRoute = CarePortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalAboutRoute = CarePortalAboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalAmbulanceRoute = CarePortalAmbulanceRouteImport.update({
+  id: '/ambulance',
+  path: '/ambulance',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalDeskRoute = CarePortalDeskRouteImport.update({
+  id: '/desk',
+  path: '/desk',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalLabRoute = CarePortalLabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalOnboardingRoute = CarePortalOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalOperationRoute = CarePortalOperationRouteImport.update({
+  id: '/operation',
+  path: '/operation',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const CarePortalTeleRoute = CarePortalTeleRouteImport.update({
+  id: '/tele',
+  path: '/tele',
+  getParentRoute: () => CarePortalRoute,
+} as any)
+const OrgPublicOrgIdRoute = OrgPublicOrgIdRouteImport.update({
+  id: '/org_/public/$orgId',
+  path: '/org/public/$orgId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAmbulanceInvoiceIdRoute = AppAmbulanceInvoiceIdRouteImport.update({
+  id: '/invoice/$id',
+  path: '/invoice/$id',
+  getParentRoute: () => AppAmbulanceRoute,
+} as any)
+const AppAmbulanceProviderOrgIdRoute =
+  AppAmbulanceProviderOrgIdRouteImport.update({
+    id: '/provider/$orgId',
+    path: '/provider/$orgId',
+    getParentRoute: () => AppAmbulanceRoute,
+  } as any)
+const AppAmbulanceRequestIdRoute = AppAmbulanceRequestIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppAmbulanceRequestRoute,
+} as any)
+const AppCareDoctorIdRoute = AppCareDoctorIdRouteImport.update({
+  id: '/doctor/$id',
+  path: '/doctor/$id',
   getParentRoute: () => AppCareRoute,
 } as any)
 const AppCareHomeDiagnosticIndexRoute =
@@ -337,46 +354,9 @@ const AppCareHomeDiagnosticIndexRoute =
     path: '/home-diagnostic/',
     getParentRoute: () => AppCareRoute,
   } as any)
-const AppCareVideoCheckoutRoute = AppCareVideoCheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => AppCareVideoRoute,
-} as any)
-const AppCareTestIdRoute = AppCareTestIdRouteImport.update({
-  id: '/test/$id',
-  path: '/test/$id',
-  getParentRoute: () => AppCareRoute,
-} as any)
-const AppCareSerialIdRoute = AppCareSerialIdRouteImport.update({
-  id: '/serial/$id',
-  path: '/serial/$id',
-  getParentRoute: () => AppCareRoute,
-} as any)
-const AppCareOperationOfferingIdRoute =
-  AppCareOperationOfferingIdRouteImport.update({
-    id: '/operation/$offeringId',
-    path: '/operation/$offeringId',
-    getParentRoute: () => AppCareRoute,
-  } as any)
-const AppCareOperationBookingIdRoute =
-  AppCareOperationBookingIdRouteImport.update({
-    id: '/operation-booking/$id',
-    path: '/operation-booking/$id',
-    getParentRoute: () => AppCareRoute,
-  } as any)
-const AppCareLabsOrgIdRoute = AppCareLabsOrgIdRouteImport.update({
-  id: '/labs/$orgId',
-  path: '/labs/$orgId',
-  getParentRoute: () => AppCareRoute,
-} as any)
-const AppCareLabBookingIdRoute = AppCareLabBookingIdRouteImport.update({
-  id: '/lab-booking/$id',
-  path: '/lab-booking/$id',
-  getParentRoute: () => AppCareRoute,
-} as any)
-const AppCareHomeVisitIdRoute = AppCareHomeVisitIdRouteImport.update({
-  id: '/home-visit/$id',
-  path: '/home-visit/$id',
+const AppCareHomeDoctorIndexRoute = AppCareHomeDoctorIndexRouteImport.update({
+  id: '/home-doctor/',
+  path: '/home-doctor/',
   getParentRoute: () => AppCareRoute,
 } as any)
 const AppCareHomeDoctorDoctorIdRoute =
@@ -385,35 +365,61 @@ const AppCareHomeDoctorDoctorIdRoute =
     path: '/home-doctor/$doctorId',
     getParentRoute: () => AppCareRoute,
   } as any)
-const AppCareDoctorIdRoute = AppCareDoctorIdRouteImport.update({
-  id: '/doctor/$id',
-  path: '/doctor/$id',
+const AppCareHomeVisitIdRoute = AppCareHomeVisitIdRouteImport.update({
+  id: '/home-visit/$id',
+  path: '/home-visit/$id',
   getParentRoute: () => AppCareRoute,
 } as any)
-const AppAmbulanceRequestIdRoute = AppAmbulanceRequestIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppAmbulanceRequestRoute,
+const AppCareLabBookingIdRoute = AppCareLabBookingIdRouteImport.update({
+  id: '/lab-booking/$id',
+  path: '/lab-booking/$id',
+  getParentRoute: () => AppCareRoute,
 } as any)
-const AppAmbulanceProviderOrgIdRoute =
-  AppAmbulanceProviderOrgIdRouteImport.update({
-    id: '/provider/$orgId',
-    path: '/provider/$orgId',
-    getParentRoute: () => AppAmbulanceRoute,
+const AppCareLabsOrgIdRoute = AppCareLabsOrgIdRouteImport.update({
+  id: '/labs/$orgId',
+  path: '/labs/$orgId',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareOperationBookingIdRoute =
+  AppCareOperationBookingIdRouteImport.update({
+    id: '/operation-booking/$id',
+    path: '/operation-booking/$id',
+    getParentRoute: () => AppCareRoute,
   } as any)
-const AppAmbulanceInvoiceIdRoute = AppAmbulanceInvoiceIdRouteImport.update({
-  id: '/invoice/$id',
-  path: '/invoice/$id',
-  getParentRoute: () => AppAmbulanceRoute,
+const AppCareOperationOfferingIdRoute =
+  AppCareOperationOfferingIdRouteImport.update({
+    id: '/operation/$offeringId',
+    path: '/operation/$offeringId',
+    getParentRoute: () => AppCareRoute,
+  } as any)
+const AppCareSerialIdRoute = AppCareSerialIdRouteImport.update({
+  id: '/serial/$id',
+  path: '/serial/$id',
+  getParentRoute: () => AppCareRoute,
 } as any)
-const AppCareVideoDoctorIdRoute = AppCareVideoDoctorIdRouteImport.update({
-  id: '/doctor/$id',
-  path: '/doctor/$id',
+const AppCareTestIdRoute = AppCareTestIdRouteImport.update({
+  id: '/test/$id',
+  path: '/test/$id',
+  getParentRoute: () => AppCareRoute,
+} as any)
+const AppCareVideoIndexRoute = AppCareVideoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppCareVideoRoute,
+} as any)
+const AppCareVideoCheckoutRoute = AppCareVideoCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => AppCareVideoRoute,
 } as any)
 const AppCareVideoBookingIdRoute = AppCareVideoBookingIdRouteImport.update({
   id: '/booking/$id',
   path: '/booking/$id',
+  getParentRoute: () => AppCareVideoRoute,
+} as any)
+const AppCareVideoDoctorIdRoute = AppCareVideoDoctorIdRouteImport.update({
+  id: '/doctor/$id',
+  path: '/doctor/$id',
   getParentRoute: () => AppCareVideoRoute,
 } as any)
 
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
   '/care/portal/operation': typeof CarePortalOperationRoute
   '/care/portal/tele': typeof CarePortalTeleRoute
+  '/org/public/$orgId': typeof OrgPublicOrgIdRoute
   '/ambulance/': typeof AppAmbulanceIndexRoute
   '/care/': typeof AppCareIndexRoute
   '/profile/': typeof AppProfileIndexRoute
@@ -525,6 +532,7 @@ export interface FileRoutesByTo {
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
   '/care/portal/operation': typeof CarePortalOperationRoute
   '/care/portal/tele': typeof CarePortalTeleRoute
+  '/org/public/$orgId': typeof OrgPublicOrgIdRoute
   '/ambulance': typeof AppAmbulanceIndexRoute
   '/care': typeof AppCareIndexRoute
   '/profile': typeof AppProfileIndexRoute
@@ -595,6 +603,7 @@ export interface FileRoutesById {
   '/care/portal/onboarding': typeof CarePortalOnboardingRoute
   '/care/portal/operation': typeof CarePortalOperationRoute
   '/care/portal/tele': typeof CarePortalTeleRoute
+  '/org_/public/$orgId': typeof OrgPublicOrgIdRoute
   '/_app/ambulance/': typeof AppAmbulanceIndexRoute
   '/_app/care/': typeof AppCareIndexRoute
   '/_app/profile/': typeof AppProfileIndexRoute
@@ -665,6 +674,7 @@ export interface FileRouteTypes {
     | '/care/portal/onboarding'
     | '/care/portal/operation'
     | '/care/portal/tele'
+    | '/org/public/$orgId'
     | '/ambulance/'
     | '/care/'
     | '/profile/'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/care/portal/onboarding'
     | '/care/portal/operation'
     | '/care/portal/tele'
+    | '/org/public/$orgId'
     | '/ambulance'
     | '/care'
     | '/profile'
@@ -797,6 +808,7 @@ export interface FileRouteTypes {
     | '/care/portal/onboarding'
     | '/care/portal/operation'
     | '/care/portal/tele'
+    | '/org_/public/$orgId'
     | '/_app/ambulance/'
     | '/_app/care/'
     | '/_app/profile/'
@@ -840,64 +852,16 @@ export interface RootRouteChildren {
   CareDoctorAuthRoute: typeof CareDoctorAuthRoute
   CareDoctorPortalRoute: typeof CareDoctorPortalRoute
   CareDoctorRegisterRoute: typeof CareDoctorRegisterRoute
+  OrgPublicOrgIdRoute: typeof OrgPublicOrgIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/robots.txt': {
-      id: '/robots.txt'
-      path: '/robots.txt'
-      fullPath: '/robots.txt'
-      preLoaderRoute: typeof RobotsDottxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/org': {
-      id: '/org'
-      path: '/org'
-      fullPath: '/org'
-      preLoaderRoute: typeof OrgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/join-organization': {
-      id: '/join-organization'
-      path: '/join-organization'
-      fullPath: '/join-organization'
-      preLoaderRoute: typeof JoinOrganizationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -907,109 +871,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/care/portal': {
-      id: '/care/portal'
-      path: '/care/portal'
-      fullPath: '/care/portal'
-      preLoaderRoute: typeof CarePortalRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/care/auth': {
-      id: '/care/auth'
-      path: '/care/auth'
-      fullPath: '/care/auth'
-      preLoaderRoute: typeof CareAuthRouteImport
+    '/join-organization': {
+      id: '/join-organization'
+      path: '/join-organization'
+      fullPath: '/join-organization'
+      preLoaderRoute: typeof JoinOrganizationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth_/reset': {
-      id: '/auth_/reset'
-      path: '/auth/reset'
-      fullPath: '/auth/reset'
-      preLoaderRoute: typeof AuthResetRouteImport
+    '/org': {
+      id: '/org'
+      path: '/org'
+      fullPath: '/org'
+      preLoaderRoute: typeof OrgRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth_/forgot': {
-      id: '/auth_/forgot'
-      path: '/auth/forgot'
-      fullPath: '/auth/forgot'
-      preLoaderRoute: typeof AuthForgotRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth_/callback': {
-      id: '/auth_/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/requests': {
-      id: '/_app/requests'
-      path: '/requests'
-      fullPath: '/requests'
-      preLoaderRoute: typeof AppRequestsRouteImport
-      parentRoute: typeof AppRoute
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/profile': {
-      id: '/_app/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof AppProfileRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/onboarding': {
-      id: '/_app/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AppOnboardingRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notifications': {
-      id: '/_app/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AppNotificationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/map': {
-      id: '/_app/map'
-      path: '/map'
-      fullPath: '/map'
-      preLoaderRoute: typeof AppMapRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/home': {
-      id: '/_app/home'
-      path: '/home'
-      fullPath: '/home'
-      preLoaderRoute: typeof AppHomeRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/community': {
-      id: '/_app/community'
-      path: '/community'
-      fullPath: '/community'
-      preLoaderRoute: typeof AppCommunityRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat': {
-      id: '/_app/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof AppChatRouteImport
+    '/_app/ambulance': {
+      id: '/_app/ambulance'
+      path: '/ambulance'
+      fullPath: '/ambulance'
+      preLoaderRoute: typeof AppAmbulanceRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/care': {
@@ -1019,33 +941,110 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/ambulance': {
-      id: '/_app/ambulance'
-      path: '/ambulance'
-      fullPath: '/ambulance'
-      preLoaderRoute: typeof AppAmbulanceRouteImport
+    '/_app/chat': {
+      id: '/_app/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AppChatRouteImport
       parentRoute: typeof AppRoute
     }
-    '/care/portal/': {
-      id: '/care/portal/'
-      path: '/'
-      fullPath: '/care/portal/'
-      preLoaderRoute: typeof CarePortalIndexRouteImport
-      parentRoute: typeof CarePortalRoute
+    '/_app/community': {
+      id: '/_app/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof AppCommunityRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/profile/': {
-      id: '/_app/profile/'
-      path: '/'
-      fullPath: '/profile/'
-      preLoaderRoute: typeof AppProfileIndexRouteImport
-      parentRoute: typeof AppProfileRoute
+    '/_app/home': {
+      id: '/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AppHomeRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/care/': {
-      id: '/_app/care/'
-      path: '/'
-      fullPath: '/care/'
-      preLoaderRoute: typeof AppCareIndexRouteImport
-      parentRoute: typeof AppCareRoute
+    '/_app/map': {
+      id: '/_app/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof AppMapRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/onboarding': {
+      id: '/_app/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AppOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/requests': {
+      id: '/_app/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof AppRequestsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/auth_/callback': {
+      id: '/auth_/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/forgot': {
+      id: '/auth_/forgot'
+      path: '/auth/forgot'
+      fullPath: '/auth/forgot'
+      preLoaderRoute: typeof AuthForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/reset': {
+      id: '/auth_/reset'
+      path: '/auth/reset'
+      fullPath: '/auth/reset'
+      preLoaderRoute: typeof AuthResetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/auth': {
+      id: '/care/auth'
+      path: '/care/auth'
+      fullPath: '/care/auth'
+      preLoaderRoute: typeof CareAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/portal': {
+      id: '/care/portal'
+      path: '/care/portal'
+      fullPath: '/care/portal'
+      preLoaderRoute: typeof CarePortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/ai/donors': {
+      id: '/_app/ai/donors'
+      path: '/ai/donors'
+      fullPath: '/ai/donors'
+      preLoaderRoute: typeof AppAiDonorsRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/ambulance/': {
       id: '/_app/ambulance/'
@@ -1054,116 +1053,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAmbulanceIndexRouteImport
       parentRoute: typeof AppAmbulanceRoute
     }
-    '/care/portal/tele': {
-      id: '/care/portal/tele'
-      path: '/tele'
-      fullPath: '/care/portal/tele'
-      preLoaderRoute: typeof CarePortalTeleRouteImport
-      parentRoute: typeof CarePortalRoute
+    '/_app/ambulance/request': {
+      id: '/_app/ambulance/request'
+      path: '/request'
+      fullPath: '/ambulance/request'
+      preLoaderRoute: typeof AppAmbulanceRequestRouteImport
+      parentRoute: typeof AppAmbulanceRoute
     }
-    '/care/portal/operation': {
-      id: '/care/portal/operation'
-      path: '/operation'
-      fullPath: '/care/portal/operation'
-      preLoaderRoute: typeof CarePortalOperationRouteImport
-      parentRoute: typeof CarePortalRoute
-    }
-    '/care/portal/onboarding': {
-      id: '/care/portal/onboarding'
-      path: '/onboarding'
-      fullPath: '/care/portal/onboarding'
-      preLoaderRoute: typeof CarePortalOnboardingRouteImport
-      parentRoute: typeof CarePortalRoute
-    }
-    '/care/portal/lab': {
-      id: '/care/portal/lab'
-      path: '/lab'
-      fullPath: '/care/portal/lab'
-      preLoaderRoute: typeof CarePortalLabRouteImport
-      parentRoute: typeof CarePortalRoute
-    }
-    '/care/portal/desk': {
-      id: '/care/portal/desk'
-      path: '/desk'
-      fullPath: '/care/portal/desk'
-      preLoaderRoute: typeof CarePortalDeskRouteImport
-      parentRoute: typeof CarePortalRoute
-    }
-    '/care/portal/ambulance': {
-      id: '/care/portal/ambulance'
-      path: '/ambulance'
-      fullPath: '/care/portal/ambulance'
-      preLoaderRoute: typeof CarePortalAmbulanceRouteImport
-      parentRoute: typeof CarePortalRoute
-    }
-    '/care/portal/about': {
-      id: '/care/portal/about'
-      path: '/about'
-      fullPath: '/care/portal/about'
-      preLoaderRoute: typeof CarePortalAboutRouteImport
-      parentRoute: typeof CarePortalRoute
-    }
-    '/care/doctor/register': {
-      id: '/care/doctor/register'
-      path: '/care/doctor/register'
-      fullPath: '/care/doctor/register'
-      preLoaderRoute: typeof CareDoctorRegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/care/doctor/portal': {
-      id: '/care/doctor/portal'
-      path: '/care/doctor/portal'
-      fullPath: '/care/doctor/portal'
-      preLoaderRoute: typeof CareDoctorPortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/care/doctor/auth': {
-      id: '/care/doctor/auth'
-      path: '/care/doctor/auth'
-      fullPath: '/care/doctor/auth'
-      preLoaderRoute: typeof CareDoctorAuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/profile/$userId': {
-      id: '/_app/profile/$userId'
-      path: '/$userId'
-      fullPath: '/profile/$userId'
-      preLoaderRoute: typeof AppProfileUserIdRouteImport
-      parentRoute: typeof AppProfileRoute
-    }
-    '/_app/me/$view': {
-      id: '/_app/me/$view'
-      path: '/me/$view'
-      fullPath: '/me/$view'
-      preLoaderRoute: typeof AppMeViewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat/$peerId': {
-      id: '/_app/chat/$peerId'
-      path: '/$peerId'
-      fullPath: '/chat/$peerId'
-      preLoaderRoute: typeof AppChatPeerIdRouteImport
-      parentRoute: typeof AppChatRoute
-    }
-    '/_app/care/video': {
-      id: '/_app/care/video'
-      path: '/video'
-      fullPath: '/care/video'
-      preLoaderRoute: typeof AppCareVideoRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/lab': {
-      id: '/_app/care/lab'
-      path: '/lab'
-      fullPath: '/care/lab'
-      preLoaderRoute: typeof AppCareLabRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/desk': {
-      id: '/_app/care/desk'
-      path: '/desk'
-      fullPath: '/care/desk'
-      preLoaderRoute: typeof AppCareDeskRouteImport
+    '/_app/care/': {
+      id: '/_app/care/'
+      path: '/'
+      fullPath: '/care/'
+      preLoaderRoute: typeof AppCareIndexRouteImport
       parentRoute: typeof AppCareRoute
     }
     '/_app/care/ai-tests': {
@@ -1173,32 +1074,165 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareAiTestsRouteImport
       parentRoute: typeof AppCareRoute
     }
-    '/_app/ambulance/request': {
-      id: '/_app/ambulance/request'
-      path: '/request'
-      fullPath: '/ambulance/request'
-      preLoaderRoute: typeof AppAmbulanceRequestRouteImport
-      parentRoute: typeof AppAmbulanceRoute
+    '/_app/care/desk': {
+      id: '/_app/care/desk'
+      path: '/desk'
+      fullPath: '/care/desk'
+      preLoaderRoute: typeof AppCareDeskRouteImport
+      parentRoute: typeof AppCareRoute
     }
-    '/_app/ai/donors': {
-      id: '/_app/ai/donors'
-      path: '/ai/donors'
-      fullPath: '/ai/donors'
-      preLoaderRoute: typeof AppAiDonorsRouteImport
+    '/_app/care/lab': {
+      id: '/_app/care/lab'
+      path: '/lab'
+      fullPath: '/care/lab'
+      preLoaderRoute: typeof AppCareLabRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/video': {
+      id: '/_app/care/video'
+      path: '/video'
+      fullPath: '/care/video'
+      preLoaderRoute: typeof AppCareVideoRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/chat/$peerId': {
+      id: '/_app/chat/$peerId'
+      path: '/$peerId'
+      fullPath: '/chat/$peerId'
+      preLoaderRoute: typeof AppChatPeerIdRouteImport
+      parentRoute: typeof AppChatRoute
+    }
+    '/_app/me/$view': {
+      id: '/_app/me/$view'
+      path: '/me/$view'
+      fullPath: '/me/$view'
+      preLoaderRoute: typeof AppMeViewRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/care/video/': {
-      id: '/_app/care/video/'
+    '/_app/profile/': {
+      id: '/_app/profile/'
       path: '/'
-      fullPath: '/care/video/'
-      preLoaderRoute: typeof AppCareVideoIndexRouteImport
-      parentRoute: typeof AppCareVideoRoute
+      fullPath: '/profile/'
+      preLoaderRoute: typeof AppProfileIndexRouteImport
+      parentRoute: typeof AppProfileRoute
     }
-    '/_app/care/home-doctor/': {
-      id: '/_app/care/home-doctor/'
-      path: '/home-doctor'
-      fullPath: '/care/home-doctor/'
-      preLoaderRoute: typeof AppCareHomeDoctorIndexRouteImport
+    '/_app/profile/$userId': {
+      id: '/_app/profile/$userId'
+      path: '/$userId'
+      fullPath: '/profile/$userId'
+      preLoaderRoute: typeof AppProfileUserIdRouteImport
+      parentRoute: typeof AppProfileRoute
+    }
+    '/care/doctor/auth': {
+      id: '/care/doctor/auth'
+      path: '/care/doctor/auth'
+      fullPath: '/care/doctor/auth'
+      preLoaderRoute: typeof CareDoctorAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/doctor/portal': {
+      id: '/care/doctor/portal'
+      path: '/care/doctor/portal'
+      fullPath: '/care/doctor/portal'
+      preLoaderRoute: typeof CareDoctorPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/doctor/register': {
+      id: '/care/doctor/register'
+      path: '/care/doctor/register'
+      fullPath: '/care/doctor/register'
+      preLoaderRoute: typeof CareDoctorRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/care/portal/': {
+      id: '/care/portal/'
+      path: '/'
+      fullPath: '/care/portal/'
+      preLoaderRoute: typeof CarePortalIndexRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/about': {
+      id: '/care/portal/about'
+      path: '/about'
+      fullPath: '/care/portal/about'
+      preLoaderRoute: typeof CarePortalAboutRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/ambulance': {
+      id: '/care/portal/ambulance'
+      path: '/ambulance'
+      fullPath: '/care/portal/ambulance'
+      preLoaderRoute: typeof CarePortalAmbulanceRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/desk': {
+      id: '/care/portal/desk'
+      path: '/desk'
+      fullPath: '/care/portal/desk'
+      preLoaderRoute: typeof CarePortalDeskRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/lab': {
+      id: '/care/portal/lab'
+      path: '/lab'
+      fullPath: '/care/portal/lab'
+      preLoaderRoute: typeof CarePortalLabRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/onboarding': {
+      id: '/care/portal/onboarding'
+      path: '/onboarding'
+      fullPath: '/care/portal/onboarding'
+      preLoaderRoute: typeof CarePortalOnboardingRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/operation': {
+      id: '/care/portal/operation'
+      path: '/operation'
+      fullPath: '/care/portal/operation'
+      preLoaderRoute: typeof CarePortalOperationRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/care/portal/tele': {
+      id: '/care/portal/tele'
+      path: '/tele'
+      fullPath: '/care/portal/tele'
+      preLoaderRoute: typeof CarePortalTeleRouteImport
+      parentRoute: typeof CarePortalRoute
+    }
+    '/org_/public/$orgId': {
+      id: '/org_/public/$orgId'
+      path: '/org/public/$orgId'
+      fullPath: '/org/public/$orgId'
+      preLoaderRoute: typeof OrgPublicOrgIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/ambulance/invoice/$id': {
+      id: '/_app/ambulance/invoice/$id'
+      path: '/invoice/$id'
+      fullPath: '/ambulance/invoice/$id'
+      preLoaderRoute: typeof AppAmbulanceInvoiceIdRouteImport
+      parentRoute: typeof AppAmbulanceRoute
+    }
+    '/_app/ambulance/provider/$orgId': {
+      id: '/_app/ambulance/provider/$orgId'
+      path: '/provider/$orgId'
+      fullPath: '/ambulance/provider/$orgId'
+      preLoaderRoute: typeof AppAmbulanceProviderOrgIdRouteImport
+      parentRoute: typeof AppAmbulanceRoute
+    }
+    '/_app/ambulance/request/$id': {
+      id: '/_app/ambulance/request/$id'
+      path: '/$id'
+      fullPath: '/ambulance/request/$id'
+      preLoaderRoute: typeof AppAmbulanceRequestIdRouteImport
+      parentRoute: typeof AppAmbulanceRequestRoute
+    }
+    '/_app/care/doctor/$id': {
+      id: '/_app/care/doctor/$id'
+      path: '/doctor/$id'
+      fullPath: '/care/doctor/$id'
+      preLoaderRoute: typeof AppCareDoctorIdRouteImport
       parentRoute: typeof AppCareRoute
     }
     '/_app/care/home-diagnostic/': {
@@ -1208,60 +1242,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareHomeDiagnosticIndexRouteImport
       parentRoute: typeof AppCareRoute
     }
-    '/_app/care/video/checkout': {
-      id: '/_app/care/video/checkout'
-      path: '/checkout'
-      fullPath: '/care/video/checkout'
-      preLoaderRoute: typeof AppCareVideoCheckoutRouteImport
-      parentRoute: typeof AppCareVideoRoute
-    }
-    '/_app/care/test/$id': {
-      id: '/_app/care/test/$id'
-      path: '/test/$id'
-      fullPath: '/care/test/$id'
-      preLoaderRoute: typeof AppCareTestIdRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/serial/$id': {
-      id: '/_app/care/serial/$id'
-      path: '/serial/$id'
-      fullPath: '/care/serial/$id'
-      preLoaderRoute: typeof AppCareSerialIdRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/operation/$offeringId': {
-      id: '/_app/care/operation/$offeringId'
-      path: '/operation/$offeringId'
-      fullPath: '/care/operation/$offeringId'
-      preLoaderRoute: typeof AppCareOperationOfferingIdRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/operation-booking/$id': {
-      id: '/_app/care/operation-booking/$id'
-      path: '/operation-booking/$id'
-      fullPath: '/care/operation-booking/$id'
-      preLoaderRoute: typeof AppCareOperationBookingIdRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/labs/$orgId': {
-      id: '/_app/care/labs/$orgId'
-      path: '/labs/$orgId'
-      fullPath: '/care/labs/$orgId'
-      preLoaderRoute: typeof AppCareLabsOrgIdRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/lab-booking/$id': {
-      id: '/_app/care/lab-booking/$id'
-      path: '/lab-booking/$id'
-      fullPath: '/care/lab-booking/$id'
-      preLoaderRoute: typeof AppCareLabBookingIdRouteImport
-      parentRoute: typeof AppCareRoute
-    }
-    '/_app/care/home-visit/$id': {
-      id: '/_app/care/home-visit/$id'
-      path: '/home-visit/$id'
-      fullPath: '/care/home-visit/$id'
-      preLoaderRoute: typeof AppCareHomeVisitIdRouteImport
+    '/_app/care/home-doctor/': {
+      id: '/_app/care/home-doctor/'
+      path: '/home-doctor'
+      fullPath: '/care/home-doctor/'
+      preLoaderRoute: typeof AppCareHomeDoctorIndexRouteImport
       parentRoute: typeof AppCareRoute
     }
     '/_app/care/home-doctor/$doctorId': {
@@ -1271,39 +1256,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCareHomeDoctorDoctorIdRouteImport
       parentRoute: typeof AppCareRoute
     }
-    '/_app/care/doctor/$id': {
-      id: '/_app/care/doctor/$id'
-      path: '/doctor/$id'
-      fullPath: '/care/doctor/$id'
-      preLoaderRoute: typeof AppCareDoctorIdRouteImport
+    '/_app/care/home-visit/$id': {
+      id: '/_app/care/home-visit/$id'
+      path: '/home-visit/$id'
+      fullPath: '/care/home-visit/$id'
+      preLoaderRoute: typeof AppCareHomeVisitIdRouteImport
       parentRoute: typeof AppCareRoute
     }
-    '/_app/ambulance/request/$id': {
-      id: '/_app/ambulance/request/$id'
-      path: '/$id'
-      fullPath: '/ambulance/request/$id'
-      preLoaderRoute: typeof AppAmbulanceRequestIdRouteImport
-      parentRoute: typeof AppAmbulanceRequestRoute
+    '/_app/care/lab-booking/$id': {
+      id: '/_app/care/lab-booking/$id'
+      path: '/lab-booking/$id'
+      fullPath: '/care/lab-booking/$id'
+      preLoaderRoute: typeof AppCareLabBookingIdRouteImport
+      parentRoute: typeof AppCareRoute
     }
-    '/_app/ambulance/provider/$orgId': {
-      id: '/_app/ambulance/provider/$orgId'
-      path: '/provider/$orgId'
-      fullPath: '/ambulance/provider/$orgId'
-      preLoaderRoute: typeof AppAmbulanceProviderOrgIdRouteImport
-      parentRoute: typeof AppAmbulanceRoute
+    '/_app/care/labs/$orgId': {
+      id: '/_app/care/labs/$orgId'
+      path: '/labs/$orgId'
+      fullPath: '/care/labs/$orgId'
+      preLoaderRoute: typeof AppCareLabsOrgIdRouteImport
+      parentRoute: typeof AppCareRoute
     }
-    '/_app/ambulance/invoice/$id': {
-      id: '/_app/ambulance/invoice/$id'
-      path: '/invoice/$id'
-      fullPath: '/ambulance/invoice/$id'
-      preLoaderRoute: typeof AppAmbulanceInvoiceIdRouteImport
-      parentRoute: typeof AppAmbulanceRoute
+    '/_app/care/operation-booking/$id': {
+      id: '/_app/care/operation-booking/$id'
+      path: '/operation-booking/$id'
+      fullPath: '/care/operation-booking/$id'
+      preLoaderRoute: typeof AppCareOperationBookingIdRouteImport
+      parentRoute: typeof AppCareRoute
     }
-    '/_app/care/video/doctor/$id': {
-      id: '/_app/care/video/doctor/$id'
-      path: '/doctor/$id'
-      fullPath: '/care/video/doctor/$id'
-      preLoaderRoute: typeof AppCareVideoDoctorIdRouteImport
+    '/_app/care/operation/$offeringId': {
+      id: '/_app/care/operation/$offeringId'
+      path: '/operation/$offeringId'
+      fullPath: '/care/operation/$offeringId'
+      preLoaderRoute: typeof AppCareOperationOfferingIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/serial/$id': {
+      id: '/_app/care/serial/$id'
+      path: '/serial/$id'
+      fullPath: '/care/serial/$id'
+      preLoaderRoute: typeof AppCareSerialIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/test/$id': {
+      id: '/_app/care/test/$id'
+      path: '/test/$id'
+      fullPath: '/care/test/$id'
+      preLoaderRoute: typeof AppCareTestIdRouteImport
+      parentRoute: typeof AppCareRoute
+    }
+    '/_app/care/video/': {
+      id: '/_app/care/video/'
+      path: '/'
+      fullPath: '/care/video/'
+      preLoaderRoute: typeof AppCareVideoIndexRouteImport
+      parentRoute: typeof AppCareVideoRoute
+    }
+    '/_app/care/video/checkout': {
+      id: '/_app/care/video/checkout'
+      path: '/checkout'
+      fullPath: '/care/video/checkout'
+      preLoaderRoute: typeof AppCareVideoCheckoutRouteImport
       parentRoute: typeof AppCareVideoRoute
     }
     '/_app/care/video/booking/$id': {
@@ -1311,6 +1324,13 @@ declare module '@tanstack/react-router' {
       path: '/booking/$id'
       fullPath: '/care/video/booking/$id'
       preLoaderRoute: typeof AppCareVideoBookingIdRouteImport
+      parentRoute: typeof AppCareVideoRoute
+    }
+    '/_app/care/video/doctor/$id': {
+      id: '/_app/care/video/doctor/$id'
+      path: '/doctor/$id'
+      fullPath: '/care/video/doctor/$id'
+      preLoaderRoute: typeof AppCareVideoDoctorIdRouteImport
       parentRoute: typeof AppCareVideoRoute
     }
   }
@@ -1508,17 +1528,8 @@ const rootRouteChildren: RootRouteChildren = {
   CareDoctorAuthRoute: CareDoctorAuthRoute,
   CareDoctorPortalRoute: CareDoctorPortalRoute,
   CareDoctorRegisterRoute: CareDoctorRegisterRoute,
+  OrgPublicOrgIdRoute: OrgPublicOrgIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

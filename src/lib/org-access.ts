@@ -38,6 +38,8 @@ export type OrgMembership = {
     is_active: boolean;
     is_verified?: boolean;
     kyc_status?: string | null;
+    logo_url?: string | null;
+    cover_url?: string | null;
     donor_contact_settings?: unknown;
   } | null;
 };
@@ -138,15 +140,23 @@ export async function deleteOrgRole(roleId: string) {
 
 export async function fetchMyOrgMemberships(): Promise<OrgMembership[]> {
   const selectFull =
-    "id, org_id, user_id, role, role_id, created_at, community_org_roles(id, org_id, slug, name, name_bn, is_system, permissions, created_at), community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, donor_contact_settings)";
+    "id, org_id, user_id, role, role_id, created_at, community_org_roles(id, org_id, slug, name, name_bn, is_system, permissions, created_at), community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, cover_url, donor_contact_settings)";
+  const selectFullNoCover =
+    "id, org_id, user_id, role, role_id, created_at, community_org_roles(id, org_id, slug, name, name_bn, is_system, permissions, created_at), community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, donor_contact_settings)";
   const selectLegacyRoles =
-    "id, org_id, user_id, role, created_at, community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, donor_contact_settings)";
+    "id, org_id, user_id, role, created_at, community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, logo_url, donor_contact_settings)";
 
   const { data, error } = await supabase
     .from("community_org_members")
     .select(selectFull)
     .order("created_at", { ascending: true });
   if (error) {
+    const { data: noCover, error: eCover } = await supabase
+      .from("community_org_members")
+      .select(selectFullNoCover)
+      .order("created_at", { ascending: true });
+    if (!eCover) return (noCover as unknown as OrgMembership[]) ?? [];
+
     const { data: legacy, error: e2 } = await supabase
       .from("community_org_members")
       .select(selectLegacyRoles)

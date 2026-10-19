@@ -211,7 +211,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
     return (
       <section
         id="top"
-        className="landing-hero relative flex flex-col overflow-x-hidden min-h-[min(88dvh,820px)]"
+        className="landing-hero relative flex flex-col overflow-x-hidden"
       >
         <div className="absolute inset-0">
           {h.background_video_url ? (
@@ -237,12 +237,12 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
           )}
         </div>
 
-        <div className={`relative z-10 ${shell} flex flex-1 flex-col justify-end pb-8 pt-24`}>
-          <div className="pb-4">
-            <p className="landing-brand text-3xl sm:text-4xl md:text-5xl font-semibold text-white tracking-tight drop-shadow-sm">
+        <div className={`relative z-10 ${shell} flex flex-col justify-end pb-5 pt-16 sm:pb-6 sm:pt-20`}>
+          <div className="pb-3">
+            <p className="landing-brand text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight drop-shadow-sm">
               {pick(lang, h.brand_bn, h.brand_en)}
             </p>
-            <p className="mt-2 text-sm sm:text-base text-white/85 max-w-xl leading-relaxed drop-shadow-sm">
+            <p className="mt-1.5 text-xs sm:text-sm text-white/85 max-w-xl leading-relaxed drop-shadow-sm line-clamp-2">
               {pick(lang, h.sub_bn, h.sub_en)}
             </p>
           </div>
@@ -312,7 +312,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
   return (
     <section
       id="top"
-      className="landing-hero relative min-h-[min(88dvh,820px)] flex flex-col justify-end overflow-x-hidden"
+      className="landing-hero relative flex flex-col justify-end overflow-x-hidden"
     >
       <div className="absolute inset-0">
         {h.background_video_url ? (
@@ -338,33 +338,33 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
         )}
       </div>
 
-      <div className={`relative z-10 ${shell} pb-12 pt-28`}>
+      <div className={`relative z-10 ${shell} pb-6 pt-16 sm:pb-8 sm:pt-20`}>
         <div
           className={
-            showYoutube ? "grid gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-10 lg:items-end" : undefined
+            showYoutube ? "grid gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8 lg:items-end" : undefined
           }
         >
           <div className="min-w-0">
-            <p className="landing-brand text-3xl sm:text-5xl md:text-6xl font-semibold text-white tracking-tight mb-3">
+            <p className="landing-brand text-2xl sm:text-4xl md:text-5xl font-semibold text-white tracking-tight mb-1.5 sm:mb-2">
               {pick(lang, h.brand_bn, h.brand_en)}
             </p>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white/95 max-w-2xl leading-snug">
+            <h1 className="text-base sm:text-xl md:text-2xl font-semibold text-white/95 max-w-2xl leading-snug">
               {pick(lang, h.headline_bn, h.headline_en)}
             </h1>
-            <p className="mt-3 text-sm sm:text-base text-white/75 max-w-xl leading-relaxed">
+            <p className="mt-2 text-xs sm:text-sm text-white/75 max-w-xl leading-relaxed line-clamp-2 sm:line-clamp-3">
               {pick(lang, h.sub_bn, h.sub_en)}
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-4 sm:mt-5 flex flex-wrap gap-2.5">
               <LandingHref
                 href={h.cta_primary_href}
-                className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30"
+                className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-black/30"
                 style={{ background: "var(--landing-primary)" }}
               >
                 {pick(lang, h.cta_primary_bn, h.cta_primary_en)}
               </LandingHref>
               <LandingHref
                 href={h.cta_secondary_href}
-                className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10"
+                className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white/95 border border-white/35 bg-white/10"
               >
                 {pick(lang, h.cta_secondary_bn, h.cta_secondary_en)}
               </LandingHref>
@@ -372,7 +372,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
                 <button
                   type="button"
                   onClick={() => setShowYoutube(true)}
-                  className="inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white/95 border border-white/35 bg-white/10 lg:hidden"
+                  className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white/95 border border-white/35 bg-white/10 lg:hidden"
                 >
                   {lang === "bn" ? "ভিডিও দেখুন" : "Watch video"}
                 </button>

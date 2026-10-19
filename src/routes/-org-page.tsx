@@ -13,6 +13,8 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { OrgBrandingPanel } from "@/components/org/OrgBrandingPanel";
+import { OrgBulkUploadGuide } from "@/components/org/OrgBulkUploadGuide";
 import { OrgContactSettingsForm } from "@/components/org/OrgContactSettingsForm";
 import { OrgDonorsManager } from "@/components/org/OrgDonorsManager";
 import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
@@ -160,13 +162,23 @@ export function OrgPortalPage() {
 
   async function refreshOrgMeta() {
     if (!orgId) return;
-    const { data } = await supabase
+    const withCover =
+      "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, cover_url, donor_contact_settings";
+    const noCover =
+      "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, donor_contact_settings";
+    let { data, error } = await supabase
       .from("community_orgs")
-      .select(
-        "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, donor_contact_settings",
-      )
+      .select(withCover)
       .eq("id", orgId)
       .maybeSingle();
+    if (error) {
+      const fallback = await supabase
+        .from("community_orgs")
+        .select(noCover)
+        .eq("id", orgId)
+        .maybeSingle();
+      data = fallback.data;
+    }
     if (data) setOrgMeta(data);
     setMemberships((prev) =>
       prev.map((m) => (m.org_id === orgId ? { ...m, community_orgs: data ?? m.community_orgs } : m)),
@@ -283,8 +295,27 @@ export function OrgPortalPage() {
             </div>
           </div>
         )}
-        {tab === "overview" && (
+        {tab === "overview" && org && (
           <div className="space-y-4">
+            <OrgBrandingPanel
+              org={{
+                id: org.id,
+                name: org.name,
+                name_bn: org.name_bn,
+                description: org.description,
+                description_bn: org.description_bn,
+                phone: org.phone,
+                logo_url: org.logo_url,
+                cover_url: org.cover_url,
+                is_verified: org.is_verified,
+              }}
+              lang={lang}
+              canEdit={can("settings.edit")}
+              donorCount={donorCount}
+              openRequestCount={openReqCount}
+              onUpdated={() => void refreshOrgMeta()}
+            />
+
             <div className="grid grid-cols-2 gap-3">
               <StatCard icon={Users} label={lang === "bn" ? "রক্তদাতা" : "Donors"} value={String(donorCount)} />
               <StatCard
@@ -293,17 +324,24 @@ export function OrgPortalPage() {
                 value={String(openReqCount)}
               />
             </div>
+
+            <OrgBulkUploadGuide
+              lang={lang}
+              canImport={can("donors.import")}
+              onGoImport={() => setTab("donors")}
+            />
+
             <div className="rounded-2xl border bg-card p-4 space-y-2">
               <h2 className="text-sm font-semibold">{lang === "bn" ? "সংস্থার তথ্য" : "Organization info"}</h2>
-              {org?.phone && (
+              {org.phone && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-3.5 w-3.5" />
                   {org.phone}
                 </p>
               )}
-              {(lang === "bn" ? org?.description_bn || org?.description : org?.description) && (
+              {(lang === "bn" ? org.description_bn || org.description : org.description) && (
                 <p className="text-sm text-muted-foreground">
-                  {lang === "bn" ? org?.description_bn || org?.description : org?.description}
+                  {lang === "bn" ? org.description_bn || org.description : org.description}
                 </p>
               )}
               <p className="text-[11px] text-muted-foreground">

@@ -78,7 +78,7 @@ export function LandingIslamicCarousel({
       ref={rootRef}
       id="islamic"
       lang={inLang}
-      className="landing-section relative py-12"
+      className="landing-section relative py-8 sm:py-10"
       aria-labelledby="islamic-heading"
       itemScope
       itemType="https://schema.org/ItemList"

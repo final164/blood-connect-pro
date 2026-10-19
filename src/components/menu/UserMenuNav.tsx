@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
+  Activity,
   Bookmark,
   Building2,
+  ChevronDown,
   Circle,
   Droplet,
   FileText,
@@ -30,6 +32,7 @@ import {
   fetchUserMenuSettings,
   menuItemHref,
   type UserMenuItem,
+  type UserMenuItemId,
   type UserMenuSettings,
 } from "@/lib/user-menu-settings";
 
@@ -48,6 +51,24 @@ const MENU_ICONS: Record<string, LucideIcon> = {
   Flag,
   LogOut,
   Circle,
+  Activity,
+};
+
+/** Activity log ids shown as a compact grid under one dropdown. */
+const ACTIVITY_LOG_IDS = new Set<UserMenuItemId>([
+  "liked",
+  "commented",
+  "shared",
+  "saved",
+  "donated",
+]);
+
+const ACTIVITY_TILE_TINT: Record<string, string> = {
+  liked: "#E53935",
+  commented: "#1E88E5",
+  shared: "#43A047",
+  saved: "#FB8C00",
+  donated: "#C62828",
 };
 
 function ThemeLangControls() {
@@ -121,6 +142,10 @@ function itemActive(item: UserMenuItem, pathname: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function activityGroupActive(items: UserMenuItem[], pathname: string): boolean {
+  return items.some((item) => itemActive(item, pathname));
+}
+
 export function UserMenuNav({
   onNavigate,
   compact = false,
@@ -138,6 +163,7 @@ export function UserMenuNav({
     avatar_url: string | null;
   } | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
 
   useEffect(() => {
     fetchUserMenuSettings().then(setSettings);
@@ -155,8 +181,24 @@ export function UserMenuNav({
     [settings.items],
   );
 
+  const { topItems, activityItems } = useMemo(() => {
+    const activity: UserMenuItem[] = [];
+    const top: UserMenuItem[] = [];
+    for (const item of enabled) {
+      if (ACTIVITY_LOG_IDS.has(item.id)) activity.push(item);
+      else top.push(item);
+    }
+    return { topItems: top, activityItems: activity };
+  }, [enabled]);
+
+  const activityIsActive = activityGroupActive(activityItems, location.pathname);
+
+  useEffect(() => {
+    if (activityIsActive) setActivityOpen(true);
+  }, [activityIsActive]);
+
   const primary =
-    settings.design.show_see_more && !expanded ? enabled.slice(0, 6) : enabled;
+    settings.design.show_see_more && !expanded ? topItems.slice(0, 6) : topItems;
 
   async function onItem(item: UserMenuItem) {
     if (item.id === "logout") {
@@ -168,6 +210,134 @@ export function UserMenuNav({
     if (!href) return;
     onNavigate?.();
     navigateToMenu(href, navigate);
+  }
+
+  function renderRow(item: UserMenuItem) {
+    const active = itemActive(item, location.pathname);
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => void onItem(item)}
+        className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+          active
+            ? "bg-primary/10 text-primary font-semibold"
+            : "hover:bg-muted text-foreground"
+        }`}
+      >
+        <span
+          className="h-9 w-9 rounded-full grid place-items-center shrink-0"
+          style={{
+            backgroundColor: active
+              ? `${settings.design.accent}28`
+              : `${settings.design.accent}18`,
+            color: settings.design.accent,
+          }}
+        >
+          <MenuIcon name={item.icon} className="h-4 w-4" />
+        </span>
+        <span className="text-sm font-medium truncate">
+          {lang === "bn" ? item.label_bn : item.label_en}
+        </span>
+      </button>
+    );
+  }
+
+  function renderActivityDropdown() {
+    if (!activityItems.length) return null;
+    const accent = settings.design.accent;
+    return (
+      <div className="rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setActivityOpen((v) => !v)}
+          aria-expanded={activityOpen}
+          className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+            activityIsActive || activityOpen
+              ? "bg-primary/10 text-primary font-semibold"
+              : "hover:bg-muted text-foreground"
+          }`}
+        >
+          <span
+            className="h-9 w-9 rounded-full grid place-items-center shrink-0"
+            style={{
+              backgroundColor: `${accent}${activityIsActive || activityOpen ? "28" : "18"}`,
+              color: accent,
+            }}
+          >
+            <Activity className="h-4 w-4" />
+          </span>
+          <span className="flex-1 text-sm font-medium truncate">
+            {lang === "bn" ? "অ্যাক্টিভিটি লগস" : "Activity logs"}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+              activityOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        <div
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+            activityOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div className="grid grid-cols-2 gap-2 px-1 pb-2 pt-1 sm:grid-cols-2">
+              {activityItems.map((item) => {
+                const active = itemActive(item, location.pathname);
+                const tint = ACTIVITY_TILE_TINT[item.id] ?? accent;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => void onItem(item)}
+                    className={`aspect-square rounded-2xl border p-2.5 flex flex-col items-center justify-center gap-2 text-center transition active:scale-[0.97] ${
+                      active
+                        ? "border-primary/40 bg-primary/10 shadow-sm"
+                        : "border-border/70 bg-card hover:border-primary/25 hover:bg-muted/50"
+                    }`}
+                  >
+                    <span
+                      className="h-10 w-10 rounded-xl grid place-items-center shrink-0 shadow-sm"
+                      style={{ backgroundColor: `${tint}18`, color: tint }}
+                    >
+                      <MenuIcon name={item.icon} className="h-5 w-5" />
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold leading-tight line-clamp-2 px-0.5 ${
+                        active ? "text-primary" : "text-foreground"
+                      }`}
+                    >
+                      {lang === "bn" ? item.label_bn : item.label_en}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /** Insert activity dropdown after my_posts (or right after the first row). */
+  const navNodes: ReactNode[] = [];
+  let activityInserted = false;
+  const hasMyPosts = primary.some((p) => p.id === "my_posts");
+  for (const item of primary) {
+    navNodes.push(renderRow(item));
+    if (!activityInserted && (item.id === "my_posts" || (!hasMyPosts && navNodes.length === 1))) {
+      const block = renderActivityDropdown();
+      if (block) {
+        navNodes.push(<div key="activity-logs">{block}</div>);
+        activityInserted = true;
+      }
+    }
+  }
+  if (!activityInserted) {
+    const block = renderActivityDropdown();
+    if (block) navNodes.unshift(<div key="activity-logs">{block}</div>);
   }
 
   return (
@@ -199,40 +369,9 @@ export function UserMenuNav({
         <AppDownloadButton lang={lang} variant="menu" force />
       )}
 
-      <nav className="space-y-0.5">
-        {primary.map((item) => {
-          const active = itemActive(item, location.pathname);
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => void onItem(item)}
-              className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-                active
-                  ? "bg-primary/10 text-primary font-semibold"
-                  : "hover:bg-muted text-foreground"
-              }`}
-            >
-              <span
-                className="h-9 w-9 rounded-full grid place-items-center shrink-0"
-                style={{
-                  backgroundColor: active
-                    ? `${settings.design.accent}28`
-                    : `${settings.design.accent}18`,
-                  color: settings.design.accent,
-                }}
-              >
-                <MenuIcon name={item.icon} className="h-4 w-4" />
-              </span>
-              <span className="text-sm font-medium truncate">
-                {lang === "bn" ? item.label_bn : item.label_en}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+      <nav className="space-y-0.5">{navNodes}</nav>
 
-      {settings.design.show_see_more && enabled.length > 6 && (
+      {settings.design.show_see_more && topItems.length > 6 && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}

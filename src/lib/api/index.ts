@@ -358,6 +358,7 @@ export type CommunityOrg = {
   email: string | null;
   district_id: string | null;
   logo_url: string | null;
+  cover_url?: string | null;
   is_verified: boolean;
   is_active: boolean;
   sort_order: number;
