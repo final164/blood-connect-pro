@@ -12,9 +12,9 @@ export type SeoGuideContent = {
 };
 
 export const SEO_GUIDE_BN: SeoGuideContent = {
-  title: "Muktosheba SEO সম্পূর্ণ গাইড",
+  title: "স্পন্দন (spandonbd.com) SEO সম্পূর্ণ গাইড",
   intro:
-    "এই গাইড আপনাকে Admin → Settings → SEO থেকে সাইটের সার্চ ইঞ্জিন অপ্টিমাইজেশন সেটআপ করতে সাহায্য করবে। সঠিক SEO-তে Google/Bing-এ Muktosheba খুঁজে পাওয়া সহজ হয় এবং Facebook/WhatsApp শেয়ারে সুন্দর প্রিভিউ দেখায়।",
+    "এই গাইড আপনাকে Admin → Settings → SEO থেকে spandonbd.com ইনডেক্সিং সেটআপ করতে সাহায্য করবে। সঠিক SEO-তে Google/Bing-এ স্পন্দন খুঁজে পাওয়া সহজ হয় এবং Facebook/WhatsApp শেয়ারে সুন্দর প্রিভিউ দেখায়। Privacy (/privacy) ও Terms (/terms) sitemap-এ আছে।",
   checklist: [
     "Site URL নিশ্চিত করুন: https://spandonbd.com",
     "Title ও Description BN/EN লিখুন — ৫৫–৬০ অক্ষরের title, ১৫০–১৬০ অক্ষরের description",
@@ -22,6 +22,7 @@ export const SEO_GUIDE_BN: SeoGuideContent = {
     "Google Search Console-এ সাইট যোগ করুন ও verification code দিন",
     "Sitemap submit করুন: https://spandonbd.com/sitemap.xml",
     "robots.txt চেক করুন: https://spandonbd.com/robots.txt",
+    "Privacy ও Terms লাইভ আছে কিনা দেখুন: /privacy · /terms",
     "Facebook/WhatsApp-এ লিংক শেয়ার করে OG preview দেখুন",
   ],
   sections: [

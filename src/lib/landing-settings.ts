@@ -667,8 +667,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     secondary_href: "#how",
   },
   footer: {
-    copyright_bn: "© Muktosheba. রক্তদান — সবার অধিকার, সবার দায়িত্ব।",
-    copyright_en: "© Muktosheba. Blood donation — a right and a responsibility.",
+    copyright_bn: "© স্পন্দন (spandonbd.com)। রক্তদান — সবার অধিকার, সবার দায়িত্ব।",
+    copyright_en: "© Spandon (spandonbd.com). Blood donation — a right and a responsibility.",
     hotline: "16263",
     columns: [
       {

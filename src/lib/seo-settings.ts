@@ -41,29 +41,29 @@ export type SeoSettings = {
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   site_url: "https://spandonbd.com",
-  title_bn: "রক্তদাতা খুঁজুন বাংলাদেশ — BloodLink",
-  title_en: "Find a blood donor in Bangladesh — BloodLink",
-  title_template: "%s — Muktosheba",
+  title_bn: "স্পন্দন — বাংলাদেশে রক্তদাতা খুঁজুন, জীবন বাঁচান",
+  title_en: "Spandon — Find blood donors across Bangladesh",
+  title_template: "%s — স্পন্দন",
   description_bn:
-    "জরুরি রক্ত লাগবে? বাংলাদেশে জেলাভিত্তিক রক্তদাতা খুঁজুন, ব্লাড ডোনার দেখুন এবং রিকোয়েস্ট দিন। ঢাকা, চট্টগ্রামসহ A+ B+ O+ AB+ ও O- ডোনার — বিনামূল্যে, BloodLink স্পন্দন।",
+    "জরুরি রক্ত লাগবে? বাংলাদেশে জেলাভিত্তিক রক্তদাতা খুঁজুন, ব্লাড ডোনার দেখুন এবং রিকোয়েস্ট দিন। ঢাকা, চট্টগ্রামসহ A+ B+ O+ AB+ ও O- ডোনার — বিনামূল্যে, স্পন্দন (spandonbd.com)।",
   description_en:
-    "Urgent blood needed in Bangladesh? Find a blood donor by district, see A+ B+ O+ AB+ and O- donors, and post a request free on BloodLink Spandon.",
+    "Urgent blood needed in Bangladesh? Find a blood donor by district, see A+ B+ O+ AB+ and O- donors, and post a request free on Spandon (spandonbd.com).",
   keywords_bn:
-    "রক্তদাতা খুঁজুন, জরুরি রক্ত লাগবে, জরুরি রক্তের রিকোয়েস্ট, ব্লাড ডোনার বাংলাদেশ, রক্তদান বাংলাদেশ, কাছের রক্তদাতা, জেলাভিত্তিক রক্তদাতা, ঢাকায় রক্তদাতা, চট্টগ্রাম রক্তদাতা, হাসপাতালে রক্ত, রক্তের গ্রুপ, এ পজিটিভ রক্তদাতা, বি পজিটিভ রক্তদাতা, ও পজিটিভ রক্তদাতা, এবি পজিটিভ রক্তদাতা, ও নেগেটিভ রক্তদাতা, রক্তের ব্যাগ, ফ্রি ব্লাড ডোনার, BloodLink, স্পন্দন",
+    "স্পন্দন, spandonbd, রক্তদাতা খুঁজুন, জরুরি রক্ত লাগবে, জরুরি রক্তের রিকোয়েস্ট, ব্লাড ডোনার বাংলাদেশ, রক্তদান বাংলাদেশ, কাছের রক্তদাতা, জেলাভিত্তিক রক্তদাতা, ঢাকায় রক্তদাতা, চট্টগ্রাম রক্তদাতা, হাসপাতালে রক্ত, রক্তের গ্রুপ, এ পজিটিভ রক্তদাতা, বি পজিটিভ রক্তদাতা, ও পজিটিভ রক্তদাতা, এবি পজিটিভ রক্তদাতা, ও নেগেটিভ রক্তদাতা, রক্তের ব্যাগ, ফ্রি ব্লাড ডোনার",
   keywords_en:
-    "find blood donor Bangladesh, urgent blood needed Bangladesh, blood donation Bangladesh, blood donor near me, emergency blood request, free blood donor network, district blood donor, blood donor Dhaka, blood donor Chittagong, A positive blood donor, B positive blood donor, O positive blood donor, AB positive blood donor, O negative rare blood donor, hospital blood request, BloodLink, Spandon",
-  og_title_bn: "Muktosheba — রক্তদাতা খুঁজুন, রক্তদান করুন",
-  og_title_en: "Muktosheba — Find blood donors in Bangladesh",
+    "Spandon, spandonbd.com, find blood donor Bangladesh, urgent blood needed Bangladesh, blood donation Bangladesh, blood donor near me, emergency blood request, free blood donor network, district blood donor, blood donor Dhaka, blood donor Chittagong, A positive blood donor, B positive blood donor, O positive blood donor, AB positive blood donor, O negative rare blood donor, hospital blood request",
+  og_title_bn: "স্পন্দন — রক্তদাতা খুঁজুন, রক্তদান করুন",
+  og_title_en: "Spandon — Find blood donors in Bangladesh",
   og_description_bn:
-    "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট।",
+    "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট। spandonbd.com",
   og_description_en:
-    "Realtime blood donor social network with E2EE chat and live map across Bangladesh.",
+    "Realtime blood donor network with E2EE chat and district matching across Bangladesh — spandonbd.com",
   og_image_url: "https://spandonbd.com/landing/hero.jpg",
   og_type: "website",
   twitter_card: "summary_large_image",
-  twitter_title: "Muktosheba — Find blood donors and save lives in Bangladesh",
+  twitter_title: "Spandon — Find blood donors and save lives in Bangladesh",
   twitter_description:
-    "Find blood donors, post urgent requests, and get district and hospital based blood support across Bangladesh.",
+    "Find blood donors, post urgent requests, and get district-based blood support across Bangladesh on spandonbd.com.",
   twitter_image_url: "https://spandonbd.com/landing/hero.jpg",
   robots_index: true,
   robots_follow: true,
@@ -73,10 +73,10 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   google_site_verification: "",
   bing_site_verification: "",
   json_ld_enabled: true,
-  org_name: "Muktosheba",
-  org_logo_url: "/spandon-logo.jpg",
+  org_name: "স্পন্দন (Spandon)",
+  org_logo_url: "https://spandonbd.com/spandon-logo.jpg",
   org_phone: "",
-  org_same_as: [],
+  org_same_as: ["https://spandonbd.com"],
   robots_txt: "",
   sitemap_enabled: true,
   sitemap_extra_paths: [],
@@ -583,6 +583,8 @@ export function defaultRobotsTxt(seo: SeoSettings, origin = ""): string {
   const disallow = PRIVATE_ROBOTS_PATHS.map((path) => `Disallow: ${path}`).join("\n");
   return `User-agent: *
 Allow: /
+Allow: /privacy
+Allow: /terms
 ${disallow}
 
 Sitemap: ${siteUrl}/sitemap.xml

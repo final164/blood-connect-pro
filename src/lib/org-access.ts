@@ -40,6 +40,7 @@ export type OrgMembership = {
     kyc_status?: string | null;
     logo_url?: string | null;
     cover_url?: string | null;
+    portal_content?: unknown;
     donor_contact_settings?: unknown;
   } | null;
 };
@@ -140,6 +141,8 @@ export async function deleteOrgRole(roleId: string) {
 
 export async function fetchMyOrgMemberships(): Promise<OrgMembership[]> {
   const selectFull =
+    "id, org_id, user_id, role, role_id, created_at, community_org_roles(id, org_id, slug, name, name_bn, is_system, permissions, created_at), community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, cover_url, portal_content, donor_contact_settings)";
+  const selectFullNoPortal =
     "id, org_id, user_id, role, role_id, created_at, community_org_roles(id, org_id, slug, name, name_bn, is_system, permissions, created_at), community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, cover_url, donor_contact_settings)";
   const selectFullNoCover =
     "id, org_id, user_id, role, role_id, created_at, community_org_roles(id, org_id, slug, name, name_bn, is_system, permissions, created_at), community_orgs(id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, donor_contact_settings)";
@@ -151,6 +154,12 @@ export async function fetchMyOrgMemberships(): Promise<OrgMembership[]> {
     .select(selectFull)
     .order("created_at", { ascending: true });
   if (error) {
+    const { data: noPortal, error: ePortal } = await supabase
+      .from("community_org_members")
+      .select(selectFullNoPortal)
+      .order("created_at", { ascending: true });
+    if (!ePortal) return (noPortal as unknown as OrgMembership[]) ?? [];
+
     const { data: noCover, error: eCover } = await supabase
       .from("community_org_members")
       .select(selectFullNoCover)

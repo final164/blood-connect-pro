@@ -1,5 +1,16 @@
-import { useEffect, useState } from "react";
-import { Download, ChevronDown, FileSpreadsheet, Pencil, Plus, Trash2, Upload, UserPlus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  FileSpreadsheet,
+  FileUp,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { District } from "@/lib/api";
 import { BLOOD_GROUPS } from "@/lib/format";
@@ -7,6 +18,7 @@ import { resolveUpazilaLabel, upazilaDisplayName } from "@/data/bangladesh-clini
 import { fetchUpazilaOptions } from "@/lib/upazilas";
 import { DistrictTypeahead } from "@/components/district/DistrictTypeahead";
 import { UpazilaSelect } from "@/components/district/UpazilaSelect";
+import { OrgBulkUploadGuide } from "@/components/org/OrgBulkUploadGuide";
 import {
   bulkImportCommunityDonors,
   fetchCommunityDonorsByOrg,
@@ -72,6 +84,9 @@ export function OrgDonorsManager({
   const [manualDistrict, setManualDistrict] = useState<District | null>(null);
   const [manualBusy, setManualBusy] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [pickedFileName, setPickedFileName] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
@@ -167,6 +182,7 @@ export function OrgDonorsManager({
 
   async function onFilePick(file: File | null) {
     if (!file) return;
+    setPickedFileName(file.name);
     try {
       const parsed = await parseDonorImportFile(file);
       setImportPreview(parsed);
@@ -176,7 +192,14 @@ export function OrgDonorsManager({
     } catch (e) {
       toast.error((e as Error).message);
       setImportPreview([]);
+      setPickedFileName(null);
     }
+  }
+
+  function clearPickedFile() {
+    setPickedFileName(null);
+    setImportPreview([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function runImport() {
@@ -256,21 +279,15 @@ export function OrgDonorsManager({
 
   return (
     <div className="space-y-4">
+      {canImport && <OrgBulkUploadGuide lang={lang} />}
+
       {canImport && (
-        <div className="rounded-xl border bg-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
+        <div className="space-y-3 rounded-2xl border bg-card p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
             <Upload className="h-4 w-4 text-primary" />
             {lang === "bn" ? "বাল্ক ইমপোর্ট" : "Bulk import"}
           </h3>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <a href="/samples/community-donors-sample.csv" download className="text-primary hover:underline flex items-center gap-1">
-              <Download className="h-3 w-3" /> CSV
-            </a>
-            <a href="/samples/community-donors-sample.xlsx" download className="text-primary hover:underline flex items-center gap-1">
-              <FileSpreadsheet className="h-3 w-3" /> Excel
-            </a>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <DistrictTypeahead
               value={importDistrict}
               onChange={(d) => {
@@ -285,30 +302,106 @@ export function OrgDonorsManager({
               value={importGender}
               onChange={(e) => setImportGender(e.target.value as "" | DonorGender)}
             >
-              <option value="">{lang === "bn" ? "লিঙ্গ" : "Gender"}</option>
+              <option value="">{lang === "bn" ? "লিঙ্গ (ঐচ্ছিক)" : "Gender (optional)"}</option>
               <option value="male">{lang === "bn" ? "পুরুষ" : "Male"}</option>
               <option value="female">{lang === "bn" ? "মহিলা" : "Female"}</option>
             </select>
           </div>
+
           <input
+            ref={fileInputRef}
             type="file"
             accept=".csv,.xlsx,.xls,.json"
+            className="hidden"
             onChange={(e) => void onFilePick(e.target.files?.[0] ?? null)}
-            className="text-xs"
           />
-          {importPreview.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {lang === "bn" ? `${importPreview.length}টি রো প্রস্তুত` : `${importPreview.length} rows ready`}
-            </p>
-          )}
-          <button
-            type="button"
-            disabled={importBusy || !importPreview.length}
-            onClick={() => void runImport()}
-            className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+
+          <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              void onFilePick(e.dataTransfer.files?.[0] ?? null);
+            }}
+            className={`group relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition ${
+              dragOver
+                ? "border-primary bg-primary/8 scale-[1.01]"
+                : pickedFileName
+                  ? "border-emerald-500/50 bg-emerald-500/5"
+                  : "border-muted-foreground/25 bg-muted/20 hover:border-primary/40 hover:bg-primary/[0.04]"
+            }`}
           >
-            {importBusy ? "…" : lang === "bn" ? "ইমপোর্ট" : "Import"}
-          </button>
+            <span
+              className={`grid h-12 w-12 place-items-center rounded-2xl shadow-sm transition ${
+                pickedFileName
+                  ? "bg-emerald-500/15 text-emerald-700"
+                  : "bg-primary/10 text-primary group-hover:scale-105"
+              }`}
+            >
+              {pickedFileName ? (
+                <CheckCircle2 className="h-6 w-6" />
+              ) : (
+                <FileUp className="h-6 w-6" />
+              )}
+            </span>
+            {pickedFileName ? (
+              <>
+                <p className="max-w-full truncate text-sm font-semibold px-2">{pickedFileName}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {lang === "bn"
+                    ? `${importPreview.length}টি রো প্রস্তুত · আবার বেছে নিতে ক্লিক`
+                    : `${importPreview.length} rows ready · click to replace`}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold">
+                  {lang === "bn" ? "ফাইল বাছুন বা এখানে ড্রপ করুন" : "Choose a file or drop here"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Excel · CSV · JSON · {lang === "bn" ? "ম্যাক্স সুপারিশ ৫০০০ রো" : "recommended max ~5000 rows"}
+                </p>
+                <span className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm">
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  {lang === "bn" ? "Choose a file" : "Choose a file"}
+                </span>
+              </>
+            )}
+          </div>
+
+          {pickedFileName && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={clearPickedFile}
+                className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold hover:bg-muted"
+              >
+                <X className="h-3.5 w-3.5" />
+                {lang === "bn" ? "ফাইল সরান" : "Clear file"}
+              </button>
+              <button
+                type="button"
+                disabled={importBusy || !importPreview.length}
+                onClick={() => void runImport()}
+                className="ml-auto rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm disabled:opacity-50"
+              >
+                {importBusy ? "…" : lang === "bn" ? "ইমপোর্ট শুরু" : "Start import"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

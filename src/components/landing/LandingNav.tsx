@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { LogIn } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import type { LandingSettings } from "@/lib/landing-settings";
 import { enterAppOrOpenAuth } from "@/lib/landing-enter";
@@ -100,7 +101,18 @@ export function LandingNav({
               <AppDownloadButton lang={lang} variant="nav" force />
             </Suspense>
           ) : null}
-          <AuthEntryButton className="hidden sm:inline-flex text-xs font-semibold px-3 py-2 rounded-xl border border-black/10">
+          <AuthEntryButton
+            className="landing-login-btn hidden sm:inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border-2 transition active:scale-[0.97]"
+            style={{
+              color: "var(--landing-primary)",
+              borderColor: "color-mix(in srgb, var(--landing-primary) 45%, transparent)",
+              background:
+                "linear-gradient(180deg, color-mix(in srgb, var(--landing-primary) 12%, white), color-mix(in srgb, var(--landing-primary) 6%, white))",
+              boxShadow:
+                "0 1px 0 color-mix(in srgb, var(--landing-primary) 18%, transparent), 0 6px 16px -8px color-mix(in srgb, var(--landing-primary) 55%, transparent)",
+            }}
+          >
+            <LogIn className="h-3.5 w-3.5" strokeWidth={2.5} />
             {lang === "bn" ? nav.cta_login_bn : nav.cta_login_en}
           </AuthEntryButton>
           <Link

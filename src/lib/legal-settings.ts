@@ -58,10 +58,10 @@ const DEFAULT_PRIVACY: LegalDoc = {
   title_bn: "গোপনীয়তা নীতি",
   title_en: "Privacy Policy",
   intro_bn:
-    "মুক্তসেবা একটি স্বেচ্ছাসেবী রক্তদান ও স্বাস্থ্যসেবা প্ল্যাটফর্ম। আপনার ব্যক্তিগত তথ্যের গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। এই নীতিতে আমরা কী তথ্য সংগ্রহ করি, কেন করি, কীভাবে সংরক্ষণ করি এবং আপনার কী অধিকার আছে তা ব্যাখ্যা করা হয়েছে।",
+    "স্পন্দন (spandonbd.com) একটি স্বেচ্ছাসেবী রক্তদান ও স্বাস্থ্যসেবা প্ল্যাটফর্ম। আপনার ব্যক্তিগত তথ্যের গোপনীয়তা আমাদের কাছে অত্যন্ত গুরুত্বপূর্ণ। এই নীতিতে আমরা কী তথ্য সংগ্রহ করি, কেন করি, কীভাবে সংরক্ষণ করি এবং আপনার কী অধিকার আছে তা ব্যাখ্যা করা হয়েছে।",
   intro_en:
-    "Muktosheba is a volunteer blood donation and healthcare platform. Protecting your personal information matters deeply to us. This policy explains what data we collect, why we collect it, how we store it, and what rights you have.",
-  effective_date: "2026-08-27",
+    "Spandon (spandonbd.com) is a volunteer blood donation and healthcare platform. Protecting your personal information matters deeply to us. This policy explains what data we collect, why we collect it, how we store it, and what rights you have.",
+  effective_date: "2026-10-19",
   sections: [
     section(
       "collect",
@@ -161,17 +161,53 @@ Use the in-app settings to exercise these rights, or contact us using the detail
       "children",
       "অপ্রাপ্তবয়স্কদের তথ্য",
       "Children's data",
-      `মুক্তসেবা ১৮ বছরের কম বয়সীদের জন্য নয়। রক্তদানের ন্যূনতম বয়স ১৮ বছর। আমরা জেনেশুনে অপ্রাপ্তবয়স্কদের তথ্য সংগ্রহ করি না। এমন কোনো অ্যাকাউন্ট শনাক্ত হলে তা মুছে ফেলা হয়।`,
-      `Muktosheba is not intended for anyone under 18. The minimum age for blood donation is 18. We do not knowingly collect data from minors, and any such account is removed when identified.`,
+      `স্পন্দন ১৮ বছরের কম বয়সীদের জন্য নয়। রক্তদানের ন্যূনতম বয়স ১৮ বছর। আমরা জেনেশুনে অপ্রাপ্তবয়স্কদের তথ্য সংগ্রহ করি না। এমন কোনো অ্যাকাউন্ট শনাক্ত হলে তা মুছে ফেলা হয়।`,
+      `Spandon is not intended for anyone under 18. The minimum age for blood donation is 18. We do not knowingly collect data from minors, and any such account is removed when identified.`,
       6,
+    ),
+    section(
+      "cookies",
+      "কুকিজ ও লোকাল স্টোরেজ",
+      "Cookies and local storage",
+      `ওয়েবসাইট (spandonbd.com) ও অ্যাপে আমরা প্রয়োজনীয় কুকিজ/লোকাল স্টোরেজ ব্যবহার করি:
+
+- লগইন সেশন ও নিরাপত্তা
+- ভাষা (বাংলা/ইংরেজি) ও থিম পছন্দ
+- পারফরম্যান্স ও বেসিক অ্যানালিটিক্স (যদি চালু থাকে)
+
+আমরা তৃতীয় পক্ষের বিজ্ঞাপন কুকিজ ব্যবহার করি না। ব্রাউজার সেটিংস থেকে কুকিজ মুছে ফেলতে পারেন; তবে কিছু ফিচার কাজ নাও করতে পারে।`,
+      `On the website (spandonbd.com) and in the app we use essential cookies / local storage for:
+
+- Login session and security
+- Language (Bangla/English) and theme preference
+- Performance and basic analytics (when enabled)
+
+We do not use third-party advertising cookies. You can clear cookies in your browser settings; some features may stop working.`,
+      7,
+    ),
+    section(
+      "contact_privacy",
+      "যোগাযোগ",
+      "Contact",
+      `গোপনীয়তা সংক্রান্ত প্রশ্ন বা ডেটা মুছে ফেলার অনুরোধ:
+
+- ইমেইল: support@spandonbd.com
+- ওয়েবসাইট: https://spandonbd.com
+- ঠিকানা: ঢাকা, বাংলাদেশ`,
+      `For privacy questions or deletion requests:
+
+- Email: support@spandonbd.com
+- Website: https://spandonbd.com
+- Address: Dhaka, Bangladesh`,
+      8,
     ),
     section(
       "changes",
       "নীতির পরিবর্তন",
       "Changes to this policy",
-      `এই নীতি সময়ে সময়ে হালনাগাদ হতে পারে। গুরুত্বপূর্ণ পরিবর্তন হলে অ্যাপে নোটিফিকেশন দিয়ে জানানো হবে। পরিবর্তনের পর সেবা ব্যবহার চালিয়ে গেলে ধরে নেওয়া হবে আপনি নতুন নীতিতে সম্মত।`,
-      `We may update this policy from time to time. Significant changes will be announced through an in-app notification. Continuing to use the service after a change means you accept the updated policy.`,
-      7,
+      `এই নীতি সময়ে সময়ে হালনাগাদ হতে পারে। গুরুত্বপূর্ণ পরিবর্তন হলে অ্যাপে নোটিফিকেশন দিয়ে জানানো হবে। পরিবর্তনের পর সেবা ব্যবহার চালিয়ে গেলে ধরে নেওয়া হবে আপনি নতুন নীতিতে সম্মত। সর্বশেষ সংস্করণ: https://spandonbd.com/privacy`,
+      `We may update this policy from time to time. Significant changes will be announced through an in-app notification. Continuing to use the service after a change means you accept the updated policy. Latest version: https://spandonbd.com/privacy`,
+      9,
     ),
   ],
 };
@@ -181,17 +217,17 @@ const DEFAULT_TERMS: LegalDoc = {
   title_bn: "সেবার শর্তাবলী",
   title_en: "Terms of Service",
   intro_bn:
-    "মুক্তসেবা ব্যবহার করার মাধ্যমে আপনি এই শর্তাবলীতে সম্মত হচ্ছেন। অনুগ্রহ করে অ্যাকাউন্ট তৈরির আগে মনোযোগ দিয়ে পড়ুন।",
+    "স্পন্দন (spandonbd.com) ব্যবহার করার মাধ্যমে আপনি এই শর্তাবলীতে সম্মত হচ্ছেন। অনুগ্রহ করে অ্যাকাউন্ট তৈরির আগে মনোযোগ দিয়ে পড়ুন।",
   intro_en:
-    "By using Muktosheba you agree to these terms. Please read them carefully before creating an account.",
-  effective_date: "2026-08-27",
+    "By using Spandon (spandonbd.com) you agree to these terms. Please read them carefully before creating an account.",
+  effective_date: "2026-10-19",
   sections: [
     section(
       "service",
       "সেবার প্রকৃতি",
       "Nature of the service",
-      `মুক্তসেবা একটি সংযোগকারী প্ল্যাটফর্ম — আমরা স্বেচ্ছাসেবী রক্তদাতা ও রক্তের প্রয়োজন আছে এমন মানুষের মধ্যে যোগাযোগ সহজ করি। আমরা কোনো হাসপাতাল, ব্লাড ব্যাংক বা চিকিৎসা প্রতিষ্ঠান নই। আমরা রক্ত সংগ্রহ, সংরক্ষণ বা সরবরাহ করি না।`,
-      `Muktosheba is a connecting platform — we make it easier for voluntary blood donors and people in need of blood to reach each other. We are not a hospital, blood bank or medical institution. We do not collect, store or supply blood.`,
+      `স্পন্দন একটি সংযোগকারী প্ল্যাটফর্ম — আমরা স্বেচ্ছাসেবী রক্তদাতা ও রক্তের প্রয়োজন আছে এমন মানুষের মধ্যে যোগাযোগ সহজ করি। আমরা কোনো হাসপাতাল, ব্লাড ব্যাংক বা চিকিৎসা প্রতিষ্ঠান নই। আমরা রক্ত সংগ্রহ, সংরক্ষণ বা সরবরাহ করি না।`,
+      `Spandon is a connecting platform — we make it easier for voluntary blood donors and people in need of blood to reach each other. We are not a hospital, blood bank or medical institution. We do not collect, store or supply blood.`,
       1,
     ),
     section(
@@ -250,10 +286,10 @@ Cross-matching and required screening tests at an authorised blood bank are mand
       "liability",
       "দায়সীমা",
       "Limitation of liability",
-      `মুক্তসেবা ব্যবহারকারীদের দেওয়া তথ্যের সত্যতা যাচাই করে না এবং ব্যবহারকারীদের মধ্যে হওয়া যেকোনো লেনদেন, সাক্ষাৎ বা ঘটনার জন্য দায়ী নয়। রক্তদান বা রক্তগ্রহণের ফলে সৃষ্ট কোনো শারীরিক, আর্থিক বা অন্য যেকোনো ক্ষতির দায়ভার প্ল্যাটফর্মের উপর বর্তাবে না।
+      `স্পন্দন ব্যবহারকারীদের দেওয়া তথ্যের সত্যতা যাচাই করে না এবং ব্যবহারকারীদের মধ্যে হওয়া যেকোনো লেনদেন, সাক্ষাৎ বা ঘটনার জন্য দায়ী নয়। রক্তদান বা রক্তগ্রহণের ফলে সৃষ্ট কোনো শারীরিক, আর্থিক বা অন্য যেকোনো ক্ষতির দায়ভার প্ল্যাটফর্মের উপর বর্তাবে না।
 
 সেবাটি "যেমন আছে" (as-is) ভিত্তিতে প্রদান করা হয়। আমরা নিরবচ্ছিন্ন সেবা বা রক্তদাতা পাওয়ার নিশ্চয়তা দিই না।`,
-      `Muktosheba does not verify information provided by users and is not responsible for any transaction, meeting or incident between users. The platform bears no liability for physical, financial or other harm arising from any donation or transfusion.
+      `Spandon does not verify information provided by users and is not responsible for any transaction, meeting or incident between users. The platform bears no liability for physical, financial or other harm arising from any donation or transfusion.
 
 The service is provided on an "as-is" basis. We do not guarantee uninterrupted availability or that a donor will be found.`,
       5,
@@ -270,8 +306,8 @@ The service is provided on an "as-is" basis. We do not guarantee uninterrupted a
       "ip",
       "মেধাস্বত্ব",
       "Intellectual property",
-      `মুক্তসেবা নাম, লোগো, ডিজাইন ও সোর্স কোড প্ল্যাটফর্মের মালিকানাধীন। অনুমতি ছাড়া এগুলো ব্যবহার বা অনুকরণ করা যাবে না। আপনি আপলোড করা কনটেন্টের মালিকানা আপনারই থাকে, তবে সেবা পরিচালনার জন্য তা প্রদর্শনের অনুমতি আপনি আমাদের দিচ্ছেন।`,
-      `The Muktosheba name, logo, design and source code belong to the platform. They may not be used or imitated without permission. You retain ownership of content you upload, but grant us permission to display it as needed to operate the service.`,
+      `স্পন্দন নাম, লোগো, ডিজাইন ও সোর্স কোড প্ল্যাটফর্মের মালিকানাধীন। অনুমতি ছাড়া এগুলো ব্যবহার বা অনুকরণ করা যাবে না। আপনি আপলোড করা কনটেন্টের মালিকানা আপনারই থাকে, তবে সেবা পরিচালনার জন্য তা প্রদর্শনের অনুমতি আপনি আমাদের দিচ্ছেন।`,
+      `The Spandon name, logo, design and source code belong to the platform. They may not be used or imitated without permission. You retain ownership of content you upload, but grant us permission to display it as needed to operate the service.`,
       7,
     ),
     section(
@@ -282,13 +318,29 @@ The service is provided on an "as-is" basis. We do not guarantee uninterrupted a
       `These terms are governed by the laws of Bangladesh. Any dispute falls under the jurisdiction of the competent courts of Bangladesh.`,
       8,
     ),
+    section(
+      "contact_terms",
+      "যোগাযোগ",
+      "Contact",
+      `শর্তাবলী বা সেবা সংক্রান্ত প্রশ্ন:
+
+- ইমেইল: support@spandonbd.com
+- ওয়েবসাইট: https://spandonbd.com/terms
+- ঠিকানা: ঢাকা, বাংলাদেশ`,
+      `Questions about these terms or the service:
+
+- Email: support@spandonbd.com
+- Website: https://spandonbd.com/terms
+- Address: Dhaka, Bangladesh`,
+      9,
+    ),
   ],
 };
 
 export const DEFAULT_LEGAL_SETTINGS: LegalSettings = {
   privacy: DEFAULT_PRIVACY,
   terms: DEFAULT_TERMS,
-  contact_email: "support@muktosheba.com",
+  contact_email: "support@spandonbd.com",
   contact_phone: "",
   contact_address_bn: "ঢাকা, বাংলাদেশ",
   contact_address_en: "Dhaka, Bangladesh",

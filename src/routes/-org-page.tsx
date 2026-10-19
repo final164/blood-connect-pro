@@ -14,8 +14,8 @@ import {
   Users,
 } from "lucide-react";
 import { OrgBrandingPanel } from "@/components/org/OrgBrandingPanel";
-import { OrgBulkUploadGuide } from "@/components/org/OrgBulkUploadGuide";
 import { OrgContactSettingsForm } from "@/components/org/OrgContactSettingsForm";
+import { OrgOverviewPortal } from "@/components/org/OrgOverviewPortal";
 import { OrgDonorsManager } from "@/components/org/OrgDonorsManager";
 import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
 import { OrgOutboundContact } from "@/components/org/OrgOutboundContact";
@@ -162,22 +162,28 @@ export function OrgPortalPage() {
 
   async function refreshOrgMeta() {
     if (!orgId) return;
+    const withPortal =
+      "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, cover_url, portal_content, donor_contact_settings";
     const withCover =
       "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, cover_url, donor_contact_settings";
     const noCover =
       "id, name, name_bn, phone, email, website, description, description_bn, is_active, is_verified, kyc_status, logo_url, donor_contact_settings";
     let { data, error } = await supabase
       .from("community_orgs")
-      .select(withCover)
+      .select(withPortal)
       .eq("id", orgId)
       .maybeSingle();
     if (error) {
-      const fallback = await supabase
-        .from("community_orgs")
-        .select(noCover)
-        .eq("id", orgId)
-        .maybeSingle();
-      data = fallback.data;
+      const mid = await supabase.from("community_orgs").select(withCover).eq("id", orgId).maybeSingle();
+      if (!mid.error) data = mid.data;
+      else {
+        const fallback = await supabase
+          .from("community_orgs")
+          .select(noCover)
+          .eq("id", orgId)
+          .maybeSingle();
+        data = fallback.data;
+      }
     }
     if (data) setOrgMeta(data);
     setMemberships((prev) =>
@@ -325,30 +331,29 @@ export function OrgPortalPage() {
               />
             </div>
 
-            <OrgBulkUploadGuide
-              lang={lang}
-              canImport={can("donors.import")}
-              onGoImport={() => setTab("donors")}
-            />
-
-            <div className="rounded-2xl border bg-card p-4 space-y-2">
-              <h2 className="text-sm font-semibold">{lang === "bn" ? "সংস্থার তথ্য" : "Organization info"}</h2>
-              {org.phone && (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Phone className="h-3.5 w-3.5" />
-                  {org.phone}
-                </p>
-              )}
-              {(lang === "bn" ? org.description_bn || org.description : org.description) && (
-                <p className="text-sm text-muted-foreground">
-                  {lang === "bn" ? org.description_bn || org.description : org.description}
-                </p>
-              )}
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card px-4 py-3">
               <p className="text-[11px] text-muted-foreground">
                 {lang === "bn" ? "আপনার রোল" : "Your role"}:{" "}
                 <span className="font-semibold text-foreground">{roleLabel}</span>
               </p>
+              {org.phone && (
+                <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground sm:ml-auto">
+                  <Phone className="h-3 w-3" />
+                  {org.phone}
+                </p>
+              )}
             </div>
+
+            <OrgOverviewPortal
+              orgId={orgId}
+              lang={lang}
+              canEdit={can("settings.edit")}
+              initialPortal={(org as { portal_content?: unknown }).portal_content}
+              fallbackAboutBn={org.description_bn}
+              fallbackAboutEn={org.description}
+              onSaved={() => void refreshOrgMeta()}
+            />
+
             <div className="flex flex-wrap gap-2">
               {can("requests.view") && (
                 <button
@@ -357,6 +362,15 @@ export function OrgPortalPage() {
                   className="rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground"
                 >
                   {lang === "bn" ? "রিকোয়েস্ট দেখুন" : "View requests"}
+                </button>
+              )}
+              {can("donors.view") && (
+                <button
+                  type="button"
+                  onClick={() => setTab("donors")}
+                  className="rounded-xl border px-4 py-2.5 text-xs font-semibold"
+                >
+                  {lang === "bn" ? "রক্তদাতা" : "Donors"}
                 </button>
               )}
               {can("contact.send") && (

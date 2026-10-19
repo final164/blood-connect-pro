@@ -451,20 +451,26 @@ export function OrgPublicCard({
         {description ? (
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border bg-card p-3 text-center">
-            <p className="text-xl font-bold tabular-nums">{donorCount ?? 0}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {lang === "bn" ? "রক্তদাতা" : "Donors"}
-            </p>
+        {(donorCount != null || openRequestCount != null) && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {donorCount != null && (
+              <div className="rounded-xl border bg-card p-3 text-center">
+                <p className="text-xl font-bold tabular-nums">{donorCount}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {lang === "bn" ? "রক্তদাতা" : "Donors"}
+                </p>
+              </div>
+            )}
+            {openRequestCount != null && (
+              <div className="rounded-xl border bg-card p-3 text-center">
+                <p className="text-xl font-bold tabular-nums">{openRequestCount}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {lang === "bn" ? "ওপেন রিকোয়েস্ট" : "Open requests"}
+                </p>
+              </div>
+            )}
           </div>
-          <div className="rounded-xl border bg-card p-3 text-center">
-            <p className="text-xl font-bold tabular-nums">{openRequestCount ?? 0}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {lang === "bn" ? "ওপেন রিকোয়েস্ট" : "Open requests"}
-            </p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

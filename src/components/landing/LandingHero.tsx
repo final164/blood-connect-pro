@@ -364,8 +364,11 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
               </LandingHref>
               <LandingHref
                 href={h.cta_secondary_href}
-                className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white/95 border border-white/35 bg-white/10"
+                className="landing-login-cta inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white border-2 border-white/55 bg-white/15 backdrop-blur-sm shadow-[0_8px_24px_-10px_rgba(0,0,0,0.55)] transition hover:bg-white/25 hover:border-white/80 active:scale-[0.98]"
               >
+                <span className="grid h-5 w-5 place-items-center rounded-md bg-white/25 text-[11px] font-black">
+                  →
+                </span>
                 {pick(lang, h.cta_secondary_bn, h.cta_secondary_en)}
               </LandingHref>
               {canYoutube && !showYoutube && (

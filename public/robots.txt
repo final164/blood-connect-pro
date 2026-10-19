@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
+Allow: /privacy
+Allow: /terms
 Disallow: /admin
 Disallow: /auth
 Disallow: /home

@@ -20,6 +20,7 @@ export type CommunityOrgBranding = {
   cover_url: string | null;
   is_verified: boolean | null;
   is_active: boolean | null;
+  portal_content?: unknown;
   donor_count?: number;
 };
 
@@ -118,24 +119,32 @@ export async function updateCommunityOrgBranding(
 export async function fetchCommunityOrgPublicProfile(
   orgId: string,
 ): Promise<CommunityOrgBranding | null> {
+  const withPortal =
+    "id, name, name_bn, description, description_bn, phone, email, website, logo_url, cover_url, is_verified, is_active, portal_content";
   const withCover =
     "id, name, name_bn, description, description_bn, phone, email, website, logo_url, cover_url, is_verified, is_active";
   const noCover =
     "id, name, name_bn, description, description_bn, phone, email, website, logo_url, is_verified, is_active";
   let { data, error } = await supabase
     .from("community_orgs")
-    .select(withCover)
+    .select(withPortal)
     .eq("id", orgId)
     .maybeSingle();
   if (error) {
-    const fallback = await supabase
-      .from("community_orgs")
-      .select(noCover)
-      .eq("id", orgId)
-      .maybeSingle();
-    if (fallback.error) throw new Error(fallback.error.message);
-    data = fallback.data as typeof data;
-    error = null;
+    const mid = await supabase.from("community_orgs").select(withCover).eq("id", orgId).maybeSingle();
+    if (!mid.error) {
+      data = mid.data as typeof data;
+      error = null;
+    } else {
+      const fallback = await supabase
+        .from("community_orgs")
+        .select(noCover)
+        .eq("id", orgId)
+        .maybeSingle();
+      if (fallback.error) throw new Error(fallback.error.message);
+      data = fallback.data as typeof data;
+      error = null;
+    }
   }
   if (error) throw new Error(error.message);
   if (!data) return null;

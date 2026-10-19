@@ -33,6 +33,8 @@ const headers = {
 const SITE = "https://spandonbd.com";
 const robots = `User-agent: *
 Allow: /
+Allow: /privacy
+Allow: /terms
 Disallow: /admin
 Disallow: /auth
 Disallow: /home
