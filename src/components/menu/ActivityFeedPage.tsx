@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Phone, BadgeCheck } from "lucide-react";
+import { OrgJoinRequestButton } from "@/components/org/OrgJoinRequestButton";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { RequestCard, type FeedRequest } from "@/components/request/RequestCard";
@@ -206,8 +207,9 @@ function OrgCard({ org: o, lang }: { org: CommunityOrg; lang: "bn" | "en" }) {
           </p>
         </div>
       </Link>
-      {o.phone && (
-        <div className="border-t px-3 py-2 flex justify-end">
+      <div className="border-t px-3 py-2 flex justify-end gap-2">
+        <OrgJoinRequestButton orgId={o.id} lang={lang} compact nextPath="/me/organizations" />
+        {o.phone && (
           <a
             href={`tel:${o.phone.replace(/\s/g, "")}`}
             onClick={(e) => e.stopPropagation()}
@@ -216,8 +218,8 @@ function OrgCard({ org: o, lang }: { org: CommunityOrg; lang: "bn" | "en" }) {
             <Phone className="h-3.5 w-3.5" />
             {lang === "bn" ? "কল" : "Call"}
           </a>
-        </div>
-      )}
+        )}
+      </div>
     </li>
   );
 }

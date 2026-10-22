@@ -45,6 +45,7 @@ import {
 } from "@/lib/feed-carousel";
 import { queryKeys } from "@/lib/query-client";
 import { Phone, Users, Building2, X, MessageSquare, Sparkles } from "lucide-react";
+import { OrgJoinRequestButton } from "@/components/org/OrgJoinRequestButton";
 import { MessengerIcon, AlertsHeaderButton } from "@/components/MessengerIcon";
 import { ProfileHeaderButton } from "@/components/ProfileHeaderButton";
 import { UserMenuTrigger } from "@/components/menu/UserMenuDrawer";
@@ -502,6 +503,14 @@ function CommunityPage() {
           <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
             <Building2 className="h-4 w-4 text-primary shrink-0" />
             <p className="min-w-0 flex-1 text-xs font-semibold truncate">{orgLabel}</p>
+            {orgId && (
+              <OrgJoinRequestButton
+                orgId={orgId}
+                lang={lang}
+                compact
+                nextPath={`/community?orgId=${orgId}`}
+              />
+            )}
             <Link
               to="/community"
               search={{}}

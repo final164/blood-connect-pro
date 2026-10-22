@@ -327,12 +327,12 @@ export const DEFAULT_LANDING_CONTENT: Omit<
   faqs: [
     {
       id: "seed-faq-1",
-      question_bn: "Muktosheba কী?",
-      question_en: "What is Muktosheba?",
+      question_bn: "স্পন্দন কী?",
+      question_en: "What is Spandon?",
       answer_bn:
-        "Muktosheba একটি রিয়েলটাইম রক্তদাতা নেটওয়ার্ক — রিকোয়েস্ট পোস্ট করুন, কাছের ডোনার খুঁজুন, এবং নিরাপদে যোগাযোগ করুন।",
+        "স্পন্দন (spandonbd.com) বাংলাদেশের বিনামূল্যে রক্তদাতা নেটওয়ার্ক — জরুরি রক্তের রিকোয়েস্ট দিন, জেলা ও রক্তের গ্রুপ দিয়ে ডোনার খুঁজুন।",
       answer_en:
-        "Muktosheba is a realtime blood donor network — post requests, find nearby donors, and connect safely.",
+        "Spandon (spandonbd.com) is a free blood donor network in Bangladesh — post an urgent request and find donors by district and blood group.",
       sort_order: 0,
       is_active: true,
     },
@@ -352,9 +352,9 @@ export const DEFAULT_LANDING_CONTENT: Omit<
       question_bn: "কমিউনিটি সংস্থা কারা?",
       question_en: "What are community organizations?",
       answer_bn:
-        "জেলাভিত্তিক স্বেচ্ছাসেবী সংস্থা যারা ডোনার তালিকা ও রিকোয়েস্ট সমন্বয় করে — Muktosheba-এ তারা অর্গ প্যানেল ব্যবহার করে।",
+        "জেলাভিত্তিক স্বেচ্ছাসেবী সংস্থা যারা ডোনার তালিকা ও রিকোয়েস্ট সমন্বয় করে — স্পন্দনে তারা অর্গ প্যানেল ব্যবহার করে।",
       answer_en:
-        "District volunteer groups that coordinate donors and requests — they use the org panel on Muktosheba.",
+        "District volunteer groups that coordinate donors and requests — they use the org panel on Spandon.",
       sort_order: 2,
       is_active: true,
     },

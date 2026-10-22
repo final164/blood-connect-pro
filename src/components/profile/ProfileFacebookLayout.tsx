@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { ChatLink } from "@/components/chat/ChatLink";
+import { ProfileMemoryVault } from "@/components/profile/ProfileMemoryVault";
 import { Avatar } from "@/components/Avatar";
 import type { ProfileLockField, ProfileLockSettings } from "@/lib/profile-lock";
 import { isFieldHiddenWhenLocked } from "@/lib/profile-lock";
@@ -51,6 +52,7 @@ export function ProfileFacebookLayout({
   headerExtra,
   messagePeerId,
   onRewardsClick,
+  userId,
 }: {
   profile: ProfileDisplayData;
   lang: "bn" | "en";
@@ -67,6 +69,7 @@ export function ProfileFacebookLayout({
   /** Other-user profile: Message opens chat with this user id */
   messagePeerId?: string | null;
   onRewardsClick?: () => void;
+  userId?: string | null;
 }) {
   const showLockIcon = (field: ProfileLockField) =>
     !!isOwnProfile && !!profileLocked && !!lockSettings && isFieldHiddenWhenLocked(field, lockSettings);
@@ -215,6 +218,19 @@ export function ProfileFacebookLayout({
 
         {headerExtra}
       </div>
+
+      {userId && (
+        <ProfileMemoryVault
+          userId={userId}
+          avatarUrl={profile.avatar_url}
+          name={profile.full_name}
+          bloodGroup={profile.blood_group}
+          donations={profile.total_donations}
+          lives={profile.lives_saved}
+          lang={lang}
+          isOwnProfile={isOwnProfile}
+        />
+      )}
 
       {isOwnProfile && profileLocked && (
         <div className="mx-4 mb-4 flex items-start gap-3 rounded-xl bg-muted/60 px-3 py-3">

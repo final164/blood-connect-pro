@@ -11,6 +11,7 @@ import {
 import { parseOrgPortalContent } from "@/lib/community-org-portal";
 import { countOrgDonors, countOrgOpenRequests } from "@/lib/org-access";
 import { OrgPublicProfile } from "@/components/org/OrgPublicProfile";
+import { OrgJoinRequestButton } from "@/components/org/OrgJoinRequestButton";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_SEO_SETTINGS, absoluteUrl } from "@/lib/seo-settings";
 
@@ -242,6 +243,15 @@ function OrgPublicPage() {
               lang={lang}
               variant="full"
               onShare={() => void shareOrg()}
+              footerSlot={
+                <div className="mt-6">
+                  <OrgJoinRequestButton
+                    orgId={org.id}
+                    lang={lang}
+                    nextPath={`/org/public/${org.id}`}
+                  />
+                </div>
+              }
             />
           </div>
         )}

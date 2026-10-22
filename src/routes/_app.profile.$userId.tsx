@@ -126,6 +126,7 @@ function PublicProfilePage() {
           }}
           lang={lang}
           messagePeerId={user && user.id !== userId ? userId : null}
+          userId={userId}
         />
       </div>
     </div>

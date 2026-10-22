@@ -103,7 +103,7 @@ export const HERO_LCP = {
   webp: "/landing/hero-640.webp",
   srcSet:
     "/landing/hero-640.webp 640w, /landing/hero-960.webp 960w, /landing/hero-1280.webp 1280w",
-  sizes: "100vw",
+  sizes: "(min-width: 1152px) 1152px, calc(100vw - 2.5rem)",
   width: 1280,
   height: 800,
 } as const;

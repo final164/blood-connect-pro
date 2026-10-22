@@ -18,6 +18,7 @@ import { OrgContactSettingsForm } from "@/components/org/OrgContactSettingsForm"
 import { OrgOverviewPortal } from "@/components/org/OrgOverviewPortal";
 import { OrgDonorsManager } from "@/components/org/OrgDonorsManager";
 import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
+import { OrgJoinInbox } from "@/components/org/OrgJoinInbox";
 import { OrgOutboundContact } from "@/components/org/OrgOutboundContact";
 import { OrgRequestsInbox } from "@/components/org/OrgRequestsInbox";
 import { OrgRolesManager } from "@/components/org/OrgRolesManager";
@@ -428,8 +429,19 @@ export function OrgPortalPage() {
         )}
 
         {tab === "members" && can("members.view") && (
-          <div className="rounded-xl border bg-card p-3">
-            <OrgMembersAdmin orgId={orgId} lang={lang} canEdit={can("members.manage")} variant="app" />
+          <div className="space-y-3">
+            <OrgJoinInbox
+              orgId={orgId}
+              lang={lang}
+              canReview={
+                can("members.manage") ||
+                membership?.role === "owner" ||
+                membership?.role === "editor"
+              }
+            />
+            <div className="rounded-xl border bg-card p-3">
+              <OrgMembersAdmin orgId={orgId} lang={lang} canEdit={can("members.manage")} variant="app" />
+            </div>
           </div>
         )}
 

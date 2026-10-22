@@ -279,6 +279,7 @@ function ProfilePage() {
           }
           avatarBusy={avatarBusy}
           lockBusy={lockBusy}
+          userId={user?.id}
         />
       </div>
 

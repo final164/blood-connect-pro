@@ -139,7 +139,7 @@ export function LandingHref({
   );
 }
 
-const shell = "mx-auto w-full max-w-5xl md:max-w-6xl px-4 sm:px-5";
+const frame = "relative mx-auto w-full max-w-5xl md:max-w-6xl overflow-hidden rounded-[1.75rem]";
 
 export function LandingHero({ settings, lang }: { settings: LandingSettings; lang: "bn" | "en" }) {
   const h = settings.hero;
@@ -209,10 +209,8 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
 
   if (gridOn) {
     return (
-      <section
-        id="top"
-        className="landing-hero relative flex flex-col overflow-x-hidden"
-      >
+      <section id="top" className="landing-hero px-4 sm:px-5 pt-3 sm:pt-4">
+        <div className={frame}>
         <div className="absolute inset-0">
           {h.background_video_url ? (
             <video
@@ -237,7 +235,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
           )}
         </div>
 
-        <div className={`relative z-10 ${shell} flex flex-col justify-end pb-5 pt-16 sm:pb-6 sm:pt-20`}>
+        <div className="relative z-10 flex flex-col justify-end px-4 pb-5 pt-14 sm:px-5 sm:pb-6 sm:pt-16">
           <div className="pb-3">
             <p className="landing-brand text-2xl sm:text-3xl md:text-4xl font-semibold text-white tracking-tight drop-shadow-sm">
               {pick(lang, h.brand_bn, h.brand_en)}
@@ -305,15 +303,14 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             ) : null}
           </div>
         </div>
+        </div>
       </section>
     );
   }
 
   return (
-    <section
-      id="top"
-      className="landing-hero relative flex flex-col justify-end overflow-x-hidden"
-    >
+    <section id="top" className="landing-hero px-4 sm:px-5 pt-3 sm:pt-4">
+      <div className={frame}>
       <div className="absolute inset-0">
         {h.background_video_url ? (
           <video
@@ -338,7 +335,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
         )}
       </div>
 
-      <div className={`relative z-10 ${shell} pb-6 pt-16 sm:pb-8 sm:pt-20`}>
+      <div className="relative z-10 px-4 pb-6 pt-14 sm:px-5 sm:pb-8 sm:pt-16">
         <div
           className={
             showYoutube ? "grid gap-4 sm:gap-6 lg:grid-cols-2 lg:gap-8 lg:items-end" : undefined
@@ -390,6 +387,7 @@ export function LandingHero({ settings, lang }: { settings: LandingSettings; lan
             </div>
           )}
         </div>
+      </div>
       </div>
     </section>
   );

@@ -15,6 +15,7 @@ import { LANDING_STYLESHEET } from "@/lib/landing-stylesheet";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { LandingHero } from "@/components/landing/LandingHero";
+import { LandingDiscover } from "@/components/landing/LandingDiscover";
 import { LANDING_MEDIA, heroLcpPreload } from "@/lib/landing-media";
 import { ensureHeroSlides } from "@/components/landing/HeroBackgroundSlideshow";
 
@@ -154,6 +155,7 @@ function LandingPage() {
       <LandingSeoJsonLd seo={seo} lang={landingLang} faqs={[]} islamic={islamicList} />
       <main>
         {showHero && <LandingHero settings={settings} lang={landingLang} />}
+        <LandingDiscover lang={landingLang} />
         {belowReady && (
           <Suspense fallback={<div className="min-h-[40vh]" aria-hidden />}>
             <LandingRestSections settings={settings} lang={landingLang} />

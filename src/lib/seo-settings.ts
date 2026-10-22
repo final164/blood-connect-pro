@@ -421,11 +421,13 @@ export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin =
       name: "Bangladesh",
     },
     knowsAbout: [
-      "Blood donation",
+      "Blood donation Bangladesh",
+      "রক্তদাতা খুঁজুন",
+      "জরুরি রক্ত",
       "Emergency blood requests",
-      "Blood donor network",
-      "Islamic charity",
-      "Saving lives",
+      "A+ B+ O+ AB+ O- blood donors",
+      "Dhaka Chattogram Sylhet blood donor",
+      "Voluntary blood donation",
     ],
   };
 }

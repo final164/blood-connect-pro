@@ -114,6 +114,7 @@ import { GoogleDriveAdmin } from "@/components/admin/GoogleDriveAdmin";
 import { GeminiKeysAdmin } from "@/components/admin/GeminiKeysAdmin";
 import { BloodDonorAiAdmin } from "@/components/admin/BloodDonorAiAdmin";
 import { ProfileLockAdmin } from "@/components/admin/ProfileLockAdmin";
+import { ProfileVaultAdmin } from "@/components/admin/ProfileVaultAdmin";
 import { ReportsAdmin } from "@/components/admin/ReportsAdmin";
 import { OrgMembersAdmin } from "@/components/org/OrgMembersAdmin";
 import { OrgRolesManager } from "@/components/org/OrgRolesManager";
@@ -3590,6 +3591,7 @@ function SettingsAdmin() {
     | "nav"
     | "form"
     | "profilelock"
+    | "vault"
     | "messaging"
     | "drive"
     | "gemini"
@@ -3673,6 +3675,7 @@ function SettingsAdmin() {
     { id: "nav" as const, bn: "অ্যাপ ন্যাভ", en: "App nav" },
     { id: "form" as const, bn: "রিকোয়েস্ট ফর্ম", en: "Request form" },
     { id: "profilelock" as const, bn: "প্রোফাইল লক", en: "Profile lock" },
+    { id: "vault" as const, bn: "লাইফ নেটওয়ার্ক", en: "Life network" },
     { id: "messaging" as const, bn: "SMS ও আইকন", en: "SMS & icons" },
     { id: "drive" as const, bn: "Google Drive", en: "Google Drive" },
     { id: "gemini" as const, bn: "Gemini API", en: "Gemini API" },
@@ -3727,6 +3730,7 @@ function SettingsAdmin() {
       {settingsTab === "menu" && <UserMenuAdmin />}
       {settingsTab === "nav" && <BottomNavAdmin />}
       {settingsTab === "profilelock" && <ProfileLockAdmin />}
+      {settingsTab === "vault" && <ProfileVaultAdmin />}
       {settingsTab === "messaging" && <MessagingSettingsAdmin />}
       {settingsTab === "drive" && <GoogleDriveAdmin />}
       {settingsTab === "gemini" && <GeminiKeysAdmin />}
