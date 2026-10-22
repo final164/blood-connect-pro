@@ -64,7 +64,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
       },
       { name: "theme-color", content: "#c1121f" },
-      { title: "Muktosheba" },
+      { title: "স্পন্দন (Spandon) — spandonbd.com" },
     ],
     links: [
       { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },

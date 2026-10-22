@@ -1,6 +1,6 @@
 {
-  "name": "Muktosheba",
-  "short_name": "Muktosheba",
+  "name": "স্পন্দন (Spandon)",
+  "short_name": "Spandon",
   "description": "Realtime blood donation network — find donors, post requests, encrypted chat.",
   "start_url": "/",
   "display": "standalone",

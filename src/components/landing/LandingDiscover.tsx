@@ -23,13 +23,13 @@ export function LandingDiscover({ lang }: { lang: "bn" | "en" }) {
     <section id="find-blood" className={`${shell} py-8 sm:py-10`} aria-labelledby="find-blood-heading">
       <h2 id="find-blood-heading" className="text-lg sm:text-xl font-bold landing-brand">
         {bn
-          ? "বাংলাদেশে রক্তদাতা খুঁজুন — স্পন্দন"
-          : "Find a blood donor in Bangladesh — Spandon"}
+          ? "Spandon (spandonbd.com) — বাংলাদেশে রক্তদাতা খুঁজুন"
+          : "Spandon (spandonbd.com) — find a blood donor in Bangladesh"}
       </h2>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--landing-muted)" }}>
         {bn
-          ? "জরুরি রক্ত লাগলে স্পন্দনে ব্লাড ডোনার খুঁজুন। ঢাকা, চট্টগ্রামসহ ৬৪ জেলায় A+ B+ O+ AB+ এবং বিরল O- রক্তদাতা। রিকোয়েস্ট বিনামূল্যে, হাসপাতালের নাম দিয়ে পোস্ট করুন।"
-          : "Need blood urgently? Search voluntary donors on Spandon across all 64 districts of Bangladesh, including rare O- and common A+, B+, O+, AB+ groups. Post a hospital request for free."}
+          ? "স্পন্দন (Spandon) হলো spandonbd.com — বাংলাদেশের ব্লাড ডোনার নেটওয়ার্ক। জরুরি রক্ত লাগলে এখানে ডোনার খুঁজুন। ঢাকা, চট্টগ্রামসহ ৬৪ জেলায় A+ B+ O+ AB+ এবং বিরল O- রক্তদাতা। রিকোয়েস্ট বিনামূল্যে।"
+          : "Spandon is the blood donor network at spandonbd.com. Search Spandon for voluntary donors across all 64 districts of Bangladesh, including rare O- and common A+, B+, O+, AB+ groups. Post a hospital request for free."}
       </p>
       <ul className="mt-4 flex flex-wrap gap-2">
         {GROUPS.map((g) => (

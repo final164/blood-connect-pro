@@ -41,19 +41,19 @@ export type SeoSettings = {
 
 export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   site_url: "https://spandonbd.com",
-  title_bn: "স্পন্দন — বাংলাদেশে রক্তদাতা খুঁজুন, জীবন বাঁচান",
-  title_en: "Spandon — Find blood donors across Bangladesh",
+  title_bn: "স্পন্দন (Spandon) — spandonbd.com | বাংলাদেশে রক্তদাতা খুঁজুন",
+  title_en: "Spandon (spandonbd.com) — Find blood donors in Bangladesh",
   title_template: "%s — স্পন্দন",
   description_bn:
     "জরুরি রক্ত লাগবে? বাংলাদেশে জেলাভিত্তিক রক্তদাতা খুঁজুন, ব্লাড ডোনার দেখুন এবং রিকোয়েস্ট দিন। ঢাকা, চট্টগ্রামসহ A+ B+ O+ AB+ ও O- ডোনার — বিনামূল্যে, স্পন্দন (spandonbd.com)।",
   description_en:
     "Urgent blood needed in Bangladesh? Find a blood donor by district, see A+ B+ O+ AB+ and O- donors, and post a request free on Spandon (spandonbd.com).",
   keywords_bn:
-    "স্পন্দন, spandonbd, রক্তদাতা খুঁজুন, জরুরি রক্ত লাগবে, জরুরি রক্তের রিকোয়েস্ট, ব্লাড ডোনার বাংলাদেশ, রক্তদান বাংলাদেশ, কাছের রক্তদাতা, জেলাভিত্তিক রক্তদাতা, ঢাকায় রক্তদাতা, চট্টগ্রাম রক্তদাতা, হাসপাতালে রক্ত, রক্তের গ্রুপ, এ পজিটিভ রক্তদাতা, বি পজিটিভ রক্তদাতা, ও পজিটিভ রক্তদাতা, এবি পজিটিভ রক্তদাতা, ও নেগেটিভ রক্তদাতা, রক্তের ব্যাগ, ফ্রি ব্লাড ডোনার",
+    "স্পন্দন, Spandon, spandonbd, spandonbd.com, রক্তদাতা খুঁজুন, জরুরি রক্ত লাগবে, জরুরি রক্তের রিকোয়েস্ট, ব্লাড ডোনার বাংলাদেশ, রক্তদান বাংলাদেশ, কাছের রক্তদাতা, জেলাভিত্তিক রক্তদাতা, ঢাকায় রক্তদাতা, চট্টগ্রাম রক্তদাতা, হাসপাতালে রক্ত, রক্তের গ্রুপ, এ পজিটিভ রক্তদাতা, বি পজিটিভ রক্তদাতা, ও পজিটিভ রক্তদাতা, এবি পজিটিভ রক্তদাতা, ও নেগেটিভ রক্তদাতা, রক্তের ব্যাগ, ফ্রি ব্লাড ডোনার",
   keywords_en:
-    "Spandon, spandonbd.com, find blood donor Bangladesh, urgent blood needed Bangladesh, blood donation Bangladesh, blood donor near me, emergency blood request, free blood donor network, district blood donor, blood donor Dhaka, blood donor Chittagong, A positive blood donor, B positive blood donor, O positive blood donor, AB positive blood donor, O negative rare blood donor, hospital blood request",
-  og_title_bn: "স্পন্দন — রক্তদাতা খুঁজুন, রক্তদান করুন",
-  og_title_en: "Spandon — Find blood donors in Bangladesh",
+    "Spandon, spandon, spandonbd, spandonbd.com, find blood donor Bangladesh, urgent blood needed Bangladesh, blood donation Bangladesh, blood donor near me, emergency blood request, free blood donor network, district blood donor, blood donor Dhaka, blood donor Chittagong, A positive blood donor, B positive blood donor, O positive blood donor, AB positive blood donor, O negative rare blood donor, hospital blood request",
+  og_title_bn: "স্পন্দন (Spandon) — spandonbd.com",
+  og_title_en: "Spandon — spandonbd.com",
   og_description_bn:
     "রিয়েলটাইম ব্লাড ডোনার নেটওয়ার্ক — রক্তদাতা খুঁজুন, রিকোয়েস্ট পাঠান, এন্ড-টু-এন্ড এনক্রিপ্টেড চ্যাট। spandonbd.com",
   og_description_en:
@@ -61,7 +61,7 @@ export const DEFAULT_SEO_SETTINGS: SeoSettings = {
   og_image_url: "https://spandonbd.com/landing/hero.jpg",
   og_type: "website",
   twitter_card: "summary_large_image",
-  twitter_title: "Spandon — Find blood donors and save lives in Bangladesh",
+  twitter_title: "Spandon (spandonbd.com) — Find blood donors in Bangladesh",
   twitter_description:
     "Find blood donors, post urgent requests, and get district-based blood support across Bangladesh on spandonbd.com.",
   twitter_image_url: "https://spandonbd.com/landing/hero.jpg",
@@ -90,6 +90,31 @@ function str(v: unknown, fallback: string): string {
   return typeof v === "string" ? v : fallback;
 }
 
+/** Old product name still stored in admin JSON. Google was ranking that name. */
+export function rebrandLegacyCopy(value: string): string {
+  return value
+    .replace(/Muktosheba/g, "Spandon")
+    .replace(/muktosheba/g, "spandonbd")
+    .replace(/মুক্তসেবা/g, "স্পন্দন");
+}
+
+function hasBrandQuery(value: string) {
+  return /spandonbd/i.test(value) && (/spandon/i.test(value) || value.includes("স্পন্দন"));
+}
+
+/** Titles Google shows must contain both the brand and the domain. */
+function brandTitle(value: string, fallback: string) {
+  const next = rebrandLegacyCopy(value).trim();
+  if (next && hasBrandQuery(next)) return next;
+  return fallback;
+}
+
+function withBrandKeywords(value: string, fallback: string) {
+  const next = rebrandLegacyCopy(value).trim();
+  if (next && hasBrandQuery(next)) return next;
+  return fallback;
+}
+
 function bool(v: unknown, fallback: boolean): boolean {
   return typeof v === "boolean" ? v : fallback;
 }
@@ -113,22 +138,22 @@ export function normalizeSeoSettings(raw: unknown): SeoSettings {
   };
   return {
     site_url: str(x.site_url, d.site_url),
-    title_bn: str(x.title_bn, d.title_bn),
-    title_en: str(x.title_en, d.title_en),
-    title_template: str(x.title_template, d.title_template),
-    description_bn: str(x.description_bn, d.description_bn),
-    description_en: str(x.description_en, d.description_en),
-    keywords_bn: str(x.keywords_bn, d.keywords_bn),
-    keywords_en: str(x.keywords_en, d.keywords_en),
-    og_title_bn: str(x.og_title_bn, d.og_title_bn),
-    og_title_en: str(x.og_title_en, d.og_title_en),
+    title_bn: brandTitle(str(x.title_bn, d.title_bn), d.title_bn),
+    title_en: brandTitle(str(x.title_en, d.title_en), d.title_en),
+    title_template: rebrandLegacyCopy(str(x.title_template, d.title_template)),
+    description_bn: brandTitle(str(x.description_bn, d.description_bn), d.description_bn),
+    description_en: brandTitle(str(x.description_en, d.description_en), d.description_en),
+    keywords_bn: withBrandKeywords(str(x.keywords_bn, d.keywords_bn), d.keywords_bn),
+    keywords_en: withBrandKeywords(str(x.keywords_en, d.keywords_en), d.keywords_en),
+    og_title_bn: brandTitle(str(x.og_title_bn, d.og_title_bn), d.og_title_bn),
+    og_title_en: brandTitle(str(x.og_title_en, d.og_title_en), d.og_title_en),
     og_description_bn: str(x.og_description_bn, d.og_description_bn),
     og_description_en: str(x.og_description_en, d.og_description_en),
     og_image_url: softImage(x.og_image_url, d.og_image_url),
     og_type: str(x.og_type, d.og_type),
     twitter_card: twitterCard === "summary" ? "summary" : "summary_large_image",
-    twitter_title: str(x.twitter_title, d.twitter_title),
-    twitter_description: str(x.twitter_description, d.twitter_description),
+    twitter_title: brandTitle(str(x.twitter_title, d.twitter_title), d.twitter_title),
+    twitter_description: brandTitle(str(x.twitter_description, d.twitter_description), d.twitter_description),
     twitter_image_url: softImage(x.twitter_image_url, d.twitter_image_url),
     robots_index: bool(x.robots_index, d.robots_index),
     robots_follow: bool(x.robots_follow, d.robots_follow),
@@ -138,7 +163,7 @@ export function normalizeSeoSettings(raw: unknown): SeoSettings {
     google_site_verification: str(x.google_site_verification, d.google_site_verification),
     bing_site_verification: str(x.bing_site_verification, d.bing_site_verification),
     json_ld_enabled: bool(x.json_ld_enabled, d.json_ld_enabled),
-    org_name: str(x.org_name, d.org_name),
+    org_name: brandTitle(str(x.org_name, d.org_name), d.org_name),
     org_logo_url: softImage(x.org_logo_url, d.org_logo_url),
     org_phone: str(x.org_phone, d.org_phone),
     org_same_as: strArray(x.org_same_as),
@@ -326,8 +351,8 @@ export function buildHead(
     { title },
     { name: "description", content: description },
     { name: "keywords", content: keywords },
-    { name: "author", content: seo.org_name || "Muktosheba" },
-    { name: "publisher", content: seo.org_name || "Muktosheba" },
+    { name: "author", content: seo.org_name || "স্পন্দন (Spandon)" },
+    { name: "publisher", content: seo.org_name || "স্পন্দন (Spandon)" },
     { name: "language", content: language },
     { name: "geo.region", content: "BD" },
     { name: "geo.placename", content: "Bangladesh" },
@@ -350,13 +375,13 @@ export function buildHead(
       content: seo.twitter_description || ogDescription,
     },
     { name: "twitter:image", content: twitterImage },
-    { name: "application-name", content: seo.org_name || "Muktosheba" },
-    { name: "apple-mobile-web-app-title", content: seo.org_name || "Muktosheba" },
+    { name: "application-name", content: seo.org_name || "স্পন্দন (Spandon)" },
+    { name: "apple-mobile-web-app-title", content: "Spandon" },
   ];
 
   if (siteUrl) {
     meta.push({ property: "og:url", content: canonical });
-    meta.push({ property: "og:site_name", content: seo.org_name || "Muktosheba" });
+    meta.push({ property: "og:site_name", content: seo.org_name || "স্পন্দন (Spandon)" });
   }
 
   if (seo.google_site_verification.trim()) {
@@ -410,7 +435,8 @@ export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin =
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: seo.org_name || "Muktosheba",
+    name: seo.org_name || "স্পন্দন (Spandon)",
+    alternateName: ["Spandon", "spandonbd", "spandonbd.com", "স্পন্দন", "Muktosheba"],
     url: siteUrl || undefined,
     logo,
     description: seoDescriptionForLang(seo, lang),
@@ -421,6 +447,9 @@ export function buildJsonLd(seo: SeoSettings, lang: "bn" | "en" = "bn", origin =
       name: "Bangladesh",
     },
     knowsAbout: [
+      "Spandon",
+      "spandonbd",
+      "স্পন্দন",
       "Blood donation Bangladesh",
       "রক্তদাতা খুঁজুন",
       "জরুরি রক্ত",
@@ -466,7 +495,8 @@ export function buildLandingJsonLd(
   const website = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: seo.org_name || "Muktosheba",
+    name: seo.org_name || "স্পন্দন (Spandon)",
+    alternateName: ["Spandon", "spandonbd", "spandonbd.com", "স্পন্দন"],
     url: siteUrl || pageUrl,
     inLanguage,
     description: seoDescriptionForLang(seo, lang),
@@ -481,7 +511,7 @@ export function buildLandingJsonLd(
     isPartOf: siteUrl
       ? {
           "@type": "WebSite",
-          name: seo.org_name || "Muktosheba",
+          name: seo.org_name || "স্পন্দন (Spandon)",
           url: siteUrl,
         }
       : undefined,

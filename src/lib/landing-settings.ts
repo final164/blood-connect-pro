@@ -457,8 +457,8 @@ export const DEFAULT_ISLAMIC_CARDS: LandingIslamicCard[] = [
     quote_en: "Whoever guides others to good is like the one who does it.",
     source_bn: "সহিহ মুসলিম",
     source_en: "Sahih Muslim",
-    reflection_bn: "Muktosheba-এ শেয়ার ও আমন্ত্রণ — অন্যকেও রক্তদানে উদ্বুদ্ধ করে।",
-    reflection_en: "Sharing Muktosheba invites others into the same good.",
+    reflection_bn: "স্পন্দন (spandonbd.com)-এ শেয়ার ও আমন্ত্রণ — অন্যকেও রক্তদানে উদ্বুদ্ধ করে।",
+    reflection_en: "Sharing Spandon (spandonbd.com) invites others into the same good.",
     sort_order: 40,
     is_active: true,
   },
@@ -565,8 +565,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
   theme: "life_crimson",
   colors: { ...THEME_PRESETS.life_crimson },
   seo: {
-    title_bn: "Muktosheba — রক্তদানে জীবন বাঁচান",
-    title_en: "Muktosheba — Save lives with blood donation",
+    title_bn: "স্পন্দন (Spandon) — spandonbd.com | বাংলাদেশে রক্তদাতা খুঁজুন",
+    title_en: "Spandon (spandonbd.com) — Find blood donors in Bangladesh",
     description_bn:
       "বাংলাদেশের রিয়েলটাইম রক্তদাতা নেটওয়ার্ক। জরুরি রিকোয়েস্ট দেখুন, কাছের ডোনার খুঁজুন — ইসলামে জীবন রক্ষার আলোকে সাহায্য করুন।",
     description_en:
@@ -638,8 +638,8 @@ export const DEFAULT_LANDING_SETTINGS: LandingSettings = {
     cta_href: "/auth",
   },
   care_vendor: {
-    title_bn: "Muktosheba Care — চেম্বার, ক্লিনিক ও ল্যাব",
-    title_en: "Muktosheba Care — chambers, clinics & labs",
+    title_bn: "স্পন্দন Care — চেম্বার, ক্লিনিক ও ল্যাব",
+    title_en: "Spandon Care — chambers, clinics & labs",
     body_bn:
       "ডাক্তার সিরিয়াল, কিউ, ওয়াক-ইন ও ল্যাব বুকিং পরিচালনার জন্য আলাদা পেশাদার পোর্টাল। চেম্বার বা ডায়াগনস্টিক ল্যাব হিসেবে নিবন্ধন করুন। ডাক্তাররা আলাদাভাবে জয়েন করে চেম্বার/অপস অনুমোদন ও ভিডিও কনসালট চালাতে পারেন।",
     body_en:
@@ -1095,8 +1095,8 @@ export function normalizeLandingSettings(raw: unknown): LandingSettings {
       const background_images = normalizeHeroImages(heroRaw, d);
       const slideshow = normalizeHeroSlideshow(heroRaw.slideshow, d.hero.slideshow);
       return {
-        brand_bn: str(heroRaw.brand_bn, d.hero.brand_bn),
-        brand_en: str(heroRaw.brand_en, d.hero.brand_en),
+        brand_bn: str(heroRaw.brand_bn, d.hero.brand_bn).replace(/মুক্তসেবা|Muktosheba/g, "স্পন্দন"),
+        brand_en: str(heroRaw.brand_en, d.hero.brand_en).replace(/Muktosheba/gi, "Spandon"),
         headline_bn: str(heroRaw.headline_bn, d.hero.headline_bn),
         headline_en: str(heroRaw.headline_en, d.hero.headline_en),
         sub_bn: str(heroRaw.sub_bn, d.hero.sub_bn),
